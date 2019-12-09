@@ -1,2 +1,7 @@
 
 .idea/
+
+.build/
+.dist/
+
+.pytest_cache/

@@ -12,11 +12,11 @@ else:
         long_description = f.read()
 
 version = {}
-with open(os.path.join(_here, 'sleet', 'version.py')) as f:
+with open(os.path.join(_here, 'coworks', 'version.py')) as f:
     exec(f.read(), version)
 
 setup(
-    name='sleet',
+    name='coworks',
     version=version['__version__'],
     description='Micro Service Framework on AWS.',
     long_description=long_description,
@@ -31,7 +31,7 @@ setup(
         'Tracker': 'https://github.com/pypa/sampleproject/issues',
     },
     license='MIT',
-    packages=['sleet'],
+    packages=['coworks'],
     include_package_data=True,
     keywords='microservice aws synchronous asynchronous',
     classifiers=[

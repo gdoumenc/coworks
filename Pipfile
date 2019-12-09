@@ -4,10 +4,13 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
-twine = "*"
 wheel = "*"
+pytest = "*"
 
 [packages]
+aws-wsgi = "*"
+flask = "*"
+flask-restful = "*"
 
 [requires]
 python_version = "3.7"
