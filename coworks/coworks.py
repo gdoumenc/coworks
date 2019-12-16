@@ -18,6 +18,7 @@ class MicroServiceError:
 class TechMicroService(Chalice):
 
     def __init__(self, *args, **kwargs):
+        # TODO Positional only argument when python 3.8 will be available on Lambda
         super().__init__(*args, **kwargs)
         self.experimental_feature_flags.update([
             'BLUEPRINTS'
