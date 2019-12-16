@@ -18,22 +18,18 @@ with open(os.path.join(_here, 'coworks', 'version.py')) as f:
 setup(
     name='coworks',
     version=version['__version__'],
-    description='Micro Service Framework on AWS.',
+    description='Restful Microservice Framework on AWS.',
     long_description=long_description,
     author='Guillaume Doumenc',
     author_email='gdoumenc@fpr-coworks.com',
-    url='https://github.com/bast/somepackage',
-    project_urls={
-        'Documentation': 'https://packaging.python.org/tutorials/distributing-packages/',
-        'Funding': 'https://donate.pypi.org',
-        'Say Thanks!': 'http://saythanks.io/to/example',
-        'Source': 'https://github.com/pypa/sampleproject/',
-        'Tracker': 'https://github.com/pypa/sampleproject/issues',
-    },
+    url='https://github.com/gdoumenc/coworks',
     license='MIT',
     packages=['coworks'],
     include_package_data=True,
-    keywords='microservice aws synchronous asynchronous',
+    install_requires=[
+        'chalice',
+    ],
+    keywords='restful microservice aws chalice serverless',
     classifiers=[
         'Development Status :: 3 - Alpha',
         "License :: OSI Approved :: MIT License",

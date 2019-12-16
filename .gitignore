@@ -1,6 +1,7 @@
 
 .idea/
 
+coworks.egg-info/
 .build/
 .dist/
 
