@@ -8,9 +8,7 @@ wheel = "*"
 pytest = "*"
 
 [packages]
-aws-wsgi = "*"
-flask = "*"
-flask-restful = "*"
+chalice = "*"
 
 [requires]
 python_version = "3.7"
