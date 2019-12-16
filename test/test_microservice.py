@@ -2,62 +2,19 @@ import contextlib
 import pytest
 import requests
 import socket
-from threading import Thread, Event
 
-from chalice.local import LocalDevServer
-from chalice.config import Config
-
+from .local_server import ThreadedLocalServer
 from .microservice import *
 
 
-class ThreadedLocalServer(Thread):
-    def __init__(self, port, host='localhost'):
-        super(ThreadedLocalServer, self).__init__()
-        self._app_object = None
-        self._config = None
-        self._host = host
-        self._port = port
-        self._server = None
-        self._server_ready = Event()
-
-    def wait_for_server_ready(self):
-        self._server_ready.wait()
-
-    def configure(self, app_object, config):
-        self._app_object = app_object
-        self._config = config
-
-    def run(self):
-        self._server = LocalDevServer(
-            self._app_object, self._config, self._host, self._port)
-        self._server_ready.set()
-        self._server.serve_forever()
-
-    def make_call(self, method, path, port, timeout=0.5, **kwarg):
-        self._server_ready.wait()
-        return method('http://{host}:{port}{path}'.format(
-            path=path, host=self._host, port=port), timeout=timeout, **kwarg)
-
-    def shutdown(self):
-        if self._server is not None:
-            self._server.server.shutdown()
-
-
 @pytest.fixture()
-def unused_tcp_port():
-    with contextlib.closing(socket.socket()) as sock:
-        sock.bind(('localhost', 0))
-        return sock.getsockname()[1]
+def local_server_factory():
+    threaded_server = ThreadedLocalServer()
 
-
-@pytest.fixture()
-def local_server_factory(unused_tcp_port):
-    threaded_server = ThreadedLocalServer(unused_tcp_port)
-
-    def create_server(app_object):
-        threaded_server.configure(app_object, Config())
+    def create_server(app):
+        threaded_server.configure(app)
         threaded_server.start()
-        return threaded_server, unused_tcp_port
+        return threaded_server
 
     try:
         yield create_server
@@ -66,50 +23,50 @@ def local_server_factory(unused_tcp_port):
 
 
 def test_request(local_server_factory):
-    local_server, port = local_server_factory(MS())
-    response = local_server.make_call(requests.get, '/', port)
+    local_server = local_server_factory(MS())
+    response = local_server.make_call(requests.get, '/')
     assert response.status_code == 200
     assert response.text == 'get'
-    response = local_server.make_call(requests.get, '/get1', port)
+    response = local_server.make_call(requests.get, '/get1')
     assert response.status_code == 403
-    response = local_server.make_call(requests.get, '/content', port)
+    response = local_server.make_call(requests.get, '/content')
     assert response.status_code == 200
     assert response.text == 'get_content'
-    response = local_server.make_call(requests.post, '/', port)
+    response = local_server.make_call(requests.post, '/')
     assert response.status_code == 405
 
 
 def test_slug_redefined(local_server_factory):
-    local_server, port = local_server_factory(SlugMS())
-    response = local_server.make_call(requests.get, '/slug', port)
+    local_server = local_server_factory(SlugMS())
+    response = local_server.make_call(requests.get, '/slug')
     assert response.status_code == 200
     assert response.text == "hello world"
 
 
 def test_parameterized(local_server_factory):
-    local_server, port = local_server_factory(ParamMS())
-    response = local_server.make_call(requests.get, '/123', port)
+    local_server = local_server_factory(ParamMS())
+    response = local_server.make_call(requests.get, '/123')
     assert response.status_code == 200
     assert response.text == '123'
-    response = local_server.make_call(requests.get, '/concat/123/456', port)
+    response = local_server.make_call(requests.get, '/concat/123/456')
     assert response.status_code == 200
     assert response.text == '123456'
-    response = local_server.make_call(requests.get, '/value', port)
+    response = local_server.make_call(requests.get, '/value')
     assert response.status_code == 200
     assert response.text == '123'
-    response = local_server.make_call(requests.put, '/value', port, json={'value': "456"})
+    response = local_server.make_call(requests.put, '/value', json={'value': "456"})
     assert response.status_code == 200
     assert response.text == '456'
-    response = local_server.make_call(requests.get, '/value', port)
+    response = local_server.make_call(requests.get, '/value')
     assert response.status_code == 200
     assert response.text == '456'
 
 
 def test_slug_parameterized(local_server_factory):
-    local_server, port = local_server_factory(SlugParamMS())
-    response = local_server.make_call(requests.get, '/slug/123', port)
+    local_server = local_server_factory(SlugParamMS())
+    response = local_server.make_call(requests.get, '/slug/123')
     assert response.status_code == 200
     assert response.text == '123'
-    response = local_server.make_call(requests.get, '/slug/concat/123/456', port)
+    response = local_server.make_call(requests.get, '/slug/concat/123/456')
     assert response.status_code == 200
     assert response.text == '123456'
