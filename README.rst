@@ -6,7 +6,7 @@ Restful Microservice Framework on AWS based on Lambda, API Gateway and SQS produ
 Each microservice is a small web application on the serverless Lambda product and offering restfull API interface
 for use and a web dashboard for administration.
 
-Using `Chalice <https://github.com/aws/chalice>`_ and ideas from `Flask-Classy <https://github.com/apiguy/flask-classy/>`_.
+Using and derived from `Chalice <https://github.com/aws/chalice>`_ and ideas from `Flask-Classy <https://github.com/apiguy/flask-classy/>`_.
 
 Installation
 ------------
@@ -166,3 +166,17 @@ Then test it::
 	x-amzn-RequestId: d209b85e-5c2a-4fca-b1d6-e785052c0c3d
 
 	Simple microservice for test.
+
+Delete it
+---------
+
+Just delete the microservice with ::
+
+	$ cws delete
+
+Related Projects
+----------------
+
+* `Chalice <https://github.com/aws/chalice>`__ - Python Serverless Microframework for AWS.
+
+
