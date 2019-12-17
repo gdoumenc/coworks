@@ -3,7 +3,7 @@
 sdist:
 	python setup.py sdist
 
-deploy : sdist
+deploy: sdist
 	twine upload dist/*
 
 wheel:
