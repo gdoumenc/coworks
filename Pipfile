@@ -7,6 +7,7 @@ verify_ssl = true
 wheel = "*"
 pytest = "*"
 requests = "*"
+twine = "*"
 
 [packages]
 chalice = "*"
