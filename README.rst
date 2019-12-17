@@ -2,8 +2,8 @@
 CoWorks
 =======
 
-.. image:: https://travis-ci.org/aws/chalice.svg?branch=master
-   :target: https://travis-ci.org/aws/chalice
+.. image:: https://travis-ci.org/gdoumenc/coworks.svg?branch=master
+   :target: https://travis-ci.com/gdoumenc/coworks
    :alt: Travis CI
 
 Restful Microservice Framework on AWS based on Lambda, API Gateway and SQS products using Chalice microframework.
