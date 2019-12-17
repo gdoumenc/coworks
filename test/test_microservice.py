@@ -23,7 +23,7 @@ def local_server_factory():
 
 
 def test_request(local_server_factory):
-    local_server = local_server_factory(MS())
+    local_server = local_server_factory(SimpleMS())
     response = local_server.make_call(requests.get, '/')
     assert response.status_code == 200
     assert response.text == 'get'

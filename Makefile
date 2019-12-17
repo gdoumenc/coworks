@@ -1,7 +1,10 @@
-.PHONY: sdist wheel clean
+.PHONY: deploy sdist wheel clean
 
 sdist:
 	python setup.py sdist
+
+deploy : sdist
+	twine upload dist/*
 
 wheel:
 	python setup.py bdist_wheel

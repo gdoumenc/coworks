@@ -45,7 +45,3 @@ class ThreadedLocalServer(Thread):
         with contextlib.closing(socket.socket()) as sock:
             sock.bind(('localhost', 0))
             return sock.getsockname()[1]
-
-    @classmethod
-    def local_server_factory(cls, port):
-        return ThreadedLocalServer(port)

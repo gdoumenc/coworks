@@ -1,7 +1,5 @@
-import contextlib
 import pytest
 import requests
-import socket
 
 from collections import defaultdict
 

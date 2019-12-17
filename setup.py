@@ -30,6 +30,9 @@ setup(
         'chalice',
     ],
     keywords='restful microservice aws chalice serverless',
+    entry_points={
+        'console_scripts': ['cws=coworks.cli:main'],
+    },
     classifiers=[
         'Development Status :: 3 - Alpha',
         "License :: OSI Approved :: MIT License",

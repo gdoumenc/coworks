@@ -5,6 +5,9 @@ class MS(TechMicroService):
     def __init__(self):
         super().__init__(app_name='test')
 
+
+class SimpleMS(MS):
+
     def get(self):
         return "get"
 
