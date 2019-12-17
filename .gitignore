@@ -2,7 +2,6 @@
 .idea/
 
 coworks.egg-info/
-.build/
-.dist/
+dist/
 
 .pytest_cache/
