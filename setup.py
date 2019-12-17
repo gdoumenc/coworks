@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 import os
 import sys
 
@@ -24,7 +24,7 @@ setup(
     author_email='gdoumenc@fpr-coworks.com',
     url='https://github.com/gdoumenc/coworks',
     license='MIT',
-    packages=['coworks'],
+    packages=find_packages(),
     include_package_data=True,
     install_requires=[
         'chalice',
