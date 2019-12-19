@@ -70,6 +70,10 @@ class TechMicroService(Chalice):
             component.route(f"/{route}", methods=[method.upper()])(proxy)
 
 
+class BizhMicroService(TechMicroService):
+    pass
+
+
 class Blueprint(ChaliceBlueprint):
 
     @property

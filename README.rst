@@ -2,7 +2,7 @@
 CoWorks
 =======
 
-.. image:: https://travis-ci.org/gdoumenc/coworks.svg?branch=master
+.. image:: https://travis-ci.com/gdoumenc/coworks.svg?branch=master
    :target: https://travis-ci.com/gdoumenc/coworks
    :alt: Travis CI
 
