@@ -1,7 +1,5 @@
-import contextlib
 import pytest
 import requests
-import socket
 
 from .local_server import ThreadedLocalServer
 from .microservice import *

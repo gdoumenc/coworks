@@ -8,6 +8,7 @@ wheel = "*"
 pytest = "*"
 requests = "*"
 twine = "*"
+watchdog = "*"
 
 [packages]
 chalice = "*"
