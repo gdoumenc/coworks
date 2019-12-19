@@ -34,3 +34,17 @@ def test_request(local_server_factory):
     response = local_server.make_call(requests.get, '/blueprint/test/3')
     assert response.status_code == 200
     assert response.text == 'blueprint test 3'
+
+def test_slug(local_server_factory):
+    ms = SimpleMS()
+    ms.register_blueprint(SlugBP("blueprint"))
+    local_server = local_server_factory(ms)
+    response = local_server.make_call(requests.get, '/')
+    assert response.status_code == 200
+    assert response.text == 'get'
+    response = local_server.make_call(requests.get, '/slug')
+    assert response.status_code == 200
+    assert response.text == 'blueprint root'
+    response = local_server.make_call(requests.get, '/slug/test/3')
+    assert response.status_code == 200
+    assert response.text == 'blueprint test 3'

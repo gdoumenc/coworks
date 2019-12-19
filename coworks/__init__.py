@@ -1,2 +1,1 @@
-from chalice import Blueprint
-from .coworks import TechMicroService
+from .coworks import TechMicroService, Blueprint

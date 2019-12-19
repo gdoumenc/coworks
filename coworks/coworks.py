@@ -4,7 +4,7 @@ import logging
 import sys
 import os
 
-from chalice import Chalice
+from chalice import Chalice, Blueprint as ChaliceBlueprint
 
 from .utils import class_rest_methods, class_attribute
 
@@ -22,14 +22,16 @@ class TechMicroService(Chalice):
         self._add_route()
 
     def register_blueprint(self, blueprint, **kwargs):
+        slug = class_attribute(blueprint, 'slug', '')
         self._add_route(blueprint)
         if 'name_prefix' not in kwargs:
-            kwargs['name_prefix'] = blueprint._import_name
-        if 'url_prefix' not in kwargs:
-            kwargs['url_prefix'] = f"/{blueprint._import_name}"
+            kwargs['name_prefix'] = blueprint.import_name
+        if not slug and 'url_prefix' not in kwargs:
+            kwargs['url_prefix'] = f"/{blueprint.import_name}"
         super().register_blueprint(blueprint, **kwargs)
 
     def run(self, host='127.0.0.1', port=8000, stage=None, debug=True, profile=None):
+        # TODO missing test
         from chalice.cli import CLIFactory, run_local_server
         from chalice.cli import DEFAULT_STAGE_NAME
         stage = stage or DEFAULT_STAGE_NAME
@@ -66,3 +68,10 @@ class TechMicroService(Chalice):
 
             proxy = update_wrapper(partial(func, component), func)
             component.route(f"/{route}", methods=[method.upper()])(proxy)
+
+
+class Blueprint(ChaliceBlueprint):
+
+    @property
+    def import_name(self):
+        return self._import_name
