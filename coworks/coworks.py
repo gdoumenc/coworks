@@ -19,36 +19,10 @@ class TechMicroService(Chalice):
         ])
 
         # add root route
-        slug = class_attribute(self, 'slug', '')
-        methods = class_rest_methods(self)
-        for method, func in methods:
-            if func.__name__ == method:
-                route = f"{slug}"
-            else:
-                name = func.__name__[4:]
-                route = f"{slug}/{name}" if slug else f"{name}"
-            args = inspect.getfullargspec(func).args[1:]
-            for arg in args:
-                route = route + f"/{{{arg}}}" if route else f"{{{arg}}}"
-
-            proxy = update_wrapper(partial(func, self), func)
-            self.route(f"/{route}", methods=[method.upper()])(proxy)
+        self._add_route()
 
     def register_blueprint(self, blueprint, **kwargs):
-        slug = class_attribute(blueprint, 'slug', '')
-        methods = class_rest_methods(blueprint)
-        for method, func in methods:
-            if func.__name__ == method:
-                route = f"{slug}"
-            else:
-                name = func.__name__[4:]
-                route = f"{slug}/{name}" if slug else f"{name}"
-            args = inspect.getfullargspec(func).args[1:]
-            for arg in args:
-                route = route + f"/{{{arg}}}" if route else f"{{{arg}}}"
-
-            proxy = update_wrapper(partial(func, blueprint), func)
-            blueprint.route(f"/{route}", methods=[method.upper()])(proxy)
+        self._add_route(blueprint)
         if 'name_prefix' not in kwargs:
             kwargs['name_prefix'] = blueprint._import_name
         if 'url_prefix' not in kwargs:
@@ -61,7 +35,7 @@ class TechMicroService(Chalice):
         stage = stage or DEFAULT_STAGE_NAME
 
         class CWSFactory(CLIFactory):
-            def __init__(self, app, project_dir, debug=False, profile=None, environ=None):
+            def __init__(self, app, project_dir, environ=None):
                 self.app = app
                 super().__init__(project_dir, debug=debug, profile=profile, environ=environ)
 
@@ -72,14 +46,14 @@ class TechMicroService(Chalice):
                         os.environ[key] = val
                 return self.app
 
-        factory = CWSFactory(self, '.', debug=debug, profile=profile)
+        factory = CWSFactory(self, '.')
         logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')
         run_local_server(factory, host, port, stage)
 
-
-    def _add_route(self, other_object=None):
-        object = other_object if other_object else self
-        methods = class_rest_methods(object)
+    def _add_route(self, component=None):
+        component = component if component else self
+        slug = class_attribute(component, 'slug', '')
+        methods = class_rest_methods(component)
         for method, func in methods:
             if func.__name__ == method:
                 route = f"{slug}"
@@ -90,5 +64,5 @@ class TechMicroService(Chalice):
             for arg in args:
                 route = route + f"/{{{arg}}}" if route else f"{{{arg}}}"
 
-            proxy = update_wrapper(partial(func, object), func)
-            object.route(f"/{route}", methods=[method.upper()])(proxy)
+            proxy = update_wrapper(partial(func, component), func)
+            component.route(f"/{route}", methods=[method.upper()])(proxy)
