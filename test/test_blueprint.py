@@ -1,24 +1,7 @@
-import pytest
 import requests
 
-from .local_server import ThreadedLocalServer
-from .microservice import *
 from .blueprint import *
-
-
-@pytest.fixture()
-def local_server_factory():
-    threaded_server = ThreadedLocalServer()
-
-    def create_server(app):
-        threaded_server.configure(app)
-        threaded_server.start()
-        return threaded_server
-
-    try:
-        yield create_server
-    finally:
-        threaded_server.shutdown()
+from .microservice import *
 
 
 def test_request(local_server_factory):
@@ -37,6 +20,7 @@ def test_request(local_server_factory):
     response = local_server.make_call(requests.get, '/blueprint/extended/test/3')
     assert response.status_code == 200
     assert response.text == 'blueprint extended test 3'
+
 
 def test_prefix(local_server_factory):
     ms = SimpleMS()
