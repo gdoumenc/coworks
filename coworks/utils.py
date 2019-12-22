@@ -1,7 +1,4 @@
 import inspect
-import logging
-import sys
-import os
 
 
 def class_rest_methods(obj):

@@ -6,7 +6,7 @@ CoWorks
    :target: https://travis-ci.com/gdoumenc/coworks
    :alt: Travis CI
 
-Restful Microservice Framework on AWS based on Lambda, API Gateway and SQS products using Chalice microframework.
+Restful Microservice Framework on AWS based on Lambda, AWS Step Functions, API Gateway products using Chalice microframework.
 
 Each microservice is a small web application on the serverless Lambda product and offering restfull API interface
 for use and a web dashboard for administration.

@@ -1,10 +1,14 @@
-from functools import update_wrapper, partial
 import inspect
+import json
 import logging
-import sys
 import os
+import sys
+from collections import defaultdict
+from functools import update_wrapper, partial
 
-from chalice import Chalice, Blueprint as ChaliceBlueprint
+import boto3
+from botocore.exceptions import ClientError
+from chalice import Chalice, Blueprint as ChaliceBlueprint, NotFoundError, ChaliceViewError
 
 from .utils import class_rest_methods, class_attribute
 
@@ -60,7 +64,7 @@ class TechMicroService(Chalice):
             if func.__name__ == method:
                 route = f"{slug}"
             else:
-                name = func.__name__[4:]
+                name = func.__name__[len(method) + 1:]
                 route = f"{slug}/{name}" if slug else f"{name}"
             args = inspect.getfullargspec(func).args[1:]
             for arg in args:
@@ -70,8 +74,86 @@ class TechMicroService(Chalice):
             component.route(f"/{route}", methods=[method.upper()])(proxy)
 
 
-class BizhMicroService(TechMicroService):
-    pass
+class BizMicroService(TechMicroService):
+
+    def __init__(self, arn, **kwargs):
+        super().__init__(arn, **kwargs)
+        self._arn = arn
+
+    def get_describe(self):
+        try:
+            res = self.client.describe_state_machine(stateMachineArn=self._arn)
+            return json.dumps(res, indent=4, sort_keys=True, default=str)
+        except ClientError as error:
+            raise ChaliceViewError(str(error))
+
+    def get_execution(self, exe_arn):
+        try:
+            res = self.client.describe_execution(executionArn=exe_arn)
+            return json.dumps(res, indent=4, sort_keys=True, default=str)
+        except ClientError as error:
+            raise ChaliceViewError(str(error))
+
+    def get_last(self, max):
+        try:
+            res = self.client.list_executions(stateMachineArn=self._arn, maxResults=int(max))
+            return json.dumps(res, indent=4, sort_keys=True, default=str)
+        except ClientError as error:
+            raise ChaliceViewError(str(error))
+
+    def post_invoke(self):
+        try:
+            request = self.current_request
+            name = request.query_params.get('name', "") if request.query_params else ""
+            res = self.client.start_execution(stateMachineArn=self._arn,
+                                              input=json.dumps({
+                                                  "name": name
+                                              }))
+            return res['executionArn']
+        except ClientError as error:
+            raise ChaliceViewError(str(error))
+
+    @property
+    def client(self):
+        session = boto3.session.Session(profile_name='imprim')
+        return session.client('stepfunctions')
+
+
+class BizMicroServiceManager(TechMicroService):
+    sfns = defaultdict(dict)
+
+    def get(self):
+        try:
+            res = self.client.list_state_machines(maxResults=100)
+            for m in res['stateMachines']:
+                BizMicroService.sfns[m['name']] = m
+            return len(BizMicroService.sfns)
+        except ClientError as error:
+            return ChaliceViewError(str(error))
+
+    def get_list(self):
+        self.get()
+        return [{'name': m['name'], 'arn': m['stateMachineArn']} for m in BizMicroService.sfns.values()]
+
+    def get_arn(self, name):
+        self.get()
+        res = BizMicroService.sfns.get(name)
+        return res['arn'] if res else NotFoundError
+
+    def get_status(self, name):
+        sfn = BizMicroService.sfns.get(name)
+        if sfn:
+            return sfn
+        try:
+            res = self.client.describe_state_machine(stateMachineArn=name)
+            status = res['status']
+            BizMicroService.sfns[name] = status
+            return status
+        except ClientError as error:
+            code = error.response['Error']['Code']
+            if code == 'InvalidArn':
+                return NotFoundError()
+            return ChaliceViewError(str(error))
 
 
 class Blueprint(ChaliceBlueprint):

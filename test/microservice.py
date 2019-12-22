@@ -17,6 +17,9 @@ class SimpleMS(MS):
     def get_content(self):
         return "get_content"
 
+    def post_content(self, value):
+        return f"post_content {value}"
+
 
 class SlugMS(MS):
     slug = 'slug'

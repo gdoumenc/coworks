@@ -1,1 +1,1 @@
-from .coworks import TechMicroService, BizhMicroService, Blueprint
+from .coworks import TechMicroService, BizMicroService, Blueprint

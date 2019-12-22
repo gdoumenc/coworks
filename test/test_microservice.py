@@ -32,6 +32,9 @@ def test_request(local_server_factory):
     assert response.text == 'get_content'
     response = local_server.make_call(requests.post, '/')
     assert response.status_code == 405
+    response = local_server.make_call(requests.post, '/content/3')
+    assert response.status_code == 200
+    assert response.text == 'post_content 3'
 
 
 def test_slug_redefined(local_server_factory):
