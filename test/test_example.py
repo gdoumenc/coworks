@@ -39,7 +39,7 @@ class SimpleExampleMicroservice(TechMicroService):
 
 
 def test_simple_example(local_server_factory):
-    local_server = local_server_factory(SimpleExampleMicroservice("example"))
+    local_server = local_server_factory(SimpleExampleMicroservice())
     response = local_server.make_call(requests.get, '/')
     assert response.status_code == 200
     assert response.text == "Simple microservice for test."

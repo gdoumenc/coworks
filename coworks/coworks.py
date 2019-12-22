@@ -15,9 +15,9 @@ from .utils import class_rest_methods, class_attribute
 
 class TechMicroService(Chalice):
 
-    def __init__(self, *args, **kwargs):
-        # TODO Positional only argument when python 3.8 will be available on Lambda
-        super().__init__(*args, **kwargs)
+    def __init__(self, **kwargs):
+        app_name = kwargs.pop('app_name', self.__class__.__name__)
+        super().__init__(app_name, **kwargs)
         self.experimental_feature_flags.update([
             'BLUEPRINTS'
         ])
