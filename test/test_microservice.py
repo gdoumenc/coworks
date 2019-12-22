@@ -35,11 +35,20 @@ def test_request(local_server_factory):
     response = local_server.make_call(requests.post, '/content/3')
     assert response.status_code == 200
     assert response.text == 'post_content 3'
+    response = local_server.make_call(requests.get, '/extended/content')
+    assert response.status_code == 200
+    assert response.text == 'hello world'
 
 
-def test_slug_redefined(local_server_factory):
-    local_server = local_server_factory(SlugMS())
-    response = local_server.make_call(requests.get, '/slug')
+def test_prefixed(local_server_factory):
+    local_server = local_server_factory(PrefixedMS())
+    response = local_server.make_call(requests.get, '/prefix')
+    assert response.status_code == 200
+    assert response.text == "hello world"
+    response = local_server.make_call(requests.get, '/prefix/content')
+    assert response.status_code == 200
+    assert response.text == "hello world"
+    response = local_server.make_call(requests.get, '/prefix/extended/content')
     assert response.status_code == 200
     assert response.text == "hello world"
 
@@ -64,10 +73,10 @@ def test_parameterized(local_server_factory):
 
 
 def test_slug_parameterized(local_server_factory):
-    local_server = local_server_factory(SlugParamMS())
-    response = local_server.make_call(requests.get, '/slug/123')
+    local_server = local_server_factory(PrefixedParamMS())
+    response = local_server.make_call(requests.get, '/prefix/123')
     assert response.status_code == 200
     assert response.text == '123'
-    response = local_server.make_call(requests.get, '/slug/concat/123/456')
+    response = local_server.make_call(requests.get, '/prefix/concat/123/456')
     assert response.status_code == 200
     assert response.text == '123456'

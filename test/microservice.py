@@ -20,11 +20,20 @@ class SimpleMS(MS):
     def post_content(self, value):
         return f"post_content {value}"
 
+    def get_extended_content(self):
+        return "hello world"
 
-class SlugMS(MS):
-    slug = 'slug'
+
+class PrefixedMS(MS):
+    url_prefix = 'prefix'
 
     def get(self):
+        return "hello world"
+
+    def get_content(self):
+        return "hello world"
+
+    def get_extended_content(self):
         return "hello world"
 
 
@@ -46,8 +55,8 @@ class ParamMS(MS):
         return self.value
 
 
-class SlugParamMS(MS):
-    slug = 'slug'
+class PrefixedParamMS(MS):
+    url_prefix = 'prefix'
 
     def get(self, str):
         return str

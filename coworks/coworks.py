@@ -26,11 +26,10 @@ class TechMicroService(Chalice):
         self._add_route()
 
     def register_blueprint(self, blueprint, **kwargs):
-        slug = class_attribute(blueprint, 'slug', '')
         self._add_route(blueprint)
         if 'name_prefix' not in kwargs:
             kwargs['name_prefix'] = blueprint.import_name
-        if not slug and 'url_prefix' not in kwargs:
+        if 'url_prefix' not in kwargs:
             kwargs['url_prefix'] = f"/{blueprint.import_name}"
         super().register_blueprint(blueprint, **kwargs)
 
@@ -58,14 +57,15 @@ class TechMicroService(Chalice):
 
     def _add_route(self, component=None):
         component = component if component else self
-        slug = class_attribute(component, 'slug', '')
+        url_prefix = class_attribute(component, 'url_prefix', '')
         methods = class_rest_methods(component)
         for method, func in methods:
             if func.__name__ == method:
-                route = f"{slug}"
+                route = f"{url_prefix}"
             else:
                 name = func.__name__[len(method) + 1:]
-                route = f"{slug}/{name}" if slug else f"{name}"
+                name = name.replace('_', '/')
+                route = f"{url_prefix}/{name}" if url_prefix else f"{name}"
             args = inspect.getfullargspec(func).args[1:]
             for arg in args:
                 route = route + f"/{{{arg}}}" if route else f"{{{arg}}}"
@@ -77,7 +77,7 @@ class TechMicroService(Chalice):
 class BizMicroService(TechMicroService):
 
     def __init__(self, arn, **kwargs):
-        super().__init__(arn, **kwargs)
+        super().__init__(**kwargs)
         self._arn = arn
 
     def get_describe(self):
