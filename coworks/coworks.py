@@ -25,6 +25,11 @@ class TechMicroService(Chalice):
         # add root route
         self._add_route(self)
 
+    def _initialize(self, env):
+        super()._initialize(env)
+        for k, v in env.items():
+            os.environ[k] = v
+
     @property
     def component_name(self):
         return class_attribute(self, 'url_prefix', '')
@@ -89,16 +94,17 @@ class TechMicroService(Chalice):
 
         def proxy(*args, **kwargs):
             req = component.current_request
-            if req.query_params:
-                query_params = {}
-                for k in req.query_params:
-                    if k not in kwarg_keys:
-                        continue
-                    value = req.query_params.getlist(k)
-                    query_params[k] = value if len(value) > 1 else value[0]
-                kwargs = dict(**kwargs, **query_params)
-            if req.json_body:
-                kwargs = dict(**kwargs, **{k: v for k, v in req.json_body.items() if k in kwarg_keys})
+            if kwarg_keys:
+                if req.query_params:
+                    query_params = {}
+                    for k in req.query_params:
+                        if k not in kwarg_keys:
+                            continue
+                        value = req.query_params.getlist(k)
+                        query_params[k] = value if len(value) > 1 else value[0]
+                    kwargs = dict(**kwargs, **query_params)
+                if req.json_body:
+                    kwargs = dict(**kwargs, **{k: v for k, v in req.json_body.items() if k in kwarg_keys})
             return func(component, *args, **kwargs)
 
         return update_wrapper(proxy, func)

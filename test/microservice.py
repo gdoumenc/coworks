@@ -19,8 +19,8 @@ class SimpleMS(MS):
     def get_content(self):
         return "get_content"
 
-    def post_content(self, value):
-        return f"post_content {value}"
+    def post_content(self, value, other="none"):
+        return f"post_content {value}{other}"
 
     # composed path
     def get_extended_content(self):

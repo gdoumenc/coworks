@@ -17,7 +17,13 @@ def test_request(local_server_factory):
     assert response.status_code == 405
     response = local_server.make_call(requests.post, '/content/3')
     assert response.status_code == 200
-    assert response.text == 'post_content 3'
+    assert response.text == 'post_content 3none'
+    response = local_server.make_call(requests.post, '/content/3', json={"other": 0})
+    assert response.status_code == 200
+    assert response.text == 'post_content 30'
+    response = local_server.make_call(requests.post, '/content/3', json={"other": 0, "value": 5})
+    assert response.status_code == 200
+    assert response.text == 'post_content 30'
     response = local_server.make_call(requests.get, '/extended/content')
     assert response.status_code == 200
     assert response.text == 'hello world'

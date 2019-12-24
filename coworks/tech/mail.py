@@ -1,6 +1,6 @@
 import os
 from email.message import EmailMessage
-from smtplib import SMTP, SMTPAuthenticationError
+import smtplib
 
 from chalice import ChaliceViewError
 
@@ -36,21 +36,23 @@ class MailMicroService(TechMicroService):
 
     def post_send(self, subject="", from_addr=None, to_addrs=None, body="", starttls=False):
         self.check_env_vars()
+        from_addr = from_addr or os.getenv('from_addr')
         if not from_addr:
             raise ChaliceViewError("From address not defined")
+        to_addrs = to_addrs or os.getenv('to_addrs')
         if not to_addrs:
-            raise ChaliceViewError("To address not defined")
+            raise ChaliceViewError("To addresses not defined")
         msg = EmailMessage()
         msg['Subject'] = subject
-        msg['To'] = ', '.join(to_addrs)
         msg['From'] = from_addr
+        msg['To'] = ', '.join(to_addrs)
         msg.set_content(body)
         try:
-            with SMTP(self.smtp_server) as server:
+            with smtplib.SMTP(self.smtp_server) as server:
                 if starttls:
                     server.starttls()
                 server.login(self.smtp_login, self.smtp_passwd)
                 server.send_message(msg)
             return f"Mail sent to {msg['To']}"
-        except SMTPAuthenticationError:
+        except smtplib.SMTPAuthenticationError:
             raise ChaliceViewError("Wrong username/password.")
