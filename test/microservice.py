@@ -58,8 +58,7 @@ class ParamMS(MS):
         return self.value
 
     def get_param(self, str1, param1='default1', param2='default2'):
-        return str1 + param1 + param2
-
+        return str1 + str(param1) + param2
 
 
 class PrefixedParamMS(MS):

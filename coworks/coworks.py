@@ -89,9 +89,15 @@ class TechMicroService(Chalice):
 
         def proxy(*args, **kwargs):
             req = component.current_request
-            query_params = req.query_params if req.query_params else {}
-            params = {k: v for k, v in query_params.items() if k in kwarg_keys}
-            return func(component, *args, **dict(**kwargs, **params))
+            if req.query_params:
+                query_params = {}
+                for k in req.query_params:
+                    if k not in kwarg_keys:
+                        continue
+                    value = req.query_params.getlist(k)
+                    query_params[k] = value if len(value) > 1 else value[0]
+                kwargs = dict(**kwargs, **query_params)
+            return func(component, *args, **kwargs)
 
         return update_wrapper(proxy, func)
 
