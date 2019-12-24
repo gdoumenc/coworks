@@ -1,1 +1,3 @@
-from .odoo import OdooMicroService
+
+from .mail import MailMicroService
+from .odoo import OdooMicroService, CustomerBlueprint, SupplierBlueprint

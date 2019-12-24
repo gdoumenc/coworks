@@ -33,7 +33,7 @@ setup(
     ],
     keywords='restful microservice aws chalice serverless',
     entry_points={
-        'console_scripts': ['cws=coworks.cli:chalice_main'],
+        'console_scripts': ['cws=coworks.cli:main'],
     },
     classifiers=[
         'Development Status :: 4 - Beta',
