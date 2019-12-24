@@ -3,17 +3,17 @@ import json
 import logging
 import os
 import sys
-from collections import defaultdict
-from functools import update_wrapper, partial
+from functools import update_wrapper
 
 import boto3
 from botocore.exceptions import ClientError
-from chalice import Chalice, Blueprint as ChaliceBlueprint, NotFoundError, ChaliceViewError
+from chalice import Chalice, Blueprint as ChaliceBlueprint, ChaliceViewError
 
 from .utils import class_rest_methods, class_attribute
 
 
 class TechMicroService(Chalice):
+    """Simple chalice app created directly from class."""
 
     def __init__(self, **kwargs):
         app_name = kwargs.pop('app_name', self.__class__.__name__)
@@ -23,14 +23,18 @@ class TechMicroService(Chalice):
         ])
 
         # add root route
-        self._add_route()
+        self._add_route(self)
+
+    @property
+    def component_name(self):
+        return class_attribute(self, 'url_prefix', '')
 
     def register_blueprint(self, blueprint, **kwargs):
         self._add_route(blueprint)
         if 'name_prefix' not in kwargs:
-            kwargs['name_prefix'] = blueprint.import_name
+            kwargs['name_prefix'] = blueprint.component_name
         if 'url_prefix' not in kwargs:
-            kwargs['url_prefix'] = f"/{blueprint.import_name}"
+            kwargs['url_prefix'] = f"/{blueprint.component_name}"
         super().register_blueprint(blueprint, **kwargs)
 
     def run(self, host='127.0.0.1', port=8000, stage=None, debug=True, profile=None):
@@ -55,26 +59,45 @@ class TechMicroService(Chalice):
         logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')
         run_local_server(factory, host, port, stage)
 
-    def _add_route(self, component=None):
-        component = component if component else self
-        url_prefix = class_attribute(component, 'url_prefix', '')
+    @staticmethod
+    def _add_route(component):
         methods = class_rest_methods(component)
         for method, func in methods:
             if func.__name__ == method:
-                route = f"{url_prefix}"
+                route = f"{component.component_name}"
             else:
                 name = func.__name__[len(method) + 1:]
                 name = name.replace('_', '/')
-                route = f"{url_prefix}/{name}" if url_prefix else f"{name}"
+                route = f"{component.component_name}/{name}" if component.component_name else f"{name}"
             args = inspect.getfullargspec(func).args[1:]
-            for arg in args:
-                route = route + f"/{{{arg}}}" if route else f"{{{arg}}}"
+            defaults = inspect.getfullargspec(func).defaults
+            if defaults:
+                len_defaults = len(defaults)
+                for arg in args[:-len_defaults]:
+                    route = route + f"/{{{arg}}}" if route else f"{{{arg}}}"
+                kwarg_keys = args[-len_defaults:]
+            else:
+                for arg in args:
+                    route = route + f"/{{{arg}}}" if route else f"{{{arg}}}"
+                kwarg_keys = {}
 
-            proxy = update_wrapper(partial(func, component), func)
+            proxy = TechMicroService._create_proxy(component, func, kwarg_keys)
             component.route(f"/{route}", methods=[method.upper()])(proxy)
+
+    @staticmethod
+    def _create_proxy(component, func, kwarg_keys):
+
+        def proxy(*args, **kwargs):
+            req = component.current_request
+            query_params = req.query_params if req.query_params else {}
+            params = {k: v for k, v in query_params.items() if k in kwarg_keys}
+            return func(component, *args, **dict(**kwargs, **params))
+
+        return update_wrapper(proxy, func)
 
 
 class BizMicroService(TechMicroService):
+    """Chalice app to execute AWS Step Functions."""
 
     def __init__(self, arn, **kwargs):
         super().__init__(**kwargs)
@@ -94,9 +117,9 @@ class BizMicroService(TechMicroService):
         except ClientError as error:
             raise ChaliceViewError(str(error))
 
-    def get_last(self, max):
+    def get_last(self, max_results):
         try:
-            res = self.client.list_executions(stateMachineArn=self._arn, maxResults=int(max))
+            res = self.client.list_executions(stateMachineArn=self._arn, maxResults=int(max_results))
             return json.dumps(res, indent=4, sort_keys=True, default=str)
         except ClientError as error:
             raise ChaliceViewError(str(error))
@@ -119,45 +142,9 @@ class BizMicroService(TechMicroService):
         return session.client('stepfunctions')
 
 
-class BizMicroServiceManager(TechMicroService):
-    sfns = defaultdict(dict)
-
-    def get(self):
-        try:
-            res = self.client.list_state_machines(maxResults=100)
-            for m in res['stateMachines']:
-                BizMicroService.sfns[m['name']] = m
-            return len(BizMicroService.sfns)
-        except ClientError as error:
-            return ChaliceViewError(str(error))
-
-    def get_list(self):
-        self.get()
-        return [{'name': m['name'], 'arn': m['stateMachineArn']} for m in BizMicroService.sfns.values()]
-
-    def get_arn(self, name):
-        self.get()
-        res = BizMicroService.sfns.get(name)
-        return res['arn'] if res else NotFoundError
-
-    def get_status(self, name):
-        sfn = BizMicroService.sfns.get(name)
-        if sfn:
-            return sfn
-        try:
-            res = self.client.describe_state_machine(stateMachineArn=name)
-            status = res['status']
-            BizMicroService.sfns[name] = status
-            return status
-        except ClientError as error:
-            code = error.response['Error']['Code']
-            if code == 'InvalidArn':
-                return NotFoundError()
-            return ChaliceViewError(str(error))
-
-
 class Blueprint(ChaliceBlueprint):
+    """Chalice blueprint created directly from class."""
 
     @property
-    def import_name(self):
-        return self._import_name
+    def component_name(self):
+        return ''

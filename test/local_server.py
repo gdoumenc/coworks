@@ -26,8 +26,7 @@ class ThreadedLocalServer(Thread):
         self._config = config if config else Config()
 
     def run(self):
-        self._server = LocalDevServer(
-            self._app_object, self._config, self._host, self._port)
+        self._server = LocalDevServer(self._app_object, self._config, self._host, self._port)
         self._server_ready.set()
         self._server.serve_forever()
 

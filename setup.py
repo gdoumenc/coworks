@@ -1,6 +1,7 @@
-from setuptools import setup, find_packages
 import os
 import sys
+
+from setuptools import setup, find_packages
 
 _here = os.path.abspath(os.path.dirname(__file__))
 
@@ -18,7 +19,7 @@ with open(os.path.join(_here, 'coworks', 'version.py')) as f:
 setup(
     name='coworks',
     version=version['__version__'],
-    description='Restful Microservice Framework on AWS.',
+    description='Restful Microservice Framework on AWS over Lambda and Step Functions using chalice framework.',
     long_description=long_description,
     author='Guillaume Doumenc',
     author_email='gdoumenc@fpr-coworks.com',
@@ -27,14 +28,15 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
+        'boto3',
         'chalice',
     ],
     keywords='restful microservice aws chalice serverless',
     entry_points={
-        'console_scripts': ['cws=coworks.cli:main'],
+        'console_scripts': ['cws=coworks.cli:chalice_main'],
     },
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
         "License :: OSI Approved :: MIT License",
         'Intended Audience :: Developers',
         'Programming Language :: Python :: 3.7',

@@ -2,6 +2,7 @@ requirements.txt
 
 .idea/
 **/__pycache__/
+**/*.http
 
 coworks.egg-info/
 dist/

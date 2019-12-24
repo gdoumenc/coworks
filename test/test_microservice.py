@@ -53,6 +53,18 @@ def test_parameterized(local_server_factory):
     response = local_server.make_call(requests.get, '/value')
     assert response.status_code == 200
     assert response.text == '456'
+    response = local_server.make_call(requests.get, '/param/test1')
+    assert response.status_code == 200
+    assert response.text == 'test1default1default2'
+    response = local_server.make_call(requests.get, '/param/test1', params={"param1": "param1"})
+    assert response.status_code == 200
+    assert response.text == 'test1param1default2'
+    response = local_server.make_call(requests.get, '/param/test1', params={"param2": "param2"})
+    assert response.status_code == 200
+    assert response.text == 'test1default1param2'
+    response = local_server.make_call(requests.get, '/param/test1', params={"param1": "param1", "param2": "param2"})
+    assert response.status_code == 200
+    assert response.text == 'test1param1param2'
 
 
 def test_slug_parameterized(local_server_factory):

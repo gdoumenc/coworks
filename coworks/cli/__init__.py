@@ -1,12 +1,13 @@
-import click
 import os
 import shutil
 
-from chalice.cli import main as chalice_main, cli as chalice_cli, chalice_version, get_system_info
+import click
+
 from chalice.cli import CONFIG_VERSION, DEFAULT_STAGE_NAME, DEFAULT_APIGATEWAY_STAGE_NAME
+from chalice.cli import main as chalice_main, cli as chalice_cli, chalice_version, get_system_info
 from chalice.utils import UI, serialize_to_json
 
-from ..version import __version__
+from coworks.version import __version__
 
 click.version_option(version=__version__,
                      message=f'%(prog)s %(version)s, chalice {chalice_version}, {get_system_info()}')(chalice_cli)
@@ -42,7 +43,3 @@ def init(ctx, force):
     }
     with open(config, 'w') as f:
         f.write(serialize_to_json(cfg))
-
-
-def main():
-    return chalice_main()

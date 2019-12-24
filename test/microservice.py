@@ -8,9 +8,11 @@ class MS(TechMicroService):
 
 class SimpleMS(MS):
 
+    # root acccess
     def get(self):
         return "get"
 
+    # not recognized
     def get1(self):
         return "get1"
 
@@ -20,6 +22,7 @@ class SimpleMS(MS):
     def post_content(self, value):
         return f"post_content {value}"
 
+    # composed path
     def get_extended_content(self):
         return "hello world"
 
@@ -53,6 +56,10 @@ class ParamMS(MS):
         request = self.current_request
         self.value = request.json_body['value']
         return self.value
+
+    def get_param(self, str1, param1='default1', param2='default2'):
+        return str1 + param1 + param2
+
 
 
 class PrefixedParamMS(MS):
