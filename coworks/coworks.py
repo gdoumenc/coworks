@@ -104,7 +104,10 @@ class TechMicroService(Chalice):
                         query_params[k] = value if len(value) > 1 else value[0]
                     kwargs = dict(**kwargs, **query_params)
                 if req.json_body:
-                    kwargs = dict(**kwargs, **{k: v for k, v in req.json_body.items() if k in kwarg_keys})
+                    if hasattr(req.json_body, 'items'):
+                        kwargs = dict(**kwargs, **{k: v for k, v in req.json_body.items() if k in kwarg_keys})
+                    else:
+                        kwargs[kwarg_keys[0]] = req.json_body
             return func(component, *args, **kwargs)
 
         return update_wrapper(proxy, func)
