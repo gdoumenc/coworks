@@ -10,14 +10,16 @@ env = {
     "SMTP_PASSWD": "passwd"
 }
 
-@patch('smtplib.SMTP.send_message')
-def send_message(self):
-    return
+mock = MagicMock()
+mock.__enter__ = MagicMock(return_value=mock)
 
-patcher = patch('__main__.thing', first='one', send_message='two')
 
-smtplib.SMTP = MagicMock()
-smtplib.SMTP.login = MagicMock()
+class SMTPMock:
+    def __new__(cls, *args, **kwargs):
+        return mock
+
+
+smtplib.SMTP = SMTPMock
 
 
 def test_mail(local_server_factory):
@@ -28,5 +30,5 @@ def test_mail(local_server_factory):
                                       timeout=300.5)
     assert response.status_code == 200
     assert response.text == "Mail sent to you@test.com"
-    # smtplib.SMTP.login.assert_called_with("myself@test.com", "passwd")
-    # send_message.assert_called()
+    mock.login.assert_called_with("myself@test.com", "passwd")
+    mock.send_message.assert_called()
