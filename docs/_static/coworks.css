@@ -1,0 +1,10 @@
+
+#coworks {
+  overflow: auto;
+}
+
+#coworks::after {
+  content: "";
+  clear: both;
+  display: table;
+}
