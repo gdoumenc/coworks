@@ -3,10 +3,13 @@ CoWorks
 =======
 
 .. image:: https://travis-ci.com/gdoumenc/coworks.svg?branch=master
-   :target: https://travis-ci.com/gdoumenc/coworks
-   :alt: Travis CI
+  :target: https://travis-ci.com/gdoumenc/coworks
+  :alt: Travis CI
+.. image:: https://readthedocs.org/projects/coworks/badge/?version=latest
+  :target: https://coworks.readthedocs.io/en/latest/?badge=latest
+:  alt: Documentation Status
 
-Restful Microservice Framework on AWS based on Lambda, AWS Step Functions, API Gateway products using Chalice microframework.
+Restful Microservice Framework on AWS based on Lambda, AWS Step Function and API Gateway products using Chalice microframework.
 
 Each microservice is a small web application on the serverless Lambda product and offering restfull API interface
 for use and a web dashboard for administration.
