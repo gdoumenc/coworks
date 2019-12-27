@@ -6,7 +6,6 @@ verify_ssl = true
 [packages]
 chalice = "*"
 boto3 = "*"
-coworks = {editable = true,path = "."}
 
 [dev-packages]
 wheel = "*"
@@ -17,6 +16,7 @@ watchdog = "*"
 hypothesis = "*"
 mock = "*"
 websocket = "*"
+sphinx = "*"
 
 [requires]
 python_version = "3.7"

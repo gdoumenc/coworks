@@ -1,8 +1,10 @@
+Pipfile.lock
 requirements.txt
 
 .idea/
 **/__pycache__/
 **/*.http
+docs/_build/
 
 coworks.egg-info/
 dist/
