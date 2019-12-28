@@ -7,7 +7,7 @@ CoWorks
   :alt: Travis CI
 .. image:: https://readthedocs.org/projects/coworks/badge/?version=latest
   :target: https://coworks.readthedocs.io/en/latest/?badge=latest
-:  alt: Documentation Status
+  :alt: Documentation Status
 
 Restful Microservice Framework on AWS based on Lambda, AWS Step Function and API Gateway products using Chalice microframework.
 
@@ -38,6 +38,8 @@ microservice in file `app.py`.
 		def get(self, usage="test"):
 			return f"Simple microservice for {usage}.\n"
 
+	app = SimpleExampleMicroservice("demo")
+
 initialize the coworks project::
 
     $ cws init
@@ -52,8 +54,8 @@ Now test our microservice::
 
 	$ curl http://127.0.1:8000
 	Simple microservice for test.
-	$ curl http://127.0.1:8000?usage=demo
-	Simple microservice for demo.
+	$ curl http://127.0.1:8000?usage=me
+	Simple microservice for me.
 
 Now complete it with more interface:
 
@@ -74,6 +76,7 @@ Now complete it with more interface:
 		def put_value(self, index, value=0):
 			self.values[index] = value
 
+	app = SimpleExampleMicroservice("demo")
 
 Now test our completion::
 

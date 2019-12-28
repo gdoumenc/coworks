@@ -1,3 +1,4 @@
+.chalice/
 Pipfile.lock
 requirements.txt
 

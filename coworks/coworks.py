@@ -2,14 +2,15 @@ import inspect
 import json
 import logging
 import os
-import sys
 from functools import update_wrapper
 
 import boto3
+import sys
 from botocore.exceptions import ClientError
-from chalice import Chalice, Blueprint as ChaliceBlueprint, ChaliceViewError
 
-from .utils import class_rest_methods, class_attribute
+from chalice import AuthResponse
+from chalice import Chalice, Blueprint as ChaliceBlueprint, ChaliceViewError
+from .utils import class_auth_methods, class_rest_methods, class_attribute
 
 
 class TechMicroService(Chalice):
@@ -66,6 +67,14 @@ class TechMicroService(Chalice):
 
     @staticmethod
     def _add_route(component):
+
+        # adds class authorizer for every entries
+        auth = class_auth_methods(component)
+        if auth:
+            auth = TechMicroService._create_auth_proxy(component, auth)
+            component.__auth__ = auth
+
+        # adds entrypoints
         methods = class_rest_methods(component)
         for method, func in methods:
             if func.__name__ == method:
@@ -86,11 +95,28 @@ class TechMicroService(Chalice):
                     route = route + f"/{{{arg}}}" if route else f"{{{arg}}}"
                 kwarg_keys = {}
 
-            proxy = TechMicroService._create_proxy(component, func, kwarg_keys)
-            component.route(f"/{route}", methods=[method.upper()])(proxy)
+            proxy = TechMicroService._create_rest_proxy(component, func, kwarg_keys)
+            component.route(f"/{route}", methods=[method.upper()], authorizer=auth)(proxy)
 
     @staticmethod
-    def _create_proxy(component, func, kwarg_keys):
+    def _create_auth_proxy(component, auth_method):
+
+        def proxy(auth_request):
+            auth = auth_method(component, auth_request)
+            if type(auth) is bool:
+                if auth:
+                    return AuthResponse(routes=['*'], principal_id='user')
+                return AuthResponse(routes=[], principal_id='user')
+            elif type(auth) is list:
+                return AuthResponse(routes=auth, principal_id='user')
+            return auth
+
+        proxy = update_wrapper(proxy, auth_method)
+        proxy.__name__ = 'app'
+        return component.authorizer(name='auth')(proxy)
+
+    @staticmethod
+    def _create_rest_proxy(component, func, kwarg_keys):
 
         def proxy(*args, **kwargs):
             req = component.current_request
@@ -111,6 +137,11 @@ class TechMicroService(Chalice):
             return func(component, *args, **kwargs)
 
         return update_wrapper(proxy, func)
+
+    def __call__(self, event, context):
+        if 'type' in event and event['type'] == 'TOKEN':
+            return self.__auth__(event, context)
+        return super().__call__(event, context)
 
 
 class BizMicroService(TechMicroService):

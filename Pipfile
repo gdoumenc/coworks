@@ -6,6 +6,7 @@ verify_ssl = true
 [packages]
 chalice = "*"
 boto3 = "*"
+coworks = {editable = true,path = "."}
 
 [dev-packages]
 wheel = "*"
