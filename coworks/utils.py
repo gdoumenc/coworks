@@ -1,6 +1,16 @@
 import inspect
 
 
+def class_auth_methods(obj):
+    """Returns the auth method from the class if exists."""
+    methods = inspect.getmembers(obj.__class__, lambda x: inspect.isfunction(x))
+
+    for name, func in methods:
+        if name == 'auth':
+            return func
+    return None
+
+
 def class_rest_methods(obj):
     """Returns the list of methods from the class."""
     methods = inspect.getmembers(obj.__class__, lambda x: inspect.isfunction(x))

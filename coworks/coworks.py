@@ -2,14 +2,15 @@ import inspect
 import json
 import logging
 import os
-import sys
-from functools import update_wrapper
+from functools import update_wrapper, partial
 
 import boto3
+import sys
 from botocore.exceptions import ClientError
-from chalice import Chalice, Blueprint as ChaliceBlueprint, ChaliceViewError
 
-from .utils import class_rest_methods, class_attribute
+from chalice import AuthResponse
+from chalice import Chalice, Blueprint as ChaliceBlueprint, ChaliceViewError
+from .utils import class_auth_methods, class_rest_methods, class_attribute
 
 
 class TechMicroService(Chalice):
@@ -29,6 +30,10 @@ class TechMicroService(Chalice):
         super()._initialize(env)
         for k, v in env.items():
             os.environ[k] = v
+
+    def auth(self, auth_request):
+        print(json.dumps(auth_request))
+        return AuthResponse(routes=['/'], principal_id='user')
 
     @property
     def component_name(self):
@@ -66,6 +71,12 @@ class TechMicroService(Chalice):
 
     @staticmethod
     def _add_route(component):
+
+        # adds class authorizer for every entries
+        auth = class_auth_methods(component)
+        auth = update_wrapper(partial(component.authorizer()(auth), component), auth)
+
+        # adds entrypoints
         methods = class_rest_methods(component)
         for method, func in methods:
             if func.__name__ == method:
@@ -87,7 +98,7 @@ class TechMicroService(Chalice):
                 kwarg_keys = {}
 
             proxy = TechMicroService._create_proxy(component, func, kwarg_keys)
-            component.route(f"/{route}", methods=[method.upper()])(proxy)
+            component.route(f"/{route}", methods=[method.upper()], authorizer=auth)(proxy)
 
     @staticmethod
     def _create_proxy(component, func, kwarg_keys):
