@@ -10,8 +10,6 @@ from botocore.exceptions import ClientError
 
 from chalice import AuthResponse
 from chalice import Chalice, Blueprint as ChaliceBlueprint, ChaliceViewError
-from chalice.config import Config
-from chalice.deploy.validate import validate_routes
 
 from .utils import class_auth_methods, class_rest_methods, class_attribute
 
@@ -25,15 +23,6 @@ class TechMicroService(Chalice):
         self.experimental_feature_flags.update([
             'BLUEPRINTS'
         ])
-
-        # add env if config_dir defined, use it to update environment from conf json file
-        if config_dir:
-            config_file = os.path.join(config_dir, '.chalice', 'config.json')
-            with open(config_file) as f:
-                config_from_disk = json.loads(f.read())
-            config = Config(config_from_disk=config_from_disk)
-            os.environ.update(config.environment_variables)
-            kwargs['config'] = config
 
         # add root route
         self._add_route(self)
@@ -79,7 +68,6 @@ class TechMicroService(Chalice):
         factory = CWSFactory(self, project_dir)
         config = factory.create_config_obj(chalice_stage_name=stage)
         app_obj = config.chalice_app
-        validate_routes(app_obj.routes)
         server = factory.create_local_server(app_obj, config, host, port)
         server.serve_forever()
 
