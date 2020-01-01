@@ -19,7 +19,7 @@ with open(os.path.join(_here, 'coworks', 'version.py')) as f:
 setup(
     name='coworks',
     version=version['__version__'],
-    description='Restful Microservice Framework on AWS over Lambda and Step Functions using chalice framework.',
+    description='CoWorks is a Restful Microservice Framework on AWS over Lambda and Step Functions using Chalice framework.',
     long_description=long_description,
     author='Guillaume Doumenc',
     author_email='gdoumenc@fpr-coworks.com',

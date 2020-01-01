@@ -15,7 +15,7 @@ Get started with :ref:`installation` and then get an overview with the :ref:`qui
 
 Using and derived from `Chalice <https://github.com/aws/chalice>`_ and ideas from `Flask-Classy <https://github.com/apiguy/flask-classy/>`_.
 
-What does microservice means in coworks?
+What does microservice means in CoWorks?
 ****************************************
 
 In short, the microservice architectural style is an approach to developing a single application as a suite of small services,
@@ -32,7 +32,7 @@ by outlining traits microservice applications share:
 * Decentralized
 * Built and released with automated processes
 
-In coworks, microservices are serverless services over RestFULL resource APIs.
+In CoWorks, microservices are serverless services over RestFULL resource APIs.
 
 Small in size
   Simply implemented as a python class.
@@ -52,6 +52,33 @@ Decentralized
 Smart endpoints
   Deriving directly from class methods.
 
+Two levels of microservice
+**************************
+
+In CoWors microservices are divided in two categories :
+
+**Small technical microservice**
+
+  Implemented as a simple AWS lambda function, this kind of microservice a dedicated to technical
+  operations over a specific service.
+
+  Here are some examples of predefined technical services in CoWorks :
+
+    * Mail
+    * Jinja templating
+    * Odoo
+
+**Functional business microservice**
+
+  Implemented over AWS Step Function, this kind of microservice allows non programmer to construct
+  functional business workflows.
+
+  Here are some examples of predefined business services in CoWorks :
+
+    * Alert
+    * Reminder
+
+
 User’s Guide
 ============
 
@@ -61,7 +88,10 @@ User’s Guide
 
   installation
   quickstart
+  tutorial
   authorization
+  tech
+  biz
 
 
 

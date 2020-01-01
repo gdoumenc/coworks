@@ -38,7 +38,7 @@ microservice in file `app.py`.
 		def get(self, usage="test"):
 			return f"Simple microservice for {usage}.\n"
 
-	app = SimpleExampleMicroservice("demo")
+	app = SimpleExampleMicroservice(app_name="demo")
 
 initialize the coworks project::
 
@@ -76,7 +76,7 @@ Now complete it with more interface:
 		def put_value(self, index, value=0):
 			self.values[index] = value
 
-	app = SimpleExampleMicroservice("demo")
+	app = SimpleExampleMicroservice(app_name="demo")
 
 Now test our completion::
 
