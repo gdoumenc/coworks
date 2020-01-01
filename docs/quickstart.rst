@@ -18,7 +18,7 @@ A microservice is simply defined by a python class which looks like this:
 Creation
 --------
 
-To create you first microservice, create a file ``app.py`` with the following content:
+To realize you first microservice, create a file ``app.py`` with the following content:
 
 .. code-block:: python
 
@@ -30,6 +30,19 @@ To create you first microservice, create a file ``app.py`` with the following co
 			return f"Simple microservice ready.\n"
 
 	app = SimpleExampleMicroservice()
+
+Test locally this microservice::
+
+	(project) $ cws local
+	Serving on http://127.0.0.1:8000
+
+On another terminal enter::
+
+	(project) $ curl http://127.0.0.1:8000
+	Simple microservice ready.
+
+Deployment
+----------
 
 Create the required dependencies for the lambda function::
 
@@ -54,6 +67,7 @@ Execution
 Execute it::
 
 	(project) $ curl https://9ssszma6mg.execute-api.eu-west-1.amazonaws.com/api/
+	Simple microservice ready.
 
 Deletion
 --------

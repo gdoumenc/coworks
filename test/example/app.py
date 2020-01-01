@@ -1,3 +1,5 @@
+import os
+
 from collections import defaultdict
 
 from coworks import *
@@ -14,6 +16,10 @@ class App(TechMicroService):
 
     def put_value(self, index, value=0):
         self.values[index] = value
+        return value
+
+    def get_env(self):
+        return f"Simple microservice for {os.getenv('test')}.\n"
 
 
 app = App()

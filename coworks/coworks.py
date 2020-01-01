@@ -10,18 +10,30 @@ from botocore.exceptions import ClientError
 
 from chalice import AuthResponse
 from chalice import Chalice, Blueprint as ChaliceBlueprint, ChaliceViewError
+from chalice.config import Config
+from chalice.deploy.validate import validate_routes
+
 from .utils import class_auth_methods, class_rest_methods, class_attribute
 
 
 class TechMicroService(Chalice):
     """Simple chalice app created directly from class."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, config_dir=None, **kwargs):
         app_name = kwargs.pop('app_name', self.__class__.__name__)
         super().__init__(app_name, **kwargs)
         self.experimental_feature_flags.update([
             'BLUEPRINTS'
         ])
+
+        # add env if config_dir defined, use it to update environment from conf json file
+        if config_dir:
+            config_file = os.path.join(config_dir, '.chalice', 'config.json')
+            with open(config_file) as f:
+                config_from_disk = json.loads(f.read())
+            config = Config(config_from_disk=config_from_disk)
+            os.environ.update(config.environment_variables)
+            kwargs['config'] = config
 
         # add root route
         self._add_route(self)
@@ -43,9 +55,10 @@ class TechMicroService(Chalice):
             kwargs['url_prefix'] = f"/{blueprint.component_name}"
         super().register_blueprint(blueprint, **kwargs)
 
-    def run(self, host='127.0.0.1', port=8000, stage=None, debug=True, profile=None):
+    def run(self, host='127.0.0.1', port=8000, stage=None, debug=True, profile=None, project_dir='.'):
         # TODO missing test
-        from chalice.cli import CLIFactory, run_local_server
+        # chalice.cli package not defined in deployment package
+        from chalice.cli import CLIFactory
         from chalice.cli import DEFAULT_STAGE_NAME
         stage = stage or DEFAULT_STAGE_NAME
 
@@ -61,9 +74,14 @@ class TechMicroService(Chalice):
                         os.environ[key] = val
                 return self.app
 
-        factory = CWSFactory(self, '.')
         logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')
-        run_local_server(factory, host, port, stage)
+
+        factory = CWSFactory(self, project_dir)
+        config = factory.create_config_obj(chalice_stage_name=stage)
+        app_obj = config.chalice_app
+        validate_routes(app_obj.routes)
+        server = factory.create_local_server(app_obj, config, host, port)
+        server.serve_forever()
 
     @staticmethod
     def _add_route(component):
