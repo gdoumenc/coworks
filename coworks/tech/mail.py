@@ -16,7 +16,7 @@ class MailMicroService(TechMicroService):
           "from_addr": "myself@domain.com",
           "to_addrs": ["myself@domain.com"],
           "subject" : "test",
-          "body": "test"
+          "body" : "content",
         }"""
 
     def __init__(self, **kwargs):
@@ -38,10 +38,10 @@ class MailMicroService(TechMicroService):
         self.check_env_vars()
         from_addr = from_addr or os.getenv('from_addr')
         if not from_addr:
-            raise ChaliceViewError("From address not defined")
+            raise ChaliceViewError("From address not defined (from_addr:str)")
         to_addrs = to_addrs or os.getenv('to_addrs')
         if not to_addrs:
-            raise ChaliceViewError("To addresses not defined")
+            raise ChaliceViewError("To addresses not defined (to_addrs:[str])")
         msg = EmailMessage()
         msg['Subject'] = subject
         msg['From'] = from_addr
