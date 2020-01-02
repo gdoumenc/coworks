@@ -1,6 +1,29 @@
 import requests
 
+from chalice import AuthResponse
+
 from .microservice import *
+
+
+class AuthorizeAllMS(SimpleMS):
+
+    def auth(self, auth_request):
+        return True
+
+
+class AuthorizeNothingMS(SimpleMS):
+
+    def auth(self, auth_request):
+        return False
+
+
+class AuthorizedMS(SimpleMS):
+
+    def auth(self, auth_request):
+        token = auth_request.token
+        if token == 'allow':
+            return AuthResponse(routes=['/'], principal_id='user')
+        return False
 
 
 def test_authorize_all(local_server_factory):

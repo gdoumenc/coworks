@@ -42,6 +42,7 @@ class TechMicroService(Chalice):
             kwargs['name_prefix'] = blueprint.component_name
         if 'url_prefix' not in kwargs:
             kwargs['url_prefix'] = f"/{blueprint.component_name}"
+
         super().register_blueprint(blueprint, **kwargs)
 
     def run(self, host='127.0.0.1', port=8000, stage=None, debug=True, profile=None, project_dir='.'):
@@ -185,6 +186,33 @@ class BizMicroService(TechMicroService):
 class Blueprint(ChaliceBlueprint):
     """Chalice blueprint created directly from class."""
 
+    def __init__(self, **kwargs):
+        import_name = kwargs.pop('import_name', self.__class__.__name__)
+        super().__init__(import_name)
+
     @property
     def component_name(self):
         return ''
+
+
+class Admin(Blueprint):
+
+    def get_routes(self):
+        app = self._current_app
+        routes = {}
+        for resource_path, entry in app.routes.items():
+            route = {}
+            for http_method, route_entry in entry.items():
+                function_called = route_entry.view_function
+                doc = inspect.getdoc(function_called)
+                route[http_method] = {
+                    'doc': doc if doc else '',
+                    'signature': str(inspect.signature(function_called))
+                }
+            routes[resource_path] = route
+        return json.dumps(routes)
+
+        # route_entry = self.routes[resource_path][http_method]
+        # view_function = route_entry.view_function
+        # function_args = {name: event['pathParameters'][name]
+        #                  for name in route_entry.view_args}
