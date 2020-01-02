@@ -47,29 +47,15 @@ class TechMicroService(Chalice):
     def run(self, host='127.0.0.1', port=8000, stage=None, debug=True, profile=None, project_dir='.'):
         # TODO missing test
         # chalice.cli package not defined in deployment package
-        from chalice.cli import CLIFactory
         from chalice.cli import DEFAULT_STAGE_NAME
-        stage = stage or DEFAULT_STAGE_NAME
-
-        class CWSFactory(CLIFactory):
-            def __init__(self, app, project_dir, environ=None):
-                self.app = app
-                super().__init__(project_dir, debug=debug, profile=profile, environ=environ)
-
-            def load_chalice_app(self, environment_variables=None, **kwargs):
-                if environment_variables is not None:
-                    self._environ.update(environment_variables)
-                    for key, val in self._environ.items():
-                        os.environ[key] = val
-                return self.app
+        from .cli.factory import CWSFactory
 
         logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')
 
-        factory = CWSFactory(self, project_dir)
+        stage = stage or DEFAULT_STAGE_NAME
+        factory = CWSFactory(self, project_dir, debug, profile)
         config = factory.create_config_obj(chalice_stage_name=stage)
-        app_obj = config.chalice_app
-        server = factory.create_local_server(app_obj, config, host, port)
-        server.serve_forever()
+        factory.run_local_server(config, host, port)
 
     @staticmethod
     def _add_route(component):
