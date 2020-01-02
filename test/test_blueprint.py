@@ -6,7 +6,7 @@ from .microservice import *
 
 def test_request(local_server_factory):
     ms = SimpleMS()
-    ms.register_blueprint(BP("blueprint"))
+    ms.register_blueprint(BP(import_name="blueprint"))
     local_server = local_server_factory(ms)
     response = local_server.make_call(requests.get, '/')
     assert response.status_code == 200
@@ -21,7 +21,7 @@ def test_request(local_server_factory):
 
 def test_prefix(local_server_factory):
     ms = SimpleMS()
-    ms.register_blueprint(BP("blueprint"), url_prefix="/prefix")
+    ms.register_blueprint(BP(), url_prefix="/prefix")
     local_server = local_server_factory(ms)
     response = local_server.make_call(requests.get, '/prefix/test/3')
     assert response.status_code == 200

@@ -20,14 +20,15 @@ def init(ctx, force):
     project_name = os.path.basename(os.path.normpath(os.getcwd()))
 
     chalice_dir = os.path.join('.chalice')
-    if not os.path.exists(chalice_dir):
-        ui.write(f"Project {project_name} initialized\n")
-    elif force:
-        ui.write(f"Project {project_name} reinitialized\n")
-        shutil.rmtree(chalice_dir)
+    if os.path.exists(chalice_dir):
+        if force:
+            shutil.rmtree(chalice_dir)
+            created = False
+        else:
+            ui.write(f"Project {project_name} already initialized\n")
+            return
     else:
-        ui.write(f"Project {project_name} already initialized\n")
-        return
+        created = True
 
     os.makedirs(chalice_dir)
     config = os.path.join('.chalice', 'config.json')
@@ -43,5 +44,9 @@ def init(ctx, force):
     with open(config, 'w') as f:
         f.write(serialize_to_json(cfg))
 
+    if created:
+        ui.write(f"Project {project_name} initialized\n")
+    else:
+        ui.write(f"Project {project_name} reinitialized\n")
 
 main = chalice_main

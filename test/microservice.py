@@ -1,4 +1,3 @@
-from chalice import AuthResponse
 from coworks import TechMicroService
 
 
@@ -9,12 +8,12 @@ class MS(TechMicroService):
 
 class SimpleMS(MS):
 
-    # root acccess
     def get(self):
+        """Root access."""
         return "get"
 
-    # not recognized
     def get1(self):
+        """Not recognized."""
         return "get1"
 
     def get_content(self):
@@ -70,24 +69,3 @@ class PrefixedParamMS(MS):
 
     def get_concat(self, str1, str2):
         return str1 + str2
-
-
-class AuthorizeAllMS(SimpleMS):
-
-    def auth(self, auth_request):
-        return True
-
-
-class AuthorizeNothingMS(SimpleMS):
-
-    def auth(self, auth_request):
-        return False
-
-
-class AuthorizedMS(SimpleMS):
-
-    def auth(self, auth_request):
-        token = auth_request.token
-        if token == 'allow':
-            return AuthResponse(routes=['/'], principal_id='user')
-        return False
