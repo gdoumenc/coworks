@@ -195,24 +195,3 @@ class Blueprint(ChaliceBlueprint):
         return ''
 
 
-class Admin(Blueprint):
-
-    def get_routes(self):
-        app = self._current_app
-        routes = {}
-        for resource_path, entry in app.routes.items():
-            route = {}
-            for http_method, route_entry in entry.items():
-                function_called = route_entry.view_function
-                doc = inspect.getdoc(function_called)
-                route[http_method] = {
-                    'doc': doc if doc else '',
-                    'signature': str(inspect.signature(function_called))
-                }
-            routes[resource_path] = route
-        return json.dumps(routes)
-
-        # route_entry = self.routes[resource_path][http_method]
-        # view_function = route_entry.view_function
-        # function_args = {name: event['pathParameters'][name]
-        #                  for name in route_entry.view_args}

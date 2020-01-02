@@ -90,8 +90,10 @@ User’s Guide
   quickstart
   tutorial
   authorization
+  blueprint
   tech
   biz
+  changelog
 
 
 
