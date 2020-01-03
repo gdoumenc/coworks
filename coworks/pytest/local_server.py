@@ -2,8 +2,8 @@ import contextlib
 import socket
 from threading import Thread, Event
 
-from chalice.local import LocalDevServer
 from chalice.config import Config
+from chalice.local import LocalDevServer
 
 
 class ThreadedLocalServer(Thread):

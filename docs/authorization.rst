@@ -52,6 +52,11 @@ If only some routes are allowed, the authorizer must return a list of the allowe
 				return ['product/*']
 			return False
 
+
+**BEWARE** : Even if you don't use the token if the authorizatin method, you must define it in the header or the call
+will be rejected.
+
+
 Fine grained control
 --------------------
 
