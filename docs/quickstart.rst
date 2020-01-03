@@ -41,6 +41,8 @@ On another terminal enter::
 	(project) $ curl http://127.0.0.1:8000
 	Simple microservice ready.
 
+Looks good..
+
 Deployment
 ----------
 
@@ -56,8 +58,8 @@ Then enter the following command::
 	Creating lambda function: project-dev
 	Creating Rest API
 	Resources deployed:
-	  - Lambda ARN: arn:aws:lambda:eu-west-1:760589174259:function:project-dev
-	  - Rest API URL: https://9ssszma6mg.execute-api.eu-west-1.amazonaws.com/api/
+		- Lambda ARN: arn:aws:lambda:eu-west-1:760589174259:function:project-dev
+		- Rest API URL: https://9ssszma6mg.execute-api.eu-west-1.amazonaws.com/api/
 
 That's it, your first microservice is online!
 
@@ -82,3 +84,4 @@ Finally, remove the project and its virtual environment ::
 	$ pipenv --rm
 	$ cd ..
 	$ rm -rf project
+

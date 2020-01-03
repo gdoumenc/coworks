@@ -47,3 +47,44 @@ URL Parameters
 Query parameters
 ----------------
 
+Test
+----
+
+Tests may be made in two manner:
+
+* Classical test with test tools like pytest
+* Online test (to be done)
+
+PyTest
+^^^^^^
+
+To create your tests for pytest, add this fixture in your ``conftest.py``::
+
+	from coworks.pytest.fixture import local_server_factory
+
+Then
+
+.. code-block:: python
+
+	def test_root(local_server_factory):
+		local_server = local_server_factory(SimpleExampleMicroservice())
+		response = local_server.make_call(requests.get, '/')
+		assert response.status_code == 200
+
+If you want to debug your test and stop on breakpoint, you need to give more time to the request for timeout:
+
+.. code-block:: python
+
+	def test_root(local_server_factory):
+		local_server = local_server_factory(SimpleExampleMicroservice())
+		response = local_server.make_call(requests.get, '/', timeout=200.0)
+		assert response.status_code == 200
+
+If you have an authorized access:
+
+.. code-block:: python
+
+	def test_root(local_server_factory):
+		local_server = local_server_factory(SimpleExampleMicroservice())
+		response = local_server.make_call(requests.get, '/', headers={'authorization': 'allow'})
+		assert response.status_code == 200

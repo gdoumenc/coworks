@@ -1,7 +1,7 @@
-import os
-import pytest
 import json
+import os
 
+import pytest
 from chalice.config import Config
 
 from .local_server import ThreadedLocalServer
