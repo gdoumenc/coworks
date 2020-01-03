@@ -3,6 +3,7 @@ import requests
 from chalice import AuthResponse
 
 from .microservice import *
+from .blueprint import *
 
 
 class AuthorizeAllMS(SimpleMS):
@@ -12,6 +13,10 @@ class AuthorizeAllMS(SimpleMS):
 
 
 class AuthorizeNothingMS(SimpleMS):
+
+    def __init__(self):
+        super().__init__()
+        self.register_blueprint(BP(), url_prefix="/blueprint")
 
     def auth(self, auth_request):
         return False
@@ -36,6 +41,8 @@ def test_authorize_all(local_server_factory):
 def test_authorize_nothing(local_server_factory):
     local_server = local_server_factory(AuthorizeNothingMS())
     response = local_server.make_call(requests.get, '/', headers={'authorization': 'token'})
+    assert response.status_code == 403
+    response = local_server.make_call(requests.get, '/blueprint/test/3', headers={'authorization': 'token'})
     assert response.status_code == 403
 
 

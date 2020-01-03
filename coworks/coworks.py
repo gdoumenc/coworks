@@ -20,12 +20,13 @@ class TechMicroService(Chalice):
     def __init__(self, config_dir=None, **kwargs):
         app_name = kwargs.pop('app_name', self.__class__.__name__)
         super().__init__(app_name, **kwargs)
+        self.__auth__ = None
         self.experimental_feature_flags.update([
             'BLUEPRINTS'
         ])
 
         # add root route
-        self._add_route(self)
+        self._add_route()
 
     def _initialize(self, env):
         super()._initialize(env)
@@ -58,14 +59,18 @@ class TechMicroService(Chalice):
         config = factory.create_config_obj(chalice_stage_name=stage)
         factory.run_local_server(config, host, port)
 
-    @staticmethod
-    def _add_route(component):
+    def _add_route(self, component=None):
+        if component is None:
+            component = self
 
-        # adds class authorizer for every entries
-        auth = class_auth_methods(component)
-        if auth:
-            auth = TechMicroService._create_auth_proxy(component, auth)
-            component.__auth__ = auth
+            # adds class authorizer for every entries
+            auth = class_auth_methods(component)
+            if auth:
+                auth = TechMicroService._create_auth_proxy(component, auth)
+                component.__auth__ = auth
+        else:
+            # add the current_app auth
+            auth = self.__auth__
 
         # adds entrypoints
         methods = class_rest_methods(component)
@@ -193,5 +198,3 @@ class Blueprint(ChaliceBlueprint):
     @property
     def component_name(self):
         return ''
-
-
