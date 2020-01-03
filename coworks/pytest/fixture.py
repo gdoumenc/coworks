@@ -3,6 +3,7 @@ import os
 
 import pytest
 from chalice.config import Config
+from chalice.cli import CONFIG_VERSION, DEFAULT_STAGE_NAME, DEFAULT_APIGATEWAY_STAGE_NAME
 
 from .local_server import ThreadedLocalServer
 
@@ -19,7 +20,8 @@ def local_server_factory():
             config_file = os.path.join(config_path, '.chalice', 'config.json')
             with open(config_file) as f:
                 config_from_disk = json.loads(f.read())
-            config = Config(config_from_disk=config_from_disk)
+            chalice_stage = kwargs.pop('stage') if 'stage' in kwargs else DEFAULT_STAGE_NAME
+            config = Config(config_from_disk=config_from_disk, chalice_stage=chalice_stage)
             os.environ.update(config.environment_variables)
             kwargs['config'] = config
 

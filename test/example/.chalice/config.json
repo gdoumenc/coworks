@@ -7,6 +7,12 @@
       "environment_variables": {
         "test": "test environment variable"
       }
+    },
+    "master": {
+      "api_gateway_stage": "dev",
+      "environment_variables": {
+        "test": "prod variable"
+      }
     }
   }
 }
