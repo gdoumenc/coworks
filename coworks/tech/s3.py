@@ -54,18 +54,15 @@ class S3MicroService(TechMicroService):
         else:
             return self.s3_client.list_objects(Bucket=bucket)
 
-    def put_bucket(self, bucket, key=None, body=b''):
-        if key is None:
-            kwargs = {}
-            buckets = self.s3_client.list_buckets()
-            found = [b for b in buckets['Buckets'] if b['Name'] == bucket]
-            if found:
-                raise BadRequestError("Bucket already exists.")
-            if self.region_name != 'us-east-1':
-                kwargs['CreateBucketConfiguration'] = {'LocationConstraint': 'EU'}
-            self.s3_client.create_bucket(Bucket=bucket, **kwargs)
-        else:
-            self.s3_client.put_object(Bucket=bucket, Key=key, Body=body)
+    def put_bucket(self, bucket, ):
+        kwargs = {}
+        buckets = self.s3_client.list_buckets()
+        found = [b for b in buckets['Buckets'] if b['Name'] == bucket]
+        if found:
+            raise BadRequestError("Bucket already exists.")
+        if self.region_name != 'us-east-1':
+            kwargs['CreateBucketConfiguration'] = {'LocationConstraint': 'EU'}
+        self.s3_client.create_bucket(Bucket=bucket, **kwargs)
 
     def delete_bucket(self, bucket, key=None):
         if key is None:
@@ -77,4 +74,11 @@ class S3MicroService(TechMicroService):
         if key:
             uploaded_object = self.s3_client.get_object(Bucket=bucket, Key=key.replace('_', '/'))
             return uploaded_object['Body'].read().decode('utf-8')
-        raise BadRequestError("Key is missing.")
+        else:
+            raise BadRequestError("Key is missing.")
+
+    def put_content(self, bucket, key=None, body=b''):
+        if key:
+            self.s3_client.put_object(Bucket=bucket, Key=key, Body=body)
+        else:
+            raise BadRequestError("Key is missing.")
