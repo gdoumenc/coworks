@@ -1,7 +1,9 @@
+import json
 import os
 
 import boto3
 
+from chalice import BadRequestError
 from ..coworks import TechMicroService
 
 
@@ -11,6 +13,7 @@ class S3MicroService(TechMicroService):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.__s3_client__ = None
 
     @property
     def aws_access_key_id(self):
@@ -26,15 +29,52 @@ class S3MicroService(TechMicroService):
             raise EnvironmentError('AWS_SECRET_ACCESS_KEY not defined in environment')
         return value
 
-    def get(self, bucket, key):
-        boto_session = boto3.Session(self.aws_access_key_id, self.aws_secret_access_key)
-        s3_client = boto_session.client('s3')
-        uploaded_object = s3_client.get_object(Bucket=bucket, Key=key.replace('_', '/'))
-        return uploaded_object['Body'].read().decode('utf-8')
-        # last_modified = uploaded_object['LastModified']
-        # print_option = uploaded_object['Metadata'].get('print')
-        # cut_option = uploaded_object['Metadata'].get('cut')
-        # logger.info("upload done")
-        #
-        # content = uploaded_object['Body'].read().decode('utf-8')
-        # logger.info(f'nesting file key {len(content)}')
+    @property
+    def region_name(self):
+        value = os.getenv('AWS_REGION')
+        if not value:
+            raise EnvironmentError('AWS_REGION not defined in environment')
+        return value
+
+    @property
+    def s3_client(self):
+        if self.__s3_client__ is None:
+            boto_session = boto3.Session(self.aws_access_key_id, self.aws_secret_access_key,
+                                         region_name=self.region_name)
+            self.__s3_client__ = boto_session.client('s3')
+        return self.__s3_client__
+
+    def get_buckets(self):
+        return json.dumps(self.s3_client.list_buckets(), indent=4, sort_keys=True, default=str)
+
+    def get_bucket(self, bucket, key=None):
+        if key:
+            uploaded_object = self.s3_client.get_object(Bucket=bucket, Key=key.replace('_', '/'))
+            return uploaded_object['Body'].read().decode('utf-8')
+        else:
+            return self.s3_client.list_objects(Bucket=bucket)
+
+    def put_bucket(self, bucket, key=None, body=b''):
+        if key is None:
+            kwargs = {}
+            buckets = self.s3_client.list_buckets()
+            found = [b for b in buckets['Buckets'] if b['Name'] == bucket]
+            if found:
+                raise BadRequestError("Bucket already exists.")
+            if self.region_name != 'us-east-1':
+                kwargs['CreateBucketConfiguration'] = {'LocationConstraint': 'EU'}
+            self.s3_client.create_bucket(Bucket=bucket, **kwargs)
+        else:
+            self.s3_client.put_object(Bucket=bucket, Key=key, Body=body)
+
+    def delete_bucket(self, bucket, key=None):
+        if key is None:
+            self.s3_client.delete_bucket(Bucket=bucket)
+        else:
+            self.s3_client.delete_object(Bucket=bucket, Key=key)
+
+    def get_content(self, bucket, key=None):
+        if key:
+            uploaded_object = self.s3_client.get_object(Bucket=bucket, Key=key.replace('_', '/'))
+            return uploaded_object['Body'].read().decode('utf-8')
+        raise BadRequestError("Key is missing.")
