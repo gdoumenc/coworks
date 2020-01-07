@@ -20,10 +20,13 @@ class TechMicroService(Chalice):
     def __init__(self, config_dir=None, **kwargs):
         app_name = kwargs.pop('app_name', self.__class__.__name__)
         super().__init__(app_name, **kwargs)
-        self.__auth__ = None
         self.experimental_feature_flags.update([
             'BLUEPRINTS'
         ])
+
+        # internal attributes
+        self.__auth__ = None
+        self.blueprints = {}
 
         # add root route
         self._add_route()
@@ -45,6 +48,7 @@ class TechMicroService(Chalice):
             kwargs['url_prefix'] = f"/{blueprint.component_name}"
 
         super().register_blueprint(blueprint, **kwargs)
+        self.blueprints[blueprint.import_name] = blueprint
 
     def run(self, host='127.0.0.1', port=8000, stage=None, debug=True, profile=None, project_dir='.'):
         # TODO missing test
@@ -196,5 +200,13 @@ class Blueprint(ChaliceBlueprint):
         super().__init__(import_name)
 
     @property
+    def import_name(self):
+        return self._import_name
+
+    @property
     def component_name(self):
         return ''
+
+    @property
+    def current_app(self):
+        return self._current_app

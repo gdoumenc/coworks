@@ -1,7 +1,8 @@
-import requests
 import smtplib
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import MagicMock, patch
+import requests
 
 from coworks.tech import MailMicroService
 
