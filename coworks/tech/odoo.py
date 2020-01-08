@@ -4,7 +4,7 @@ from http.client import BadStatusLine
 from xmlrpc import client
 
 from pyexpat import ExpatError
-from chalice import NotFoundError
+from chalice import NotFoundError, BadRequestError
 
 from .. import Blueprint
 from ..coworks import TechMicroService, ChaliceViewError
@@ -15,10 +15,10 @@ class OdooMicroService(TechMicroService):
         super().__init__(**kwargs)
         self.url = self.db = self.username = self.password = self.models_url = self.api_uid = self.logger = None
 
-    def get_model(self, model, field, value, fields=None, ensure_one=False):
-        """To allow / in value, _ are replaced by / and __ by _"""
-        value = value.replace('_', '/').replace('//', '_')
-        results = self.search(model, [[(field, '=', value)]], fields=fields if fields else [])
+    def get_model(self, model:str, searched_field:str, searched_value=None, fields=None, ensure_one=False):
+        if not searched_value:
+            return BadRequestError(f"{searched_field} not defined.")
+        results = self.search(model, [[(searched_field, '=', searched_value)]], fields=fields if fields else [])
 
         if ensure_one:
             return self._ensure_one(results)
@@ -26,6 +26,13 @@ class OdooMicroService(TechMicroService):
         if not results:
             raise NotFoundError()
         return results
+
+    def get_field(self, model, searched_field, searched_value, returned_field='id'):
+        value = self.get_model(model, searched_field, searched_value, fields=[returned_field], ensure_one=True)
+        return value[returned_field]
+
+    def get_id(self, model, searched_field, searched_value):
+        return self.get_field(model, searched_field, searched_value)
 
     def connect(self, url=None, database=None, username=None, password=None):
 
@@ -92,7 +99,7 @@ class OdooMicroService(TechMicroService):
         return self.execute_kw(model, 'write', [[id], self._replace_tuple(data)], dry=dry)
 
     @staticmethod
-    def _ensure_one(results):
+    def _ensure_one(results) -> dict:
         """Ensure only only one in the result list and returns it."""
         if len(results) == 0:
             raise NotFoundError(f"No object found.")

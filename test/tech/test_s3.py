@@ -10,7 +10,7 @@ TEST_KEY = "key/test/coworks"
 
 
 @pytest.mark.tech
-class TestS3Class:
+class ATestS3Class:
 
     def test_list_buckets(self, local_server_factory):
         assert os.getenv('AWS_ACCESS_KEY_ID') is not None, \
