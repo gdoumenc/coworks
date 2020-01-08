@@ -52,8 +52,37 @@ Test
 
 Tests may be made in two manner:
 
+* Online test
 * Classical test with test tools like pytest
-* Online test (to be done)
+
+As a classical python application
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+As seen, you can run your microservice on local with the command::
+
+	$ cws local
+
+You can also run you microservice in a classical manner of python application:
+
+.. code-block:: python
+
+	if __name__ == '__main__':
+		app.run()
+
+You can add more options for testing as changing the port or the stage::
+
+	$ cws local --stage prod --port 8001
+
+Then same for python application:
+
+.. code-block:: python
+
+	if __name__ == '__main__':
+		app.run(stage="prod", port=8001)
+
+To get the list of options::
+
+	$ cws local --help
 
 PyTest
 ^^^^^^
