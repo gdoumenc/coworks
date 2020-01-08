@@ -15,7 +15,7 @@ class OdooMicroService(TechMicroService):
         super().__init__(**kwargs)
         self.url = self.db = self.username = self.password = self.models_url = self.api_uid = self.logger = None
 
-    def get_model(self, model:str, searched_field:str, searched_value=None, fields=None, ensure_one=False):
+    def get_model(self, model: str, searched_field: str, searched_value=None, fields=None, ensure_one=False):
         if not searched_value:
             return BadRequestError(f"{searched_field} not defined.")
         results = self.search(model, [[(searched_field, '=', searched_value)]], fields=fields if fields else [])
@@ -95,8 +95,11 @@ class OdooMicroService(TechMicroService):
         return self.execute_kw(model, 'create', [self._replace_tuple(data)], dry=dry)
 
     def write(self, model, data: dict, dry=False):
-        id = data.pop('id')
-        return self.execute_kw(model, 'write', [[id], self._replace_tuple(data)], dry=dry)
+        _id = data.pop('id')
+        return self.execute_kw(model, 'write', [[_id], self._replace_tuple(data)], dry=dry)
+
+    def delete(self, model, _id, dry=False):
+        return self.execute_kw(model, 'unlink', [[int(_id)]], dry=dry)
 
     @staticmethod
     def _ensure_one(results) -> dict:
@@ -135,6 +138,9 @@ class OdooBlueprint(Blueprint):
 
     def write(self, data, dry=False):
         return self.current_app.write(self._model, data, dry=dry)
+
+    def delete(self, _id, dry=False):
+        return self.current_app.delete(self._model, _id, dry=dry)
 
 
 class UserBlueprint(OdooBlueprint):
