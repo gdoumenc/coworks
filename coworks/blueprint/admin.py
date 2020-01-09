@@ -6,6 +6,7 @@ from coworks import Blueprint
 class Admin(Blueprint):
 
     def get_routes(self):
+        """Returns the list of entrypoints with signature."""
         app = self._current_app
         routes = {}
         for resource_path, entry in app.routes.items():
@@ -21,4 +22,5 @@ class Admin(Blueprint):
         return routes
 
     def get_context(self):
+        """Returns the calling context."""
         return self.current_request.to_dict()

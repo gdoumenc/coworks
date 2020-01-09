@@ -16,6 +16,7 @@ class OdooMicroService(TechMicroService):
         self.url = self.db = self.username = self.password = self.models_url = self.api_uid = self.logger = None
 
     def get_model(self, model: str, searched_field: str, searched_value=None, fields=None, ensure_one=False):
+        """Returns the list of objects or the object which searched_field is equal to the searched_value."""
         if not searched_value:
             return BadRequestError(f"{searched_field} not defined.")
         results = self.search(model, [[(searched_field, '=', searched_value)]], fields=fields if fields else [])
@@ -27,11 +28,23 @@ class OdooMicroService(TechMicroService):
             raise NotFoundError()
         return results
 
+    def put_model(self, model, data=None):
+        """Delete the object of the model referenced by this id."""
+        if 'id' in data:
+            return self.write(model, data)
+        return self.create(model, data)
+
+    def delete_model(self, model, _id, dry=False):
+        """Delete the object of the model referenced by this id."""
+        return self.execute_kw(model, 'unlink', [[int(_id)]], dry=dry)
+
     def get_field(self, model, searched_field, searched_value, returned_field='id'):
+        """Returns the value of the object which searched_field is equal to the searched_value."""
         value = self.get_model(model, searched_field, searched_value, fields=[returned_field], ensure_one=True)
         return value[returned_field]
 
     def get_id(self, model, searched_field, searched_value):
+        """Returns the id of the object which searched_field is equal to the searched_value."""
         return self.get_field(model, searched_field, searched_value)
 
     def connect(self, url=None, database=None, username=None, password=None):
@@ -97,9 +110,6 @@ class OdooMicroService(TechMicroService):
     def write(self, model, data: dict, dry=False):
         _id = data.pop('id')
         return self.execute_kw(model, 'write', [[_id], self._replace_tuple(data)], dry=dry)
-
-    def delete(self, model, _id, dry=False):
-        return self.execute_kw(model, 'unlink', [[int(_id)]], dry=dry)
 
     @staticmethod
     def _ensure_one(results) -> dict:
