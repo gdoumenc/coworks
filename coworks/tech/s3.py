@@ -45,9 +45,11 @@ class S3MicroService(TechMicroService):
         return self.__s3_client__
 
     def get_buckets(self):
+        """Return the list buckets defined."""
         return json.dumps(self.s3_client.list_buckets(), indent=4, sort_keys=True, default=str)
 
     def get_bucket(self, bucket, key=None):
+        """Returns an object in the bucket from the key or the list of objects contained int he bucket."""
         if key:
             uploaded_object = self.s3_client.get_object(Bucket=bucket, Key=key.replace('_', '/'))
             return uploaded_object['Body'].read().decode('utf-8')
