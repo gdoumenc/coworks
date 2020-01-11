@@ -28,10 +28,10 @@ class OdooMicroService(TechMicroService):
             raise NotFoundError()
         return results
 
-    def put_model(self, model, data=None):
+    def put_model(self, model, _id=None, data=None):
         """Delete the object of the model referenced by this id."""
-        if 'id' in data:
-            return self.write(model, data)
+        if _id:
+            return self.write(model, _id, data)
         return self.create(model, data)
 
     def delete_model(self, model, _id, dry=False):
@@ -107,8 +107,7 @@ class OdooMicroService(TechMicroService):
     def create(self, model, data: dict, dry=False):
         return self.execute_kw(model, 'create', [self._replace_tuple(data)], dry=dry)
 
-    def write(self, model, data: dict, dry=False):
-        _id = data.pop('id')
+    def write(self, model, _id, data: dict, dry=False):
         return self.execute_kw(model, 'write', [[_id], self._replace_tuple(data)], dry=dry)
 
     @staticmethod
@@ -144,13 +143,13 @@ class OdooBlueprint(Blueprint):
         return self.current_app.search(self._model, filters, fields, offset, limit, order, **options)
 
     def create(self, data, dry=False):
-        return self.current_app.create(self._model, data, dry=dry)
+        return self.current_app.put_model(self._model, data, dry=dry)
 
-    def write(self, data, dry=False):
-        return self.current_app.write(self._model, data, dry=dry)
+    def write(self, _id, data, dry=False):
+        return self.current_app.put_model(self._model, _id, data, dry=dry)
 
     def delete(self, _id, dry=False):
-        return self.current_app.delete(self._model, _id, dry=dry)
+        return self.current_app.delete_model(self._model, _id, dry=dry)
 
 
 class UserBlueprint(OdooBlueprint):
