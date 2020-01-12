@@ -8,25 +8,51 @@ def test_request(local_server_factory):
     response = local_server.make_call(requests.get, '/')
     assert response.status_code == 200
     assert response.text == 'get'
+    response = local_server.make_call(requests.post, '/')
+    assert response.status_code == 405
     response = local_server.make_call(requests.get, '/get1')
     assert response.status_code == 403
     response = local_server.make_call(requests.get, '/content')
     assert response.status_code == 200
-    assert response.text == 'get_content'
-    response = local_server.make_call(requests.post, '/')
-    assert response.status_code == 405
-    response = local_server.make_call(requests.post, '/content/3')
+    assert response.text == "get content"
+    response = local_server.make_call(requests.get, '/content/3')
     assert response.status_code == 200
-    assert response.text == 'post_content 3none'
-    response = local_server.make_call(requests.post, '/content/3', json={"other": 0})
+    assert response.text == "get content with 3"
+    response = local_server.make_call(requests.get, '/content/3/other')
     assert response.status_code == 200
-    assert response.text == 'post_content 30'
-    response = local_server.make_call(requests.post, '/content/3', json={"other": 0, "value": 5})
+    assert response.text == "get content with 3 and other"
+    response = local_server.make_call(requests.post, '/content', json={"other": 'other'})
     assert response.status_code == 200
-    assert response.text == 'post_content 30'
+    assert response.text == "post content without value but other"
+    response = local_server.make_call(requests.post, '/content/3', json={"other": 'other'})
+    assert response.status_code == 200
+    assert response.text == "post content with 3 and other"
+    response = local_server.make_call(requests.post, '/content/3', json='other')
+    assert response.status_code == 200
+    assert response.text == "post content with 3 and other"
+    response = local_server.make_call(requests.post, '/content/3', json={"other": 'other', "value": 5})
+    assert response.status_code == 400
+
+    response = local_server.make_call(requests.get, '/kwparam1', params={"value": 5})
+    assert response.status_code == 200
+    assert response.text == "get **param with only 5"
+    response = local_server.make_call(requests.get, '/kwparam1', params={"other": 'other', "value": 5})
+    assert response.status_code == 400
+    response = local_server.make_call(requests.get, '/kwparam1', json={"value": 5})
+    assert response.status_code == 200
+    assert response.text == "get **param with only 5"
+    response = local_server.make_call(requests.get, '/kwparam1', json={"other": 'other', "value": 5})
+    assert response.status_code == 400
+    response = local_server.make_call(requests.get, '/kwparam2', params={"other": 'other', "value": 5})
+    assert response.status_code == 200
+    assert response.text == "get **param with 5 and ['other']"
+    response = local_server.make_call(requests.get, '/kwparam2', json={"other": 'other', "value": 5})
+    assert response.status_code == 200
+    assert response.text == "get **param with 5 and ['other']"
+
     response = local_server.make_call(requests.get, '/extended/content')
     assert response.status_code == 200
-    assert response.text == 'hello world'
+    assert response.text == "hello world"
 
 
 def test_prefixed(local_server_factory):

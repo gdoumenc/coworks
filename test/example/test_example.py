@@ -4,7 +4,6 @@ import requests
 
 from .app import App
 
-
 def test_simple_example(local_server_factory):
     local_server = local_server_factory(App())
     response = local_server.make_call(requests.get, '/')
@@ -24,6 +23,8 @@ def test_simple_example(local_server_factory):
     assert response.text == "456\n"
 
 
+import pytest
+@pytest.mark.test
 def test_params(local_server_factory):
     local_server = local_server_factory(App())
     response = local_server.make_call(requests.put, '/value/1', json=456)
@@ -37,6 +38,6 @@ def test_params(local_server_factory):
 def test_env(local_server_factory):
     dir_path = os.path.dirname(os.path.realpath(__file__))
     local_server = local_server_factory(App(), config_path = dir_path)
-    response = local_server.make_call(requests.get, '/env', timeout=100.5)
+    response = local_server.make_call(requests.get, '/env')
     assert response.status_code == 200
     assert response.text == "Simple microservice for test environment variable.\n"

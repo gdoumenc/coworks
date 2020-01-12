@@ -15,7 +15,8 @@ class OdooMicroService(TechMicroService):
         super().__init__(**kwargs)
         self.url = self.db = self.username = self.password = self.models_url = self.api_uid = self.logger = None
 
-    def get_model(self, model:str, searched_field:str, searched_value=None, fields=None, ensure_one=False):
+    def get_model(self, model: str, searched_field: str, searched_value=None, fields=None, ensure_one=False):
+        """Returns the list of objects or the object which searched_field is equal to the searched_value."""
         if not searched_value:
             return BadRequestError(f"{searched_field} not defined.")
         results = self.search(model, [[(searched_field, '=', searched_value)]], fields=fields if fields else [])
@@ -27,14 +28,62 @@ class OdooMicroService(TechMicroService):
             raise NotFoundError()
         return results
 
+    def put_model(self, model, data=None):
+        return self.create(model, data)
+
+    def put_model_(self, model, _id, data=None):
+        """Delete the object of the model referenced by this id."""
+        return self.write(model, _id, data)
+
+    def delete_model(self, model, _id, dry=False):
+        """Delete the object of the model referenced by this id."""
+        return self.execute_kw(model, 'unlink', [[int(_id)]], dry=dry)
+
     def get_field(self, model, searched_field, searched_value, returned_field='id'):
+        """Returns the value of the object which searched_field is equal to the searched_value."""
         value = self.get_model(model, searched_field, searched_value, fields=[returned_field], ensure_one=True)
         return value[returned_field]
 
     def get_id(self, model, searched_field, searched_value):
+        """Returns the id of the object which searched_field is equal to the searched_value."""
         return self.get_field(model, searched_field, searched_value)
 
-    def connect(self, url=None, database=None, username=None, password=None):
+    def execute_kw(self, model: str, method: str, *args, dry=False):
+        try:
+            if not model:
+                raise ChaliceViewError("Model undefined")
+
+            if not self.api_uid:
+                self._connect()
+            self.logger.info(f'Execute_kw : {model}, {method}, {list(args)}')
+            if dry:
+                return
+
+            with client.ServerProxy(self.models_url, allow_none=True) as models:
+                return models.execute_kw(self.db, self.api_uid, self.password, model, method, *args)
+        except (BadStatusLine, ExpatError):
+            self.logger.debug(f'Retry execute_kw : {model} {method} {args}')
+            with client.ServerProxy(self.models_url) as models:
+                return models.execute_kw(self.db, self.api_uid, self.password, model, method, *args)
+        except Exception as e:
+            raise ChaliceViewError(str(e))
+
+    def search(self, model, filters: list, fields=None, offset=None, limit=None, order=None) -> list:
+        options = {}
+        if fields:
+            options["fields"] = fields if type(fields) is list else [fields]
+        options.setdefault("limit", offset if offset else 0)
+        options.setdefault("limit", limit if limit else 50)
+        options.setdefault("order", order if order else 'id asc')
+        return self.execute_kw(model, 'search_read', filters, options)
+
+    def create(self, model, data: dict, dry=False):
+        return self.execute_kw(model, 'create', [self._replace_tuple(data)], dry=dry)
+
+    def write(self, model, _id, data: dict, dry=False):
+        return self.execute_kw(model, 'write', [[_id], self._replace_tuple(data)], dry=dry)
+
+    def _connect(self, url=None, database=None, username=None, password=None):
 
         # initialize connection informations
         self.url = url or os.getenv('ODOO_URL')
@@ -61,42 +110,6 @@ class OdooMicroService(TechMicroService):
             self.models_url = f'{self.url}/xmlrpc/2/object'
         except Exception:
             raise Exception(f'Odoo interface variables wrongly defined.')
-
-    def execute_kw(self, model: str, method: str, *args, dry=False):
-        try:
-            if not model:
-                raise ChaliceViewError("Model undefined")
-
-            if not self.api_uid:
-                self.connect()
-            self.logger.info(f'Execute_kw : {model}, {method}, {list(args)}')
-            if dry:
-                return
-
-            with client.ServerProxy(self.models_url, allow_none=True) as models:
-                return models.execute_kw(self.db, self.api_uid, self.password, model, method, *args)
-        except (BadStatusLine, ExpatError):
-            self.logger.debug(f'Retry execute_kw : {model} {method} {args}')
-            with client.ServerProxy(self.models_url) as models:
-                return models.execute_kw(self.db, self.api_uid, self.password, model, method, *args)
-        except Exception as e:
-            raise ChaliceViewError(str(e))
-
-    def search(self, model, filters: list, fields=None, offset=None, limit=None, order=None) -> list:
-        options = {}
-        if fields:
-            options["fields"] = fields if type(fields) is list else [fields]
-        options.setdefault("limit", offset if offset else 0)
-        options.setdefault("limit", limit if limit else 50)
-        options.setdefault("order", order if order else 'id asc')
-        return self.execute_kw(model, 'search_read', filters, options)
-
-    def create(self, model, data: dict, dry=False):
-        return self.execute_kw(model, 'create', [self._replace_tuple(data)], dry=dry)
-
-    def write(self, model, data: dict, dry=False):
-        id = data.pop('id')
-        return self.execute_kw(model, 'write', [[id], self._replace_tuple(data)], dry=dry)
 
     @staticmethod
     def _ensure_one(results) -> dict:
@@ -131,10 +144,13 @@ class OdooBlueprint(Blueprint):
         return self.current_app.search(self._model, filters, fields, offset, limit, order, **options)
 
     def create(self, data, dry=False):
-        return self.current_app.create(self._model, data, dry=dry)
+        return self.current_app.put_model(self._model, data, dry=dry)
 
-    def write(self, data, dry=False):
-        return self.current_app.write(self._model, data, dry=dry)
+    def write(self, _id, data, dry=False):
+        return self.current_app.put_model(self._model, _id, data, dry=dry)
+
+    def delete(self, _id, dry=False):
+        return self.current_app.delete_model(self._model, _id, dry=dry)
 
 
 class UserBlueprint(OdooBlueprint):

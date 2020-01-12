@@ -8,7 +8,7 @@ import boto3
 import sys
 from botocore.exceptions import ClientError
 
-from chalice import AuthResponse
+from chalice import AuthResponse, BadRequestError
 from chalice import Chalice, Blueprint as ChaliceBlueprint, ChaliceViewError
 
 from .utils import class_auth_methods, class_rest_methods, class_attribute
@@ -83,6 +83,9 @@ class TechMicroService(Chalice):
                 route = f"{component.component_name}"
             else:
                 name = func.__name__[len(method) + 1:]
+                while name.endswith('_'):
+                    # to allow several functions with same route but different args
+                    name = name[:-1]
                 name = name.replace('_', '/')
                 route = f"{component.component_name}/{name}" if component.component_name else f"{name}"
             args = inspect.getfullargspec(func).args[1:]
@@ -97,7 +100,8 @@ class TechMicroService(Chalice):
                     route = route + f"/{{{arg}}}" if route else f"{{{arg}}}"
                 kwarg_keys = {}
 
-            proxy = TechMicroService._create_rest_proxy(component, func, kwarg_keys)
+            varkw = inspect.getfullargspec(func).varkw
+            proxy = TechMicroService._create_rest_proxy(component, func, kwarg_keys, varkw)
             component.route(f"/{route}", methods=[method.upper()], authorizer=auth)(proxy)
 
     @staticmethod
@@ -118,25 +122,30 @@ class TechMicroService(Chalice):
         return component.authorizer(name='auth')(proxy)
 
     @staticmethod
-    def _create_rest_proxy(component, func, kwarg_keys):
+    def _create_rest_proxy(component, func, kwarg_keys, varkw):
 
-        def proxy(*args, **kwargs):
+        def proxy(**kwargs):
             req = component.current_request
             if kwarg_keys:
                 if req.query_params:
-                    query_params = {}
+                    params = {}
                     for k in req.query_params:
-                        if k not in kwarg_keys:
-                            continue
+                        if k not in kwarg_keys and varkw is None:
+                            raise BadRequestError(f"TypeError: got an unexpected keyword argument '{k}'")
                         value = req.query_params.getlist(k)
-                        query_params[k] = value if len(value) > 1 else value[0]
-                    kwargs = dict(**kwargs, **query_params)
+                        params[k] = value if len(value) > 1 else value[0]
+                    kwargs = dict(**kwargs, **params)
                 if req.json_body:
                     if hasattr(req.json_body, 'items'):
-                        kwargs = dict(**kwargs, **{k: v for k, v in req.json_body.items() if k in kwarg_keys})
+                        params = {}
+                        for k, v in req.json_body.items():
+                            if k not in kwarg_keys and varkw is None:
+                                raise BadRequestError(f"TypeError: got an unexpected keyword argument '{k}'")
+                            params[k] = v
+                        kwargs = dict(**kwargs, **params)
                     else:
                         kwargs[kwarg_keys[0]] = req.json_body
-            return func(component, *args, **kwargs)
+            return func(component, **kwargs)
 
         return update_wrapper(proxy, func)
 
@@ -185,6 +194,9 @@ class BizMicroService(TechMicroService):
             return res['executionArn']
         except ClientError as error:
             raise ChaliceViewError(str(error))
+
+    def on_error(self):
+        pass
 
     @property
     def client(self):

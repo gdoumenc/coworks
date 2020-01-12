@@ -21,7 +21,7 @@ def test_documentation(local_server_factory):
     ms = DoumentedMS()
     ms.register_blueprint(Admin(), url_prefix="/admin")
     local_server = local_server_factory(ms)
-    response = local_server.make_call(requests.get, '/admin/routes', timeout=200.5)
+    response = local_server.make_call(requests.get, '/admin/routes')
     assert response.status_code == 200
     assert json.loads(response.text)["/"] == {
         "GET": {
@@ -37,7 +37,7 @@ def test_documentation(local_server_factory):
     }
     assert json.loads(response.text)["/admin/routes"] == {
         "GET": {
-            "doc": '',
+            "doc": 'Returns the list of entrypoints with signature.',
             "signature": "(self)"
         }
     }

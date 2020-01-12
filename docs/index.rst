@@ -89,6 +89,7 @@ User’s Guide
   installation
   quickstart
   tutorial
+  staging
   authorization
   blueprint
   tech
