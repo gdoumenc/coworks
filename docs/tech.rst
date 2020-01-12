@@ -59,3 +59,9 @@ The S3 microservice allows bucket manipulation :
 		Params :
 			- key: Required
 			- body:b'' : Content in bytes.
+
+
+ODOO
+^^^^
+
+
