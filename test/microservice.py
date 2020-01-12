@@ -17,10 +17,26 @@ class SimpleMS(MS):
         return "get1"
 
     def get_content(self):
-        return "get_content"
+        return "get content"
 
-    def post_content(self, value, other="none"):
-        return f"post_content {value}{other}"
+    def get_content_(self, value):
+        return f"get content with {value}"
+
+    def get_content__(self, value, other):
+        return f"get content with {value} and {other}"
+
+    def post_content(self, other="none"):
+        return f"post content without value but {other}"
+
+    def post_content_(self, value, other="none"):
+        return f"post content with {value} and {other}"
+
+    # **param
+    def get_kwparam1(self, value=0):
+        return f"get **param with only {value}"
+
+    def get_kwparam2(self, value=0, **kwargs):
+        return f"get **param with {value} and {list(kwargs.keys())}"
 
     # composed path
     def get_extended_content(self):

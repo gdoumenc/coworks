@@ -20,32 +20,135 @@ Composed routes are defined thru the ``_`` separator.
 Examples
 ^^^^^^^^
 
-The following function defines the GET method for the root service.
+The following function defines the GET method for the root of the microservice:
 
 .. code-block:: python
 
 	def get(self):
-		...
+		return "root"
 
-The following function defines the GET method for the route ``service/test`` service.
+The following function defines the GET method for the route ``service/test``:
 
 .. code-block:: python
 
 	def get_service_test(self):
-		...
+		return "test"
 
-The following function defines the PUT method for the root service.
+The following function defines the PUT method for the root of the microservice:
 
 .. code-block:: python
 
 	def put(self):
-		...
+		return put
+
+
+Entrypoint Parameters
+---------------------
 
 URL Parameters
---------------
+^^^^^^^^^^^^^^
 
-Query parameters
-----------------
+You can define entrypoint function arguments as part of the URL:
+
+.. code-block:: python
+
+	def get_content(self, index):
+		return f"get content {index}"
+
+This defines a route which first part is the fixed string ``content`` and the second part is the ``index`` value.
+We denote the route like this::
+
+	/content/{index}
+
+You can have several positionnal parameters (ordered from the URL path):
+
+.. code-block:: python
+
+	def get_content(self, bucket, key1, key2, key3):
+		return f"get content of {bucket} with key {key1/key2/key3}"
+
+which defines the route ``/content/{bucket}/{key1}/{key2}/{key3}``.
+
+*Note*: In this case, the keys parameters must not have the ``/`` character.
+
+You can also construct more complex routes from different parameters:
+
+.. code-block:: python
+
+	def get_content(self):
+		return "get content"
+
+	def get_content_(self, value):
+		return f"get content with {value}"
+
+	def get_content__(self, value, other):
+		return f"get content with {value} and {other}"
+
+This defines the respecting following routes::
+
+	/content
+	/content/{value}
+	/content/{value}/{other}
+
+This is usefull for offering a CRUD microservice:
+
+.. code-block:: python
+
+	def get(self):
+		return "the list of instances of a model"
+
+	def get_(self, id):
+		return f"the instance with id {id}"
+
+	def put(self, data):
+		return f"creates a new instance with {data}"
+
+	def put_(self, id, data):
+		return f"modifies an instance identified by {id} with {data}"
+
+
+Query or body parameters
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+You can define default parameters to your entrypoint function.
+In that case the value of those default parameters are defined by query parameters or JSON body content.
+
+.. code-block:: python
+
+	def get_content(self, id=None, name=""):
+		return f"the instance with id {id} and/or name {name}"
+
+Where the ``id`` parameter can be defined by the query parameter::
+
+	/content?id=32&name=test
+
+Or in python code using the ``requests`` module::
+
+	requests.get("/content", params={"id": 32, "name": "test"})
+
+or by a JSON structure::
+
+	request.get(""/content", json={"id": 32, "name": "test"}")
+
+A list parameter can be defined by a multi value parameter::
+
+	/content?id=32&name=test&name=other
+
+Which is equivalent to the JSON call::
+
+	request.get(""/content", json={"id": 32, "name": ["test", "other"]}")
+
+
+
+**Note**: The current implementation doesn't take in account the typing of the entrypoint function parameters (forcasted).
+So all query paramerters are from type ``string``.
+If you want to pass typed or structured values, use the JSON mode.
+
+You can also use the ``**`` notation to get any values::
+
+	def get_content(self, **kwargs):
+		return f"here are all the parameters: {kwargs}"
+
 
 Test
 ----

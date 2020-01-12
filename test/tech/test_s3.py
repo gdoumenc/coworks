@@ -1,62 +1,72 @@
-import os
-
-import requests
 import pytest
+import requests
 
 from coworks.tech import S3MicroService
 
-TEST_BUCKET = "cowoks-s3-pytest"
-TEST_KEY = "key/test/coworks"
+env = {
+    "AWS_ACCESS_KEY_ID": "access key",
+    "AWS_SECRET_ACCESS_KEY": "secret key",
+    "AWS_REGION": "region"
+}
+
+
+class S3Test(S3MicroService):
+
+    def __init__(self, client, **kwargs):
+        super().__init__(**kwargs)
+        self.__s3_client__ = client
 
 
 @pytest.mark.tech
-class ATestS3Class:
+class TestS3Class:
 
-    def test_list_buckets(self, local_server_factory):
-        assert os.getenv('AWS_ACCESS_KEY_ID') is not None, \
-            "You must define AWS_ACCESS_KEY_ID in environment variable for testing"
-        assert os.getenv('AWS_SECRET_ACCESS_KEY') is not None, \
-            "You must define AWS_SECRET_ACCESS_KEY in environment variable for testing"
-        assert os.getenv('AWS_REGION') is not None, \
-            "You must define AWS_REGION in environment variable for testing"
-        local_server = local_server_factory(S3MicroService())
-
-        # delete any case : even not here as may also be created because previous test failed
-        local_server.make_call(requests.delete, f'/bucket/{TEST_BUCKET}', timeout=10)
+    def test_list_buckets(self, local_server_factory, boto3_mock_fixture):
+        local_server = local_server_factory(S3Test(boto3_mock_fixture, env=env))
 
         # get list
-        response = local_server.make_call(requests.get, '/buckets', timeout=10)
+        response = local_server.make_call(requests.get, '/bucket')
         assert response.status_code == 200
         assert 'Buckets' in response.json()
         names = [b['Name'] for b in response.json()['Buckets']]
-        assert TEST_BUCKET not in names
+        assert "bucket" in names
 
-    def test_create_delete_bucket(self, local_server_factory):
-        local_server = local_server_factory(S3MicroService())
+    def test_create_delete_bucket(self, local_server_factory, boto3_mock_fixture):
+        local_server = local_server_factory(S3Test(boto3_mock_fixture, env=env))
 
-        # create bucket
-        response = local_server.make_call(requests.put, f'/bucket/{TEST_BUCKET}', timeout=10)
+        # existing bucket
+        response = local_server.make_call(requests.get, '/bucket/bucket')
         assert response.status_code == 200
-        response = local_server.make_call(requests.get, f'/bucket/{TEST_BUCKET}', timeout=10)
+        response = local_server.make_call(requests.get, '/bucket/test')
+        assert response.status_code == 404
+
+        # creates bucket
+        response = local_server.make_call(requests.put, '/bucket/test')
         assert response.status_code == 200
-        assert response.json()['Name'] == TEST_BUCKET
+        boto3_mock_fixture.create_bucket.assert_called_once_with(bucket='test',
+                                                                 createBucketConfiguration={'LocationConstraint': 'EU'})
+        response = local_server.make_call(requests.get, '/bucket/test')
+        assert response.status_code == 200
+        assert response.json()['Name'] == "test"
+        boto3_mock_fixture.list_objects.assert_called_with(bucket='test')
 
         # cannot recreate
-        response = local_server.make_call(requests.put, f'/bucket/{TEST_BUCKET}', timeout=10,
-                                          params={'key': TEST_KEY, 'body': b"test"})
-        assert response.status_code == 200
-        response = local_server.make_call(requests.get, f'/content/{TEST_BUCKET}', timeout=10,
-                                          params={'key': TEST_KEY})
-        assert response.status_code == 200
-        assert response.text == "test"
-        response = local_server.make_call(requests.delete, f'/bucket/{TEST_BUCKET}', timeout=10,
-                                          params={'key': TEST_KEY})
-        assert response.status_code == 200
+        response = local_server.make_call(requests.put, '/bucket/test')
+        assert response.status_code == 400
 
-        # create key
-        response = local_server.make_call(requests.get, f'/bucket/{TEST_BUCKET}', timeout=10)
+        # creates key
+        response = local_server.make_call(requests.get, '/bucket/test', params={'key': 'key'})
+        assert response.status_code == 404
+        response = local_server.make_call(requests.put, '/content/test', params={'key': 'key', 'body': "content"})
         assert response.status_code == 200
+        boto3_mock_fixture.put_object.assert_called_once_with(bucket='test', key='key', body='content')
+        response = local_server.make_call(requests.get, '/bucket/test', params={'key': 'key'})
+        assert response.status_code == 200
+        response = local_server.make_call(requests.get, '/content/test', params={'key': 'key'})
+        assert response.status_code == 200
+        assert response.text == "content"
 
-        # delete
-        response = local_server.make_call(requests.delete, f'/bucket/{TEST_BUCKET}', timeout=10)
+        # delete bucket
+        response = local_server.make_call(requests.delete, '/bucket/test')
         assert response.status_code == 200
+        response = local_server.make_call(requests.get, '/bucket/test')
+        assert response.status_code == 404

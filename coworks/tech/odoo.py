@@ -28,11 +28,12 @@ class OdooMicroService(TechMicroService):
             raise NotFoundError()
         return results
 
-    def put_model(self, model, _id=None, data=None):
-        """Delete the object of the model referenced by this id."""
-        if _id:
-            return self.write(model, _id, data)
+    def put_model(self, model, data=None):
         return self.create(model, data)
+
+    def put_model_(self, model, _id, data=None):
+        """Delete the object of the model referenced by this id."""
+        return self.write(model, _id, data)
 
     def delete_model(self, model, _id, dry=False):
         """Delete the object of the model referenced by this id."""
@@ -47,41 +48,13 @@ class OdooMicroService(TechMicroService):
         """Returns the id of the object which searched_field is equal to the searched_value."""
         return self.get_field(model, searched_field, searched_value)
 
-    def connect(self, url=None, database=None, username=None, password=None):
-
-        # initialize connection informations
-        self.url = url or os.getenv('ODOO_URL')
-        if not self.url:
-            raise EnvironmentError('ODOO_URL must be set before anything else!')
-        self.db = database or os.getenv('ODOO_DB')
-        if not self.db:
-            raise EnvironmentError('ODOO_DB must be set before anything else!')
-        self.username = username or os.getenv('ODOO_USERNAME')
-        if not self.username:
-            raise EnvironmentError('ODOO_USERNAME must be set before anything else!')
-        self.password = password or os.getenv('ODOO_PASSWORD')
-        if not self.password:
-            raise EnvironmentError('ODOO_PASSWORD must be set before anything else!')
-
-        self.logger = logging.getLogger('odoo')
-
-        try:
-            # initialize xml connection to odoo
-            common = client.ServerProxy(f'{self.url}/xmlrpc/2/common')
-            self.api_uid = common.authenticate(self.db, self.username, self.password, {})
-            if not self.api_uid:
-                raise Exception(f'Odoo connection parameters are wrong')
-            self.models_url = f'{self.url}/xmlrpc/2/object'
-        except Exception:
-            raise Exception(f'Odoo interface variables wrongly defined.')
-
     def execute_kw(self, model: str, method: str, *args, dry=False):
         try:
             if not model:
                 raise ChaliceViewError("Model undefined")
 
             if not self.api_uid:
-                self.connect()
+                self._connect()
             self.logger.info(f'Execute_kw : {model}, {method}, {list(args)}')
             if dry:
                 return
@@ -109,6 +82,34 @@ class OdooMicroService(TechMicroService):
 
     def write(self, model, _id, data: dict, dry=False):
         return self.execute_kw(model, 'write', [[_id], self._replace_tuple(data)], dry=dry)
+
+    def _connect(self, url=None, database=None, username=None, password=None):
+
+        # initialize connection informations
+        self.url = url or os.getenv('ODOO_URL')
+        if not self.url:
+            raise EnvironmentError('ODOO_URL must be set before anything else!')
+        self.db = database or os.getenv('ODOO_DB')
+        if not self.db:
+            raise EnvironmentError('ODOO_DB must be set before anything else!')
+        self.username = username or os.getenv('ODOO_USERNAME')
+        if not self.username:
+            raise EnvironmentError('ODOO_USERNAME must be set before anything else!')
+        self.password = password or os.getenv('ODOO_PASSWORD')
+        if not self.password:
+            raise EnvironmentError('ODOO_PASSWORD must be set before anything else!')
+
+        self.logger = logging.getLogger('odoo')
+
+        try:
+            # initialize xml connection to odoo
+            common = client.ServerProxy(f'{self.url}/xmlrpc/2/common')
+            self.api_uid = common.authenticate(self.db, self.username, self.password, {})
+            if not self.api_uid:
+                raise Exception(f'Odoo connection parameters are wrong')
+            self.models_url = f'{self.url}/xmlrpc/2/object'
+        except Exception:
+            raise Exception(f'Odoo interface variables wrongly defined.')
 
     @staticmethod
     def _ensure_one(results) -> dict:

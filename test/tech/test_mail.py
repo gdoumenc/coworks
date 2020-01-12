@@ -1,4 +1,3 @@
-import smtplib
 from unittest.mock import MagicMock
 
 import pytest
@@ -12,27 +11,22 @@ env = {
     "SMTP_PASSWD": "passwd"
 }
 
-mock = MagicMock()
-mock.__enter__ = MagicMock(return_value=mock)
-
-
-class SMTPMock:
-    def __new__(cls, *args, **kwargs):
-        return mock
-
-
-smtplib.SMTP = SMTPMock
-
 
 @pytest.mark.tech
-class TestMail:
+class ATestMail:
 
-    def test_send(self, local_server_factory):
+    def test_send(self, local_server_factory, smtp_mock_fixture, email_mock_fixture):
         local_server = local_server_factory(MailMicroService(env=env))
-        response = local_server.make_call(requests.post, '/send', json={"subject": "Test mail",
-                                                                        "from_addr": "myself@test.com",
-                                                                        "to_addrs": ["you@test.com"]})
+        response = local_server.make_call(requests.post, '/send',
+                                          json={'subject': "Test mail",
+                                                'from_addr': "myself@test.com",
+                                                'to_addrs': ["you@test.com", "and@test.com"],
+                                                'body': "content"})
         assert response.status_code == 200
-        assert response.text == "Mail sent to you@test.com"
-        mock.login.assert_called_with("myself@test.com", "passwd")
-        mock.send_message.assert_called()
+        smtp_mock_fixture.login.assert_called_once_with("myself@test.com", "passwd")
+        email_mock_fixture.set_content.assert_called_once_with('content')
+        assert email_mock_fixture["Subject"] == "Test mail"
+        assert email_mock_fixture["From"] == "myself@test.com"
+        assert email_mock_fixture["To"] == "you@test.com, and@test.com"
+        assert response.text == "Mail sent to you@test.com, and@test.com"
+        smtp_mock_fixture.send_message.assert_called()
