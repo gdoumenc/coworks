@@ -48,6 +48,11 @@ class OdooMicroService(TechMicroService):
         """Returns the id of the object which searched_field is equal to the searched_value."""
         return self.get_field(model, searched_field, searched_value)
 
+    def post_call(self, model: str, method: str, params_or_filters=None, options=None):
+        params_or_filters = params_or_filters or [[]]
+        options = options or {}
+        return self.execute_kw(model, method, [params_or_filters], options)
+
     def execute_kw(self, model: str, method: str, *args, dry=False):
         try:
             if not model:
