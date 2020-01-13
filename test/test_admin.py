@@ -29,7 +29,7 @@ def test_documentation(local_server_factory):
             "signature": "(self)"
         }
     }
-    assert json.loads(response.text)["/content/{value}"] == {
+    assert json.loads(response.text)["/content/{_0}"] == {
         "POST": {
             "doc": "Add content.",
             "signature": "(self, value: int, other: str = \'none\')"

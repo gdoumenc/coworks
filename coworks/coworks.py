@@ -90,18 +90,18 @@ class TechMicroService(Chalice):
                 route = f"{component.component_name}/{name}" if component.component_name else f"{name}"
             args = inspect.getfullargspec(func).args[1:]
             defaults = inspect.getfullargspec(func).defaults
+            varkw = inspect.getfullargspec(func).varkw
             if defaults:
                 len_defaults = len(defaults)
-                for arg in args[:-len_defaults]:
-                    route = route + f"/{{{arg}}}" if route else f"{{{arg}}}"
+                for index, arg in enumerate(args[:-len_defaults]):
+                    route = route + f"/{{_{index}}}" if route else f"{{_{index}}}"
                 kwarg_keys = args[-len_defaults:]
             else:
-                for arg in args:
-                    route = route + f"/{{{arg}}}" if route else f"{{{arg}}}"
+                for index, arg in enumerate(args):
+                    route = route + f"/{{_{index}}}" if route else f"{{_{index}}}"
                 kwarg_keys = {}
 
-            varkw = inspect.getfullargspec(func).varkw
-            proxy = TechMicroService._create_rest_proxy(component, func, kwarg_keys, varkw)
+            proxy = TechMicroService._create_rest_proxy(component, func, kwarg_keys, args, varkw)
             component.route(f"/{route}", methods=[method.upper()], authorizer=auth)(proxy)
 
     @staticmethod
@@ -122,10 +122,17 @@ class TechMicroService(Chalice):
         return component.authorizer(name='auth')(proxy)
 
     @staticmethod
-    def _create_rest_proxy(component, func, kwarg_keys, varkw):
+    def _create_rest_proxy(component, func, kwarg_keys, args, varkw):
 
-        def proxy(**kwargs):
+        def proxy(**kws):
+            # renames positionnal parameters
             req = component.current_request
+            kwargs = {}
+            for kw, value in kws.items():
+                param = args[int(kw[1:])]
+                kwargs[param] = value
+
+            # add kwargs parameters
             if kwarg_keys:
                 if req.query_params:
                     params = {}
@@ -147,7 +154,9 @@ class TechMicroService(Chalice):
                         kwargs[kwarg_keys[0]] = req.json_body
             return func(component, **kwargs)
 
-        return update_wrapper(proxy, func)
+        proxy = update_wrapper(proxy, func)
+        proxy.__class_func__ = func
+        return proxy
 
     def __call__(self, event, context):
         if 'type' in event and event['type'] == 'TOKEN':
