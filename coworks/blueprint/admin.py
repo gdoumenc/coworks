@@ -16,7 +16,7 @@ class Admin(Blueprint):
                 doc = inspect.getdoc(function_called)
                 route[http_method] = {
                     'doc': doc if doc else '',
-                    'signature': str(inspect.signature(function_called))
+                    'signature': str(inspect.signature(function_called.__class_func__))
                 }
             routes[resource_path] = route
         return routes
