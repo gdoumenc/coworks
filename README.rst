@@ -9,10 +9,12 @@ CoWorks
   :target: https://coworks.readthedocs.io/en/latest/?badge=latest
   :alt: Documentation Status
 
-CoWorks is a Restful Microservice Framework on AWS based on Lambda, AWS Step Function and API Gateway products using Chalice microframework.
+CoWorks is an unified compositional microservices framework over AWS technologies and based on the Chalice microframework.
+The aim of this project, is to offer a very simplified experience of microservices over the awesome technologies of AWS.
 
-Each microservice is a small web application on the serverless Lambda product and offering restfull API interface
-for use and a web dashboard for administration.
+Each atomic microservice (called TechMicroservice) is a simple python class deployed on the serverless Lambda product and
+composition of microservices (called BizMicroservice) is performed over the Step Function product. Other AWS products are used
+for logging, administrate, ...
 
 Using and derived from `Chalice <https://github.com/aws/chalice>`_ and ideas from `Flask-Classy <https://github.com/apiguy/flask-classy/>`_.
 

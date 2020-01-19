@@ -142,7 +142,7 @@ class TechMicroService(Chalice):
                         value = req.query_params.getlist(k)
                         params[k] = value if len(value) > 1 else value[0]
                     kwargs = dict(**kwargs, **params)
-                if req.json_body:
+                if req.raw_body:
                     if hasattr(req.json_body, 'items'):
                         params = {}
                         for k, v in req.json_body.items():

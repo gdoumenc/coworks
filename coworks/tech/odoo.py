@@ -15,11 +15,12 @@ class OdooMicroService(TechMicroService):
         super().__init__(**kwargs)
         self.url = self.db = self.username = self.password = self.models_url = self.api_uid = self.logger = None
 
-    def get_model(self, model: str, searched_field: str, searched_value=None, fields=None, ensure_one=False):
+    def get_model(self, model: str, searched_field: str, searched_value=None, fields=None, ensure_one=False, **kwargs):
         """Returns the list of objects or the object which searched_field is equal to the searched_value."""
         if not searched_value:
             return BadRequestError(f"{searched_field} not defined.")
-        results = self.search(model, [[(searched_field, '=', searched_value)]], fields=fields if fields else [])
+        results = self.search(model, [[(searched_field, '=', searched_value)]], fields=fields if fields else [],
+                              **kwargs)
 
         if ensure_one:
             return self._ensure_one(results)
@@ -77,8 +78,8 @@ class OdooMicroService(TechMicroService):
         options = {}
         if fields:
             options["fields"] = fields if type(fields) is list else [fields]
-        options.setdefault("limit", offset if offset else 0)
-        options.setdefault("limit", limit if limit else 50)
+        options.setdefault("offset", int(offset) if offset else 0)
+        options.setdefault("limit", int(limit) if limit else 50)
         options.setdefault("order", order if order else 'id asc')
         return self.execute_kw(model, 'search_read', filters, options)
 
