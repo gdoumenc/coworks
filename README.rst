@@ -16,8 +16,7 @@ Each atomic microservice (called TechMicroservice) is a simple python class depl
 composition of microservices (called BizMicroservice) is performed as a serverless workflow over the Step Function product.
 Other AWS products are used for logging, administrate, ...
 
-Get started with `Installation <https://coworks.readthedocs.io/en/latest/installation.html>`_
-and then get an overview with the `Quickstart <https://coworks.readthedocs.io/en/latest/quickstart.html>`_.
+Get started with `Quickstart <https://coworks.readthedocs.io/en/latest/quickstart.html>`_.
 Read `FAQ <https://coworks.readthedocs.io/en/latest/faq.html>`_ for a quick presentation,
 and for a `Tutorial <https://coworks.readthedocs.io/en/latest/tutorial.html>`_
 

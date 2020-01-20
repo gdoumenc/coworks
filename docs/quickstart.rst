@@ -41,12 +41,12 @@ On another terminal enter::
 	(project) $ curl http://127.0.0.1:8000
 	Simple microservice ready.
 
-Looks good..
+Looks good...
 
 Deployment
 ----------
 
-Create the required dependencies for the lambda function::
+Create the required dependencies for the lambda function (we use mostly ``pipenv``)::
 
 	(project) $ pipenv lock -r > requirements.txt
 
@@ -61,12 +61,7 @@ Then enter the following command::
 		- Lambda ARN: arn:aws:lambda:eu-west-1:760589174259:function:project-dev
 		- Rest API URL: https://9ssszma6mg.execute-api.eu-west-1.amazonaws.com/api/
 
-That's it, your first microservice is online!
-
-Execution
----------
-
-Execute it::
+That's it, your first microservice is online! Let try::
 
 	(project) $ curl https://9ssszma6mg.execute-api.eu-west-1.amazonaws.com/api/
 	Simple microservice ready.
