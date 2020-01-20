@@ -3,6 +3,11 @@
 TechMicroservices
 =================
 
+``TechMicroservices`` are the atomic objects of the ``CoWorks`` model. They are defined by a simple pyhon class, and represents
+the interaction that a microservice can perform on its environment.
+
+Find below, some predefined ``TechMicroservices``:
+
 Mail
 ^^^^^
 

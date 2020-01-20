@@ -13,8 +13,13 @@ CoWorks is an unified compositional microservices framework over AWS technologie
 The aim of this project, is to offer a very simplified experience of microservices over the awesome technologies of AWS.
 
 Each atomic microservice (called TechMicroservice) is a simple python class deployed on the serverless Lambda product and
-composition of microservices (called BizMicroservice) is performed over the Step Function product. Other AWS products are used
-for logging, administrate, ...
+composition of microservices (called BizMicroservice) is performed as a serverless workflow over the Step Function product.
+Other AWS products are used for logging, administrate, ...
+
+Get started with `Installation <https://coworks.readthedocs.io/en/latest/installation.html>`_
+and then get an overview with the `Quickstart <https://coworks.readthedocs.io/en/latest/quickstart.html>`_.
+Read `FAQ <https://coworks.readthedocs.io/en/latest/faq.html>`_ for a quick presentation,
+and a complete presentation can be found `here <https://coworks.readthedocs.io/en/latest/tutorial.html>`_.
 
 Using and derived from `Chalice <https://github.com/aws/chalice>`_ and ideas from `Flask-Classy <https://github.com/apiguy/flask-classy/>`_.
 
