@@ -53,11 +53,20 @@ If only some routes are allowed, the authorizer must return a list of the allowe
 			return False
 
 
-**BEWARE** : Even if you don't use the token if the authorizatin method, you must define it in the header or the call
+**BEWARE** : Even if you don't use the token, if the authorizatin method is defined, you must define an authorization token in the header or the call
 will be rejected.
 
 
-Fine grained control
---------------------
+Composed control
+----------------
 
-To be done.
+There are two kinds of authorization defined in ``CoWorks``
+
+* Execution rights for microservice,
+* Access control on resources.
+
+For composition of microservices, it is very annoying to have as many token as microservices used.
+Especially when you have many tokens for execution rights (allowing respectively admin mode, debug information, ...)
+and resource access control (read only, complete access, ..)
+
+To be completed.
