@@ -3,6 +3,7 @@ import smtplib
 from email.message import EmailMessage
 from typing import List
 
+from aws_xray_sdk.core import xray_recorder
 from chalice import ChaliceViewError
 
 from ..coworks import TechMicroService
@@ -27,6 +28,8 @@ class MailMicroService(TechMicroService):
 
     def post_send(self, subject="", from_addr: str = None, to_addrs: List[str] = None, body="", starttls=False):
         """Send mail."""
+
+        # Ckecks parameters
         self._check_env_vars()
         from_addr = from_addr or os.getenv('from_addr')
         if not from_addr:
@@ -34,17 +37,33 @@ class MailMicroService(TechMicroService):
         to_addrs = to_addrs or os.getenv('to_addrs')
         if not to_addrs:
             raise ChaliceViewError("To addresses not defined (to_addrs:[str])")
-        msg = EmailMessage()
-        msg['Subject'] = subject
-        msg['From'] = from_addr
-        msg['To'] = ', '.join(to_addrs)
-        msg.set_content(body)
+
+        # Creates email
+        try:
+            msg = EmailMessage()
+            msg['Subject'] = subject
+            msg['From'] = from_addr
+            msg['To'] = ', '.join(to_addrs)
+            msg.set_content(body)
+        except Exception as e:
+            raise ChaliceViewError(f"Cannot create email message (Error: {str(e)}).")
+
+        # Send emails
         try:
             with smtplib.SMTP(self.smtp_server) as server:
                 if starttls:
                     server.starttls()
                 server.login(self.smtp_login, self.smtp_passwd)
-                server.send_message(msg)
+
+                subsegment = xray_recorder.begin_subsegment(f"SMTP sending")
+                try:
+                    subsegment.put_metadata('message', msg.as_string())
+                    server.send_message(msg)
+                finally:
+                    xray_recorder.end_subsegment()
+
             return f"Mail sent to {msg['To']}"
         except smtplib.SMTPAuthenticationError:
             raise ChaliceViewError("Wrong username/password.")
+        except Exception as e:
+            raise ChaliceViewError(f"Cannot send email message (Error: {str(e)}).")

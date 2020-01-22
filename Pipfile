@@ -6,7 +6,7 @@ verify_ssl = true
 [packages]
 chalice = "*"
 boto3 = "*"
-coworks = {editable = true,path = "."}
+aws-xray-sdk = "*"
 
 [dev-packages]
 wheel = "*"

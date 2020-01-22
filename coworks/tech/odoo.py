@@ -3,8 +3,9 @@ import os
 from http.client import BadStatusLine
 from xmlrpc import client
 
-from pyexpat import ExpatError
+from aws_xray_sdk.core import xray_recorder
 from chalice import NotFoundError, BadRequestError
+from pyexpat import ExpatError
 
 from .. import Blueprint
 from ..coworks import TechMicroService, ChaliceViewError
@@ -15,18 +16,24 @@ class OdooMicroService(TechMicroService):
         super().__init__(**kwargs)
         self.url = self.db = self.username = self.password = self.models_url = self.api_uid = self.logger = None
 
-    def get_model(self, model: str, searched_field: str, searched_value=None, fields=None, ensure_one=False, **kwargs):
+    def get_model(self, model: str, searched_field: str, searched_value=None, fields=None, searched_type="str",
+                  ensure_one=False, **kwargs):
         """Returns the list of objects or the object which searched_field is equal to the searched_value."""
         if not searched_value:
             return BadRequestError(f"{searched_field} not defined.")
-        results = self.search(model, [[(searched_field, '=', searched_value)]], fields=fields if fields else [],
+
+        convert = str
+        if searched_type == "int":
+            convert = int
+        results = self.search(model, [[(searched_field, '=', convert(searched_value))]],
+                              fields=fields if fields else [],
                               **kwargs)
 
         if ensure_one:
             return self._ensure_one(results)
 
         if not results:
-            raise NotFoundError()
+            raise NotFoundError("No object found")
         return results
 
     def put_model(self, model, data=None):
@@ -65,8 +72,16 @@ class OdooMicroService(TechMicroService):
             if dry:
                 return
 
-            with client.ServerProxy(self.models_url, allow_none=True) as models:
-                return models.execute_kw(self.db, self.api_uid, self.password, model, method, *args)
+            try:
+                subsegment = xray_recorder.begin_subsegment(f"Quering ODOO")
+                with client.ServerProxy(self.models_url, allow_none=True) as models:
+                    subsegment.put_metadata('model', model)
+                    subsegment.put_metadata('method', method)
+                    for index, arg in enumerate(args):
+                        subsegment.put_metadata(f'arg{index}', arg)
+                    return models.execute_kw(self.db, self.api_uid, self.password, model, method, *args)
+            finally:
+                xray_recorder.end_subsegment()
         except (BadStatusLine, ExpatError):
             self.logger.debug(f'Retry execute_kw : {model} {method} {args}')
             with client.ServerProxy(self.models_url) as models:
@@ -108,6 +123,8 @@ class OdooMicroService(TechMicroService):
         self.logger = logging.getLogger('odoo')
 
         try:
+            xray_recorder.begin_subsegment(f"Connecting ODOO")
+
             # initialize xml connection to odoo
             common = client.ServerProxy(f'{self.url}/xmlrpc/2/common')
             self.api_uid = common.authenticate(self.db, self.username, self.password, {})
@@ -116,6 +133,8 @@ class OdooMicroService(TechMicroService):
             self.models_url = f'{self.url}/xmlrpc/2/object'
         except Exception:
             raise Exception(f'Odoo interface variables wrongly defined.')
+        finally:
+            xray_recorder.end_subsegment()
 
     @staticmethod
     def _ensure_one(results) -> dict:

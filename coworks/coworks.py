@@ -2,12 +2,13 @@ import inspect
 import json
 import logging
 import os
+import sys
+import traceback
 from functools import update_wrapper
 
 import boto3
-import sys
+from aws_xray_sdk.core import xray_recorder
 from botocore.exceptions import ClientError
-
 from chalice import AuthResponse, BadRequestError
 from chalice import Chalice, Blueprint as ChaliceBlueprint, ChaliceViewError
 
@@ -17,18 +18,16 @@ from .utils import class_auth_methods, class_rest_methods, class_attribute
 class TechMicroService(Chalice):
     """Simple chalice app created directly from class."""
 
-    def __init__(self, config_dir=None, **kwargs):
+    def __init__(self, **kwargs):
         app_name = kwargs.pop('app_name', self.__class__.__name__)
         super().__init__(app_name, **kwargs)
         self.experimental_feature_flags.update([
             'BLUEPRINTS'
         ])
 
-        # internal attributes
         self.__auth__ = None
         self.blueprints = {}
 
-        # add root route
         self._add_route()
 
     def _initialize(self, env):
@@ -67,16 +66,16 @@ class TechMicroService(Chalice):
         if component is None:
             component = self
 
-            # adds class authorizer for every entries
+            # Adds class authorizer for every entries
             auth = class_auth_methods(component)
             if auth:
                 auth = TechMicroService._create_auth_proxy(component, auth)
                 component.__auth__ = auth
         else:
-            # add the current_app auth
+            # Add the current_app auth
             auth = self.__auth__
 
-        # adds entrypoints
+        # Adds entrypoints
         methods = class_rest_methods(component)
         for method, func in methods:
             if func.__name__ == method:
@@ -108,7 +107,18 @@ class TechMicroService(Chalice):
     def _create_auth_proxy(component, auth_method):
 
         def proxy(auth_request):
-            auth = auth_method(component, auth_request)
+            subsegment = xray_recorder.begin_subsegment(f"auth microservice")
+            try:
+                auth = auth_method(component, auth_request)
+                subsegment.put_metadata('result', auth)
+            except Exception as e:
+                print(f"Exception : {str(e)}")
+                traceback.print_stack()
+                subsegment.add_exception(e, traceback.extract_stack())
+                raise BadRequestError(str(e))
+            finally:
+                xray_recorder.end_subsegment()
+
             if type(auth) is bool:
                 if auth:
                     return AuthResponse(routes=['*'], principal_id='user')
@@ -125,34 +135,44 @@ class TechMicroService(Chalice):
     def _create_rest_proxy(component, func, kwarg_keys, args, varkw):
 
         def proxy(**kws):
-            # renames positionnal parameters
-            req = component.current_request
-            kwargs = {}
-            for kw, value in kws.items():
-                param = args[int(kw[1:])]
-                kwargs[param] = value
+            subsegment = xray_recorder.begin_subsegment(f"{func.__name__} microservice")
+            try:
+                subsegment.put_metadata('headers', component.current_request.headers, "CoWorks")
+                # Renames positionnal parameters
+                req = component.current_request
+                kwargs = {}
+                for kw, value in kws.items():
+                    param = args[int(kw[1:])]
+                    kwargs[param] = value
 
-            # add kwargs parameters
-            if kwarg_keys:
-                if req.query_params:
-                    params = {}
-                    for k in req.query_params:
-                        if k not in kwarg_keys and varkw is None:
-                            raise BadRequestError(f"TypeError: got an unexpected keyword argument '{k}'")
-                        value = req.query_params.getlist(k)
-                        params[k] = value if len(value) > 1 else value[0]
-                    kwargs = dict(**kwargs, **params)
-                if req.raw_body:
-                    if hasattr(req.json_body, 'items'):
+                # Adds kwargs parameters
+                if kwarg_keys:
+                    if req.query_params:
                         params = {}
-                        for k, v in req.json_body.items():
+                        for k in req.query_params:
                             if k not in kwarg_keys and varkw is None:
                                 raise BadRequestError(f"TypeError: got an unexpected keyword argument '{k}'")
-                            params[k] = v
+                            value = req.query_params.getlist(k)
+                            params[k] = value if len(value) > 1 else value[0]
                         kwargs = dict(**kwargs, **params)
-                    else:
-                        kwargs[kwarg_keys[0]] = req.json_body
-            return func(component, **kwargs)
+                    if req.raw_body:
+                        if hasattr(req.json_body, 'items'):
+                            params = {}
+                            for k, v in req.json_body.items():
+                                if k not in kwarg_keys and varkw is None:
+                                    raise BadRequestError(f"TypeError: got an unexpected keyword argument '{k}'")
+                                params[k] = v
+                            kwargs = dict(**kwargs, **params)
+                        else:
+                            kwargs[kwarg_keys[0]] = req.json_body
+                return func(component, **kwargs)
+            except Exception as e:
+                print(f"Exception : {str(e)}")
+                traceback.print_stack()
+                subsegment.add_exception(e, traceback.extract_stack())
+                raise BadRequestError(str(e))
+            finally:
+                xray_recorder.end_subsegment()
 
         proxy = update_wrapper(proxy, func)
         proxy.__class_func__ = func
