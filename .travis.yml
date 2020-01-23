@@ -4,4 +4,4 @@ python:
 install:
   - pip install pipenv pytest
   - pipenv install --dev
-script: pytest
+script: pytest -m "not tech"
