@@ -29,6 +29,7 @@ setup(
     include_package_data=True,
     install_requires=[
         'boto3',
+        'aws_xray_sdk',
         'chalice',
     ],
     keywords='restful microservice aws chalice serverless',

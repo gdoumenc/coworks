@@ -1,47 +1,21 @@
 import json
-import os
-
-import boto3
 
 from chalice import BadRequestError, NotFoundError
+
 from ..coworks import TechMicroService
+from ..mixins import Boto3Mixin
 
 
-class S3MicroService(TechMicroService):
-    """ GET http://microservice/bucket/name (key where / are replaced by _)
-        Content-Type: application/json"""
+class S3MicroService(Boto3Mixin, TechMicroService):
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.__s3_client__ = None
-
-    @property
-    def aws_access_key_id(self):
-        value = os.getenv('AWS_ACCESS_KEY_ID')
-        if not value:
-            raise EnvironmentError('AWS_ACCESS_KEY_ID not defined in environment')
-        return value
-
-    @property
-    def aws_secret_access_key(self):
-        value = os.getenv('AWS_SECRET_ACCESS_KEY')
-        if not value:
-            raise EnvironmentError('AWS_SECRET_ACCESS_KEY not defined in environment')
-        return value
-
-    @property
-    def region_name(self):
-        value = os.getenv('AWS_REGION')
-        if not value:
-            raise EnvironmentError('AWS_REGION not defined in environment')
-        return value
 
     @property
     def s3_client(self):
         if self.__s3_client__ is None:
-            boto_session = boto3.Session(self.aws_access_key_id, self.aws_secret_access_key,
-                                         region_name=self.region_name)
-            self.__s3_client__ = boto_session.client('s3')
+            self.__s3_client__ = self.boto3_session.client('s3')
         return self.__s3_client__
 
     def get_bucket(self):

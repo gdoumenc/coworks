@@ -2,17 +2,19 @@ import inspect
 import json
 import logging
 import os
-import sys
 import traceback
 from functools import update_wrapper
 
-import boto3
+import sys
 from aws_xray_sdk.core import xray_recorder
-from botocore.exceptions import ClientError
-from chalice import AuthResponse, BadRequestError
-from chalice import Chalice, Blueprint as ChaliceBlueprint, ChaliceViewError
 
+from chalice import AuthResponse, BadRequestError
+from chalice import Chalice, Blueprint as ChaliceBlueprint
+from .mixins import Boto3Mixin
 from .utils import class_auth_methods, class_rest_methods, class_attribute
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 
 class TechMicroService(Chalice):
@@ -29,6 +31,9 @@ class TechMicroService(Chalice):
         self.blueprints = {}
 
         self._add_route()
+
+        if "pytest" in sys.modules:
+            xray_recorder.configure(context_missing="LOG_ERROR")
 
     def _initialize(self, env):
         super()._initialize(env)
@@ -110,11 +115,13 @@ class TechMicroService(Chalice):
             subsegment = xray_recorder.begin_subsegment(f"auth microservice")
             try:
                 auth = auth_method(component, auth_request)
-                subsegment.put_metadata('result', auth)
+                if subsegment:
+                    subsegment.put_metadata('result', auth)
             except Exception as e:
                 print(f"Exception : {str(e)}")
                 traceback.print_stack()
-                subsegment.add_exception(e, traceback.extract_stack())
+                if subsegment:
+                    subsegment.add_exception(e, traceback.extract_stack())
                 raise BadRequestError(str(e))
             finally:
                 xray_recorder.end_subsegment()
@@ -137,7 +144,8 @@ class TechMicroService(Chalice):
         def proxy(**kws):
             subsegment = xray_recorder.begin_subsegment(f"{func.__name__} microservice")
             try:
-                subsegment.put_metadata('headers', component.current_request.headers, "CoWorks")
+                if subsegment:
+                    subsegment.put_metadata('headers', component.current_request.headers, "CoWorks")
                 # Renames positionnal parameters
                 req = component.current_request
                 kwargs = {}
@@ -169,7 +177,8 @@ class TechMicroService(Chalice):
             except Exception as e:
                 print(f"Exception : {str(e)}")
                 traceback.print_stack()
-                subsegment.add_exception(e, traceback.extract_stack())
+                if subsegment:
+                    subsegment.add_exception(e, traceback.extract_stack())
                 raise BadRequestError(str(e))
             finally:
                 xray_recorder.end_subsegment()
@@ -184,53 +193,35 @@ class TechMicroService(Chalice):
         return super().__call__(event, context)
 
 
-class BizMicroService(TechMicroService):
+class BizMicroService(Boto3Mixin, TechMicroService):
     """Chalice app to execute AWS Step Functions."""
 
     def __init__(self, arn, **kwargs):
         super().__init__(**kwargs)
         self._arn = arn
+        self.__sfn_client__ = None
 
     def get_describe(self):
-        try:
-            res = self.client.describe_state_machine(stateMachineArn=self._arn)
-            return json.dumps(res, indent=4, sort_keys=True, default=str)
-        except ClientError as error:
-            raise ChaliceViewError(str(error))
+        res = self.sfn_client.describe_state_machine(stateMachineArn=self._arn)
+        return json.dumps(res, indent=4, sort_keys=True, default=str)
 
     def get_execution(self, exe_arn):
-        try:
-            res = self.client.describe_execution(executionArn=exe_arn)
-            return json.dumps(res, indent=4, sort_keys=True, default=str)
-        except ClientError as error:
-            raise ChaliceViewError(str(error))
+        res = self.sfn_client.describe_execution(executionArn=exe_arn)
+        return json.dumps(res, indent=4, sort_keys=True, default=str)
 
-    def get_last(self, max_results):
-        try:
-            res = self.client.list_executions(stateMachineArn=self._arn, maxResults=int(max_results))
-            return json.dumps(res, indent=4, sort_keys=True, default=str)
-        except ClientError as error:
-            raise ChaliceViewError(str(error))
+    def get_last(self, max_results=1):
+        res = self.sfn_client.list_executions(stateMachineArn=self._arn, maxResults=int(max_results))
+        return json.dumps(res, indent=4, sort_keys=True, default=str)
 
-    def post_invoke(self):
-        try:
-            request = self.current_request
-            name = request.query_params.get('name', "") if request.query_params else ""
-            res = self.client.start_execution(stateMachineArn=self._arn,
-                                              input=json.dumps({
-                                                  "name": name
-                                              }))
-            return res['executionArn']
-        except ClientError as error:
-            raise ChaliceViewError(str(error))
-
-    def on_error(self):
-        pass
+    def post_invoke(self, input="{}"):
+        res = self.sfn_client.start_execution(stateMachineArn=self._arn, input=input)
+        return res
 
     @property
-    def client(self):
-        session = boto3.session.Session(profile_name='imprim')
-        return session.client('stepfunctions')
+    def sfn_client(self):
+        if self.__sfn_client__ is None:
+            self.__sfn_client__ = self.boto3_session.client('stepfunctions')
+        return self.__sfn_client__
 
 
 class Blueprint(ChaliceBlueprint):

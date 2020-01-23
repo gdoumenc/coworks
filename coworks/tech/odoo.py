@@ -8,7 +8,8 @@ from chalice import NotFoundError, BadRequestError
 from pyexpat import ExpatError
 
 from .. import Blueprint
-from ..coworks import TechMicroService, ChaliceViewError
+from chalice import ChaliceViewError
+from ..coworks import TechMicroService
 
 
 class OdooMicroService(TechMicroService):
