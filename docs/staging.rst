@@ -3,11 +3,17 @@
 Stages
 ======
 
-Staging is a very important part in the programmation development porcess.
+Staging is a very important part in the programmation development process.
 You can easily deploy different stages of a microservice with APIGateway.
 
+For that purpose, we prefer using ``terraform`` for deploying microservices than ``chalice``.
+Nevertheless, we will explain first how stagging with ``chalice``
+
+Stagging with Chalice
+^^^^^^^^^^^^^^^^^^^^^
+
 Creating a new stage
-^^^^^^^^^^^^^^^^^^^^
+********************
 
 By default, when the project is initialized, a stage ``dev`` is created.
 This stage is defined in the file ``.chalice/config.json``:
@@ -83,7 +89,7 @@ We strongly recommand to have a stage per branch from your versionning process.
 
 
 Staging deployment
-^^^^^^^^^^^^^^^^^^^
+******************
 
 The deployment informations on a stage are defined in the file ``.chalice/deployed/{stage}.json``.
 
@@ -101,4 +107,8 @@ We can then use the same APIGateway to implement the different stages reusing th
 Then we can use a genric URL for calling a specific stage of this microservice::
 
 	https://qmk6utp3mh.execute-api.eu-west-1.amazonaws.com/{stage}
+
+Stagging with Terraform
+^^^^^^^^^^^^^^^^^^^^^^^
+
 

@@ -5,7 +5,7 @@ from collections import defaultdict
 from coworks import *
 
 
-class App(TechMicroService):
+class TechApp(TechMicroService):
     values = defaultdict(int)
 
     def get(self, usage="test"):
@@ -22,7 +22,14 @@ class App(TechMicroService):
         return f"Simple microservice for {os.getenv('test')}.\n"
 
 
-app = App()
+class BizApp(BizMicroService):
+
+    def auth(self, auth_request):
+        return True
+
+
+app = BizApp("arn:aws:states:eu-west-1:935392763270:stateMachine:ArmonyStock", app_name="ArmonyStock")
+app.react(Every(5, Every.MINUTES))
 
 if __name__ == '__main__':
-    app.run()
+    app.run(profile="fpr-customer")

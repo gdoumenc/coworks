@@ -19,3 +19,6 @@ class CWSFactory(CLIFactory):
         app_obj = config.chalice_app
         server = super().create_local_server(app_obj, config, host, port)
         server.serve_forever()
+
+    def create_default_deployer(self, session, config, ui):
+        return super().create_default_deployer(session, config, ui)

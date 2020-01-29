@@ -2,14 +2,14 @@ import inspect
 import json
 import logging
 import os
+import sys
 import traceback
 from functools import update_wrapper
 
-import sys
 from aws_xray_sdk.core import xray_recorder
-
-from chalice import AuthResponse, BadRequestError
+from chalice import AuthResponse, BadRequestError, Rate, Cron
 from chalice import Chalice, Blueprint as ChaliceBlueprint
+
 from .mixins import Boto3Mixin
 from .utils import class_auth_methods, class_rest_methods, class_attribute
 
@@ -193,6 +193,16 @@ class TechMicroService(Chalice):
         return super().__call__(event, context)
 
 
+class At(Cron):
+    def __init__(self, minutes, hours, day_of_month, month, day_of_week, year):
+        super().__init__(minutes, hours, day_of_month, month, day_of_week, year)
+
+
+class Every(Rate):
+    def __init__(self, value, unit):
+        super().__init__(value, unit)
+
+
 class BizMicroService(Boto3Mixin, TechMicroService):
     """Chalice app to execute AWS Step Functions."""
 
@@ -222,6 +232,16 @@ class BizMicroService(Boto3Mixin, TechMicroService):
         if self.__sfn_client__ is None:
             self.__sfn_client__ = self.boto3_session.client('stepfunctions')
         return self.__sfn_client__
+
+    def react(self, reactor_factory):
+        if isinstance(reactor_factory, Every):
+            def proxy(event,  context):
+                print(event)
+                return self.post_invoke()
+            proxy.__name__ = "app"
+            module = sys.modules[self.__module__]
+            module.__setattr__("every", proxy)
+            self.schedule(reactor_factory, name='every1')(proxy)
 
 
 class Blueprint(ChaliceBlueprint):

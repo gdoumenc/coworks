@@ -3,6 +3,9 @@
 TechMicroservices
 =================
 
+TechMicroservices are the 'atom' of the CoWorks microservices framework. They represent the building blocks
+for other more complex microservices.
+
 Mail
 ^^^^^
 

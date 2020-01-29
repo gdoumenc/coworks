@@ -49,4 +49,5 @@ def init(ctx, force):
     else:
         ui.write(f"Project {project_name} reinitialized\n")
 
+
 main = chalice_main
