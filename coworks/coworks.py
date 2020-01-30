@@ -7,7 +7,7 @@ import traceback
 from functools import update_wrapper
 
 from aws_xray_sdk.core import xray_recorder
-from chalice import AuthResponse, BadRequestError, Rate, Cron
+from chalice import Response, AuthResponse, BadRequestError, Rate, Cron, ChaliceViewError
 from chalice import Chalice, Blueprint as ChaliceBlueprint
 
 from .mixins import Boto3Mixin
@@ -173,7 +173,9 @@ class TechMicroService(Chalice):
                             kwargs = dict(**kwargs, **params)
                         else:
                             kwargs[kwarg_keys[0]] = req.json_body
-                return func(component, **kwargs)
+                resp = func(component, **kwargs)
+                return TechMicroService._convert_response(resp)
+
             except Exception as e:
                 print(f"Exception : {str(e)}")
                 traceback.print_stack()
@@ -190,7 +192,22 @@ class TechMicroService(Chalice):
     def __call__(self, event, context):
         if 'type' in event and event['type'] == 'TOKEN':
             return self.__auth__(event, context)
+
         return super().__call__(event, context)
+
+    @staticmethod
+    def _convert_response(resp):
+        if type(resp) is tuple:
+            status_code = resp[1]
+            if len(resp) == 2:
+                return Response(body=resp[0], status_code=status_code)
+            else:
+                return Response(body=resp[0], status_code=status_code, headers=resp[2])
+
+        elif not isinstance(resp, Response):
+            return Response(body=resp)
+
+        return resp
 
 
 class At(Cron):
@@ -235,9 +252,10 @@ class BizMicroService(Boto3Mixin, TechMicroService):
 
     def react(self, reactor_factory):
         if isinstance(reactor_factory, Every):
-            def proxy(event,  context):
+            def proxy(event, context):
                 print(event)
                 return self.post_invoke()
+
             proxy.__name__ = "app"
             module = sys.modules[self.__module__]
             module.__setattr__("every", proxy)

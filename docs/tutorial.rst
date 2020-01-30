@@ -150,6 +150,17 @@ You can also use the ``**`` notation to get any values::
 		return f"here are all the parameters: {kwargs}"
 
 
+Microservice Response
+---------------------
+
+As for ``Flask`` and ``Chalice``, the return value from a class microservice is automatically converted into a response object for you.
+
+* If the return value is a ``string`` or ``bytes``, it’s converted into a response object with the string or bytes list as response body, a 200 OK status code and a text/html mimetype.
+* If the return value is a ``dict`` or a ``list``, it's converted to a JSON structure.
+* If a ``tuple`` is returned the items in the tuple can provide extra information. Such tuples have to be in the form (response, status), or (response, status, headers). The status value will override the status code and headers can be a list or dictionary of additional header values.
+
+If none of that works, ``CoWorks`` will assume the return value is a valid ``Chalice`` `Response <https://chalice.readthedocs.io/en/latest/api.html#Response>`_. instance.
+
 Test
 ----
 
