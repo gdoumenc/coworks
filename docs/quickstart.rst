@@ -33,7 +33,7 @@ To realize you first microservice, create a file ``app.py`` with the following c
 
 Test locally this microservice::
 
-	(project) $ cws local
+	(project) $ cws run
 	Serving on http://127.0.0.1:8000
 
 On another terminal enter::
@@ -43,8 +43,8 @@ On another terminal enter::
 
 Looks good..
 
-Deployment
-----------
+Deployment with Chalice
+-----------------------
 
 Create the required dependencies for the lambda function::
 
@@ -52,7 +52,7 @@ Create the required dependencies for the lambda function::
 
 Then enter the following command::
 
-	(project) $ cws deploy
+	(project) $ chalice deploy
 	Creating deployment package.
 	Creating IAM role: project-dev
 	Creating lambda function: project-dev
@@ -76,7 +76,7 @@ Deletion
 
 Now delete it ::
 
-	(project) $ cws delete
+	(project) $ chalice delete
 
 Finally, remove the project and its virtual environment ::
 

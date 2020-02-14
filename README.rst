@@ -6,7 +6,7 @@ CoWorks
   :target: https://travis-ci.com/gdoumenc/coworks
   :alt: Travis CI
 .. image:: https://readthedocs.org/projects/coworks/badge/?version=latest
-  :target: https://coworks.readthedocs.io/en/latest/?badge=latest
+  :target: https://readthedocs.org/projects/coworks/badge/
   :alt: Documentation Status
 
 CoWorks is an unified compositional microservices framework over AWS technologies and based on the Chalice microframework.
@@ -48,7 +48,7 @@ initialize the coworks project::
 
 Then make our microservice run locally::
 
-    $ cws local
+    $ cws run
     Serving on http://127.0.0.1:8000
     127.0.0.1 - - [26/Dec/2019 18:29:11] "GET / HTTP/1.1" 200 -
 
@@ -59,7 +59,7 @@ Now test our microservice::
 	$ curl http://127.0.1:8000?usage=me
 	Simple microservice for me.
 
-Now complete it with more interface:
+Now complete it with more entrypoints:
 
 .. code-block:: python
 
@@ -94,13 +94,13 @@ Now test our completion::
 	789
 
 
-Deploy this first simple microservice
--------------------------------------
+Deploy this first simple microservice on AWS with Chalice
+---------------------------------------------------------
 
 Just deploy the microservice::
 
     $ pip freeze > requirements.txt
-    $ cws deploy
+    $ chalice deploy
 	Creating deployment package.
 	Updating policy for IAM role: simple-dev
 	Updating lambda function: simple-dev
@@ -119,7 +119,7 @@ Delete it
 
 Just delete the microservice with ::
 
-	$ cws delete
+	$ chalice delete
 
 Related Projects
 ----------------

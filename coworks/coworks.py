@@ -2,14 +2,14 @@ import inspect
 import json
 import logging
 import os
-import sys
 import traceback
 from functools import update_wrapper
 
+import sys
 from aws_xray_sdk.core import xray_recorder
-from chalice import Response, AuthResponse, BadRequestError, Rate, Cron, ChaliceViewError
-from chalice import Chalice, Blueprint as ChaliceBlueprint
 
+from chalice import Chalice, Blueprint as ChaliceBlueprint
+from chalice import Response, AuthResponse, BadRequestError, Rate, Cron
 from .mixins import Boto3Mixin
 from .utils import class_auth_methods, class_rest_methods, class_attribute
 
@@ -35,6 +35,10 @@ class TechMicroService(Chalice):
         if "pytest" in sys.modules:
             xray_recorder.configure(context_missing="LOG_ERROR")
 
+    @property
+    def name(self):
+        return self.app_name
+
     def _initialize(self, env):
         super()._initialize(env)
         for k, v in env.items():
@@ -54,16 +58,16 @@ class TechMicroService(Chalice):
         super().register_blueprint(blueprint, **kwargs)
         self.blueprints[blueprint.import_name] = blueprint
 
-    def run(self, host='127.0.0.1', port=8000, stage=None, debug=True, profile=None, project_dir='.'):
-        # TODO missing test
+    def run(self, host='127.0.0.1', port=8000, stage=None, debug=True):
         # chalice.cli package not defined in deployment package
         from chalice.cli import DEFAULT_STAGE_NAME
         from .cli.factory import CWSFactory
 
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')
+        if debug:
+            logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')
 
         stage = stage or DEFAULT_STAGE_NAME
-        factory = CWSFactory(self, project_dir, debug, profile)
+        factory = CWSFactory(self, debug=debug)
         config = factory.create_config_obj(chalice_stage_name=stage)
         factory.run_local_server(config, host, port)
 
