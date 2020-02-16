@@ -41,11 +41,11 @@ class OdooMicroService(TechMicroService):
         return self.create(model, data)
 
     def put_model_(self, model, _id, data=None):
-        """Delete the object of the model referenced by this id."""
+        """Replaces the object of the model referenced by this id."""
         return self.write(model, _id, data)
 
     def delete_model(self, model, _id, dry=False):
-        """Delete the object of the model referenced by this id."""
+        """Deletes the object of the model referenced by this id."""
         return self.execute_kw(model, 'unlink', [[int(_id)]], dry=dry)
 
     def get_field(self, model, searched_field, searched_value, returned_field='id'):

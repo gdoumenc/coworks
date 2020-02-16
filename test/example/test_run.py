@@ -13,7 +13,6 @@ def run_server(port):
     app.run(host='localhost', port=port)
 
 
-@pytest.mark.wip
 def test_run_example():
     port = ThreadedLocalServer.unused_tcp_port()
     server = threading.Thread(target=run_server, args=(port,), daemon=True)

@@ -91,12 +91,46 @@ class TerraformWriter(Writer):
     def export(self):
         data = {
             'module': self.app.__module__,
-            'app': self.app,
-            'app_name': self.app.name,
+            'app': self.app.name,
+            'entries': self.entries,
         }
         for template_filename in self.template_filenames:
             template = self.env.get_template(template_filename)
             print(template.render(**data, **self.data), file=self.output)
+
+    @property
+    def entries(self):
+
+        def uid(_path):
+            if _path:
+                return f"{self.app.name}_{_path.replace('{', '').replace('}', '')}"
+            return None
+
+        def combine(_prev, _path):
+            return f"{_prev}_{_path}" if _prev else _path
+
+        all_pathes_id = {}
+        for route, entry in self.app.routes.items():
+            prev_path_id = None
+            splited_route = route[1:].split('/')
+
+            # special root case
+            if splited_route == ['']:
+                all_pathes_id[uid('root')] = (None, None, entry.keys())
+                continue
+
+            last = splited_route[-1:][0]
+            for path in splited_route[:-1]:
+                current_path_id = combine(prev_path_id, path)
+                if current_path_id not in all_pathes_id:
+                    all_pathes_id[uid(current_path_id)] = (uid(prev_path_id), path, None)
+                prev_path_id = current_path_id
+
+            # set entryes keys for last entry
+            current_path_id = combine(prev_path_id, last)
+            all_pathes_id[uid(current_path_id)] = (uid(prev_path_id), last, entry.keys())
+
+        return all_pathes_id
 
 
 def reduce_not_none(data):
