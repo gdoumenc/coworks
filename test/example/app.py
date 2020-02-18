@@ -33,7 +33,7 @@ class BizApp(BizMicroService):
         return True
 
 
-app= tech_app = TechApp()
+app = tech_app = TechApp()
 TerraformWriter(app)
 
 biz_app = BizApp("arn:aws:states:eu-west-1:935392763270:stateMachine:ArmonyStock", app_name="ArmonyStock")

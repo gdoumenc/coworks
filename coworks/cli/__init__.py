@@ -86,9 +86,9 @@ def run(ctx, module, app, host, port, stage, debug):
 @click.option('-o', '--out')
 @click.pass_context
 def export(ctx, module, app, format, out):
-    app = CWSFactory.import_attr(module, app, project_dir=ctx.obj['project_dir'])
-    writer = CWSFactory.writer(app, format)
-    writer.export_all(out)
+    handler = CWSFactory.import_attr(module, app, project_dir=ctx.obj['project_dir'])
+    writer = CWSFactory.writer(handler, format)
+    writer.export_all(out, module_name=module, handler_name=app)
 
 
 def main():

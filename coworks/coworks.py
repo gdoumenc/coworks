@@ -35,10 +35,6 @@ class TechMicroService(Chalice):
         if "pytest" in sys.modules:
             xray_recorder.configure(context_missing="LOG_ERROR")
 
-    @property
-    def name(self):
-        return self.app_name
-
     def _initialize(self, env):
         super()._initialize(env)
         for k, v in env.items():
@@ -194,7 +190,7 @@ class TechMicroService(Chalice):
         return proxy
 
     def __call__(self, event, context):
-        if 'type' in event and event['type'] == 'TOKEN':
+        if self.__auth__ and 'type' in event and event['type'] == 'TOKEN':
             return self.__auth__(event, context)
 
         return super().__call__(event, context)

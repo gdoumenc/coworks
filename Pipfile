@@ -10,6 +10,8 @@ chalice = "*"
 coworks = {editable = true,path = "."}
 jinja2 = "*"
 pyyaml = "*"
+codecov = "*"
+fpr = {editable = true,path = "/home/studiogdo/workspace/infra_fpr/fpr"}
 
 [dev-packages]
 wheel = "*"

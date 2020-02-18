@@ -8,6 +8,9 @@ CoWorks
 .. image:: https://readthedocs.org/projects/coworks/badge/?version=latest
   :target: https://readthedocs.org/projects/coworks/badge/
   :alt: Documentation Status
+.. image:: https://codecov.io/gh/gdoumenc/coworks/branch/master/graph/badge.svg
+  :target: https://codecov.io/gh/gdoumenc/coworks
+  :alt: Documentation Status
 
 CoWorks is an unified compositional microservices framework over AWS technologies and based on the Chalice microframework.
 The aim of this project, is to offer a very simplified experience of microservices over the awesome technologies of AWS.
