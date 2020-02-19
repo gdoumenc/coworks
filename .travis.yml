@@ -1,9 +1,13 @@
 language: python
 python:
   - "3.7"
+before_install:
+  - python --version
 install:
+  - pip install -U pip
   - pip install pipenv pytest
   - pipenv install --dev
 script:
-  - coverage run -m pytest
-  - bash <(curl -s https://codecov.io/bash) -t 25fa2252-9440-46fa-b8dd-337e9de2a046
+  - pytest
+after_success:
+  - codecov
