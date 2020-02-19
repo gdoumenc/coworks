@@ -80,6 +80,14 @@ In ``CoWorks`` microservices are divided in two categories :
     * Alert
     * Reminder
 
+Distinction between TechMicroservice and BizMicroservice is not only the granularity size but also:
+
+* TechMicroservice should be use only as receivers of orders coming from BizMicroservices.
+* A BizMicroservice represents a logical workflow of actions while a MicroService represents a simple concrete action.
+* A ThechMicroservice is an independant microservice while a BizMicroservice is connected to event handler (cron, notification, event, ..).
+* A ThecMicroservice is more a handler pattern and BizMicroservice a reactor pattern.
+
+
 
 User’s Guide
 ============
@@ -92,9 +100,9 @@ User’s Guide
   quickstart
   tutorial
   staging
+  tech
   authorization
   blueprint
-  tech
   biz
   faq
   changelog

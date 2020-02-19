@@ -17,8 +17,8 @@ class S3Test(S3MicroService):
         self.__s3_client__ = client
 
 
-@pytest.mark.tech
-class TestS3Class:
+@pytest.mark.local
+class NotDoneTestS3Class:
 
     def test_list_buckets(self, local_server_factory, boto3_mock_fixture):
         local_server = local_server_factory(S3Test(boto3_mock_fixture, env=env))

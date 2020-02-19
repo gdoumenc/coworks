@@ -110,3 +110,16 @@ def test_slug_parameterized(local_server_factory):
     response = local_server.make_call(requests.get, '/prefix/concat/123/456')
     assert response.status_code == 200
     assert response.text == '123456'
+
+
+def test_tuple_returned(local_server_factory):
+    local_server = local_server_factory(TupleReturnedMS())
+    response = local_server.make_call(requests.get, '/')
+    assert response.status_code == 200
+    assert response.text == 'ok'
+    response = local_server.make_call(requests.get, '/resp/ok')
+    assert response.status_code == 200
+    assert response.text == 'ok'
+    response = local_server.make_call(requests.get, '/error/test')
+    assert response.status_code == 300
+    assert response.text == 'test'

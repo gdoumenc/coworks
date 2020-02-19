@@ -1,12 +1,31 @@
+import importlib
 import os
 
+import sys
+
 from chalice.cli import CLIFactory
+from ..export import Writer
 
 
 class CWSFactory(CLIFactory):
-    def __init__(self, app, project_dir, debug, profile, environ=None):
+    def __init__(self, app, **kwargs):
         self.app = app
-        super().__init__(project_dir, debug=debug, profile=profile, environ=environ)
+        super().__init__(**kwargs)
+
+    @staticmethod
+    def import_attr(module, attr, project_dir='.', ):
+        if project_dir not in sys.path:
+            sys.path.insert(0, project_dir)
+        app_module = importlib.import_module(module)
+        return getattr(app_module, attr)
+
+    @staticmethod
+    def writer(app, default_format):
+        if hasattr(app, 'writer'):
+            writer = getattr(app, 'writer')
+        else:
+            writer = Writer.get_writer(default_format, app)
+        return writer
 
     def load_chalice_app(self, environment_variables=None, **kwargs):
         if environment_variables is not None:
@@ -19,3 +38,9 @@ class CWSFactory(CLIFactory):
         app_obj = config.chalice_app
         server = super().create_local_server(app_obj, config, host, port)
         server.serve_forever()
+
+    def create_default_deployer(self, session, config, ui):
+        return super().create_default_deployer(session, config, ui)
+
+    def create_botocore_session(self, **kwargs):
+        return None

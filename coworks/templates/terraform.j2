@@ -1,0 +1,90 @@
+# ---------------------------------------------------------------------------------------------------------------------
+# LAMBDA
+# ---------------------------------------------------------------------------------------------------------------------
+
+data "archive_file" "{{ module }}" {
+  source_file = "{{ module }}.py"
+  output_path = "{{ module }}.zip"
+  type = "zip"
+}
+
+resource "aws_lambda_function" "{{ module }}" {
+  filename = data.archive_file.{{ module }}.output_path
+  function_name = "{{ module }}"
+  role = data.aws_iam_role.microservice.arn
+  handler = "csv.app"
+  layers = [data.aws_lambda_layer_version.chalice.arn, data.aws_lambda_layer_version.coworks_dev.arn]
+  runtime = "python3.7"
+
+  source_code_hash = filebase64sha256(data.archive_file.csv.output_path)
+
+  environment {
+    variables = {
+      TOKEN = var.csv_token
+    }
+  }
+
+  tags = {
+    Product: "microservice"
+    Target: "{{ module }}"
+    Creator: "coworks"
+    Stage = "prod"
+    Customer = "MORASSUTI"
+  }
+}
+
+resource "aws_lambda_permission" "{{ module }}" {
+  provider = aws.customer
+  statement_id = "AllowExecutionFromAPIGateway"
+  action = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.csv.function_name
+  principal = "apigateway.amazonaws.com"
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# CSV APIGATEWAY
+# ---------------------------------------------------------------------------------------------------------------------
+
+resource "aws_api_gateway_rest_api" "{{ module }}" {
+  name        = "MyDemoAPI"
+  description = "This is my API for demonstration purposes"
+}
+
+resource "aws_api_gateway_integration" "{{ module }}" {
+  provider = aws.customer
+  count = length(local.csv_routes)
+  rest_api_id = data.aws_api_gateway_rest_api.csv.id
+  resource_id = local.csv_routes[count.index].resource_id
+  http_method = local.csv_routes[count.index].http_method
+  integration_http_method = "POST"
+  type = "AWS_PROXY"
+  uri = aws_lambda_function.csv.invoke_arn
+}
+
+resource "aws_api_gateway_deployment" "{{ module }}" {
+  depends_on = [aws_api_gateway_integration.csv]
+  provider = aws.customer
+  rest_api_id = data.aws_api_gateway_rest_api.csv.id
+  stage_name = "morassuti"
+}
+
+resource "aws_api_gateway_stage" "{{ module }}" {
+  provider = aws.customer
+  deployment_id = aws_api_gateway_deployment.csv.id
+  rest_api_id = data.aws_api_gateway_rest_api.csv.id
+  stage_name = "morassuti"
+  xray_tracing_enabled = true
+
+  variables = {
+    Customer = "MORASSUTI"
+    Stage = "prod"
+  }
+
+  tags = {
+    Product: "microservice"
+    Target: "csv"
+    Creator: "coworks"
+    Stage = "prod"
+    Customer = "MORASSUTI"
+  }
+}

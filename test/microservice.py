@@ -1,3 +1,5 @@
+from chalice import Response
+
 from coworks import TechMicroService
 
 
@@ -85,3 +87,14 @@ class PrefixedParamMS(MS):
 
     def get_concat(self, str1, str2):
         return str1 + str2
+
+
+class TupleReturnedMS(MS):
+    def get(self):
+        return 'ok', 200
+
+    def get_resp(self, str):
+        return Response(body=str, status_code=200)
+
+    def get_error(self, str):
+        return str, 300

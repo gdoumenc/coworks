@@ -28,8 +28,11 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
+        'aws_xray_sdk',
         'boto3',
         'chalice',
+        'jinja2',
+        'pyyaml',
     ],
     keywords='restful microservice aws chalice serverless',
     entry_points={
