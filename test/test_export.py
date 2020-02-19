@@ -14,7 +14,6 @@ def test_export():
                       'test_content', 'test_content__0', 'test_content__0__1', 'test_extended_content', }
 
 
-@pytest.mark.wip
 def test_export_double():
     simple = OdooMicroService(app_name='test')
     writer = TerraformWriter(simple)

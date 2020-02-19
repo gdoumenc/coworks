@@ -54,7 +54,7 @@ class TechMicroService(Chalice):
         super().register_blueprint(blueprint, **kwargs)
         self.blueprints[blueprint.import_name] = blueprint
 
-    def run(self, host='127.0.0.1', port=8000, stage=None, debug=True):
+    def run(self, host='127.0.0.1', port=8000, project_dir=None, stage=None, debug=True):
         # chalice.cli package not defined in deployment package
         from chalice.cli import DEFAULT_STAGE_NAME
         from .cli.factory import CWSFactory
@@ -63,7 +63,7 @@ class TechMicroService(Chalice):
             logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')
 
         stage = stage or DEFAULT_STAGE_NAME
-        factory = CWSFactory(self, debug=debug)
+        factory = CWSFactory(self, project_dir=project_dir, debug=debug)
         config = factory.create_config_obj(chalice_stage_name=stage)
         factory.run_local_server(config, host, port)
 

@@ -10,7 +10,7 @@ from ..export import Writer
 class CWSFactory(CLIFactory):
     def __init__(self, app, **kwargs):
         self.app = app
-        super().__init__('.', **kwargs)
+        super().__init__(**kwargs)
 
     @staticmethod
     def import_attr(module, attr, project_dir='.', ):

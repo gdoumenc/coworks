@@ -4,4 +4,4 @@ python:
 install:
   - pip install pipenv pytest
   - pipenv install --dev
-script: pytest -m "not tech"
+script: pytest -m "not local"
