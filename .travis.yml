@@ -5,9 +5,10 @@ before_install:
   - python --version
 install:
   - pip install -U pip
-  - pip install pipenv pytest
+  - pip install pipenv
   - pipenv install --dev
 script:
-  - pytest
+  - pipenv run coverage run -m pytest
+  - pipenv run coverage xml
 after_success:
-  - codecov
+  - codecov -t 25fa2252-9440-46fa-b8dd-337e9de2a046
