@@ -1,8 +1,6 @@
 import os
-import boto3
-import logging
 
-logger = logging.getLogger()
+import boto3
 
 
 class Boto3Mixin:
@@ -15,7 +13,7 @@ class Boto3Mixin:
     def aws_access_key_id(self):
         value = os.getenv('aws_access_key_id')
         if not value:
-            logger.info('aws_access_key_id not defined in environment')
+            print('aws_access_key_id not defined in environment')
             raise EnvironmentError('aws_access_key_id not defined in environment')
         return value
 
@@ -23,7 +21,7 @@ class Boto3Mixin:
     def aws_secret_access_key(self):
         value = os.getenv('aws_secret_access_key')
         if not value:
-            logger.info('aws_secret_access_key not defined in environment')
+            print('aws_secret_access_key not defined in environment')
             raise EnvironmentError('aws_secret_access_key not defined in environment')
         return value
 
@@ -31,7 +29,7 @@ class Boto3Mixin:
     def region_name(self):
         value = os.getenv('aws_region')
         if not value:
-            logger.info('aws_region not defined in environment')
+            print('aws_region not defined in environment')
             raise EnvironmentError('aws_region not defined in environment')
         return value
 
@@ -42,7 +40,7 @@ class Boto3Mixin:
                 self.__session__ = boto3.Session(self.aws_access_key_id, self.aws_secret_access_key,
                                                  region_name=self.region_name)
             except Exception:
-                logger.error(
+                print(
                     f"Cannot create session for key {self.aws_access_key_id} and sercret {self.aws_secret_access_key}"
                 )
                 raise

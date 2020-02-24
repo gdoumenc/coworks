@@ -22,12 +22,15 @@ class TechMicroService(Chalice):
 
     def __init__(self, **kwargs):
         app_name = kwargs.pop('app_name', self.__class__.__name__)
+        authorizer = kwargs.pop('authorizer', None)
+
         super().__init__(app_name, **kwargs)
         self.experimental_feature_flags.update([
             'BLUEPRINTS'
         ])
 
-        self.__auth__ = None
+        self.__auth__ = self._create_auth_proxy(self, authorizer) if authorizer else None
+        self.debug = kwargs.pop('debug', False)
         self.blueprints = {}
         self.extensions = {}
 
@@ -126,7 +129,7 @@ class TechMicroService(Chalice):
                 if subsegment:
                     subsegment.put_metadata('result', auth)
             except Exception as e:
-                print(f"Exception : {str(e)}")
+                logger.info(f"Exception : {str(e)}")
                 traceback.print_stack()
                 if subsegment:
                     subsegment.add_exception(e, traceback.extract_stack())
@@ -150,6 +153,8 @@ class TechMicroService(Chalice):
     def _create_rest_proxy(component, func, kwarg_keys, args, varkw):
 
         def proxy(**kws):
+            if component.debug:
+                print(f"Calling {func} for {component}")
             subsegment = xray_recorder.begin_subsegment(f"{func.__name__} microservice")
             try:
                 if subsegment:
@@ -197,10 +202,20 @@ class TechMicroService(Chalice):
         return proxy
 
     def __call__(self, event, context):
-        if self.__auth__ and 'type' in event and event['type'] == 'TOKEN':
-            return self.__auth__(event, context)
+        if 'type' in event and event['type'] == 'TOKEN':
+            if self.debug:
+                print(f"Calling {self.app_name} authorization")
+            if self.__auth__:
+                return self.__auth__(event, context)
+            print(f"Undefined authorization method for {self.app_name} ")
+            raise Exception('Unauthorized')
 
-        return super().__call__(event, context)
+        if self.debug:
+            print(f"Calling {self.app_name} with event {event}")
+        res = super().__call__(event, context)
+        if self.debug:
+            print(f"Call {self.app_name} returns {res}")
+        return res
 
     @staticmethod
     def _convert_response(resp):
@@ -260,7 +275,7 @@ class BizMicroService(Boto3Mixin, TechMicroService):
     def react(self, reactor_factory):
         if isinstance(reactor_factory, Every):
             def proxy(event, context):
-                print(event)
+                logger.error(event)
                 return self.post_invoke()
 
             proxy.__name__ = "app"
@@ -275,6 +290,8 @@ class Blueprint(ChaliceBlueprint):
     def __init__(self, **kwargs):
         import_name = kwargs.pop('import_name', self.__class__.__name__)
         super().__init__(import_name)
+
+        self.debug = kwargs.pop('debug', False)
 
     @property
     def import_name(self):
