@@ -29,7 +29,9 @@ class TechMicroService(Chalice):
 
         self.__auth__ = None
         self.blueprints = {}
+        self.extensions = {}
 
+        self.entries = {}
         self._add_route()
 
         if "pytest" in sys.modules:
@@ -45,12 +47,12 @@ class TechMicroService(Chalice):
         return class_attribute(self, 'url_prefix', '')
 
     def register_blueprint(self, blueprint, **kwargs):
-        self._add_route(blueprint)
         if 'name_prefix' not in kwargs:
             kwargs['name_prefix'] = blueprint.component_name
         if 'url_prefix' not in kwargs:
             kwargs['url_prefix'] = f"/{blueprint.component_name}"
 
+        self._add_route(blueprint, url_prefix=kwargs['url_prefix'])
         super().register_blueprint(blueprint, **kwargs)
         self.blueprints[blueprint.import_name] = blueprint
 
@@ -67,7 +69,7 @@ class TechMicroService(Chalice):
         config = factory.create_config_obj(chalice_stage_name=stage)
         factory.run_local_server(config, host, port)
 
-    def _add_route(self, component=None):
+    def _add_route(self, component=None, url_prefix=None):
         if component is None:
             component = self
 
@@ -106,7 +108,13 @@ class TechMicroService(Chalice):
                 kwarg_keys = {}
 
             proxy = TechMicroService._create_rest_proxy(component, func, kwarg_keys, args, varkw)
+
+            # complete all entries
             component.route(f"/{route}", methods=[method.upper()], authorizer=auth)(proxy)
+            if url_prefix:
+                self.entries[f"{url_prefix}/{route}"] = func
+            else:
+                self.entries[f"/{route}"] = func
 
     @staticmethod
     def _create_auth_proxy(component, auth_method):
@@ -155,14 +163,13 @@ class TechMicroService(Chalice):
 
                 # Adds kwargs parameters
                 if kwarg_keys:
-                    if req.query_params:
-                        params = {}
-                        for k in req.query_params:
-                            if k not in kwarg_keys and varkw is None:
-                                raise BadRequestError(f"TypeError: got an unexpected keyword argument '{k}'")
-                            value = req.query_params.getlist(k)
-                            params[k] = value if len(value) > 1 else value[0]
-                        kwargs = dict(**kwargs, **params)
+                    params = {}
+                    for k in req.query_params or []:
+                        if k not in kwarg_keys and varkw is None:
+                            raise BadRequestError(f"TypeError: got an unexpected keyword argument '{k}'")
+                        value = req.query_params.getlist(k)
+                        params[k] = value if len(value) > 1 else value[0]
+                    kwargs = dict(**kwargs, **params)
                     if req.raw_body:
                         if hasattr(req.json_body, 'items'):
                             params = {}

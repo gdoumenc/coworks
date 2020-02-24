@@ -2,7 +2,7 @@ import os
 
 import requests
 
-from .app import TechApp
+from .test_app import TechApp
 
 
 def test_simple_example(local_server_factory):

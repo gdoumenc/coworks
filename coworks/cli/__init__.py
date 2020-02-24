@@ -1,12 +1,13 @@
 import os
 import shutil
+import sys
 
 import click
 from coworks.version import __version__
 
 from chalice.cli import CONFIG_VERSION, DEFAULT_STAGE_NAME, DEFAULT_APIGATEWAY_STAGE_NAME
 from chalice.cli import chalice_version, get_system_info
-from chalice.utils import UI, serialize_to_json
+from chalice.utils import serialize_to_json
 from .factory import CWSFactory
 
 
@@ -30,7 +31,6 @@ def client(ctx, project_dir=None):
               help='Forces project reinitialization.')
 @click.pass_context
 def init(ctx, force):
-    ui = UI()
     project_name = os.path.basename(os.path.normpath(os.getcwd()))
 
     chalice_dir = os.path.join('.chalice')
@@ -39,7 +39,7 @@ def init(ctx, force):
             shutil.rmtree(chalice_dir)
             created = False
         else:
-            ui.write(f"Project {project_name} already initialized\n")
+            sys.stderr.write(f"Project {project_name} already initialized\n")
             return
     else:
         created = True
@@ -59,9 +59,9 @@ def init(ctx, force):
         f.write(serialize_to_json(cfg))
 
     if created:
-        ui.write(f"Project {project_name} initialized\n")
+        sys.stdout.write(f"Project {project_name} initialized\n")
     else:
-        ui.write(f"Project {project_name} reinitialized\n")
+        sys.stdout.write(f"Project {project_name} reinitialized\n")
 
 
 @client.command('run')
@@ -75,8 +75,8 @@ def init(ctx, force):
               help='Print debug logs to stderr.')
 @click.pass_context
 def run(ctx, module, app, host, port, stage, debug):
-    app = CWSFactory.import_attr(module, app, project_dir=ctx.obj['project_dir'])
-    app.run(host=host, port=port, stage=stage, debug=debug)
+    handler = CWSFactory.import_attr(module, app, project_dir=ctx.obj['project_dir'])
+    handler.run(host=host, port=port, stage=stage, debug=debug)
 
 
 @client.command('export')
@@ -86,9 +86,13 @@ def run(ctx, module, app, host, port, stage, debug):
 @click.option('-o', '--out')
 @click.pass_context
 def export(ctx, module, app, format, out):
-    handler = CWSFactory.import_attr(module, app, project_dir=ctx.obj['project_dir'])
-    writer = CWSFactory.writer(handler, format)
-    writer.export_all(out, module_name=module, handler_name=app)
+    project_dir = ctx.obj['project_dir']
+    handler = CWSFactory.import_attr(module, app, project_dir=project_dir)
+    try:
+        handler.extensions['writers'][format].export(out, module_name=module, handler_name=app)
+    except KeyError:
+        sys.stderr.write(f"Format '{format}' undefined\n")
+        return
 
 
 def main():

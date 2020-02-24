@@ -10,6 +10,7 @@ from ..coworks import TechMicroService
 
 
 class MailMicroService(TechMicroService):
+    """Mail microservice"""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

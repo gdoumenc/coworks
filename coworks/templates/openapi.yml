@@ -1,0 +1,28 @@
+info:
+  description: test
+  title: {{ app_name }}
+openapi: 3.0.0
+paths:
+{% for entry in entries %}
+  "{{ entry }}":
+    get:
+      description: Returns the calling context.
+      parameters: []
+#  /admin/routes:
+#    get:
+#      description: Returns the list of entrypoints with signature.
+#      parameters: []
+#  /format:
+#    post:
+#      description: Format JSON list to CSV content.
+#      parameters:
+#      - in: query
+#        name: content
+#      - in: query
+#        name: remove_rows
+#      - in: query
+#        name: remove_columns
+#      - in: query
+#        name: delimiter
+  {% endfor %}
+version: undefined
