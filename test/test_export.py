@@ -6,7 +6,7 @@ import yaml
 
 from coworks.export import ListWriter, OpenApiWriter, TerraformWriter
 from coworks.tech import OdooMicroService
-from .microservice import SimpleMS
+from .tech_ms import SimpleMS
 
 
 def test_export_list():

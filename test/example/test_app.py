@@ -37,7 +37,7 @@ app = tech_app = TechApp()
 TerraformWriter(app)
 
 biz_app = BizApp("arn:aws:states:eu-west-1:935392763270:stateMachine:ArmonyStock", app_name="ArmonyStock")
-biz_app.react(Every(5, Every.MINUTES))
+biz_app.react('test', Every(5, Every.MINUTES))
 
 if __name__ == '__main__':
     biz_app.run(profile="fpr-customer")

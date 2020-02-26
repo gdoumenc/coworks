@@ -339,8 +339,9 @@ class BizMicroService(Boto3Mixin, TechMicroService):
 
     def handler(self, event, context):
         if 'detail-type' in event and event['detail-type'] == 'Scheduled Event':
-            print(f"Detail {event['detail']}")
-            name = event['resources'][0].split('/')[:-1].split('_')[:-1]
+            name = event['resources'][0].split('/')[-1].split('_')[-1]
+            if name not in self.reactors:
+                raise BadRequestError(f"Unregistered reactor : {name}")
             return self.reactors[name][1](event, context)
 
         super().handler(event, context)

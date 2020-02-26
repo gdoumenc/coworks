@@ -1,7 +1,7 @@
 import requests
 import pytest
 
-from .microservice import *
+from .tech_ms import *
 from coworks import Every, At
 
 
@@ -147,16 +147,3 @@ def test_after_before_request():
     simple({}, {})
 
     assert evts == ["first", "before", "after", "before", "after"]
-
-
-@pytest.mark.wip
-def test_biz_react():
-    bizz = BizMS()
-    bizz.react(Every(5, Every.MINUTES))
-    assert len(bizz.triggers) == 1
-    assert bizz.triggers[0]['source'] == 'every'
-    assert bizz.triggers[0]['value'] == 'rate(5 minutes)'
-    bizz.react(At(5, 10))
-    assert len(bizz.triggers) == 2
-    assert bizz.triggers[1]['source'] == 'at'
-    assert bizz.triggers[1]['value'] == 'cron(5 10 None None None None)'

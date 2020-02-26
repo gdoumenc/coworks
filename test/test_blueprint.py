@@ -1,7 +1,7 @@
 import requests
 
 from .blueprint import *
-from .microservice import *
+from .tech_ms import *
 
 
 def test_request(local_server_factory):

@@ -1,6 +1,6 @@
-from chalice import Response
+from coworks import TechMicroService
 
-from coworks import TechMicroService, BizMicroService
+from chalice import Response
 
 
 class TechMS(TechMicroService):
@@ -98,8 +98,3 @@ class TupleReturnedMS(TechMS):
 
     def get_error(self, str):
         return str, 300
-
-
-class BizMS(BizMicroService):
-    def __init__(self):
-        super().__init__('test')
