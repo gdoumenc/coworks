@@ -4,6 +4,7 @@ import logging
 import os
 import traceback
 from functools import update_wrapper
+from threading import Lock
 
 import sys
 from aws_xray_sdk.core import xray_recorder
@@ -37,6 +38,13 @@ class TechMicroService(Chalice):
         self.entries = {}
         self._add_route()
 
+        self.before_first_request_funcs = []
+        self.before_request_funcs = []
+        self.after_request_funcs = []
+
+        self._got_first_request = False
+        self._before_request_lock = Lock()
+
         if "pytest" in sys.modules:
             xray_recorder.configure(context_missing="LOG_ERROR")
 
@@ -44,6 +52,10 @@ class TechMicroService(Chalice):
         super()._initialize(env)
         for k, v in env.items():
             os.environ[k] = v
+
+    @property
+    def triggers(self):
+        return []
 
     @property
     def component_name(self):
@@ -202,6 +214,23 @@ class TechMicroService(Chalice):
         return proxy
 
     def __call__(self, event, context):
+        with self._before_request_lock:
+            if not self._got_first_request:
+                for func in self.before_first_request_funcs:
+                    func()
+                self._got_first_request = True
+
+        for func in self.before_request_funcs:
+            func()
+
+        res = self.handler(event, context)
+
+        for func in self.after_request_funcs:
+            func()
+
+        return res
+
+    def handler(self, event, context):
         if 'type' in event and event['type'] == 'TOKEN':
             if self.debug:
                 print(f"Calling {self.app_name} authorization")
@@ -212,10 +241,34 @@ class TechMicroService(Chalice):
 
         if self.debug:
             print(f"Calling {self.app_name} with event {event}")
+
         res = super().__call__(event, context)
+
         if self.debug:
             print(f"Call {self.app_name} returns {res}")
+
         return res
+
+    def before_first_request(self, f):
+        """Registers a function to be run before the first request to this instance of the application.
+           The function will be called without any arguments and its return value is ignored."""
+
+        self.before_first_request_funcs.append(f)
+        return f
+
+    def before_request(self, f):
+        """Registers a function to be run before each request to this instance of the application.
+           The function will be called without any arguments and its return value is ignored."""
+
+        self.before_request_funcs.append(f)
+        return f
+
+    def after_request(self, f):
+        """Registers a function to be run before each request to this instance of the application.
+           The function will be called without any arguments and its return value is ignored."""
+
+        self.after_request_funcs.append(f)
+        return f
 
     @staticmethod
     def _convert_response(resp):
@@ -233,22 +286,64 @@ class TechMicroService(Chalice):
 
 
 class At(Cron):
-    def __init__(self, minutes, hours, day_of_month, month, day_of_week, year):
+    def __init__(self, minutes=0, hours=1, day_of_month=None, month=None, day_of_week=None, year=None):
         super().__init__(minutes, hours, day_of_month, month, day_of_week, year)
+
+    def to_dict(self):
+        return {
+            'source': 'at',
+            'value': self.to_string(),
+        }
 
 
 class Every(Rate):
     def __init__(self, value, unit):
         super().__init__(value, unit)
 
+    def to_dict(self):
+        return {
+            'source': 'every',
+            'value': self.to_string(),
+        }
+
 
 class BizMicroService(Boto3Mixin, TechMicroService):
     """Chalice app to execute AWS Step Functions."""
 
-    def __init__(self, arn, **kwargs):
-        super().__init__(**kwargs)
-        self._arn = arn
+    def __init__(self, sfn_name, **kwargs):
+        app_name = kwargs.pop('app_name', sfn_name)
+        super().__init__(app_name=app_name, **kwargs)
+
+        self._arn = None
         self.__sfn_client__ = None
+        self.reactors = {}
+
+        @self.before_first_request
+        def get_sfn():
+            res = self.sfn_client.list_state_machines()
+            while True:
+                for sfn in res['stateMachines']:
+                    if sfn['name'] == sfn_name:
+                        self._arn = sfn['stateMachineArn']
+                        return
+
+                next_token = res['nextToken']
+                if next_token is None:
+                    raise BadRequestError(f"Undefined step function : {sfn_name}")
+
+                res = self.sfn_client.list_state_machines(nextToken=next_token)
+
+    @property
+    def triggers(self):
+        return [dict(name=name, **trigger[0].to_dict()) for name, trigger in self.reactors.items()]
+
+    def handler(self, event, context):
+        if 'detail-type' in event and event['detail-type'] == 'Scheduled Event':
+            print(f"Detail {event['detail']}")
+            name = event['resources'][0].split('/')[:-1].split('_')[:-1]
+            return self.reactors[name][1](event, context)
+
+        super().handler(event, context)
 
     def get_describe(self):
         res = self.sfn_client.describe_state_machine(stateMachineArn=self._arn)
@@ -264,7 +359,7 @@ class BizMicroService(Boto3Mixin, TechMicroService):
 
     def post_invoke(self, input="{}"):
         res = self.sfn_client.start_execution(stateMachineArn=self._arn, input=input)
-        return res
+        return json.dumps(res, indent=4, sort_keys=True, default=str)
 
     @property
     def sfn_client(self):
@@ -272,16 +367,17 @@ class BizMicroService(Boto3Mixin, TechMicroService):
             self.__sfn_client__ = self.boto3_session.client('stepfunctions')
         return self.__sfn_client__
 
-    def react(self, reactor_factory):
-        if isinstance(reactor_factory, Every):
-            def proxy(event, context):
-                logger.error(event)
-                return self.post_invoke()
+    def react(self, name, trigger, input=None):
+        if name in self.reactors:
+            raise Exception(f"Reactor {name} already defined.")
 
-            proxy.__name__ = "app"
-            module = sys.modules[self.__module__]
-            module.__setattr__("every", proxy)
-            self.schedule(reactor_factory, name='every1')(proxy)
+        def proxy(event, context):
+            if self.debug:
+                print(f"Calling {self.app_name} from schedule event")
+            return self.post_invoke(input=json.dumps(input) if input else "{}")
+
+        # self.schedule(trigger)(proxy)
+        self.reactors[name] = (trigger, proxy)
 
 
 class Blueprint(ChaliceBlueprint):

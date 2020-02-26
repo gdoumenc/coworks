@@ -35,7 +35,6 @@ def test_export_open_api():
             '/kwparam2'} == set(data['paths'].keys())
 
 
-@pytest.mark.wip
 def test_export_terraform():
     simple = SimpleMS()
     writer = TerraformWriter(simple)

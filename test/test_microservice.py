@@ -1,6 +1,8 @@
 import requests
+import pytest
 
 from .microservice import *
+from coworks import Every, At
 
 
 def test_request(local_server_factory):
@@ -123,3 +125,38 @@ def test_tuple_returned(local_server_factory):
     response = local_server.make_call(requests.get, '/error/test')
     assert response.status_code == 300
     assert response.text == 'test'
+
+
+def test_after_before_request():
+    simple = SimpleMS()
+    evts = []
+
+    @simple.before_first_request
+    def always_first():
+        evts.append("first")
+
+    @simple.before_request
+    def before():
+        evts.append("before")
+
+    @simple.after_request
+    def always_first():
+        evts.append("after")
+
+    simple({}, {})
+    simple({}, {})
+
+    assert evts == ["first", "before", "after", "before", "after"]
+
+
+@pytest.mark.wip
+def test_biz_react():
+    bizz = BizMS()
+    bizz.react(Every(5, Every.MINUTES))
+    assert len(bizz.triggers) == 1
+    assert bizz.triggers[0]['source'] == 'every'
+    assert bizz.triggers[0]['value'] == 'rate(5 minutes)'
+    bizz.react(At(5, 10))
+    assert len(bizz.triggers) == 2
+    assert bizz.triggers[1]['source'] == 'at'
+    assert bizz.triggers[1]['value'] == 'cron(5 10 None None None None)'

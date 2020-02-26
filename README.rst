@@ -17,7 +17,8 @@ CoWorks
   :target: https://codecov.io/gh/gdoumenc/coworks
   :alt: Documentation Status
 
-CoWorks is an unified compositional microservices framework over AWS technologies and based on the Chalice microframework.
+CoWorks is an unified compositional microservices framework over AWS technologies and
+based on the `Chalice <https://github.com/aws/chalice>`__ microframework.
 The aim of this project, is to offer a very simplified experience of microservices over the awesome technologies of AWS.
 
 Each atomic microservice (Tech Microservice) is a simple python class deployed on the serverless Lambda product and
@@ -27,7 +28,6 @@ for logging, administrate, ...
 Get started with :ref:`installation` and then get an overview with the :ref:`quickstart`.
 Read :ref:`faq` for a quick presentation, a complete presentation can be found `here <https://coworks.readthedocs.io/en/latest/>`_.
 
-Using and derived from `Chalice <https://github.com/aws/chalice>`_ and ideas from `Flask-Classy <https://github.com/apiguy/flask-classy/>`_.
 
 Installation
 ------------
@@ -132,9 +132,9 @@ Just delete the microservice with ::
 
 	$ chalice delete
 
-Related Projects
-----------------
+References
+----------
 
-* `Chalice <https://github.com/aws/chalice>`__ - Python Serverless Microframework for AWS.
-
-
+Using and derived from `Chalice <https://github.com/aws/chalice>`_ and ideas from
+`Flask-Classy <https://github.com/apiguy/flask-classy/>`_.
+And of course `Flask <https://https://github.com/pallets/flask>`_...

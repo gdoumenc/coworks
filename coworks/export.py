@@ -1,10 +1,7 @@
-from abc import ABC, abstractmethod
 import inspect
+from abc import ABC, abstractmethod
 
-import yaml
 from jinja2 import Environment, PackageLoader, select_autoescape
-
-from .coworks import TechMicroService
 
 
 class Writer(ABC):
@@ -133,8 +130,9 @@ class TerraformWriter(Writer):
         data = {
             'module': module_name,
             'handler': handler_name,
-            'app': self.app.app_name,
+            'app_name': self.app.app_name,
             'entries': self.entries,
+            'triggers': self.app.triggers,
         }
         data.update(self.data)
         for template_filename in self.template_filenames:

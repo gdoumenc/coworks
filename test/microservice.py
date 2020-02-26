@@ -1,14 +1,14 @@
 from chalice import Response
 
-from coworks import TechMicroService
+from coworks import TechMicroService, BizMicroService
 
 
-class MS(TechMicroService):
+class TechMS(TechMicroService):
     def __init__(self):
         super().__init__(app_name='test')
 
 
-class SimpleMS(MS):
+class SimpleMS(TechMS):
 
     def get(self):
         """Root access."""
@@ -45,7 +45,7 @@ class SimpleMS(MS):
         return "hello world"
 
 
-class PrefixedMS(MS):
+class PrefixedMS(TechMS):
     url_prefix = 'prefix'
 
     def get(self):
@@ -58,7 +58,7 @@ class PrefixedMS(MS):
         return "hello world"
 
 
-class ParamMS(MS):
+class ParamMS(TechMS):
     value = "123"
 
     def get(self, str):
@@ -79,7 +79,7 @@ class ParamMS(MS):
         return str1 + str(param1) + param2
 
 
-class PrefixedParamMS(MS):
+class PrefixedParamMS(TechMS):
     url_prefix = 'prefix'
 
     def get(self, str):
@@ -89,7 +89,7 @@ class PrefixedParamMS(MS):
         return str1 + str2
 
 
-class TupleReturnedMS(MS):
+class TupleReturnedMS(TechMS):
     def get(self):
         return 'ok', 200
 
@@ -98,3 +98,8 @@ class TupleReturnedMS(MS):
 
     def get_error(self, str):
         return str, 300
+
+
+class BizMS(BizMicroService):
+    def __init__(self):
+        super().__init__('test')

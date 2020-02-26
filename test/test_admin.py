@@ -6,7 +6,7 @@ from coworks import Admin
 from .microservice import *
 
 
-class DoumentedMS(MS):
+class DoumentedMS(TechMS):
 
     def get(self):
         """Root access."""
