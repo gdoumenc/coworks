@@ -76,7 +76,7 @@ def init(ctx, force):
 @click.pass_context
 def run(ctx, module, app, host, port, stage, debug):
     handler = CWSFactory.import_attr(module, app, project_dir=ctx.obj['project_dir'])
-    handler.run(host=host, port=port, stage=stage, debug=debug)
+    handler.run(host=host, port=port, stage=stage, debug=debug, project_dir=ctx.obj['project_dir'])
 
 
 @client.command('export')

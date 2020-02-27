@@ -13,13 +13,13 @@ def run_server(port):
     app.run(host='localhost', port=port, project_dir="test/example/")
 
 
+@pytest.mark.wip
 def test_run_example():
     port = ThreadedLocalServer.unused_tcp_port()
     server = threading.Thread(target=run_server, args=(port,), daemon=True)
     server.start()
     time.sleep(2)
-    response = requests.get(f'http://localhost:{port}/')
-    requests.get(f'http://localhost:{port}/')
+    response = requests.get(f'http://localhost:{port}/', timeout=100)
     assert response.text == "Simple microservice for test.\n"
     response = requests.get(f'http://localhost:{port}/', params={"usage": "demo"})
     assert response.status_code == 200

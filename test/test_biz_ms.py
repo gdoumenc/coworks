@@ -1,13 +1,12 @@
 from unittest.mock import MagicMock
 
 import pytest
-from coworks import Every, At
+from coworks import BizFactory, Every, At
 
 from .biz_ms import *
 
 
-@pytest.mark.wip
-def test_biz_react():
+def test_biz_reactor():
     biz = BizMS()
     biz.react('test', Every(5, Every.MINUTES))
     assert len(biz.triggers) == 1
@@ -17,14 +16,26 @@ def test_biz_react():
         biz.react('test', At(5, 10))
     assert len(biz.triggers) == 1
     assert str(execinfo.value.args[0]) == 'Reactor test already defined.'
-    biz.react('test2', At(5, 10))
+    biz.react('test2', At(5, 10, day_of_week='*'))
     assert len(biz.triggers) == 2
     assert biz.triggers[1]['source'] == 'at'
-    assert biz.triggers[1]['value'] == 'cron(5 10 None None None None)'
+    assert biz.triggers[1]['value'] == 'cron(5 10 None None * None)'
 
 
-@pytest.mark.wip
-def test_biz_react():
+def test_biz_factory():
+    fact = BizFactory()
+    fact.create('sfn_name1', 'every1', Every(5, Every.MINUTES), input=None)
+    assert len(fact.triggers) == 1
+    assert fact.triggers[0]['source'] == 'every'
+    assert fact.triggers[0]['value'] == 'rate(5 minutes)'
+    fact.create('sfn_name2', 'at2', At('0/10', '*', day_of_month='?', day_of_week='MON-FRI'), input=None)
+    assert len(fact.triggers) == 2
+    assert fact.triggers[1]['source'] == 'at'
+    assert fact.triggers[1]['value'] == 'cron(0/10 * ? None MON-FRI None)'
+    assert [t['name'] for t in fact.triggers] == ['sfn_name1_every1', 'sfn_name2_at2']
+
+
+def test_biz_triggers():
     biz = BizMS()
     biz.react('every', Every(5, Every.MINUTES))
     biz.__sfn_client__ = MagicMock()

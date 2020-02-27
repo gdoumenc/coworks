@@ -307,19 +307,44 @@ class Every(Rate):
         }
 
 
-class BizMicroService(Boto3Mixin, TechMicroService):
-    """Chalice app to execute AWS Step Functions."""
+class BizFactory(Boto3Mixin, TechMicroService):
 
-    def __init__(self, sfn_name, **kwargs):
-        app_name = kwargs.pop('app_name', sfn_name)
+    def __init__(self, **kwargs):
+        app_name = kwargs.pop('app_name', 'BizFactory')
         super().__init__(app_name=app_name, **kwargs)
 
         self._arn = None
         self.__sfn_client__ = None
         self.reactors = {}
 
+    @property
+    def triggers(self):
+        return [dict(name=name, **trigger[0].to_dict()) for name, trigger in self.reactors.items()]
+
+    def create(self, sfn_name, reactor_name, trigger, input=None, **kwargs):
+        sfn = BizMicroService(sfn_name, **kwargs)
+
+        def proxy(event, context):
+            if self.debug:
+                print(f"Calling {sfn_name} from schedule event")
+            return sfn.post_invoke(input=json.dumps(input) if input else "{}")
+
+        self.reactors[f"{sfn_name}_{reactor_name}"] = (trigger, proxy)
+        return sfn
+
+
+class BizMicroService(BizFactory):
+    """Chalice app to execute AWS Step Functions."""
+
+    def __init__(self, sfn_name, **kwargs):
+        app_name = kwargs.pop('app_name', sfn_name)
+        super().__init__(app_name=app_name, **kwargs)
+
         @self.before_first_request
         def get_sfn():
+            if sfn_name is None:
+                return
+
             res = self.sfn_client.list_state_machines()
             while True:
                 for sfn in res['stateMachines']:
@@ -332,10 +357,6 @@ class BizMicroService(Boto3Mixin, TechMicroService):
                     raise BadRequestError(f"Undefined step function : {sfn_name}")
 
                 res = self.sfn_client.list_state_machines(nextToken=next_token)
-
-    @property
-    def triggers(self):
-        return [dict(name=name, **trigger[0].to_dict()) for name, trigger in self.reactors.items()]
 
     def handler(self, event, context):
         if 'detail-type' in event and event['detail-type'] == 'Scheduled Event':
@@ -368,17 +389,16 @@ class BizMicroService(Boto3Mixin, TechMicroService):
             self.__sfn_client__ = self.boto3_session.client('stepfunctions')
         return self.__sfn_client__
 
-    def react(self, name, trigger, input=None):
-        if name in self.reactors:
-            raise Exception(f"Reactor {name} already defined.")
+    def react(self, reactor_name, trigger, input=None):
+        if reactor_name in self.reactors:
+            raise Exception(f"Reactor {reactor_name} already defined.")
 
         def proxy(event, context):
             if self.debug:
                 print(f"Calling {self.app_name} from schedule event")
             return self.post_invoke(input=json.dumps(input) if input else "{}")
 
-        # self.schedule(trigger)(proxy)
-        self.reactors[name] = (trigger, proxy)
+        self.reactors[reactor_name] = (trigger, proxy)
 
 
 class Blueprint(ChaliceBlueprint):
