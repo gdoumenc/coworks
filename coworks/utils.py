@@ -1,5 +1,8 @@
 import inspect
 
+from aws_xray_sdk.core import xray_recorder
+from aws_xray_sdk.core.exceptions.exceptions import SegmentNotFoundException
+
 
 def class_auth_methods(obj):
     """Returns the auth method from the class if exists."""
@@ -40,3 +43,17 @@ def class_attribute(obj, name: str = None, defaut=None):
 
     filtered = [a[1] for a in attributes if a[0] == name]
     return filtered[0] if filtered else defaut
+
+
+def begin_xray_subsegment(segment_name):
+    try:
+        return xray_recorder.begin_subsegment(segment_name)
+    except SegmentNotFoundException:
+        return None
+
+
+def end_xray_subsegment():
+    try:
+        return xray_recorder.end_subsegment()
+    except SegmentNotFoundException:
+        return None

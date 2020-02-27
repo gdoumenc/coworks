@@ -4,6 +4,7 @@ from collections import defaultdict
 
 from coworks import TechMicroService, BizMicroService, Every
 from coworks.export import TerraformWriter
+from coworks.blueprint import Admin
 
 
 class TechApp(TechMicroService):
@@ -28,16 +29,17 @@ class TechApp(TechMicroService):
 
 
 class BizApp(BizMicroService):
-
-    def auth(self, auth_request):
-        return True
+    pass
+    # def auth(self, auth_request):
+    #     return True
 
 
 app = tech_app = TechApp()
 TerraformWriter(app)
 
-biz_app = BizApp("arn:aws:states:eu-west-1:935392763270:stateMachine:ArmonyStock", app_name="ArmonyStock")
-biz_app.react('test', Every(5, Every.MINUTES))
+biz_app = BizApp("stock_armony", app_name="ArmonyStock")
+biz_app.register_blueprint(Admin())
+# biz_app.react('test', Every(5, Every.MINUTES))
 
 if __name__ == '__main__':
     biz_app.run(profile="fpr-customer")

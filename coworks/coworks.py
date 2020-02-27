@@ -2,17 +2,18 @@ import inspect
 import json
 import logging
 import os
+import sys
 import traceback
 from functools import update_wrapper
 from threading import Lock
 
-import sys
 from aws_xray_sdk.core import xray_recorder
-
 from chalice import Chalice, Blueprint as ChaliceBlueprint
 from chalice import Response, AuthResponse, BadRequestError, Rate, Cron
+
 from .mixins import Boto3Mixin
 from .utils import class_auth_methods, class_rest_methods, class_attribute
+from .utils import begin_xray_subsegment, end_xray_subsegment
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -135,7 +136,7 @@ class TechMicroService(Chalice):
     def _create_auth_proxy(component, auth_method):
 
         def proxy(auth_request):
-            subsegment = xray_recorder.begin_subsegment(f"auth microservice")
+            subsegment = begin_xray_subsegment(f"auth microservice")
             try:
                 auth = auth_method(component, auth_request)
                 if subsegment:
@@ -147,7 +148,7 @@ class TechMicroService(Chalice):
                     subsegment.add_exception(e, traceback.extract_stack())
                 raise BadRequestError(str(e))
             finally:
-                xray_recorder.end_subsegment()
+                end_xray_subsegment()
 
             if type(auth) is bool:
                 if auth:
@@ -167,7 +168,7 @@ class TechMicroService(Chalice):
         def proxy(**kws):
             if component.debug:
                 print(f"Calling {func} for {component}")
-            subsegment = xray_recorder.begin_subsegment(f"{func.__name__} microservice")
+            subsegment = begin_xray_subsegment(f"{func.__name__} microservice")
             try:
                 if subsegment:
                     subsegment.put_metadata('headers', component.current_request.headers, "CoWorks")
@@ -207,7 +208,7 @@ class TechMicroService(Chalice):
                     subsegment.add_exception(e, traceback.extract_stack())
                 raise BadRequestError(str(e))
             finally:
-                xray_recorder.end_subsegment()
+                end_xray_subsegment()
 
         proxy = update_wrapper(proxy, func)
         proxy.__class_func__ = func
@@ -352,7 +353,7 @@ class BizMicroService(BizFactory):
                         self._arn = sfn['stateMachineArn']
                         return
 
-                next_token = res['nextToken']
+                next_token = res.get('nextToken')
                 if next_token is None:
                     raise BadRequestError(f"Undefined step function : {sfn_name}")
 
@@ -365,7 +366,7 @@ class BizMicroService(BizFactory):
                 raise BadRequestError(f"Unregistered reactor : {name}")
             return self.reactors[name][1](event, context)
 
-        super().handler(event, context)
+        return super().handler(event, context)
 
     def get_describe(self):
         res = self.sfn_client.describe_state_machine(stateMachineArn=self._arn)
