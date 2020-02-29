@@ -1,11 +1,9 @@
 import io
 import re
 
-import pytest
 import yaml
-
 from coworks.export import ListWriter, OpenApiWriter, TerraformWriter
-from coworks.tech import OdooMicroService
+
 from .tech_ms import SimpleMS
 
 
@@ -45,7 +43,6 @@ def test_export_terraform():
     print(output.read())
     output.seek(0)
     assert len(re.sub(r"\s", "", output.read())) == 1973
-
 
 # def test_export_terraform_double():
 #     simple = OdooMicroService(app_name='test')

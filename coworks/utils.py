@@ -1,7 +1,6 @@
 import inspect
 
 from aws_xray_sdk.core import xray_recorder
-from aws_xray_sdk.core.exceptions.exceptions import SegmentNotFoundException
 
 
 def class_auth_methods(obj):
@@ -45,15 +44,12 @@ def class_attribute(obj, name: str = None, defaut=None):
     return filtered[0] if filtered else defaut
 
 
-def begin_xray_subsegment(segment_name):
-    try:
-        return xray_recorder.begin_subsegment(segment_name)
-    except SegmentNotFoundException:
-        return None
+def begin_xray_subsegment(subsegment_name):
+    if xray_recorder.in_segment().segment is not None:
+        return xray_recorder.begin_subsegment(subsegment_name)
+    return None
 
 
 def end_xray_subsegment():
-    try:
+    if xray_recorder.in_subsegment().subsegment is not None:
         return xray_recorder.end_subsegment()
-    except SegmentNotFoundException:
-        return None

@@ -12,8 +12,8 @@ from chalice import Chalice, Blueprint as ChaliceBlueprint
 from chalice import Response, AuthResponse, BadRequestError, Rate, Cron
 
 from .mixins import Boto3Mixin
-from .utils import class_auth_methods, class_rest_methods, class_attribute
 from .utils import begin_xray_subsegment, end_xray_subsegment
+from .utils import class_auth_methods, class_rest_methods, class_attribute
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -22,8 +22,8 @@ logger.setLevel(logging.INFO)
 class TechMicroService(Chalice):
     """Simple chalice app created directly from class."""
 
-    def __init__(self, **kwargs):
-        app_name = kwargs.pop('app_name', self.__class__.__name__)
+    def __init__(self, app_name=None, **kwargs):
+        app_name = app_name or self.__class__.__name__
         authorizer = kwargs.pop('authorizer', None)
 
         super().__init__(app_name, **kwargs)
@@ -53,10 +53,6 @@ class TechMicroService(Chalice):
         super()._initialize(env)
         for k, v in env.items():
             os.environ[k] = v
-
-    @property
-    def triggers(self):
-        return []
 
     @property
     def component_name(self):
@@ -128,9 +124,9 @@ class TechMicroService(Chalice):
             # complete all entries
             component.route(f"/{route}", methods=[method.upper()], authorizer=auth)(proxy)
             if url_prefix:
-                self.entries[f"{url_prefix}/{route}"] = func
+                self.entries[f"{url_prefix}/{route}"] = (method.upper(), func)
             else:
-                self.entries[f"/{route}"] = func
+                self.entries[f"/{route}"] = (method.upper(), func)
 
     @staticmethod
     def _create_auth_proxy(component, auth_method):
@@ -232,6 +228,9 @@ class TechMicroService(Chalice):
         return res
 
     def handler(self, event, context):
+        if self.debug:
+            print(f"Event: {event}")
+
         if 'type' in event and event['type'] == 'TOKEN':
             if self.debug:
                 print(f"Calling {self.app_name} authorization")
@@ -311,62 +310,69 @@ class Every(Rate):
 class BizFactory(Boto3Mixin, TechMicroService):
 
     def __init__(self, **kwargs):
-        app_name = kwargs.pop('app_name', 'BizFactory')
-        super().__init__(app_name=app_name, **kwargs)
+        super().__init__(**kwargs)
 
         self._arn = None
         self.__sfn_client__ = None
         self.reactors = {}
 
     @property
-    def triggers(self):
-        return [dict(name=name, **trigger[0].to_dict()) for name, trigger in self.reactors.items()]
+    def sfn_client(self):
+        if self.__sfn_client__ is None:
+            self.__sfn_client__ = self.boto3_session.client('stepfunctions')
+        return self.__sfn_client__
 
     def create(self, sfn_name, reactor_name, trigger, input=None, **kwargs):
+        if self.debug:
+            print(f"Create {reactor_name} reactor")
         sfn = BizMicroService(sfn_name, **kwargs)
-
-        def proxy(event, context):
-            if self.debug:
-                print(f"Calling {sfn_name} from schedule event")
-            return sfn.post_invoke(input=json.dumps(input) if input else "{}")
-
-        self.reactors[f"{sfn_name}_{reactor_name}"] = (trigger, proxy)
+        sfn.react(reactor_name, trigger, input)
+        self.reactors[reactor_name] = sfn
         return sfn
+
+    def get_sfn_arn(self, sfn_name):
+        if sfn_name is None:
+            return
+
+        res = self.sfn_client.list_state_machines()
+        while True:
+            for sfn in res['stateMachines']:
+                if sfn['name'] == sfn_name:
+                    return sfn['stateMachineArn']
+
+            next_token = res.get('nextToken')
+            if next_token is None:
+                raise BadRequestError(f"Undefined step function : {sfn_name}")
+
+            res = self.sfn_client.list_state_machines(nextToken=next_token)
+
+    def handler(self, event, context):
+        if self.debug:
+            print(f"Event: {event}")
+
+        if 'detail-type' in event and event['detail-type'] == 'Scheduled Event':
+            name = event['resources'][0].split('/')[-1]
+            if name not in self.reactors:
+                raise BadRequestError(f"Unregistered reactor : {name}")
+            return self.reactors[name](event, context)
+
+        return super().handler(event, context)
 
 
 class BizMicroService(BizFactory):
     """Chalice app to execute AWS Step Functions."""
 
     def __init__(self, sfn_name, **kwargs):
-        app_name = kwargs.pop('app_name', sfn_name)
-        super().__init__(app_name=app_name, **kwargs)
+        super().__init__(**kwargs)
+        self.reactors = {}
 
         @self.before_first_request
-        def get_sfn():
-            if sfn_name is None:
-                return
+        def get_sfn_arn():
+            self._arn = self.get_sfn_arn(sfn_name)
 
-            res = self.sfn_client.list_state_machines()
-            while True:
-                for sfn in res['stateMachines']:
-                    if sfn['name'] == sfn_name:
-                        self._arn = sfn['stateMachineArn']
-                        return
-
-                next_token = res.get('nextToken')
-                if next_token is None:
-                    raise BadRequestError(f"Undefined step function : {sfn_name}")
-
-                res = self.sfn_client.list_state_machines(nextToken=next_token)
-
-    def handler(self, event, context):
-        if 'detail-type' in event and event['detail-type'] == 'Scheduled Event':
-            name = event['resources'][0].split('/')[-1].split('_')[-1]
-            if name not in self.reactors:
-                raise BadRequestError(f"Unregistered reactor : {name}")
-            return self.reactors[name][1](event, context)
-
-        return super().handler(event, context)
+    @property
+    def triggers(self):
+        return [dict(name=name, **trigger[0].to_dict()) for name, trigger in self.reactors.items()]
 
     def get_describe(self):
         res = self.sfn_client.describe_state_machine(stateMachineArn=self._arn)
@@ -384,12 +390,6 @@ class BizMicroService(BizFactory):
         res = self.sfn_client.start_execution(stateMachineArn=self._arn, input=input)
         return json.dumps(res, indent=4, sort_keys=True, default=str)
 
-    @property
-    def sfn_client(self):
-        if self.__sfn_client__ is None:
-            self.__sfn_client__ = self.boto3_session.client('stepfunctions')
-        return self.__sfn_client__
-
     def react(self, reactor_name, trigger, input=None):
         if reactor_name in self.reactors:
             raise Exception(f"Reactor {reactor_name} already defined.")
@@ -400,6 +400,15 @@ class BizMicroService(BizFactory):
             return self.post_invoke(input=json.dumps(input) if input else "{}")
 
         self.reactors[reactor_name] = (trigger, proxy)
+
+    def handler(self, event, context):
+        if 'detail-type' in event and event['detail-type'] == 'Scheduled Event':
+            name = event['resources'][0].split('/')[-1].split('_')[-1]
+            if name not in self.reactors:
+                raise BadRequestError(f"Unregistered reactor : {name}")
+            return self.reactors[name][1](event, context)
+
+        return super().handler(event, context)
 
 
 class Blueprint(ChaliceBlueprint):
