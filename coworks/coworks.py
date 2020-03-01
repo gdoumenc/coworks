@@ -317,6 +317,10 @@ class BizFactory(Boto3Mixin, TechMicroService):
         self.reactors = {}
 
     @property
+    def triggers(self):
+        return [trigger for sfn in self.reactors.values() for trigger in sfn.triggers]
+
+    @property
     def sfn_client(self):
         if self.__sfn_client__ is None:
             self.__sfn_client__ = self.boto3_session.client('stepfunctions')
@@ -364,7 +368,6 @@ class BizMicroService(BizFactory):
 
     def __init__(self, sfn_name, **kwargs):
         super().__init__(**kwargs)
-        self.reactors = {}
 
         @self.before_first_request
         def get_sfn_arn():
