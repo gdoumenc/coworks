@@ -10,6 +10,9 @@ chalice = "*"
 jinja2 = "*"
 pyyaml = "*"
 codecov = "*"
+sqlalchemy = "*"
+psycopg2 = "*"
+mysqlclient = "*"
 
 [dev-packages]
 wheel = "*"

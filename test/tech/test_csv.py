@@ -1,9 +1,6 @@
 import json
-from unittest.mock import MagicMock
 
-import pytest
 import requests
-
 from coworks.tech import CSVMicroService
 
 csv_content = json.dumps([
@@ -14,7 +11,7 @@ csv_content = json.dumps([
 
 class TestCSV:
 
-    def test_send(self, local_server_factory, smtp_mock_fixture, email_mock_fixture):
+    def test_format(self, local_server_factory):
         local_server = local_server_factory(CSVMicroService())
         response = local_server.make_call(requests.post, '/format',
                                           json={'content': csv_content, 'title': False})

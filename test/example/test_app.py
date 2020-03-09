@@ -2,7 +2,8 @@ import os
 
 from collections import defaultdict
 
-from coworks import TechMicroService, BizMicroService, Every
+from coworks import TechMicroService, BizMicroService
+from coworks.tech import PsqlMicroService
 from coworks.export import TerraformWriter
 from coworks.blueprint import Admin
 
@@ -37,9 +38,12 @@ class BizApp(BizMicroService):
 app = tech_app = TechApp()
 TerraformWriter(app)
 
-biz_app = BizApp("stock_armony", app_name="ArmonyStock")
+sfn_name = "MyStepFunction"
+biz_app = BizApp(sfn_name)
 biz_app.register_blueprint(Admin())
 # biz_app.react('test', Every(5, Every.MINUTES))
 
+psql = PsqlMicroService()
+
 if __name__ == '__main__':
-    biz_app.run(profile="fpr-customer")
+    psql.run()
