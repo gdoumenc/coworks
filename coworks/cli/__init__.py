@@ -89,10 +89,12 @@ def export(ctx, module, app, format, out):
     project_dir = ctx.obj['project_dir']
     handler = CWSFactory.import_attr(module, app, project_dir=project_dir)
     try:
-        handler.extensions['writers'][format].export(out, module_name=module, handler_name=app)
+        writer = handler.extensions['writers'][format]
     except KeyError:
         sys.stderr.write(f"Format '{format}' undefined\n")
         return
+
+    return writer.export(out, module_name=module, handler_name=app)
 
 
 def main():

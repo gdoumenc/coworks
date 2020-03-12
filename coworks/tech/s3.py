@@ -8,8 +8,8 @@ from ..mixins import Boto3Mixin
 
 class S3MicroService(Boto3Mixin, TechMicroService):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.__s3_client__ = None
 
     @property

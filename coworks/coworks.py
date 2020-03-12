@@ -6,6 +6,7 @@ import sys
 import traceback
 from functools import update_wrapper
 from threading import Lock
+from typing import Dict, Union
 
 from aws_xray_sdk.core import xray_recorder
 from chalice import Chalice, Blueprint as ChaliceBlueprint
@@ -68,7 +69,7 @@ class TechMicroService(Chalice):
         super().register_blueprint(blueprint, **kwargs)
         self.blueprints[blueprint.import_name] = blueprint
 
-    def run(self, host='127.0.0.1', port=8000, project_dir=None, stage=None, debug=True):
+    def run(self, host='127.0.0.1', port=8000, project_dir='.', stage=None, debug=True):
         # chalice.cli package not defined in deployment package
         from chalice.cli import DEFAULT_STAGE_NAME
         from .cli.factory import CWSFactory
@@ -77,7 +78,7 @@ class TechMicroService(Chalice):
             logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')
 
         stage = stage or DEFAULT_STAGE_NAME
-        factory = CWSFactory(self, project_dir=project_dir, debug=debug)
+        factory = CWSFactory(self, project_dir, debug=debug)
         config = factory.create_config_obj(chalice_stage_name=stage)
         factory.run_local_server(config, host, port)
 
@@ -285,40 +286,18 @@ class TechMicroService(Chalice):
         return resp
 
 
-class At(Cron):
-    def __init__(self, minutes=0, hours=1, day_of_month=None, month=None, day_of_week=None, year=None):
-        super().__init__(minutes, hours, day_of_month, month, day_of_week, year)
-
-    def to_dict(self):
-        return {
-            'source': 'at',
-            'value': self.to_string(),
-        }
-
-
-class Every(Rate):
-    def __init__(self, value, unit):
-        super().__init__(value, unit)
-
-    def to_dict(self):
-        return {
-            'source': 'every',
-            'value': self.to_string(),
-        }
-
-
 class BizFactory(Boto3Mixin, TechMicroService):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        self._arn = None
+        self._arn: Union[None, str] = None
         self.__sfn_client__ = None
-        self.reactors = {}
+        self.services: Dict[str, BizMicroService] = {}
 
     @property
-    def triggers(self):
-        return [trigger for sfn in self.reactors.values() for trigger in sfn.triggers]
+    def trigger_sources(self):
+        return [source for biz in self.services.values() for source in biz.trigger_sources]
 
     @property
     def sfn_client(self):
@@ -326,39 +305,35 @@ class BizFactory(Boto3Mixin, TechMicroService):
             self.__sfn_client__ = self.boto3_session.client('stepfunctions')
         return self.__sfn_client__
 
-    def create(self, sfn_name, reactor_name, trigger, input=None, **kwargs):
+    def post_trigger(self, name):
+        """Manual triggering a reactor."""
+        if self.debug:
+            print(f"Manual triggering: {name}")
+
+        return self.services[name]({}, {})
+
+    def create(self, sfn_name, reactor_name, trigger, data: dict = None, **kwargs):
         if self.debug:
             print(f"Create {reactor_name} reactor")
-        sfn = BizMicroService(sfn_name, **kwargs)
-        sfn.react(reactor_name, trigger, input)
-        self.reactors[reactor_name] = sfn
-        return sfn
 
-    def get_sfn_arn(self, sfn_name):
-        if sfn_name is None:
-            return
-
-        res = self.sfn_client.list_state_machines()
-        while True:
-            for sfn in res['stateMachines']:
-                if sfn['name'] == sfn_name:
-                    return sfn['stateMachineArn']
-
-            next_token = res.get('nextToken')
-            if next_token is None:
-                raise BadRequestError(f"Undefined step function : {sfn_name}")
-
-            res = self.sfn_client.list_state_machines(nextToken=next_token)
+        biz = BizMicroService(sfn_name, **kwargs)
+        reactor = biz.add_reactor(reactor_name, trigger, data)
+        self.services[reactor.full_name] = biz
+        return biz
 
     def handler(self, event, context):
         if self.debug:
             print(f"Event: {event}")
 
         if 'detail-type' in event and event['detail-type'] == 'Scheduled Event':
-            name = event['resources'][0].split('/')[-1]
-            if name not in self.reactors:
-                raise BadRequestError(f"Unregistered reactor : {name}")
-            return self.reactors[name](event, context)
+            full_reactor_name = event['resources'][0].split('/')[-1]
+            if full_reactor_name not in self.services:
+                raise BadRequestError(f"Unregistered reactor : {full_reactor_name}")
+
+            if self.debug:
+                print(f"Trigger: {full_reactor_name}")
+
+            return self.services[full_reactor_name](event, context)
 
         return super().handler(event, context)
 
@@ -367,18 +342,40 @@ class BizMicroService(BizFactory):
     """Chalice app to execute AWS Step Functions."""
 
     def __init__(self, sfn_name, **kwargs):
+        if 'app_name' not in kwargs:
+            kwargs['app_name'] = sfn_name
         super().__init__(**kwargs)
+        self.sfn_name = sfn_name
+        self.sfn_arn = None
+        self.reactors: Dict[str, Reactor] = {}
 
         @self.before_first_request
         def get_sfn_arn():
-            self._arn = self.get_sfn_arn(sfn_name)
+            if self.debug:
+                print(f"Search for Step Function: {sfn_name}")
+
+            if sfn_name is None:
+                return
+
+            res = self.sfn_client.list_state_machines()
+            while True:
+                for sfn in res['stateMachines']:
+                    if sfn['name'] == sfn_name:
+                        self.sfn_arn = sfn['stateMachineArn']
+                        return
+
+                next_token = res.get('nextToken')
+                if next_token is None:
+                    raise BadRequestError(f"Undefined step function : {sfn_name}")
+
+                res = self.sfn_client.list_state_machines(nextToken=next_token)
 
     @property
-    def triggers(self):
-        return [dict(name=name, **trigger[0].to_dict()) for name, trigger in self.reactors.items()]
+    def trigger_sources(self):
+        return [reactor.to_dict() for reactor in self.reactors.values()]
 
     def get_describe(self):
-        res = self.sfn_client.describe_state_machine(stateMachineArn=self._arn)
+        res = self.sfn_client.describe_state_machine(stateMachineArn=self.sfn_arn)
         return json.dumps(res, indent=4, sort_keys=True, default=str)
 
     def get_execution(self, exe_arn):
@@ -386,30 +383,40 @@ class BizMicroService(BizFactory):
         return json.dumps(res, indent=4, sort_keys=True, default=str)
 
     def get_last(self, max_results=1):
-        res = self.sfn_client.list_executions(stateMachineArn=self._arn, maxResults=int(max_results))
+        res = self.sfn_client.list_executions(stateMachineArn=self.sfn_arn, maxResults=int(max_results))
         return json.dumps(res, indent=4, sort_keys=True, default=str)
 
     def post_invoke(self, input="{}"):
-        res = self.sfn_client.start_execution(stateMachineArn=self._arn, input=input)
+        res = self.sfn_client.start_execution(stateMachineArn=self.sfn_arn, input=input)
         return json.dumps(res, indent=4, sort_keys=True, default=str)
 
-    def react(self, reactor_name, trigger, input=None):
-        if reactor_name in self.reactors:
-            raise Exception(f"Reactor {reactor_name} already defined.")
+    def add_reactor(self, reactor_name, source, data=None):
+        full_reactor_name = f"{self.sfn_name}-{reactor_name}"
+        if full_reactor_name in self.reactors:
+            raise Exception(f"Reactor {reactor_name} already defined for {self.sfn_name}.")
 
         def proxy(event, context):
             if self.debug:
-                print(f"Calling {self.app_name} from schedule event")
-            return self.post_invoke(input=json.dumps(input) if input else "{}")
+                print(f"Calling {self.app_name} from scheduled event")
 
-        self.reactors[reactor_name] = (trigger, proxy)
+            return self.post_invoke(input=json.dumps(data) if data is not None else "{}")
+
+        reactor = self.reactors[full_reactor_name] = Reactor(full_reactor_name, source, proxy)
+        return reactor
 
     def handler(self, event, context):
+        if self.debug:
+            print(f"Event: {event}")
+
         if 'detail-type' in event and event['detail-type'] == 'Scheduled Event':
-            name = event['resources'][0].split('/')[-1].split('_')[-1]
-            if name not in self.reactors:
-                raise BadRequestError(f"Unregistered reactor : {name}")
-            return self.reactors[name][1](event, context)
+            full_reactor_name = event['resources'][0].split('/')[-1]
+            if full_reactor_name not in self.reactors:
+                raise BadRequestError(f"Unregistered reactor : {full_reactor_name}")
+
+            if self.debug:
+                print(f"Trigger: {full_reactor_name}")
+
+            return self.reactors[full_reactor_name].trigger(event, context)
 
         return super().handler(event, context)
 
@@ -434,3 +441,39 @@ class Blueprint(ChaliceBlueprint):
     @property
     def current_app(self):
         return self._current_app
+
+
+class Reactor:
+
+    def __init__(self, full_name, source, proxy):
+        self.full_name = full_name
+        self.source = source
+        self.__proxy = proxy
+
+    def trigger(self, *args):
+        return self.__proxy(*args)
+
+    def to_dict(self):
+        return dict(name=self.full_name, **self.source.to_dict())
+
+
+class At(Cron):
+    def __init__(self, minutes=0, hours=1, day_of_month=None, month=None, day_of_week=None, year=None):
+        super().__init__(minutes, hours, day_of_month, month, day_of_week, year)
+
+    def to_dict(self):
+        return {
+            'source': 'at',
+            'value': self.to_string(),
+        }
+
+
+class Every(Rate):
+    def __init__(self, value, unit):
+        super().__init__(value, unit)
+
+    def to_dict(self):
+        return {
+            'source': 'every',
+            'value': self.to_string(),
+        }

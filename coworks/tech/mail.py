@@ -4,7 +4,7 @@ from email.message import EmailMessage
 from typing import List
 
 from aws_xray_sdk.core import xray_recorder
-from chalice import ChaliceViewError
+from chalice import ChaliceViewError, BadRequestError
 
 from ..coworks import TechMicroService
 
@@ -16,28 +16,28 @@ class MailMicroService(TechMicroService):
         super().__init__(**kwargs)
         self.smtp_server = self.smtp_login = self.smtp_passwd = None
 
-    def _check_env_vars(self):
-        self.smtp_server = os.getenv('SMTP_SERVER')
-        if not self.smtp_server:
-            raise EnvironmentError('SMTP_SERVER not defined in environment')
-        self.smtp_login = os.getenv('SMTP_LOGIN')
-        if not self.smtp_login:
-            raise EnvironmentError('SMTP_LOGIN not defined in environment')
-        self.smtp_passwd = os.getenv('SMTP_PASSWD')
-        if not self.smtp_passwd:
-            raise EnvironmentError('SMTP_PASSWD not defined in environment')
+        @self.before_first_request
+        def check_env_vars():
+            self.smtp_server = os.getenv('SMTP_SERVER')
+            if not self.smtp_server:
+                raise EnvironmentError('SMTP_SERVER not defined in environment')
+            self.smtp_login = os.getenv('SMTP_LOGIN')
+            if not self.smtp_login:
+                raise EnvironmentError('SMTP_LOGIN not defined in environment')
+            self.smtp_passwd = os.getenv('SMTP_PASSWD')
+            if not self.smtp_passwd:
+                raise EnvironmentError('SMTP_PASSWD not defined in environment')
 
-    def post_send(self, subject="", from_addr: str = None, to_addrs: List[str] = None, body="", starttls=False):
+    def post_send(self, subject: str = "", from_addr: str = None, to_addrs: List[str] = None,
+                  body: str = "", starttls: bool = False):
         """Send mail."""
 
-        # Ckecks parameters
-        self._check_env_vars()
         from_addr = from_addr or os.getenv('from_addr')
         if not from_addr:
-            raise ChaliceViewError("From address not defined (from_addr:str)")
+            raise BadRequestError("From address not defined (from_addr:str)")
         to_addrs = to_addrs or os.getenv('to_addrs')
         if not to_addrs:
-            raise ChaliceViewError("To addresses not defined (to_addrs:[str])")
+            raise BadRequestError("To addresses not defined (to_addrs:[str])")
 
         # Creates email
         try:
@@ -65,6 +65,6 @@ class MailMicroService(TechMicroService):
 
             return f"Mail sent to {msg['To']}"
         except smtplib.SMTPAuthenticationError:
-            raise ChaliceViewError("Wrong username/password.")
+            raise BadRequestError("Wrong username/password.")
         except Exception as e:
             raise ChaliceViewError(f"Cannot send email message (Error: {str(e)}).")
