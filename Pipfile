@@ -13,6 +13,7 @@ codecov = "*"
 sqlalchemy = "*"
 psycopg2 = "*"
 mysqlclient = "*"
+requests-toolbelt = "*"
 
 [dev-packages]
 wheel = "*"
