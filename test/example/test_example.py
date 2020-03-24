@@ -2,7 +2,7 @@ import os
 
 import requests
 
-from .test_app import TechApp
+from .example import TechApp
 
 
 def test_simple_example(local_server_factory):
@@ -22,6 +22,7 @@ def test_simple_example(local_server_factory):
     response = local_server.make_call(requests.get, '/value/1')
     assert response.status_code == 200
     assert response.text == "456\n"
+
 
 def test_params(local_server_factory):
     local_server = local_server_factory(TechApp())

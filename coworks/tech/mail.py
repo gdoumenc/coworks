@@ -67,9 +67,10 @@ class MailMicroService(TechMicroService):
                 if starttls:
                     server.starttls()
                 server.login(self.smtp_login, self.smtp_passwd)
-                subsegment = xray_recorder.begin_subsegment(f"SMTP sending") #fixme, error : cannot find the current segment/subsegment, please make sure you have a segment open
+                subsegment = xray_recorder.begin_subsegment(f"SMTP sending")
                 try:
-                    subsegment.put_metadata('message', msg.as_string())
+                    if subsegment:
+                        subsegment.put_metadata('message', msg.as_string())
                     server.send_message(msg)
                 finally:
                     xray_recorder.end_subsegment()

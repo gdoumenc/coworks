@@ -1,6 +1,7 @@
 .chalice/
 Pipfile.lock
 requirements.txt
+/test/example/app.py
 
 .idea/
 **/__pycache__/
@@ -11,3 +12,4 @@ coworks.egg-info/
 dist/
 
 .pytest_cache/
+
