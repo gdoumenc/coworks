@@ -2,10 +2,8 @@ import os
 
 from collections import defaultdict
 
-from coworks import TechMicroService, BizMicroService
-from coworks.tech import PsqlMicroService
+from coworks import TechMicroService
 from coworks.export import TerraformWriter
-from coworks.blueprint import Admin
 
 
 class TechApp(TechMicroService):
@@ -29,21 +27,8 @@ class TechApp(TechMicroService):
         return f"Simple microservice for {os.getenv('test')}.\n"
 
 
-class BizApp(BizMicroService):
-    pass
-    # def auth(self, auth_request):
-    #     return True
-
-
 app = tech_app = TechApp()
 TerraformWriter(app)
 
-sfn_name = "MyStepFunction"
-biz_app = BizApp(sfn_name)
-biz_app.register_blueprint(Admin())
-# biz_app.react('test', Every(5, Every.MINUTES))
-
-psql = PsqlMicroService()
-
 if __name__ == '__main__':
-    psql.run()
+    app.run()

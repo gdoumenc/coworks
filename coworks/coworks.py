@@ -123,7 +123,8 @@ class TechMicroService(Chalice):
             proxy = TechMicroService._create_rest_proxy(component, func, kwarg_keys, args, varkw)
 
             # complete all entries
-            component.route(f"/{route}", methods=[method.upper()], authorizer=auth)(proxy)
+            component.route(f"/{route}", methods=[method.upper()], authorizer=auth,
+                            content_types=['multipart/form-data', 'application/json'])(proxy)
             if url_prefix:
                 self.entries[f"{url_prefix}/{route}"] = (method.upper(), func)
             else:
@@ -185,7 +186,7 @@ class TechMicroService(Chalice):
                         value = req.query_params.getlist(k)
                         params[k] = value if len(value) > 1 else value[0]
                     kwargs = dict(**kwargs, **params)
-                    if req.raw_body:
+                    if req.raw_body and (not req.headers.get('content-type').startswith('multipart/form-data')):
                         if hasattr(req.json_body, 'items'):
                             params = {}
                             for k, v in req.json_body.items():
