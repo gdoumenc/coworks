@@ -49,7 +49,7 @@ class S3FSLoader(jinja2.BaseLoader):
         return sorted(found)
 
 
-class JinjaRender(TechMicroService):
+class JinjaRenderMicroservice(TechMicroService):
     """ Render a jinja template to html """
 
     def get_render(self, bucket, template):
