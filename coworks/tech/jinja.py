@@ -52,7 +52,12 @@ class S3FSLoader(jinja2.BaseLoader):
 class JinjaRenderMicroservice(TechMicroService):
     """ Render a jinja template to html """
 
-    def get_render(self, template):
+    def get_render(self):
+        """ render template given in multipart/form-data body """
+        pass
+
+    def get_render_(self, template):
+        """ render template given in url """
         template = urllib.parse.unquote_plus(template)
         context = self.current_request.query_params
         env = jinja2.Environment(loader=jinja2.DictLoader({'index.html': template}))
@@ -63,7 +68,8 @@ class JinjaRenderMicroservice(TechMicroService):
                             headers={'Content-Type': 'text/html'})
         return response
 
-    def get_render_(self, bucket, template_name):
+    def get_render__(self, bucket, template_name):
+        """ render template stored on s3"""
         bucket = urllib.parse.unquote_plus(bucket)
         template_name = urllib.parse.unquote_plus(template_name)
         context = self.current_request.query_params

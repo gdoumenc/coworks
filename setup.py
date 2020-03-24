@@ -33,9 +33,9 @@ setup(
         'chalice',
         'jinja2',
         'pyyaml',
-        'fs-s3fs'
+        'fs-s3fs',
         'sqlalchemy',
-        'requests_toolbelt'
+        'requests_toolbelt',
     ],
     keywords='restful microservice aws chalice serverless',
     entry_points={
