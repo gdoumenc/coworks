@@ -3,7 +3,7 @@ import urllib.parse
 from coworks.tech import JinjaRenderMicroservice
 
 
-def test_send(local_server_factory, email_mock_fixture):
+def test_send(local_server_factory):
     local_server = local_server_factory(JinjaRenderMicroservice())
     template = urllib.parse.quote_plus("hello {{ world_name }}")
     response = local_server.make_call(requests.get, f"/render/{template}", params={'world_name': 'world'})
