@@ -52,12 +52,23 @@ class S3FSLoader(jinja2.BaseLoader):
 class JinjaRenderMicroservice(TechMicroService):
     """ Render a jinja template to html """
 
-    def get_render(self, bucket, template):
-        bucket = urllib.parse.unquote_plus(bucket)
+    def get_render(self, template):
         template = urllib.parse.unquote_plus(template)
         context = self.current_request.query_params
+        env = jinja2.Environment(loader=jinja2.DictLoader({'index.html': template}))
+        template = env.get_template('index.html')
+        render = template.render(**context)
+        response = Response(body=render,
+                            status_code=200,
+                            headers={'Content-Type': 'text/html'})
+        return response
+
+    def get_render_(self, bucket, template_name):
+        bucket = urllib.parse.unquote_plus(bucket)
+        template_name = urllib.parse.unquote_plus(template_name)
+        context = self.current_request.query_params
         env = jinja2.Environment(loader=S3FSLoader(bucket))
-        template = env.get_template(template)
+        template = env.get_template(template_name)
         render = template.render(**context)
         response = Response(body=render,
                             status_code=200,
