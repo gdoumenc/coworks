@@ -33,7 +33,6 @@ setup(
         'chalice',
         'jinja2',
         'pyyaml',
-        'fs-s3fs',
         'sqlalchemy',
         'requests_toolbelt',
     ],
