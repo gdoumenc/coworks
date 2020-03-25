@@ -2,9 +2,11 @@ import jinja2
 import fs
 import fs.errors
 import urllib.parse
+import cgi
 
 from coworks import TechMicroService
 from chalice import Response
+from requests_toolbelt.multipart import decoder
 
 
 class S3FSLoader(jinja2.BaseLoader):
@@ -50,14 +52,36 @@ class S3FSLoader(jinja2.BaseLoader):
 
 
 class JinjaRenderMicroservice(TechMicroService):
-    """ Render a jinja template to html """
+    """ Render a jinja template to html
+        Templates can be sent to the microservice in 3 differents ways :
+            - send files in multipart/form-data body
+            - put template content in url
+            - put templates in a s3 bucket and give bucket name to the microservice """
 
-    def get_render(self):
-        """ render template given in multipart/form-data body """
-        pass
+    def post_render(self, template_name):
+        """ render one template from templates given in multipart/form-data body
+            pass jinja context in query_params """
+        content_type = self.current_request.headers.get('content-type')
+        multipart_decoder = decoder.MultipartDecoder(self.current_request.raw_body, content_type)
+        templates = {}
+        for part in multipart_decoder.parts:
+            headers = {k.decode('utf-8'): v.decode('utf-8') for k, v in part.headers.items()}
+            content = part.content.decode('utf-8')
+            _, content_disposition_params = cgi.parse_header(headers['Content-Disposition'])
+            filename = content_disposition_params['filename']
+            templates[filename] = content
+        context = self.current_request.query_params
+        env = jinja2.Environment(loader=jinja2.DictLoader(templates))
+        template = env.get_template(template_name)
+        render = template.render(**context)
+        response = Response(body=render,
+                            status_code=200,
+                            headers={'Content-Type': 'text/html'})
+        return response
 
     def get_render_(self, template):
-        """ render template given in url """
+        """ render template which content is given in url
+        pass jinja context in query_params """
         template = urllib.parse.unquote_plus(template)
         context = self.current_request.query_params
         env = jinja2.Environment(loader=jinja2.DictLoader({'index.html': template}))
@@ -69,7 +93,8 @@ class JinjaRenderMicroservice(TechMicroService):
         return response
 
     def get_render__(self, bucket, template_name):
-        """ render template stored on s3"""
+        """ render template stored on s3
+        pass jinja context in query_params """
         bucket = urllib.parse.unquote_plus(bucket)
         template_name = urllib.parse.unquote_plus(template_name)
         context = self.current_request.query_params
