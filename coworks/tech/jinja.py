@@ -1,10 +1,11 @@
-import jinja2
-import urllib.parse
 import cgi
+import urllib.parse
 
-from coworks import TechMicroService
+import jinja2
 from chalice import Response, NotFoundError
 from requests_toolbelt.multipart import decoder
+
+from coworks import TechMicroService
 from ..mixins import Boto3Mixin
 
 

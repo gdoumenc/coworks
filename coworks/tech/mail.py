@@ -3,9 +3,11 @@ import os
 import smtplib
 from email.message import EmailMessage
 from typing import List
-from requests_toolbelt.multipart import decoder
+
 from aws_xray_sdk.core import xray_recorder
 from chalice import ChaliceViewError, BadRequestError
+from requests_toolbelt.multipart import decoder
+
 from ..coworks import TechMicroService
 
 

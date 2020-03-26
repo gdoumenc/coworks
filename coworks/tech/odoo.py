@@ -4,11 +4,11 @@ from http.client import BadStatusLine
 from xmlrpc import client
 
 from aws_xray_sdk.core import xray_recorder
+from chalice import ChaliceViewError
 from chalice import NotFoundError, BadRequestError
 from pyexpat import ExpatError
 
 from .. import Blueprint
-from chalice import ChaliceViewError
 from ..coworks import TechMicroService
 
 
