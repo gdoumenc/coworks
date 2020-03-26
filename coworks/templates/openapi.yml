@@ -1,0 +1,11 @@
+info:
+  description: test
+  title: {{ app_name }}
+openapi: 3.0.0
+paths:
+{% for entry, (method, func) in app.entries.items() %}
+  {{ entry }}:
+    {{ method }}:
+      description: {{ func.__doc__ }}
+  {% endfor %}
+version: undefined

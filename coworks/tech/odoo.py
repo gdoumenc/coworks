@@ -4,11 +4,11 @@ from http.client import BadStatusLine
 from xmlrpc import client
 
 from aws_xray_sdk.core import xray_recorder
+from chalice import ChaliceViewError
 from chalice import NotFoundError, BadRequestError
 from pyexpat import ExpatError
 
 from .. import Blueprint
-from chalice import ChaliceViewError
 from ..coworks import TechMicroService
 
 
@@ -76,10 +76,11 @@ class OdooMicroService(TechMicroService):
             try:
                 subsegment = xray_recorder.begin_subsegment(f"Quering ODOO")
                 with client.ServerProxy(self.models_url, allow_none=True) as models:
-                    subsegment.put_metadata('model', model)
-                    subsegment.put_metadata('method', method)
-                    for index, arg in enumerate(args):
-                        subsegment.put_metadata(f'arg{index}', arg)
+                    if subsegment:
+                        subsegment.put_metadata('model', model)
+                        subsegment.put_metadata('method', method)
+                        for index, arg in enumerate(args):
+                            subsegment.put_metadata(f'arg{index}', arg)
                     return models.execute_kw(self.db, self.api_uid, self.password, model, method, *args)
             finally:
                 xray_recorder.end_subsegment()

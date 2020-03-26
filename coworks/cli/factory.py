@@ -8,24 +8,16 @@ from ..export import Writer
 
 
 class CWSFactory(CLIFactory):
-    def __init__(self, app, **kwargs):
+    def __init__(self, app, project_dir, **kwargs):
         self.app = app
-        super().__init__(**kwargs)
+        super().__init__(project_dir, **kwargs)
 
     @staticmethod
-    def import_attr(module, attr, project_dir='.', ):
+    def import_attr(module, attr, project_dir='.'):
         if project_dir not in sys.path:
             sys.path.insert(0, project_dir)
         app_module = importlib.import_module(module)
         return getattr(app_module, attr)
-
-    @staticmethod
-    def writer(app, default_format):
-        if hasattr(app, 'writer'):
-            writer = getattr(app, 'writer')
-        else:
-            writer = Writer.get_writer(default_format, app)
-        return writer
 
     def load_chalice_app(self, environment_variables=None, **kwargs):
         if environment_variables is not None:

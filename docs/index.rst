@@ -8,9 +8,9 @@ Introduction
 
 CoWorks is unified serverless microservices framework on AWS tehcnologies.
 
-Each atomic microservice (called TechMicroservice) is a simple python class deployed on the serverless Lambda product and
-composition of microservices (called BizMicroservice) is performed as a serverless workflow over the Step Function product.
-Other AWS products are used for logging, administrate, ...
+Each atomic microservice (``class TechMicroService``) is a simple python class deployed on the serverless Lambda AWS product and
+composition of microservices (``class BizMicroService``) is performed over the Step Function AWS product. Other AWS technologies are used
+for logging, administrate, ...
 
 Get started with :ref:`installation` and then get an overview with the :ref:`quickstart`.
 Read :ref:`faq` for a quick presentation, a complete presentation can be found `here <https://coworks.readthedocs.io/en/latest/>`_.
@@ -104,7 +104,6 @@ User’s Guide
   authorization
   blueprint
   biz
-  faq
   changelog
 
 

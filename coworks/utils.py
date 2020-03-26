@@ -1,5 +1,7 @@
 import inspect
 
+from aws_xray_sdk.core import xray_recorder
+
 
 def class_auth_methods(obj):
     """Returns the auth method from the class if exists."""
@@ -40,3 +42,14 @@ def class_attribute(obj, name: str = None, defaut=None):
 
     filtered = [a[1] for a in attributes if a[0] == name]
     return filtered[0] if filtered else defaut
+
+
+def begin_xray_subsegment(subsegment_name):
+    if xray_recorder.in_segment().segment is not None:
+        return xray_recorder.begin_subsegment(subsegment_name)
+    return None
+
+
+def end_xray_subsegment():
+    if xray_recorder.in_subsegment().subsegment is not None:
+        return xray_recorder.end_subsegment()

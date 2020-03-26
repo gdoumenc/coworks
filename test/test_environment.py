@@ -1,7 +1,7 @@
 import requests
 import os
 
-from .microservice import *
+from .tech_ms import *
 
 
 class WithEnvMS(SimpleMS):

@@ -2,7 +2,7 @@ import requests
 
 from chalice import AuthResponse
 
-from .microservice import *
+from .tech_ms import *
 from .blueprint import *
 
 

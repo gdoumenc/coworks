@@ -8,6 +8,7 @@ from unittest.mock import Mock, MagicMock
 
 email_mock = message.EmailMessage()
 email_mock.set_content = Mock()
+email_mock.add_attachment = Mock()
 
 
 class EmailMessageMock:

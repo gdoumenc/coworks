@@ -3,10 +3,10 @@ import json
 import requests
 
 from coworks import Admin
-from .microservice import *
+from .tech_ms import *
 
 
-class DoumentedMS(MS):
+class DoumentedMS(TechMS):
 
     def get(self):
         """Root access."""
