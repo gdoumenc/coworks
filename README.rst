@@ -25,8 +25,10 @@ Each atomic microservice (Tech Microservice) is a simple python class deployed o
 composition of microservices (Biz Microservice) is performed over the Step Function product. Other AWS products are used
 for logging, administrate, ...
 
-Get started with :ref:`installation` and then get an overview with the :ref:`quickstart`.
-Read :ref:`faq` for a quick presentation, a complete presentation can be found `here <https://coworks.readthedocs.io/en/latest/>`_.
+Get started with `installation <https://coworks.readthedocs.io/en/latest/installation.html>`_ and then
+get an overview with the `quickstart <https://coworks.readthedocs.io/en/latest/quickstart.html>`_.
+Read `faq <https://coworks.readthedocs.io/en/latest/faq.html>`_ for a quick presentation,
+a complete presentation can be found `here <https://coworks.readthedocs.io/en/latest/>`_.
 
 
 Installation
