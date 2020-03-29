@@ -3,7 +3,7 @@
 BizMicroservices
 ================
 
-BizMicroservices are microservices obtained by composition of TechMicroservices. The composition is defined over the
+BizMicroservices are microservices obtained by composition of TechMicroservices. The composition is defined with the
 AWS Step Function technology.
 
 As we have seen a BizMicroservice is mainly connected to an event source for producting a functional reaction.
@@ -17,3 +17,4 @@ Step Function description from our YAML CoWorks description.
 YAML CoWorks descriptior is not as powerfull as JSON Step Function descriptor; it is a simplified subset for TehMicroservices
 composition.
 
+** TO BE COMPLETED **

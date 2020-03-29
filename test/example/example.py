@@ -3,10 +3,10 @@ import os
 from collections import defaultdict
 
 from coworks import TechMicroService
-from coworks.export import TerraformWriter
+from coworks.export import OpenApiWriter, TerraformWriter
 
 
-class TechApp(TechMicroService):
+class TechMS(TechMicroService):
     """Technical microservice for the CoWorks tutorial example."""
     version = "1.2"
     values = defaultdict(int)
@@ -27,8 +27,9 @@ class TechApp(TechMicroService):
         return f"Simple microservice for {os.getenv('test')}.\n"
 
 
-app = tech_app = TechApp()
+app = tech_app = TechMS()
 TerraformWriter(app)
+OpenApiWriter(app)
 
 if __name__ == '__main__':
     app.run()

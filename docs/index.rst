@@ -95,12 +95,10 @@ User’s Guide
 
   installation
   quickstart
-  tutorial
-  staging
   tech
-  authorization
-  blueprint
+  deployment
   biz
+  faq
   changelog
 
 

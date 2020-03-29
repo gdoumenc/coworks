@@ -1,5 +1,5 @@
 info:
-  description: test
+  description: {{ app.__doc__ }}
   title: {{ app_name }}
 openapi: 3.0.0
 paths:
@@ -8,4 +8,4 @@ paths:
     {{ method }}:
       description: {{ func.__doc__ }}
   {% endfor %}
-version: undefined
+version: {{ app.version }}

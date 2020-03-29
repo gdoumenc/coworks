@@ -3,33 +3,33 @@
 Quickstart
 ==========
 
-This page gives a quick introduction to CoWorks.
+This page gives a quick and partial introduction to CoWorks technical microservices.
 Follow :doc:`installation` to set up a project and install CoWorks first.
 
-A microservice is simply defined by a python class which looks like this:
+A tech microservice is simply defined by a python class which looks like this:
 
 .. code-block:: python
 
-	class SimpleExampleMicroservice(TechMicroService):
+	class SimpleMicroService(TechMicroService):
 
 		def get(self):
-			return f"Hello world.\n"
+			return f"Simple microservice ready.\n"
 
 Creation
 --------
 
-To realize you first microservice, create a file ``app.py`` with the following content:
+To realize you first techn microservice, create a file ``app.py`` with the following content:
 
 .. code-block:: python
 
 	from coworks import TechMicroService
 
-	class SimpleExampleMicroservice(TechMicroService):
+	class SimpleMicroService(TechMicroService):
 
 		def get(self):
 			return f"Simple microservice ready.\n"
 
-	app = SimpleExampleMicroservice()
+	app = SimpleMicroService()
 
 Test locally this microservice::
 
@@ -85,3 +85,36 @@ Finally, remove the project and its virtual environment ::
 	$ cd ..
 	$ rm -rf project
 
+Commands
+--------
+
+To get all CoWorks commands and options::
+
+	(project) $ cws --help
+	Usage: cws [OPTIONS] COMMAND [ARGS]...
+
+	Options:
+	  --version           Show the version and exit.
+	  --project-dir TEXT  The project directory path (absolute or
+						  relative).Defaults to CWD
+	  --help              Show this message and exit.
+
+	Commands:
+	  export
+	  init
+	  run
+
+You can configure several files and entries in you project. for that use the ``module`` and ``app`` options of the
+``run`` command::
+
+	(project) $ cws run --help
+	Usage: cws run [OPTIONS]
+
+	Options:
+	  -m, --module TEXT     Filename of your microservice python source file.
+	  -a, --app TEXT        Coworks application in the source file.
+	  -h, --host TEXT
+	  -p, --port INTEGER
+	  -s, --stage TEXT      Name of the Chalice stage for the local server to use.
+	  --debug / --no-debug  Print debug logs to stderr.
+	  --help                Show this message and exit.
