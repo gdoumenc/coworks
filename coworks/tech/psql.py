@@ -19,7 +19,6 @@ class PsqlMicroService(TechMicroService):
         self.dialect = self.host = self.port = self.dbname = self.user = self.password = None
         self.engine = None
         self.session = None
-        self.tables = defaultdict(dict)
 
         @self.before_first_request
         def check_env_vars():
