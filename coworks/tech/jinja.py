@@ -59,10 +59,7 @@ class JinjaRenderMicroservice(TechMicroService):
         env = jinja2.Environment(loader=jinja2.DictLoader(templates))
         template = env.get_template(template_name)
         render = template.render(**context)
-        response = Response(body=render,
-                            status_code=200,
-                            headers={'Content-Type': 'text/html'})
-        return response
+        return render
 
     def get_render_(self, template):
         """ render template which content is given in url
@@ -75,10 +72,7 @@ class JinjaRenderMicroservice(TechMicroService):
         env = jinja2.Environment(loader=jinja2.DictLoader({'index.html': template}))
         template = env.get_template('index.html')
         render = template.render(**context)
-        response = Response(body=render,
-                            status_code=200,
-                            headers={'Content-Type': 'text/html'})
-        return response
+        return render
 
     def get_render__(self, bucket, template_name):
         """ render template stored on s3
@@ -92,7 +86,4 @@ class JinjaRenderMicroservice(TechMicroService):
         env = jinja2.Environment(loader=S3Loader(bucket))
         template = env.get_template(template_name)
         render = template.render(**context)
-        response = Response(body=render,
-                            status_code=200,
-                            headers={'Content-Type': 'text/html'})
-        return response
+        return render
