@@ -9,7 +9,7 @@ def test_render_template_in_url(local_server_factory):
     template = urllib.parse.quote_plus("hello {{ world_name }}")
     response = local_server.make_call(requests.get, f"/render/{template}", params={'world_name': 'world'})
     assert response.status_code == 200
-    assert response.text == "hello world"
+    assert response.json() == {"render": "hello [\'world\']"}
 
 
 def test_render_template_multipart_form(local_server_factory):
@@ -22,5 +22,5 @@ def test_render_template_multipart_form(local_server_factory):
                                       params={'world_name': 'world'},
                                       files={'file': ('template.jinja', template, 'text/plain')})
     assert response.status_code == 200
-    assert response.text == "hello world"
+    assert response.json() == {"render": "hello [\'world\']"}
     os.remove("template.jinja")
