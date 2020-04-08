@@ -184,12 +184,26 @@ class TechMicroService(Chalice):
 
                 # Adds kwargs parameters
                 if kwarg_keys or varkw:
+
+                    def check_param_expected_in_lambda(param_name):
+                        if param_name not in kwarg_keys and varkw is None:
+                            raise BadRequestError(f"TypeError: got an unexpected keyword argument '{param_name}'")
+
                     params = {}
                     if req.raw_body:
                         content_type = req.headers['content-type']
-
                         if content_type.startswith('multipart/form-data'):
-                            params = {}
+
+                            def add_param(param_name, param_value):
+                                check_param_expected_in_lambda(param_name)
+                                if param_name in params:
+                                    if isinstance(params[param_name], list):
+                                        params[param_name].append(param_value)
+                                    else:
+                                        params[param_name] = [params[param_name], param_value]
+                                else:
+                                    params[param_name] = param_value
+
                             multipart_decoder = decoder.MultipartDecoder(req.raw_body, content_type)
                             for part in multipart_decoder.parts:
                                 headers = {k.decode('utf-8'): cgi.parse_header(v.decode('utf-8')) for k, v in part.headers.items()}
@@ -198,26 +212,21 @@ class TechMicroService(Chalice):
                                 part_content_type, _ = headers.get('Content-Type', (None, None))
                                 name = content_disposition_params['name']
                                 if part_content_type is None:
-                                    if name not in kwarg_keys and varkw is None:
-                                        raise BadRequestError(f"TypeError: got an unexpected keyword argument '{name}'")
-                                    params[name] = content.decode('utf-8')
+                                    add_param(name, content.decode('utf-8'))
                                 elif part_content_type == 'text/s3':
                                     pass  # TODO : get file on s3
                                 else:
                                     FileParam = namedtuple('FileParam', ['file', 'mime_type'])
                                     file = io.BytesIO(content)
                                     file.name = content_disposition_params['filename']
-                                    if name not in kwarg_keys and varkw is None:
-                                        raise BadRequestError(f"TypeError: got an unexpected keyword argument '{name}'")
-                                    params[name] = FileParam(file, part_content_type)
+                                    add_param(name, FileParam(file, part_content_type))
                             kwargs = dict(**kwargs, **params)
 
                         elif content_type.startswith('application/json'):
                             if hasattr(req.json_body, 'items'):
                                 params = {}
                                 for k, v in req.json_body.items():
-                                    if k not in kwarg_keys and varkw is None:
-                                        raise BadRequestError(f"TypeError: got an unexpected keyword argument '{k}'")
+                                    check_param_expected_in_lambda(k)
                                     params[k] = v
                                 kwargs = dict(**kwargs, **params)
                             else:
@@ -226,8 +235,7 @@ class TechMicroService(Chalice):
                             kwargs[kwarg_keys[0]] = req.json_body
                     else:  # GET request
                         for k in req.query_params or []:
-                            if k not in kwarg_keys and varkw is None:
-                                raise BadRequestError(f"TypeError: got an unexpected keyword argument '{k}'")
+                            check_param_expected_in_lambda(k)
                             value = req.query_params.getlist(k)
                             params[k] = value if len(value) > 1 else value[0]
                         kwargs = dict(**kwargs, **params)
