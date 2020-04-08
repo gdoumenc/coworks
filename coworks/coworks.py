@@ -4,9 +4,14 @@ import logging
 import os
 import sys
 import traceback
+import cgi
+import io
+
 from functools import update_wrapper
 from threading import Lock
 from typing import Dict, Union
+from requests_toolbelt.multipart import decoder
+from collections import namedtuple
 
 from aws_xray_sdk.core import xray_recorder
 from chalice import Chalice, Blueprint as ChaliceBlueprint
@@ -178,24 +183,55 @@ class TechMicroService(Chalice):
                     kwargs[param] = value
 
                 # Adds kwargs parameters
-                if kwarg_keys:
+                if kwarg_keys or varkw:
                     params = {}
-                    for k in req.query_params or []:
-                        if k not in kwarg_keys and varkw is None:
-                            raise BadRequestError(f"TypeError: got an unexpected keyword argument '{k}'")
-                        value = req.query_params.getlist(k)
-                        params[k] = value if len(value) > 1 else value[0]
-                    kwargs = dict(**kwargs, **params)
-                    if req.raw_body and (not req.headers.get('content-type').startswith('multipart/form-data')):
-                        if hasattr(req.json_body, 'items'):
+                    if req.raw_body:
+                        content_type = req.headers['content-type']
+
+                        if content_type.startswith('multipart/form-data'):
                             params = {}
-                            for k, v in req.json_body.items():
-                                if k not in kwarg_keys and varkw is None:
-                                    raise BadRequestError(f"TypeError: got an unexpected keyword argument '{k}'")
-                                params[k] = v
+                            multipart_decoder = decoder.MultipartDecoder(req.raw_body, content_type)
+                            for part in multipart_decoder.parts:
+                                headers = {k.decode('utf-8'): cgi.parse_header(v.decode('utf-8')) for k, v in part.headers.items()}
+                                content = part.content
+                                _, content_disposition_params = headers['Content-Disposition']
+                                part_content_type, _ = headers.get('Content-Type', (None, None))
+                                name = content_disposition_params['name']
+                                if part_content_type is None:
+                                    if name not in kwarg_keys and varkw is None:
+                                        raise BadRequestError(f"TypeError: got an unexpected keyword argument '{name}'")
+                                    params[name] = content.decode('utf-8')
+                                elif part_content_type == 'text/s3':
+                                    pass  # TODO : get file on s3
+                                else:
+                                    FileParam = namedtuple('FileParam', ['file', 'mime_type'])
+                                    file = io.BytesIO(content)
+                                    file.name = content_disposition_params['filename']
+                                    if name not in kwarg_keys and varkw is None:
+                                        raise BadRequestError(f"TypeError: got an unexpected keyword argument '{name}'")
+                                    params[name] = FileParam(file, part_content_type)
                             kwargs = dict(**kwargs, **params)
-                        else:
+
+                        elif content_type.startswith('application/json'):
+                            if hasattr(req.json_body, 'items'):
+                                params = {}
+                                for k, v in req.json_body.items():
+                                    if k not in kwarg_keys and varkw is None:
+                                        raise BadRequestError(f"TypeError: got an unexpected keyword argument '{k}'")
+                                    params[k] = v
+                                kwargs = dict(**kwargs, **params)
+                            else:
+                                kwargs[kwarg_keys[0]] = req.json_body
+                        elif content_type.startswith('text/plain'):
                             kwargs[kwarg_keys[0]] = req.json_body
+                    else:  # GET request
+                        for k in req.query_params or []:
+                            if k not in kwarg_keys and varkw is None:
+                                raise BadRequestError(f"TypeError: got an unexpected keyword argument '{k}'")
+                            value = req.query_params.getlist(k)
+                            params[k] = value if len(value) > 1 else value[0]
+                        kwargs = dict(**kwargs, **params)
+
                 resp = func(component, **kwargs)
                 return TechMicroService._convert_response(resp)
 
