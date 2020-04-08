@@ -14,7 +14,7 @@ from requests_toolbelt.multipart import decoder
 from collections import namedtuple
 
 from aws_xray_sdk.core import xray_recorder
-from chalice import Chalice, Blueprint as ChaliceBlueprint
+from chalice import Chalice, Blueprint as ChaliceBlueprint, NotFoundError
 from chalice import Response, AuthResponse, BadRequestError, Rate, Cron
 
 from .mixins import Boto3Mixin
@@ -206,20 +206,32 @@ class TechMicroService(Chalice):
 
                             multipart_decoder = decoder.MultipartDecoder(req.raw_body, content_type)
                             for part in multipart_decoder.parts:
-                                headers = {k.decode('utf-8'): cgi.parse_header(v.decode('utf-8')) for k, v in part.headers.items()}
+                                headers = {k.decode('utf-8'): cgi.parse_header(v.decode('utf-8')) for k, v in
+                                           part.headers.items()}
                                 content = part.content
                                 _, content_disposition_params = headers['Content-Disposition']
                                 part_content_type, _ = headers.get('Content-Type', (None, None))
                                 name = content_disposition_params['name']
                                 if part_content_type is None:
                                     add_param(name, content.decode('utf-8'))
-                                elif part_content_type == 'text/s3':
-                                    pass  # TODO : get file on s3
                                 else:
+                                    if part_content_type == 'text/s3':
+                                        boto3 = Boto3Mixin()
+                                        boto3_session = boto3.boto3_session
+                                        client = boto3_session.client('s3')
+                                        s3_object = client.get_object(Bucket=content.decode('utf-8').split('/', 1)[0],
+                                                                      Key=content.decode('utf-8').split('/', 1)[1])
+                                        if not s3_object:
+                                            return NotFoundError(f"File {content.decode('utf-8')} not found on s3")
+                                        file = io.BytesIO(s3_object['Body'].read())
+                                        file.name = content.decode('utf-8').split('/')[-1]
+                                        mime_type = s3_object['ContentType']
+                                    else:
+                                        file = io.BytesIO(content)
+                                        file.name = content_disposition_params['filename']
+                                        mime_type = part_content_type
                                     FileParam = namedtuple('FileParam', ['file', 'mime_type'])
-                                    file = io.BytesIO(content)
-                                    file.name = content_disposition_params['filename']
-                                    add_param(name, FileParam(file, part_content_type))
+                                    add_param(name, FileParam(file, mime_type))
                             kwargs = dict(**kwargs, **params)
 
                         elif content_type.startswith('application/json'):
