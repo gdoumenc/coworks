@@ -212,7 +212,7 @@ class TechMicroService(Chalice):
                                 _, content_disposition_params = headers['Content-Disposition']
                                 part_content_type, _ = headers.get('Content-Type', (None, None))
                                 name = content_disposition_params['name']
-                                if part_content_type is None:
+                                if 'filename' not in content_disposition_params:
                                     add_param(name, content.decode('utf-8'))
                                 else:
                                     if part_content_type == 'text/s3':
