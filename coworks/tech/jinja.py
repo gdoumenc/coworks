@@ -33,7 +33,7 @@ class S3Loader(jinja2.BaseLoader, Boto3Mixin):
         return template_content, None, uptodate
 
 
-class JinjaRenderMicroservice(TechMicroService):
+class JinjaRenderMicroService(TechMicroService):
     """ Render a jinja template to html
         Templates can be sent to the microservice in 3 differents ways :
             - send files in multipart/form-data body
