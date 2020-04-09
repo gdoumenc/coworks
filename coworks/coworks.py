@@ -184,33 +184,27 @@ class TechMicroService(Chalice):
                     kwargs[param] = value
 
                 # Adds kwargs parameters
+                def check_param_expected_in_lambda(param_name):
+                    """Alerts when more parameters than expected are defined in request."""
+                    if param_name not in kwarg_keys and varkw is None:
+                        raise BadRequestError(f"TypeError: got an unexpected keyword argument '{param_name}'")
+
+                def add_param(param_name, param_value):
+                    check_param_expected_in_lambda(param_name)
+                    if param_name in params:
+                        if isinstance(params[param_name], list):
+                            params[param_name].append(param_value)
+                        else:
+                            params[param_name] = [params[param_name], param_value]
+                    else:
+                        params[param_name] = param_value
+
                 req = component.current_request
                 if kwarg_keys or varkw:
-
-                    # TODO: Comment missing - Check what I have added
-                    def check_param_expected_in_lambda(param_name):
-                        """Alerts when more parameters are defined in request."""
-                        if param_name not in kwarg_keys and varkw is None:
-                            raise BadRequestError(f"TypeError: got an unexpected keyword argument '{param_name}'")
-
                     params = {}
                     if req.raw_body:  # POST request
                         content_type = req.headers['content-type']
                         if content_type.startswith('multipart/form-data'):
-
-
-                            # TODO : this inner fucntion is not needed more generaly??
-                            # not only for form-data...
-                            def add_param(param_name, param_value):
-                                check_param_expected_in_lambda(param_name)
-                                if param_name in params:
-                                    if isinstance(params[param_name], list):
-                                        params[param_name].append(param_value)
-                                    else:
-                                        params[param_name] = [params[param_name], param_value]
-                                else:
-                                    params[param_name] = param_value
-
                             multipart_decoder = decoder.MultipartDecoder(req.raw_body, content_type)
                             for part in multipart_decoder.parts:
                                 headers = {k.decode('utf-8'): cgi.parse_header(v.decode('utf-8')) for k, v in
@@ -247,8 +241,7 @@ class TechMicroService(Chalice):
                             if hasattr(req.json_body, 'items'):
                                 params = {}
                                 for k, v in req.json_body.items():
-                                    check_param_expected_in_lambda(k)
-                                    params[k] = v
+                                    add_param(k, v)
                                 kwargs = dict(**kwargs, **params)
                             else:
                                 kwargs[kwarg_keys[0]] = req.json_body
@@ -259,9 +252,8 @@ class TechMicroService(Chalice):
 
                         # adds parameters from qurey parameters
                         for k in req.query_params or []:
-                            check_param_expected_in_lambda(k)
                             value = req.query_params.getlist(k)
-                            params[k] = value if len(value) > 1 else value[0]
+                            add_param(k, value if len(value) > 1 else value[0])
                         kwargs = dict(**kwargs, **params)
 
                 resp = func(component, **kwargs)
