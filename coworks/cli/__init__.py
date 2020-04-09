@@ -65,12 +65,14 @@ def init(ctx, force):
 
 
 @client.command('run')
-@click.option('-m', '--module', default='app')
-@click.option('-a', '--app', default='app')
+@click.option('-m', '--module', default='app',
+              help="Filename of your microservice python source file.")
+@click.option('-a', '--app', default='app',
+              help="Coworks application in the source file.")
 @click.option('-h', '--host', default='127.0.0.1')
 @click.option('-p', '--port', default=8000, type=click.INT)
 @click.option('-s', '--stage', default=DEFAULT_STAGE_NAME, type=click.STRING,
-              help='Name of the Chalice stage for the local server to use.')
+              help="Name of the Chalice stage for the local server to use.")
 @click.option('--debug/--no-debug', default=False,
               help='Print debug logs to stderr.')
 @click.pass_context
@@ -80,8 +82,10 @@ def run(ctx, module, app, host, port, stage, debug):
 
 
 @client.command('export')
-@click.option('-m', '--module', default='app')
-@click.option('-a', '--app', default='app')
+@click.option('-m', '--module', default='app',
+              help="Filename of your microservice python source file.")
+@click.option('-a', '--app', default='app',
+              help="Coworks application in the source file.")
 @click.option('-f', '--format', default='list')
 @click.option('-o', '--out')
 @click.pass_context

@@ -52,38 +52,38 @@ class JinjaRenderMicroservice(TechMicroService):
             _, content_disposition_params = cgi.parse_header(headers['Content-Disposition'])
             filename = content_disposition_params['filename']
             templates[filename] = content
-        context = self.current_request.query_params
+        query_params = self.current_request.query_params
+        context = {}
+        for query_param in query_params:
+            context[query_param] = query_params.getlist(query_param)
         env = jinja2.Environment(loader=jinja2.DictLoader(templates))
         template = env.get_template(template_name)
         render = template.render(**context)
-        response = Response(body=render,
-                            status_code=200,
-                            headers={'Content-Type': 'text/html'})
-        return response
+        return {"render": render}
 
     def get_render_(self, template):
         """ render template which content is given in url
         pass jinja context in query_params """
         template = urllib.parse.unquote_plus(template)
-        context = self.current_request.query_params
+        query_params = self.current_request.query_params
+        context = {}
+        for query_param in query_params:
+            context[query_param] = query_params.getlist(query_param)
         env = jinja2.Environment(loader=jinja2.DictLoader({'index.html': template}))
         template = env.get_template('index.html')
         render = template.render(**context)
-        response = Response(body=render,
-                            status_code=200,
-                            headers={'Content-Type': 'text/html'})
-        return response
+        return {"render": render}
 
     def get_render__(self, bucket, template_name):
         """ render template stored on s3
         pass jinja context in query_params """
         bucket = urllib.parse.unquote_plus(bucket)
         template_name = urllib.parse.unquote_plus(template_name)
-        context = self.current_request.query_params
+        query_params = self.current_request.query_params
+        context = {}
+        for query_param in query_params:
+            context[query_param] = query_params.getlist(query_param)
         env = jinja2.Environment(loader=S3Loader(bucket))
         template = env.get_template(template_name)
         render = template.render(**context)
-        response = Response(body=render,
-                            status_code=200,
-                            headers={'Content-Type': 'text/html'})
-        return response
+        return {"render": render}

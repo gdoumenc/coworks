@@ -23,12 +23,12 @@ class ATestMail:
         text_attachment = open("attachment.txt", "r")
 
         response = local_server.make_call(requests.post, '/send',
-                                          params={'subject': "Test mail",
-                                                  'from_addr': "myself@test.com",
-                                                  'to_addrs': ["you@test.com", "and@test.com"],
-                                                  'body': "content"},
+                                          data={'subject': "Test mail",
+                                                'from_addr': "myself@test.com",
+                                                'to_addrs': ["you@test.com", "and@test.com"],
+                                                'body': "content"},
                                           files={
-                                              'file1': ('attachment.txt', text_attachment, 'text/plain'),
+                                              'attachments': ('attachment.txt', text_attachment, 'text/plain'),
                                           })
         text_attachment.close()
         os.remove("attachment.txt")

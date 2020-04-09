@@ -6,8 +6,8 @@ FAQ
 This is a list of Frequently Asked Questions about ``CoWorks``.  Feel free to
 suggest new entries!
 
-Why CoWorks is...
------------------
+Is CoWorks ...
+--------------
 
 ... a complete unified approach?
 	The hardest part of using the microservice approach is to be able to control, deploy, maintain and debug composition
