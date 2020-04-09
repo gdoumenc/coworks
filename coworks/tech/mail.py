@@ -30,16 +30,7 @@ class MailMicroService(TechMicroService):
             if not self.smtp_passwd:
                 raise EnvironmentError('SMTP_PASSWD not defined in environment')
 
-    def _add_attachments(self, msg, content_type):
-        multipart_decoder = decoder.MultipartDecoder(self.current_request.raw_body, content_type)
-        for part in multipart_decoder.parts:
-            headers = {k.decode('utf-8'): v.decode('utf-8') for k, v in part.headers.items()}
-            _, content_disposition_params = cgi.parse_header(headers['Content-Disposition'])
-            maintype, subtype = headers['Content-Type'].split("/")
-            msg.add_attachment(part.content, maintype=maintype, subtype=subtype,
-                               filename=content_disposition_params['filename'])
-
-    def post_send(self, subject="", from_addr: str = None, to_addrs: List[str] = None, body="", starttls=False):
+    def post_send(self, subject="", from_addr: str = None, to_addrs: List[str] = None, body="", attachments=None, starttls=False):
         """ Send mail.
         To send attachments, add files in the body of the request as multipart/form-data. """
 
@@ -58,8 +49,17 @@ class MailMicroService(TechMicroService):
             msg['From'] = from_addr
             msg['To'] = to_addrs if isinstance(to_addrs, str) else ', '.join(to_addrs)
             msg.set_content(body)
-            if content_type and content_type.startswith('multipart/form-data'):
-                self._add_attachments(msg, content_type)
+
+            if attachments:
+                if not isinstance(attachments, list):
+                    attachments = [attachments]
+                for attachment in attachments:
+                    if not attachment.mime_type:
+                        raise BadRequestError(f"Mime type of the attachment {attachment.file.name} is not defined")
+                    maintype, subtype = attachment.mime_type.split("/")
+                    msg.add_attachment(attachment.file.read(), maintype=maintype, subtype=subtype,
+                                       filename=attachment.file.name)
+
         except Exception as e:
             raise ChaliceViewError(f"Cannot create email message (Error: {str(e)}).")
 
