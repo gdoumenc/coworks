@@ -171,29 +171,36 @@ class TechMicroService(Chalice):
         def proxy(**kws):
             if component.debug:
                 print(f"Calling {func} for {component}")
+
             subsegment = begin_xray_subsegment(f"{func.__name__} microservice")
             try:
                 if subsegment:
                     subsegment.put_metadata('headers', component.current_request.headers, "CoWorks")
-                # Renames positionnal parameters
-                req = component.current_request
+
+                # Renames positionnal parameters (index added in label)
                 kwargs = {}
                 for kw, value in kws.items():
                     param = args[int(kw[1:])]
                     kwargs[param] = value
 
                 # Adds kwargs parameters
+                req = component.current_request
                 if kwarg_keys or varkw:
 
+                    # TODO: Comment missing - Check what I have added
                     def check_param_expected_in_lambda(param_name):
+                        """Alerts when more parameters are defined in request."""
                         if param_name not in kwarg_keys and varkw is None:
                             raise BadRequestError(f"TypeError: got an unexpected keyword argument '{param_name}'")
 
                     params = {}
-                    if req.raw_body:
+                    if req.raw_body:  # POST request
                         content_type = req.headers['content-type']
                         if content_type.startswith('multipart/form-data'):
 
+
+                            # TODO : this inner fucntion is not needed more generaly??
+                            # not only for form-data...
                             def add_param(param_name, param_value):
                                 check_param_expected_in_lambda(param_name)
                                 if param_name in params:
@@ -212,9 +219,11 @@ class TechMicroService(Chalice):
                                 _, content_disposition_params = headers['Content-Disposition']
                                 part_content_type, _ = headers.get('Content-Type', (None, None))
                                 name = content_disposition_params['name']
+
                                 if 'filename' not in content_disposition_params:
                                     add_param(name, content.decode('utf-8'))
                                 else:
+                                    # content in a file (s3 or plain text)
                                     if part_content_type == 'text/s3':
                                         boto3 = Boto3Mixin()
                                         boto3_session = boto3.boto3_session
@@ -245,7 +254,10 @@ class TechMicroService(Chalice):
                                 kwargs[kwarg_keys[0]] = req.json_body
                         elif content_type.startswith('text/plain'):
                             kwargs[kwarg_keys[0]] = req.json_body
+
                     else:  # GET request
+
+                        # adds parameters from qurey parameters
                         for k in req.query_params or []:
                             check_param_expected_in_lambda(k)
                             value = req.query_params.getlist(k)
