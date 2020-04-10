@@ -19,6 +19,8 @@ class JinjaRenderMicroservice(TechMicroService):
             pass context as a json file """
         if templates is None:
             raise NotFoundError("At least one template is expected")
+        if not isinstance(templates, list):
+            templates = [templates]
         if context is None:
             context = {}
         else:
