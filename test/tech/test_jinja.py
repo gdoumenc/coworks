@@ -31,5 +31,5 @@ def test_render_template_multipart_form(local_server_factory):
                                       files={'templates': ('template.jinja', template, 'text/plain'),
                                              'context': ('context.json', context, 'application/json')}, timeout=600)
     assert response.status_code == 200
-    assert response.json() == {"render": "hello the world !"}
+    assert response.json() == {"render": "hello the world"}
     os.remove("template.jinja")
