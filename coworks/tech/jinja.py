@@ -1,64 +1,34 @@
-import cgi
+import json
 import urllib.parse
 
 import jinja2
 from chalice import Response, NotFoundError
-from requests_toolbelt.multipart import decoder
 
 from coworks import TechMicroService
-from ..mixins import Boto3Mixin
-
-
-class S3Loader(jinja2.BaseLoader, Boto3Mixin):
-
-    def __init__(self, bucket):
-        super().__init__()
-        self.__s3_client__ = None
-        self.bucket = bucket
-
-    @property
-    def s3_client(self):
-        if self.__s3_client__ is None:
-            self.__s3_client__ = self.boto3_session.client('s3')
-        return self.__s3_client__
-
-    def get_source(self, environment, template):
-        s3_object = self.s3_client.get_object(Bucket=self.bucket, Key=template)
-        if not s3_object:
-            return NotFoundError(f"No file '{template}' in bucket '{self.bucket}'")
-        template_content = s3_object['Body'].read().decode('utf-8')
-
-        def uptodate():
-            return False
-        return template_content, None, uptodate
 
 
 class JinjaRenderMicroService(TechMicroService):
     """ Render a jinja template to html
-        Templates can be sent to the microservice in 3 differents ways :
+        Templates can be sent to the microservice in 2 differents ways :
             - send files in multipart/form-data body
-            - put template content in url
-            - put templates in a s3 bucket and give bucket name to the microservice """
+            - put template content in url """
 
-    def post_render(self, template_name):
-        """ render one template from templates given in multipart/form-data body
-            pass jinja context in query_params """
-        content_type = self.current_request.headers.get('content-type')
-        multipart_decoder = decoder.MultipartDecoder(self.current_request.raw_body, content_type)
-        templates = {}
-        for part in multipart_decoder.parts:
-            headers = {k.decode('utf-8'): v.decode('utf-8') for k, v in part.headers.items()}
-            content = part.content.decode('utf-8')
-            _, content_disposition_params = cgi.parse_header(headers['Content-Disposition'])
-            filename = content_disposition_params['filename']
-            templates[filename] = content
-        query_params = self.current_request.query_params
-        context = {}
-        for query_param in query_params:
-            context[query_param] = query_params.getlist(query_param)
-        env = jinja2.Environment(loader=jinja2.DictLoader(templates))
-        template = env.get_template(template_name)
-        render = template.render(**context)
+    def post_render(self, template_to_render_name, templates=None, context=None):
+        """ render the template named template_to_render_name using templates sources given in templates
+            pass templates as files of a multipart/form-data body
+            pass context as a json file """
+        if templates is None:
+            raise NotFoundError("At least one template is expected")
+        if not isinstance(templates, list):
+            templates = [templates]
+        if context is None:
+            context = {}
+        else:
+            context = json.loads(context.file.read().decode('utf-8'))
+        templates_dict = {template.file.name: template.file.read().decode('utf-8') for template in templates}
+        env = jinja2.Environment(loader=jinja2.DictLoader(templates_dict))
+        template_to_render = env.get_template(template_to_render_name)
+        render = template_to_render.render(**context)
         return {"render": render}
 
     def get_render_(self, template):
@@ -74,16 +44,3 @@ class JinjaRenderMicroService(TechMicroService):
         render = template.render(**context)
         return {"render": render}
 
-    def get_render__(self, bucket, template_name):
-        """ render template stored on s3
-        pass jinja context in query_params """
-        bucket = urllib.parse.unquote_plus(bucket)
-        template_name = urllib.parse.unquote_plus(template_name)
-        query_params = self.current_request.query_params
-        context = {}
-        for query_param in query_params:
-            context[query_param] = query_params.getlist(query_param)
-        env = jinja2.Environment(loader=S3Loader(bucket))
-        template = env.get_template(template_name)
-        render = template.render(**context)
-        return {"render": render}
