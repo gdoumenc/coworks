@@ -1,8 +1,8 @@
 from unittest.mock import MagicMock
 
 import pytest
-from coworks import BizFactory, Every, At
 
+from coworks import BizFactory, Every, At
 from .biz_ms import *
 
 

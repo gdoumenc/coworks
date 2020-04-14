@@ -2,20 +2,20 @@
 # LAMBDA
 # ---------------------------------------------------------------------------------------------------------------------
 
-data "archive_file" "{{ module }}" {
-  source_file = "{{ module }}.py"
-  output_path = "{{ module }}.zip"
+data "archive_file" "{{ module_file }}" {
+  source_dir = "{{ project_dir }}/{{ module_dir }}"
+  output_path = "{{ module_file }}.zip"
   type = "zip"
 }
 
-resource "aws_lambda_function" "{{ module }}" {
-  filename = data.archive_file.{{ module }}.output_path
-  function_name = "{{ module }}"
+resource "aws_lambda_function" "{{ module_file }}" {
+  filename = data.archive_file.{{ module_file }}.output_path
+  function_name = "{{ module_file }}"
   role = data.aws_iam_role.microservice.arn
-  handler = "{{ module }}.{{handler}}"
+  handler = "{{ module_file }}.{{handler}}"
   runtime = "python3.7"
 
-  source_code_hash = filebase64sha256(data.archive_file.{{ module }}.output_path)
+  source_code_hash = filebase64sha256(data.archive_file.{{ module_file }}.output_path)
 
   environment {
     variables = {
@@ -25,15 +25,15 @@ resource "aws_lambda_function" "{{ module }}" {
 
   tags = {
     Product: "microservice"
-    Target: "{{ module }}"
+    Target: "{{ module_file }}"
     Creator: "coworks"
   }
 }
 
-resource "aws_lambda_permission" "{{ module }}" {
+resource "aws_lambda_permission" "{{ module_file }}" {
   statement_id = "AllowExecutionFromAPIGateway"
   action = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.{{ module }}.function_name
+  function_name = aws_lambda_function.{{ module_file }}.function_name
   principal = "apigateway.amazonaws.com"
 }
 
@@ -41,30 +41,30 @@ resource "aws_lambda_permission" "{{ module }}" {
 # APIGATEWAY
 # ---------------------------------------------------------------------------------------------------------------------
 
-resource "aws_api_gateway_rest_api" "{{ module }}" {
+resource "aws_api_gateway_rest_api" "{{ module_file }}" {
   name = "MyDemoAPI"
   description = "This is my API for demonstration purposes"
 }
 
-resource "aws_api_gateway_integration" "{{ module }}" {
+resource "aws_api_gateway_integration" "{{ module_file }}" {
   count = length(local.csv_routes)
-  rest_api_id = data.aws_api_gateway_rest_api.{{ module }}.id
+  rest_api_id = data.aws_api_gateway_rest_api.{{ module_file }}.id
   resource_id = local.csv_routes[count.index].resource_id
   http_method = local.csv_routes[count.index].http_method
   integration_http_method = "POST"
   type = "AWS_PROXY"
-  uri = aws_lambda_function.{{ module }}.invoke_arn
+  uri = aws_lambda_function.{{ module_file }}.invoke_arn
 }
 
-resource "aws_api_gateway_deployment" "{{ module }}" {
-  depends_on = [aws_api_gateway_integration.{{ module }}]
-  rest_api_id = data.aws_api_gateway_rest_api.{{ module }}.id
+resource "aws_api_gateway_deployment" "{{ module_file }}" {
+  depends_on = [aws_api_gateway_integration.{{ module_file }}]
+  rest_api_id = data.aws_api_gateway_rest_api.{{ module_file }}.id
   stage_name = "prod"
 }
 
-resource "aws_api_gateway_stage" "{{ module }}" {
-  deployment_id = aws_api_gateway_deployment.{{ module }}.id
-  rest_api_id = data.aws_api_gateway_rest_api.{{ module }}.id
+resource "aws_api_gateway_stage" "{{ module_file }}" {
+  deployment_id = aws_api_gateway_deployment.{{ module_file }}.id
+  rest_api_id = data.aws_api_gateway_rest_api.{{ module_file }}.id
   stage_name = "prod"
   xray_tracing_enabled = true
 
@@ -74,7 +74,7 @@ resource "aws_api_gateway_stage" "{{ module }}" {
 
   tags = {
     Product: "microservice"
-    Target: "{{ module }}"
+    Target: "{{ module_file }}"
     Creator: "coworks"
   }
 }

@@ -1,32 +1,31 @@
+import cgi
 import inspect
+import io
 import json
 import logging
 import os
 import sys
 import traceback
-import cgi
-import io
-
+from collections import namedtuple
 from functools import update_wrapper
 from threading import Lock
 from typing import Dict, Union
-from requests_toolbelt.multipart import decoder
-from collections import namedtuple
 
 from aws_xray_sdk.core import xray_recorder
 from chalice import Chalice, Blueprint as ChaliceBlueprint, NotFoundError
 from chalice import Response, AuthResponse, BadRequestError, Rate, Cron
+from requests_toolbelt.multipart import decoder
 
 from .mixins import Boto3Mixin
 from .utils import begin_xray_subsegment, end_xray_subsegment
-from .utils import class_auth_methods, class_rest_methods, class_attribute
+from .utils import class_auth_methods, class_rest_methods, class_attribute, trim_underscores
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
 class TechMicroService(Chalice):
-    """Simple chalice app created directly from class."""
+    """Simple microservice app created directly from class."""
 
     def __init__(self, app_name=None, **kwargs):
         app_name = app_name or self.__class__.__name__
@@ -107,9 +106,7 @@ class TechMicroService(Chalice):
                 route = f"{component.component_name}"
             else:
                 name = func.__name__[len(method) + 1:]
-                while name.endswith('_'):
-                    # to allow several functions with same route but different args
-                    name = name[:-1]
+                name = trim_underscores(name)  # to allow several functions with same route but different args
                 name = name.replace('_', '/')
                 route = f"{component.component_name}/{name}" if component.component_name else f"{name}"
             args = inspect.getfullargspec(func).args[1:]
@@ -348,6 +345,7 @@ class TechMicroService(Chalice):
 
 
 class BizFactory(Boto3Mixin, TechMicroService):
+    """Microservice to create and update biz microservices."""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -366,14 +364,16 @@ class BizFactory(Boto3Mixin, TechMicroService):
             self.__sfn_client__ = self.boto3_session.client('stepfunctions')
         return self.__sfn_client__
 
-    def post_trigger(self, name):
+    def post_trigger(self, name, data=None):
         """Manual triggering a reactor."""
         if self.debug:
             print(f"Manual triggering: {name}")
 
-        return self.services[name]({}, {})
+        data = data or {}
+        return self.services[name](data, {})
 
-    def create(self, sfn_name, reactor_name, trigger, data: dict = None, **kwargs):
+    def create(self, sfn_name, reactor_name, trigger=None, data: dict = None, **kwargs):
+        """Creates a named reactor. If the trigger is not defined the service can only be trigger by hand."""
         if self.debug:
             print(f"Create {reactor_name} reactor")
 
@@ -451,7 +451,7 @@ class BizMicroService(BizFactory):
         res = self.sfn_client.start_execution(stateMachineArn=self.sfn_arn, input=input)
         return json.dumps(res, indent=4, sort_keys=True, default=str)
 
-    def add_reactor(self, reactor_name, source, data=None):
+    def add_reactor(self, reactor_name, source=None, data=None):
         full_reactor_name = f"{self.sfn_name}-{reactor_name}"
         if full_reactor_name in self.reactors:
             raise Exception(f"Reactor {reactor_name} already defined for {self.sfn_name}.")
@@ -462,7 +462,7 @@ class BizMicroService(BizFactory):
 
             return self.post_invoke(input=json.dumps(data) if data is not None else "{}")
 
-        reactor = self.reactors[full_reactor_name] = Reactor(full_reactor_name, source, proxy)
+        reactor = self.reactors[full_reactor_name] = Reactor(full_reactor_name, proxy, source)
         return reactor
 
     def handler(self, event, context):
@@ -505,8 +505,9 @@ class Blueprint(ChaliceBlueprint):
 
 
 class Reactor:
+    """A reactor is a lambda to call biz microservice."""
 
-    def __init__(self, full_name, source, proxy):
+    def __init__(self, full_name, proxy, source=None):
         self.full_name = full_name
         self.source = source
         self.__proxy = proxy
@@ -516,6 +517,10 @@ class Reactor:
 
     def to_dict(self):
         return dict(name=self.full_name, **self.source.to_dict())
+
+
+class Once:
+    ...
 
 
 class At(Cron):

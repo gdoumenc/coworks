@@ -19,7 +19,7 @@ with open(os.path.join(_here, 'coworks', 'version.py')) as f:
 setup(
     name='coworks',
     version=version['__version__'],
-    description='CoWorks is a unified compositional serverless microservices framework over AWS technologies.',
+    description='CoWorks is a unified compositional serverless microservices framework over AWS serverless technologies.',
     long_description=long_description,
     author='Guillaume Doumenc',
     author_email='gdoumenc@fpr-coworks.com',

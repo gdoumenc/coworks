@@ -1,4 +1,4 @@
-.. _Changelog:
+.. _changelog:
 
 Changelogs
 ==========

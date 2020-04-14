@@ -1,0 +1,6 @@
+comment: 'Very simple microservice'
+states:
+  - name: "Check server"
+    tech:
+      service: "check"
+      get: "/check"

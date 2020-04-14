@@ -6,14 +6,18 @@
 Introduction
 ============
 
-CoWorks is unified serverless microservices framework on AWS tehcnologies.
+CoWorks is unified serverless microservices framework on AWS technologies.
 
-Each atomic microservice (``class TechMicroService``) is a simple python class deployed on the serverless Lambda AWS product and
-composition of microservices (``class BizMicroService``) is performed over the Step Function AWS product. Other AWS technologies are used
-for logging, administrate, ...
+Each atomic microservice (``class TechMicroService``) is a simple python class deployed as serverless Lambda AWS and
+composition of microservices (``class BizMicroService``) is performed over the Step Function AWS product.
+Other AWS technologies are used for logging, administrate, ...
 
-Get started with :ref:`installation` and then get an overview with the :ref:`quickstart`.
-Read :ref:`faq` for a quick presentation, a complete presentation can be found `here <https://coworks.readthedocs.io/en/latest/>`_.
+Documentation
+-------------
+
+* Get started: :ref:`installation`.
+* Quick overview: :ref:`tech_quickstart` then :ref:`biz_quickstart`.
+* At least :ref:`faq` if not enough...
 
 Using and derived from `Chalice <https://github.com/aws/chalice>`_ and ideas from `Flask-Classy <https://github.com/apiguy/flask-classy/>`_.
 
@@ -94,10 +98,12 @@ User’s Guide
   :caption: Contents:
 
   installation
-  quickstart
+  tech_quickstart
   tech
-  deployment
+  tech_deployment
+  biz_quickstart
   biz
+  biz_deployment
   faq
   changelog
 
@@ -105,12 +111,7 @@ User’s Guide
 Taking part in the project
 ==========================
 
-We welcome any contributions that improve the quality of our projects.
-
-Submitting pull requests
-************************
-
-If you are unsure about how to create a pull request, this guide should get you on track.
+If you want to contribute to this project in any kind, your help will be very welcome.
 
 
 Indices and tables

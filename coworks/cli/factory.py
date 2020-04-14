@@ -1,10 +1,8 @@
 import importlib
 import os
-
 import sys
 
 from chalice.cli import CLIFactory
-from ..export import Writer
 
 
 class CWSFactory(CLIFactory):
@@ -13,9 +11,9 @@ class CWSFactory(CLIFactory):
         super().__init__(project_dir, **kwargs)
 
     @staticmethod
-    def import_attr(module, attr, project_dir='.'):
-        if project_dir not in sys.path:
-            sys.path.insert(0, project_dir)
+    def import_attr(module, attr, cwd='.'):
+        if cwd not in sys.path:
+            sys.path.insert(0, cwd)
         app_module = importlib.import_module(module)
         return getattr(app_module, attr)
 

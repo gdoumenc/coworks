@@ -1,7 +1,7 @@
-.. _tutorial:
+.. _tech:
 
-TechMicroservices
-=================
+TechMS
+======
 
 TechMicroservices are the 'atom' of the CoWorks microservices framework. They represent the building blocks
 for other more complex microservices.
@@ -15,7 +15,7 @@ The function names must follow the syntax below::
 	<request_method><associated_route>
 
 The request method is then defined for the associated route.
-Composed routes are defined thru the ``_`` separator.
+Composed routes are defined with the ``_`` separator.
 
 Examples
 ^^^^^^^^
