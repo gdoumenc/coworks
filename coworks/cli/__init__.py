@@ -5,13 +5,15 @@ import sys
 from tempfile import SpooledTemporaryFile
 
 import click
+from chalice import BadRequestError
 from chalice.cli import CONFIG_VERSION, DEFAULT_STAGE_NAME, DEFAULT_APIGATEWAY_STAGE_NAME
 from chalice.cli import chalice_version, get_system_info
 from chalice.utils import serialize_to_json
-
+from coworks import BizFactory
 from coworks.cli.sfn import StepFunctionWriter
 from coworks.cli.writer import Writer, TerraformWriter, WriterError
 from coworks.version import __version__
+
 from .factory import CWSFactory
 
 
@@ -100,8 +102,9 @@ def run(ctx, module, app, host, port, stage, debug):
 def export(ctx, module, app, biz, format, out):
     """Exports microservice description in other descrioption languages."""
     try:
-        export_to_file(module, app, format, out, project_dir=ctx.obj['project_dir'], biz=biz)
-        sys.exit()
+        handler = export_to_file(module, app, format, out, project_dir=ctx.obj['project_dir'], biz=biz)
+        if handler is None:
+            sys.exit(1)
     except WriterError:
         sys.exit(1)
 
@@ -111,16 +114,28 @@ def export(ctx, module, app, biz, format, out):
               help="Filename of your microservice python source file.")
 @click.option('-a', '--app', default='app',
               help="Coworks application in the source file.")
-@click.option('-b', '--biz', default=None,
-              help="BizMicroservice name.")
-@click.option('-p', '--profile')
+@click.option('-b', '--biz', required=True, help="BizMicroservice name.")
+@click.option('-p', '--profile', default=None)
 @click.pass_context
 def update(ctx, module, app, biz, profile):
     out = SpooledTemporaryFile(mode='w+')
-    export_to_file(module, app, 'sfn', out, project_dir=ctx.obj['project_dir'], biz=biz)
+    handler = export_to_file(module, app, 'sfn', out, project_dir=ctx.obj['project_dir'], biz=biz)
+    if handler is None:
+        sys.exit(1)
+    handler.aws_profile = profile
+
     out.seek(0)
-    src = json.loads(out.read())
-    print(src)
+    if isinstance(handler, BizFactory):
+        try:
+            sfn_name = f"{module.split('.')[-1]}-{biz}"
+            update_sfn(handler, sfn_name, out.read())
+        except BadRequestError:
+            sys.stderr.write(f"Cannot update undefined step function '{sfn_name}'.\n")
+            sys.exit(1)
+
+    else:
+        sys.stderr.write(f"Update not defined on {type(handler)}.\n")
+        sys.exit(1)
 
 
 def export_to_file(module, app, _format, out, **kwargs):
@@ -135,6 +150,14 @@ def export_to_file(module, app, _format, out, **kwargs):
         return
 
     _writer.export(output=out, module_name=module, handler_name=app, **kwargs)
+    return handler
+
+
+def update_sfn(handler, biz, src):
+    client = handler.sfn_client
+    sfn_arn = handler.get_sfn(biz)
+    response = client.update_state_machine(stateMachineArn=sfn_arn, definition=src)
+    print(response)
 
 
 def main():

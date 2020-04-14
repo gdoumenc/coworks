@@ -350,7 +350,6 @@ class BizFactory(Boto3Mixin, TechMicroService):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        self._arn: Union[None, str] = None
         self.__sfn_client__ = None
         self.services: Dict[str, BizMicroService] = {}
 
@@ -364,6 +363,25 @@ class BizFactory(Boto3Mixin, TechMicroService):
             self.__sfn_client__ = self.boto3_session.client('stepfunctions')
         return self.__sfn_client__
 
+    def get_sfn(self, sfn_name=None):
+        if self.debug:
+            print(f"Search for Step Function: {sfn_name}")
+
+        if sfn_name is None:
+            return
+
+        res = self.sfn_client.list_state_machines()
+        while True:
+            for sfn in res['stateMachines']:
+                if sfn['name'] == sfn_name:
+                    return sfn['stateMachineArn']
+
+            next_token = res.get('nextToken')
+            if next_token is None:
+                raise BadRequestError(f"Undefined step function : {sfn_name}")
+
+            res = self.sfn_client.list_state_machines(nextToken=next_token)
+
     def post_trigger(self, name, data=None):
         """Manual triggering a reactor."""
         if self.debug:
@@ -375,7 +393,7 @@ class BizFactory(Boto3Mixin, TechMicroService):
     def create(self, sfn_name, reactor_name, trigger=None, data: dict = None, **kwargs):
         """Creates a named reactor. If the trigger is not defined the service can only be trigger by hand."""
         if self.debug:
-            print(f"Create {reactor_name} reactor")
+            print(f"Create {sfn_name}-{reactor_name} reactor")
 
         biz = BizMicroService(sfn_name, **kwargs)
         reactor = biz.add_reactor(reactor_name, trigger, data)

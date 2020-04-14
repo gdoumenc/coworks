@@ -7,7 +7,7 @@ class Boto3Mixin:
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.__session__ = None
+        self.__session__ = self.aws_profile = None
 
     @property
     def aws_access_key_id(self):
@@ -37,8 +37,11 @@ class Boto3Mixin:
     def boto3_session(self):
         if self.__session__ is None:
             try:
-                self.__session__ = boto3.Session(self.aws_access_key_id, self.aws_secret_access_key,
-                                                 region_name=self.region_name)
+                if self.aws_profile is not None:
+                    self.__session__ = boto3.Session(profile_name=self.aws_profile, region_name=self.region_name)
+                else:
+                    self.__session__ = boto3.Session(self.aws_access_key_id, self.aws_secret_access_key,
+                                                     region_name=self.region_name)
             except Exception:
                 print(
                     f"Cannot create session for key {self.aws_access_key_id} and sercret {self.aws_secret_access_key}"
