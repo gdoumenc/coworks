@@ -16,7 +16,8 @@ if __name__ == '__main__':
     elif sys.argv[1] == "3":
         sys.argv[1:] = ['export', '-m', 'biz.example', '-a', 'biz', '--format', 'sfn', '-b', 'small']
     elif sys.argv[1] == "4":
-        sys.argv[1:] = ['--project-dir', 'biz', 'update', '-m', 'example', '-a', 'biz', '-b', 'complete']
+        sys.argv[1:] = ['--project-dir', 'biz', 'update', '-m', 'example', '-a', 'biz', '-b', 'complete',
+                        '--profile', 'fpr-customer']
 
     else:
         print(f"Undefined argument {sys.argv[1]}")
