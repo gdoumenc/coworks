@@ -1,13 +1,17 @@
+import json
 import os
 import shutil
 import sys
+from tempfile import SpooledTemporaryFile
 
 import click
-from coworks.version import __version__
-
 from chalice.cli import CONFIG_VERSION, DEFAULT_STAGE_NAME, DEFAULT_APIGATEWAY_STAGE_NAME
 from chalice.cli import chalice_version, get_system_info
 from chalice.utils import serialize_to_json
+
+from coworks.cli.sfn import StepFunctionWriter
+from coworks.cli.writer import Writer, TerraformWriter, WriterError
+from coworks.version import __version__
 from .factory import CWSFactory
 
 
@@ -31,7 +35,8 @@ def client(ctx, project_dir=None):
               help='Forces project reinitialization.')
 @click.pass_context
 def init(ctx, force):
-    project_name = os.path.basename(os.path.normpath(os.getcwd()))
+    """Init chalice configuration file."""
+    project_name = os.path.basename(os.path.normpath(ctx.obj['project_dir']))
 
     chalice_dir = os.path.join('.chalice')
     if os.path.exists(chalice_dir):
@@ -77,7 +82,8 @@ def init(ctx, force):
               help='Print debug logs to stderr.')
 @click.pass_context
 def run(ctx, module, app, host, port, stage, debug):
-    handler = CWSFactory.import_attr(module, app, project_dir=ctx.obj['project_dir'])
+    """Runs local server."""
+    handler = CWSFactory.import_attr(module, app, cwd=ctx.obj['project_dir'])
     handler.run(host=host, port=port, stage=stage, debug=debug, project_dir=ctx.obj['project_dir'])
 
 
@@ -86,19 +92,49 @@ def run(ctx, module, app, host, port, stage, debug):
               help="Filename of your microservice python source file.")
 @click.option('-a', '--app', default='app',
               help="Coworks application in the source file.")
-@click.option('-f', '--format', default='list')
+@click.option('-b', '--biz', default=None,
+              help="BizMicroservice name.")
+@click.option('-f', '--format', default='terraform')
 @click.option('-o', '--out')
 @click.pass_context
-def export(ctx, module, app, format, out):
-    project_dir = ctx.obj['project_dir']
-    handler = CWSFactory.import_attr(module, app, project_dir=project_dir)
+def export(ctx, module, app, biz, format, out):
+    """Exports microservice description in other descrioption languages."""
     try:
-        writer = handler.extensions['writers'][format]
+        export_to_file(module, app, format, out, project_dir=ctx.obj['project_dir'], biz=biz)
+        sys.exit()
+    except WriterError:
+        sys.exit(1)
+
+
+@client.command('update')
+@click.option('-m', '--module', default='app',
+              help="Filename of your microservice python source file.")
+@click.option('-a', '--app', default='app',
+              help="Coworks application in the source file.")
+@click.option('-b', '--biz', default=None,
+              help="BizMicroservice name.")
+@click.option('-p', '--profile')
+@click.pass_context
+def update(ctx, module, app, biz, profile):
+    out = SpooledTemporaryFile(mode='w+')
+    export_to_file(module, app, 'sfn', out, project_dir=ctx.obj['project_dir'], biz=biz)
+    out.seek(0)
+    src = json.loads(out.read())
+    print(src)
+
+
+def export_to_file(module, app, _format, out, **kwargs):
+    try:
+        handler = CWSFactory.import_attr(module, app, cwd=kwargs['project_dir'])
+        _writer: Writer = handler.extensions['writers'][_format]
+    except (AttributeError, ModuleNotFoundError):
+        sys.stderr.write(f"Module '{module}' has no service {app}\n")
+        return
     except KeyError:
-        sys.stderr.write(f"Format '{format}' undefined\n")
+        sys.stderr.write(f"Format '{_format}' undefined (you haven't add a {_format} writer to {app} )\n")
         return
 
-    return writer.export(out, module_name=module, handler_name=app)
+    _writer.export(output=out, module_name=module, handler_name=app, **kwargs)
 
 
 def main():

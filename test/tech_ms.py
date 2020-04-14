@@ -21,7 +21,7 @@ class SimpleMS(TechMS):
     def get_content(self):
         return "get content"
 
-    def get_content_(self, value):
+    def get__content(self, value):
         return f"get content with {value}"
 
     def get_content__(self, value, other):

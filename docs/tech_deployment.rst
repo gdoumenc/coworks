@@ -1,7 +1,7 @@
-.. _deployment:
+.. _tech_deployment:
 
-Deployment
-==========
+TechMS Deployment
+=================
 
 Authorization
 -------------

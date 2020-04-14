@@ -1,21 +1,21 @@
 import inspect
-from abc import ABC, abstractmethod
 import pathlib
+from abc import ABC, abstractmethod
+import sys
 
 from jinja2 import Environment, PackageLoader, select_autoescape
 
 
+class WriterError(Exception):
+    ...
+
+
 class Writer(ABC):
 
-    def __init__(self, app=None, name=None, data=None, template_filenames=None, env=None):
-        self.output = None
+    def __init__(self, app=None, name=None):
+        self.output = sys.stdout
+        self.error = sys.stderr
         self.name = name
-        self.data = data or {}
-        self.template_filenames = template_filenames or self.default_template_filenames
-        self.env = env or Environment(
-            loader=PackageLoader("coworks", "templates"),
-            autoescape=select_autoescape(['html', 'xml'])
-        )
 
         if app is not None:
             self.app = app
@@ -26,27 +26,44 @@ class Writer(ABC):
             app.extensions['writers'] = {}
         app.extensions['writers'][self.name] = self
 
-    def export(self, output=None, **kwargs):
-        self.output = None
+    def export(self, output=None, error=None, **kwargs):
         if output is not None:
             self.output = open(output, 'w+') if type(output) is str else output
+        if error is not None:
+            self.error = open(error, 'w+') if type(error) is str else error
 
         self._export_header(**kwargs)
         self._export_content(**kwargs)
+
+    def _export_header(self, **kwargs):
+        ...
+
+    @abstractmethod
+    def _export_content(self, **kwargs):
+        ...
+
+
+class TemplateWriter(Writer):
+
+    def __init__(self, app=None, name=None, data=None, template_filenames=None, env=None):
+        super().__init__(app, name)
+        self.data = data or {}
+        self.template_filenames = template_filenames or self.default_template_filenames
+        self.env = env or Environment(
+            loader=PackageLoader("coworks.cli"),
+            autoescape=select_autoescape(['html', 'xml'])
+        )
 
     @property
     @abstractmethod
     def default_template_filenames(self):
         ...
 
-    @abstractmethod
-    def _export_header(self, **kwargs):
-        ...
-
-    def _export_content(self, module_name='app', handler_name='app', **kwargs):
+    def _export_content(self, module_name='app', handler_name='app', project_dir='.', **kwargs):
         module_path = module_name.split('.')
         data = {
             'writer': self,
+            'project_dir': project_dir,
             'module': module_name,
             'module_path': pathlib.PurePath(*module_path),
             'module_dir': pathlib.PurePath(*module_path[:-1]),
@@ -56,12 +73,15 @@ class Writer(ABC):
             'app_name': self.app.app_name,
         }
         data.update(self.data)
-        for template_filename in self.template_filenames:
-            template = self.env.get_template(template_filename)
-            print(template.render(**data), file=self.output)
+        try:
+            for template_filename in self.template_filenames:
+                template = self.env.get_template(template_filename)
+                print(template.render(**data), file=self.output)
+        except Exception as e:
+            raise WriterError(str(e))
 
 
-class ListWriter(Writer):
+class ListWriter(TemplateWriter):
 
     def __init__(self, app=None, name='list', **kwargs):
         super().__init__(app, name, **kwargs)
@@ -74,7 +94,7 @@ class ListWriter(Writer):
         pass
 
 
-class OpenApiWriter(Writer):
+class OpenApiWriter(TemplateWriter):
     """Export the microservice in swagger format."""
 
     def __init__(self, app=None, name='openapi', **kwargs):
@@ -121,7 +141,7 @@ class OpenApiWriter(Writer):
         return paths
 
 
-class TerraformWriter(Writer):
+class TerraformWriter(TemplateWriter):
 
     def __init__(self, app=None, name='terraform', **kwargs):
         super().__init__(app=app, name=name, **kwargs)
@@ -135,6 +155,7 @@ class TerraformWriter(Writer):
 
     @property
     def entries(self):
+        """Returns the list of flatten path (prev, last, keys)."""
 
         def uid(_path):
             if _path:

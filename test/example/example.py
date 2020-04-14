@@ -1,9 +1,8 @@
 import os
-
 from collections import defaultdict
 
 from coworks import TechMicroService
-from coworks.export import OpenApiWriter, TerraformWriter
+from coworks.cli.writer import TerraformWriter
 
 
 class TechMS(TechMicroService):
@@ -29,7 +28,6 @@ class TechMS(TechMicroService):
 
 app = tech_app = TechMS()
 TerraformWriter(app)
-OpenApiWriter(app)
 
 if __name__ == '__main__':
     app.run()

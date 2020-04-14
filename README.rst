@@ -21,24 +21,24 @@ CoWorks is an unified compositional microservices framework over AWS technologie
 based on the `Chalice <https://github.com/aws/chalice>`__ microframework.
 The aim of this project, is to offer a very simplified experience of microservices over the awesome technologies of AWS.
 
-Each atomic microservice (Tech Microservice) is a simple python class deployed on the serverless Lambda product and
-composition of microservices (Biz Microservice) is performed over the Step Function product. Other AWS products are used
-for logging, administrate, ...
+Each atomic microservice (Tech Microservice) is a simple python class deployed as serverless Lambda and
+composition of microservices (Biz Microservice) is performed over the Step Function product.
+ther AWS products are used for logging, administrate, ...
 
-Get started with `installation <https://coworks.readthedocs.io/en/latest/installation.html>`_ and then
-get an overview with the `quickstart <https://coworks.readthedocs.io/en/latest/quickstart.html>`_.
-Read `faq <https://coworks.readthedocs.io/en/latest/faq.html>`_ for a quick presentation,
-a complete presentation can be found `here <https://coworks.readthedocs.io/en/latest/>`_.
+Documentation
+-------------
+
+* Get started: `installation <https://coworks.readthedocs.io/en/latest/installation.html>`_
+* Quick overview: `quickstart <https://coworks.readthedocs.io/en/latest/quickstart.html>`_.
+* Complete reference guide: `documentation <https://coworks.readthedocs.io/en/latest/>`_.
+* Read `faq <https://coworks.readthedocs.io/en/latest/faq.html>`_ for a quick presentation,
 
 
 Contributing
 ------------
 
-If you want to contribute to this project and make it better, your help is very welcome.
+If you want to contribute to this project in any kind, your help will be very welcome.
 
-Just delete the microservice with ::
-
-	$ chalice delete
 
 Related Projects
 ----------------
