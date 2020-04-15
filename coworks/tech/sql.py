@@ -12,7 +12,7 @@ from typing import List
 from ..coworks import TechMicroService
 
 
-class PsqlMicroService(TechMicroService):
+class SqlMicroService(TechMicroService):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
