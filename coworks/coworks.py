@@ -90,9 +90,9 @@ class TechMicroService(Chalice):
         if component is None:
             component = self
 
-            # Adds class authorizer for every entries
+            # Adds class authorizer for every entries (if not defined at creation)
             auth = class_auth_methods(component)
-            if auth:
+            if auth and component.__auth__ is None:
                 auth = TechMicroService._create_auth_proxy(component, auth)
                 component.__auth__ = auth
         else:
@@ -270,6 +270,9 @@ class TechMicroService(Chalice):
         return proxy
 
     def __call__(self, event, context):
+        if self.debug:
+            print(f"Event: {event}")
+
         with self._before_request_lock:
             if not self._got_first_request:
                 for func in self.before_first_request_funcs:
@@ -287,9 +290,6 @@ class TechMicroService(Chalice):
         return res
 
     def handler(self, event, context):
-        if self.debug:
-            print(f"Event: {event}")
-
         if 'type' in event and event['type'] == 'TOKEN':
             if self.debug:
                 print(f"Calling {self.app_name} authorization")
