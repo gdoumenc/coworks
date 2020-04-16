@@ -46,11 +46,9 @@ class SqlMicroService(TechMicroService):
                     self.port = 3306
                 elif self.dialect == 'postgres':
                     self.port = 5432
-
-            print(f'{self.dialect}://{self.user}:{self.password}@{self.host}:{self.port}/{self.dbname}')
             self.engine = create_engine(
                 f'{self.dialect}://{self.user}:{self.password}@{self.host}:{self.port}/{self.dbname}',
-                echo=True)
+                echo=False)
 
     def get_version(self):
         """Returns SQLAlchemy version."""
