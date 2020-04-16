@@ -3,9 +3,9 @@ import os
 from http.client import BadStatusLine
 from xmlrpc import client
 
+import requests
 from aws_xray_sdk.core import xray_recorder
-from chalice import ChaliceViewError
-from chalice import NotFoundError, BadRequestError
+from chalice import ChaliceViewError, NotFoundError, BadRequestError, Response
 from pyexpat import ExpatError
 
 from .. import Blueprint
@@ -99,6 +99,72 @@ class OdooMicroService(TechMicroService):
         options.setdefault("limit", int(limit) if limit else 50)
         options.setdefault("order", order if order else 'id asc')
         return self.execute_kw(model, 'search_read', filters, options)
+
+    def get_invoice(self, id):
+        access_token = self.get_field('account.invoice', 'id', id, 'access_token')
+        host = self.url
+        url = f"{host}/my/invoices/{id}/?report_type=pdf&download=true&access_token={access_token}"
+        res = requests.get(url=url)
+        if res.status_code == 200:
+            return Response(body=res.content, status_code=200, headers=res.headers)
+        else:
+            raise NotFoundError(f"Couldn't retreive invoice {id}")
+
+    def put_invoice(self, data=None):
+        """ Put a new invoice in Odoo database
+        Example json body :
+        {
+            "data": {
+                "partner_id": 10,
+                "state": "paid",
+                "lines": [
+                    {
+                        "product_id": "24",
+                        "name": "description of the first product",
+                        "quantity": 1,
+                        "price_unit": 20,
+                    },
+                    {
+                        "product_id": "24",
+                        "name": "description of the second product",
+                        "quantity": 2,
+                        "price_unit": 21,
+                    }
+                ]
+            }
+        }
+        """
+
+        invoice_data = dict(data)
+        invoice_data.pop('lines')
+        invoice_id = self.execute_kw('account.invoice', 'create', [[invoice_data]])[0]
+
+        invoice_lines_data = data['lines']
+        for invoice_line in invoice_lines_data:
+            if 'product_id' not in invoice_line:
+                raise BadRequestError(
+                    "All invoice lines must have their associated product_id (id of the specific invoicing product) filled in")
+            if 'price_unit' not in invoice_line:
+                raise BadRequestError(
+                    "All invoice lines must have their associated price_unit (per-unit price) filled in")
+            if 'account_id' not in invoice_line:
+                # in this case use the default_credit_account_id associated to the journal 'Customer Invoices'
+                account_id = \
+                    self.get_field('account.journal', 'code', 'INV', returned_field='default_credit_account_id')[0]
+                invoice_line['account_id'] = account_id
+
+            try:
+                taxes_id = self.get_field('product.product', 'id', invoice_line['product_id'], returned_field='taxes_id')
+            except NotFoundError as e:
+                raise BadRequestError(f"Invoicing product with id {invoice_line['product_id']} not found in Odoo")
+
+            invoice_line['invoice_id'] = invoice_id
+            invoice_line['invoice_line_tax_ids'] = [(6, 0, taxes_id)]  # 6,0 is odoo orm specific code
+            # https://stackoverflow.com/questions/39892201/what-does-6-0-do-in-open-erp-7-code
+
+        self.execute_kw('account.invoice.line', 'create', [invoice_lines_data])
+        self.execute_kw('account.invoice', 'compute_taxes', [invoice_id])
+        return f'Created invoice with id {invoice_id}'
 
     def create(self, model, data: dict, dry=False):
         return self.execute_kw(model, 'create', [self._replace_tuple(data)], dry=dry)
