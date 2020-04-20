@@ -98,7 +98,7 @@ def test_biz_complete():
     source = json.loads(output.read())
     assert source['Version'] == "1.0"
     assert 'Comment' in source
-    assert len(source['States']) == 4
+    assert len(source['States']) == 5
 
     states = source['States']
     data = states['Init']['Result']

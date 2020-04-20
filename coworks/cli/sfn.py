@@ -6,6 +6,9 @@ import yaml
 
 from coworks.cli.writer import Writer, WriterError
 
+INITIAL_STATE_NAME = "Init"
+LAMBDA_ERROR_FALLBACK = "MicroServiceErrorFallback"
+
 
 class StepFunctionWriter(Writer):
 
@@ -54,7 +57,7 @@ def create_step_function(sfn_name, filepath):
             if not data:
                 raise WriterError(f"The content of the {sfn_name} microservice seems to be empty.")
 
-            first = PassState({'name': "Init"})
+            first = PassState({'name': INITIAL_STATE_NAME})
 
             all_states = [first]
             states = State.get_or_raise(data, 'states')
@@ -62,6 +65,9 @@ def create_step_function(sfn_name, filepath):
 
             first.state['Result'] = {}
             first.state['Next'] = all_states[1].name
+
+            error_fallback = EndState({'name': LAMBDA_ERROR_FALLBACK})
+            all_states.append(error_fallback)
 
             return {
                 "Version": "1.0",
@@ -153,6 +159,12 @@ class PassState(State):
         super().__init__(action, Type="Pass", **kwargs)
 
 
+class EndState(PassState):
+    def __init__(self, action, **kwargs):
+        super().__init__(action, **kwargs)
+        self.state['End'] = True
+
+
 class TechState(State):
     def __init__(self, action, **kwargs):
         super().__init__(action, Type="Task", **kwargs)
@@ -164,6 +176,11 @@ class TechState(State):
             self.state["ResultPath"] = f"$.{self.slug}.result"
             self.state["OutputPath"] = "$"
             self.state["Parameters"] = self.get_call_data(action, tech_data)
+
+            self.state["Catch"] = [{
+                "ErrorEquals": ["BadRequestError"],
+                "Next": LAMBDA_ERROR_FALLBACK
+            }]
         except KeyError as e:
             raise WriterError(f"The key {e} is missing for {action}")
 

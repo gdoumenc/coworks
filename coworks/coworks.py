@@ -305,6 +305,8 @@ class TechMicroService(Chalice):
         res = super().__call__(event, context)
 
         if self.sfn_call:
+            if res['statusCode'] < 200 or res['statusCode'] >= 300:
+                raise BadRequestError(f"Status code is {res['statusCode']} : {res['body']}")
             try:
                 res['body'] = json.loads(res['body'])
             except json.JSONDecodeError:
