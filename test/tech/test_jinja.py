@@ -29,7 +29,7 @@ def test_render_template_multipart_form(local_server_factory):
 
     response = local_server.make_call(requests.post, f"/render/template.jinja",
                                       files={'templates': ('template.jinja', template, 'text/plain'),
-                                             'context': ('context.json', context, 'application/json')})
+                                             'context': (None, context, 'application/json')})
     assert response.status_code == 200
     assert response.json() == {"render": "hello the world"}
     os.remove("template.jinja")

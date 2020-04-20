@@ -15,7 +15,7 @@ def test_request_arg(local_server_factory):
     response = local_server.make_call(requests.get, '/content')
     assert response.status_code == 200
     assert response.text == "get content"
-    response = local_server.make_call(requests.get, '/content/3', timeout=200)
+    response = local_server.make_call(requests.get, '/content/3')
     assert response.status_code == 200
     assert response.text == "get content with 3"
     response = local_server.make_call(requests.get, '/content/3/other')

@@ -26,7 +26,7 @@ def test_simple_example(local_server_factory):
 
 def test_params(local_server_factory):
     local_server = local_server_factory(TechMS())
-    response = local_server.make_call(requests.put, '/value/1', json=456, timeout=300)
+    response = local_server.make_call(requests.put, '/value/1', json=456)
     assert response.status_code == 200
     assert response.text == "456"
     response = local_server.make_call(requests.get, '/value/1')

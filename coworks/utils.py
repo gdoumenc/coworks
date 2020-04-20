@@ -122,7 +122,22 @@ def get_multipart_content(part):
 
 def set_multipart_content(form_data):
     def encode_part(_part):
-        mime_type = _part.get('mime_type', 'text/plain')
+        if type(_part) is str:
+            return None, _part, 'text/plain'
+
+        if 'mime_type' in _part:
+            mime_type = _part.get('mime_type')
+        elif 'json' in _part:
+            _part['content'] = _part.get('json')
+            mime_type = 'application/json'
+        elif 's3' in _part:
+            path =  _part.get('s3')
+            _part['filename'] = path.split('/')[-1]
+            _part['path'] = path
+            mime_type = 'text/s3'
+        else:
+            mime_type = 'text/plain'
+
         filename = _part.get('filename')
         if mime_type == 'text/plain':
             content = _part.get('content')

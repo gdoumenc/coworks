@@ -15,7 +15,11 @@ class TechMS(TechMicroService):
         super().__init__(app_name='test')
 
     def post_params(self, text=None, context=None, files=None):
-        return f"post {text}, {context} and {[f.file.name for f in files]}"
+        if files:
+            if type(files) is not list:
+                files = [files]
+            return f"post {text}, {context} and {[f.file.name for f in files]}"
+        return f"post {text}, {context}"
 
 
 client = MagicMock()
@@ -24,9 +28,8 @@ s3_object = {'Body': io.BytesIO(b'test'), 'ContentType': 'text/plain'}
 client.get_object = MagicMock(return_value=s3_object)
 
 
-@pytest.mark.wip
 def test_arg_params(local_server_factory):
-    # normal API call
+    """normal API call."""
     local_server = local_server_factory(TechMS())
     data = {'key': 'value'}
     multiple_files = [
@@ -36,11 +39,13 @@ def test_arg_params(local_server_factory):
         ('files', ('f2.txt', 'some,data,to,send\nanother,row,to,send\n', 'text/plain')),
         ('files', ('f3.j2', 'bucket/key', 'text/s3')),
     ]
-    response = local_server.make_call(requests.post, '/params', files=multiple_files, json=data, timeout=500)
+    response = local_server.make_call(requests.post, '/params', files=multiple_files, json=data)
     assert response.status_code == 200
     assert response.text == "post hello world, {'key': 'value'} and ['f1.csv', 'f2.txt', 'f3.j2']"
 
-    # step function call
+
+def test_sfn_arg_params(local_server_factory):
+    """step function call."""
     form_data = {
         'text': {'content': "hello world"},
         'context': {'content': {'key': 'value'}, 'mime_type': 'application/json'},
@@ -55,3 +60,18 @@ def test_arg_params(local_server_factory):
     response = TechMS()(call, {})
     assert response['statusCode'] == 200
     assert response['body'] == "post hello world, {'key': 'value'} and ['f1.csv', 'f2.txt', 'f3.j2']"
+
+
+@pytest.mark.wip
+def test_sfn_simple_arg_params(local_server_factory):
+    """simlplified step function call."""
+    form_data = {
+        'text': "hello world",
+        'context': {'json': True},
+        'files': {'s3': 'bucket/key'},
+    }
+    data = {'post': '/params', 'form-data': form_data}
+    call = TechState.get_call_data(None, data)
+    response = TechMS()(call, {})
+    assert response['statusCode'] == 200
+    assert response['body'] == "post hello world, True and ['key']"
