@@ -1,14 +1,12 @@
-import cgi
 import os
 import smtplib
 from email.message import EmailMessage
-from typing import List
 
 from aws_xray_sdk.core import xray_recorder
 from chalice import ChaliceViewError, BadRequestError
-from requests_toolbelt.multipart import decoder
 
 from ..coworks import TechMicroService
+from ..utils import FileParam
 
 
 class MailMicroService(TechMicroService):
@@ -30,7 +28,8 @@ class MailMicroService(TechMicroService):
             if not self.smtp_passwd:
                 raise EnvironmentError('SMTP_PASSWD not defined in environment')
 
-    def post_send(self, subject="", from_addr: str = None, to_addrs: List[str] = None, body="", attachments=None, starttls=False):
+    def post_send(self, subject="", from_addr: str = None, to_addrs: [str] = None, body="",
+                  attachments: [FileParam] = None, html=False, starttls=False):
         """ Send mail.
         To send attachments, add files in the body of the request as multipart/form-data. """
 
@@ -40,7 +39,7 @@ class MailMicroService(TechMicroService):
         to_addrs = to_addrs or os.getenv('to_addrs')
         if not to_addrs:
             raise BadRequestError("To addresses not defined (to_addrs:[str])")
-        content_type = self.current_request.headers.get('content-type')
+        subtype = "html" if html else "plain"
 
         # Creates email
         try:
@@ -48,7 +47,7 @@ class MailMicroService(TechMicroService):
             msg['Subject'] = subject
             msg['From'] = from_addr
             msg['To'] = to_addrs if isinstance(to_addrs, str) else ', '.join(to_addrs)
-            msg.set_content(body)
+            msg.set_content(body, subtype=subtype)
 
             if attachments:
                 if not isinstance(attachments, list):

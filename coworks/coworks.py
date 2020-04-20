@@ -1,24 +1,22 @@
-import cgi
 import inspect
-import io
 import json
 import logging
 import os
 import sys
 import traceback
-from collections import namedtuple
 from functools import update_wrapper
 from threading import Lock
-from typing import Dict, Union
+from typing import Dict
 
 from aws_xray_sdk.core import xray_recorder
-from chalice import Chalice, Blueprint as ChaliceBlueprint, NotFoundError
+from chalice import Chalice, Blueprint as ChaliceBlueprint
 from chalice import Response, AuthResponse, BadRequestError, Rate, Cron
-from requests_toolbelt.multipart import decoder
+from requests_toolbelt.multipart import MultipartDecoder, MultipartEncoder
 
-from .mixins import Boto3Mixin
+from .utils import Boto3Mixin
 from .utils import begin_xray_subsegment, end_xray_subsegment
 from .utils import class_auth_methods, class_rest_methods, class_attribute, trim_underscores
+from .utils import get_multipart_content, set_multipart_content
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -50,6 +48,8 @@ class TechMicroService(Chalice):
 
         self._got_first_request = False
         self._before_request_lock = Lock()
+
+        self.sfn_call = False
 
         if "pytest" in sys.modules:
             xray_recorder.configure(context_missing="LOG_ERROR")
@@ -202,36 +202,13 @@ class TechMicroService(Chalice):
                     if req.raw_body:  # POST request
                         content_type = req.headers['content-type']
                         if content_type.startswith('multipart/form-data'):
-                            multipart_decoder = decoder.MultipartDecoder(req.raw_body, content_type)
-                            for part in multipart_decoder.parts:
-                                headers = {k.decode('utf-8'): cgi.parse_header(v.decode('utf-8')) for k, v in
-                                           part.headers.items()}
-                                content = part.content
-                                _, content_disposition_params = headers['Content-Disposition']
-                                part_content_type, _ = headers.get('Content-Type', (None, None))
-                                name = content_disposition_params['name']
-
-                                if 'filename' not in content_disposition_params:
-                                    add_param(name, content.decode('utf-8'))
-                                else:
-                                    # content in a file (s3 or plain text)
-                                    if part_content_type == 'text/s3':
-                                        boto3 = Boto3Mixin()
-                                        boto3_session = boto3.boto3_session
-                                        client = boto3_session.client('s3')
-                                        s3_object = client.get_object(Bucket=content.decode('utf-8').split('/', 1)[0],
-                                                                      Key=content.decode('utf-8').split('/', 1)[1])
-                                        if not s3_object:
-                                            return NotFoundError(f"File {content.decode('utf-8')} not found on s3")
-                                        file = io.BytesIO(s3_object['Body'].read())
-                                        file.name = content.decode('utf-8').split('/')[-1]
-                                        mime_type = s3_object['ContentType']
-                                    else:
-                                        file = io.BytesIO(content)
-                                        file.name = content_disposition_params['filename']
-                                        mime_type = part_content_type
-                                    FileParam = namedtuple('FileParam', ['file', 'mime_type'])
-                                    add_param(name, FileParam(file, mime_type))
+                            try:
+                                multipart_decoder = MultipartDecoder(req.raw_body, content_type)
+                                for part in multipart_decoder.parts:
+                                    name, content = get_multipart_content(part)
+                                    add_param(name, content)
+                            except Exception as e:
+                                print(e)
                             kwargs = dict(**kwargs, **params)
 
                         elif content_type.startswith('application/json'):
@@ -244,6 +221,8 @@ class TechMicroService(Chalice):
                                 kwargs[kwarg_keys[0]] = req.json_body
                         elif content_type.startswith('text/plain'):
                             kwargs[kwarg_keys[0]] = req.json_body
+                        else:
+                            BadRequestError(f"Cannot manage content type {content_type} for {component}")
 
                     else:  # GET request
 
@@ -252,6 +231,9 @@ class TechMicroService(Chalice):
                             value = req.query_params.getlist(k)
                             add_param(k, value if len(value) > 1 else value[0])
                         kwargs = dict(**kwargs, **params)
+
+                if component.debug:
+                    print(f"Calling {component} with event {kwargs}")
 
                 resp = func(component, **kwargs)
                 return TechMicroService._convert_response(resp)
@@ -270,9 +252,6 @@ class TechMicroService(Chalice):
         return proxy
 
     def __call__(self, event, context):
-        if self.debug:
-            print(f"Event: {event}")
-
         with self._before_request_lock:
             if not self._got_first_request:
                 for func in self.before_first_request_funcs:
@@ -290,18 +269,46 @@ class TechMicroService(Chalice):
         return res
 
     def handler(self, event, context):
-        if 'type' in event and event['type'] == 'TOKEN':
+
+        # authorization call
+        if event.get('type') == 'TOKEN':
             if self.debug:
-                print(f"Calling {self.app_name} authorization")
+                print(f"Calling {self.app_name} for authorization")
+
             if self.__auth__:
                 return self.__auth__(event, context)
+
             print(f"Undefined authorization method for {self.app_name} ")
             raise Exception('Unauthorized')
 
-        if self.debug:
-            print(f"Calling {self.app_name} with event {event}")
+        # step function call
+        if event.get('type') == 'CWS_SFN':
+            if self.debug:
+                print(f"Calling {self.app_name} by step function")
+
+            self.sfn_call = True
+            content_type = event['headers']['Content-Type']
+            if content_type == 'application/json':
+                if event.get('body'):
+                    event['body'] = json.dumps(event.get('body'))
+            elif content_type == 'multipart/form-data':
+                if event.get('form-data'):
+                    multi_parts = MultipartEncoder(set_multipart_content(event.get('form-data')))
+                    event['headers']['Content-Type'] = multi_parts.content_type
+                    event['body'] = multi_parts.to_string()
+            else:
+                raise BadRequestError(f"Undefined content type {content_type} for Step Function call")
+        else:
+            if self.debug:
+                print(f"Calling {self.app_name} with event {event}")
 
         res = super().__call__(event, context)
+
+        if self.sfn_call:
+            try:
+                res['body'] = json.loads(res['body'])
+            except json.JSONDecodeError:
+                pass
 
         if self.debug:
             print(f"Call {self.app_name} returns {res}")

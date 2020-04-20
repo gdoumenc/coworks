@@ -60,7 +60,7 @@ def create_step_function(sfn_name, filepath):
             states = State.get_or_raise(data, 'states')
             add_actions(all_states, states)
 
-            first.state['Result'] = {state.slug: state.data for state in all_states}
+            first.state['Result'] = {}
             first.state['Next'] = all_states[1].name
 
             return {
@@ -114,7 +114,6 @@ class State:
     def __init__(self, action, **kwargs):
         self.action = action or {}
         self.state = {**kwargs}
-        self.data = {}
 
     @property
     def name(self):
@@ -126,10 +125,12 @@ class State:
 
     @staticmethod
     def get_goto(action_or_choice):
-        goto = action_or_choice.get('goto', None)
+        goto = action_or_choice.get('goto')
         if goto == "End":
             return "End", True
-        return "Next", goto
+        elif goto is not None:
+            return "Next", goto
+        return None
 
     @staticmethod
     def get_or_raise(action, key):
@@ -157,6 +158,30 @@ class TechState(State):
         super().__init__(action, Type="Task", **kwargs)
 
         tech_data = self.get_or_raise(action, 'tech')
+        try:
+            self.state['Resource'] = f"arn:aws:lambda:eu-west-1:935392763270:function:{tech_data['service']}"
+            self.state["InputPath"] = f"$"
+            self.state["ResultPath"] = f"$.{self.slug}.result"
+            self.state["OutputPath"] = "$"
+            self.state["Parameters"] = self.get_call_data(action, tech_data)
+        except KeyError as e:
+            raise WriterError(f"The key {e} is missing for {action}")
+
+        # creates "Next" or "End" entry
+        entry = self.get_goto(action)
+        if entry:
+            key, value = entry
+            self.state[key] = value
+
+        # complementary informations
+        timeout = tech_data.get('timeout')
+        if timeout is not None:
+            self.state["TimeoutSeconds"] = timeout
+
+    @staticmethod
+    def get_call_data(action, tech_data):
+
+        # get route and method
         route = method = None
         if 'get' in tech_data:
             route = tech_data['get']
@@ -169,32 +194,23 @@ class TechState(State):
         if route is None:
             raise WriterError(f"No route defined for {action}")
 
-        query_params = body = None
-        params = tech_data.get('params', None)
-        if method == "GET":
-            query_params = [] if params else None
-        else:
-            body = params if params else None
+        # get call parameters
+        uri_params = tech_data.get('uri_params')
+        query_params = tech_data.get('query_params')
+        body = tech_data.get('body')
+        form_data = tech_data.get('form-data')
+        content_type = "application/json" if form_data is None else "multipart/form-data"
 
-        try:
-            self.state['Resource'] = f"arn:aws:lambda:eu-west-1:935392763270:function:{tech_data['service']}"
-            self.state["InputPath"] = f"$.{self.slug}.call"
-            self.state["ResultPath"] = f"$.{self.slug}.result"
-            self.state["OutputPath"] = "$"
+        # simple params
+        if query_params is None and body is None and form_data is None:
+            params = tech_data.get('params')
+            if method == "GET":
+                query_params = [] if params else None
+            else:
+                body = params if params else None
 
-            self.data = {
-                'call': self.get_call_data(route, method, query_params, body)
-            }
-        except KeyError as e:
-            raise WriterError(f"The key {e} is missing for {action}")
-
-        k, v = self.get_goto(action)
-        if v:
-            self.state[k] = v
-
-    @staticmethod
-    def get_call_data(route, method='GET', uri_params=None, query_params=None, body=None):
         return {
+            "type": "CWS_SFN",
             "resource": route,
             "path": route,
             "requestContext": {
@@ -205,11 +221,16 @@ class TechState(State):
             "pathParameters": uri_params,
             "headers": {
                 "Accept-Encoding": "gzip,deflate",
-                "Content-Type": "application/json"
+                "Content-Type": content_type
             },
-            "body": json.dumps(body) if body else None,
+            "body": body if body else None,
+            "form-data": TechState.validate_form_data(form_data) if form_data else None,
             "stageVariables": None,
         }
+
+    @staticmethod
+    def validate_form_data(form_data):
+        return form_data
 
 
 class ChoiceState(State):
@@ -233,10 +254,11 @@ class ChoiceState(State):
 
         switch = []
         for choice in choices:
-            key, value = self.get_goto(choice)
-            if value is None:
+            entry = self.get_goto(choice)
+            if entry is None:
                 raise KeyError(f"The key goto is missing for {choice}")
 
+            key, value = entry
             if 'not' in choice:
                 switch.append({"Not": create_condition(choice['not']), key: value})
             elif 'or' in choice:

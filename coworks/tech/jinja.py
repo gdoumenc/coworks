@@ -19,12 +19,9 @@ class JinjaRenderMicroService(TechMicroService):
             pass context as a json file """
         if templates is None:
             raise NotFoundError("At least one template is expected")
-        if not isinstance(templates, list):
-            templates = [templates]
-        if context is None:
-            context = {}
-        else:
-            context = json.loads(context.file.read().decode('utf-8'))
+
+        templates = [templates] if not isinstance(templates, list) else templates
+        context = context if context is not None else {}
         templates_dict = {template.file.name: template.file.read().decode('utf-8') for template in templates}
         env = jinja2.Environment(loader=jinja2.DictLoader(templates_dict))
         template_to_render = env.get_template(template_to_render_name)
