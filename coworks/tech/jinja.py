@@ -20,9 +20,9 @@ class JinjaRenderMicroService(TechMicroService):
     def create_environment(self, loader):
         env = jinja2.Environment(loader=loader)
         if self.globals:
-            env.globals = {**env.globals, **self.globals}
+            env.globals.update(**self.globals)
         if self.filters:
-            env.filters = {**env.filters, **self.filters}
+            env.filters.update(**self.filters)
         return env
 
     def post_render(self, template_to_render_name, templates=None, context=None):
