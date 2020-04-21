@@ -240,7 +240,8 @@ class TechMicroService(Chalice):
 
             except Exception as e:
                 print(f"Exception : {str(e)}")
-                traceback.print_stack()
+                print(traceback.print_exception(*sys.exc_info()))
+                # traceback.print_stack()
                 if subsegment:
                     subsegment.add_exception(e, traceback.extract_stack())
                 raise BadRequestError(str(e))

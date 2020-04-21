@@ -177,10 +177,16 @@ class TechState(State):
             self.state["OutputPath"] = "$"
             self.state["Parameters"] = self.get_call_data(action, tech_data)
 
-            self.state["Catch"] = [{
-                "ErrorEquals": ["BadRequestError"],
-                "Next": LAMBDA_ERROR_FALLBACK
-            }]
+            self.state["Catch"] = [
+                {
+                    "ErrorEquals": ["BadRequestError"],
+                    "Next": LAMBDA_ERROR_FALLBACK
+                },
+                {
+                    "ErrorEquals": ["States.TaskFailed"],
+                    "Next": LAMBDA_ERROR_FALLBACK
+                },
+            ]
         except KeyError as e:
             raise WriterError(f"The key {e} is missing for {action}")
 

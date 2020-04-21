@@ -29,7 +29,7 @@ class MailMicroService(TechMicroService):
                 raise EnvironmentError('SMTP_PASSWD not defined in environment')
 
     def post_send(self, subject="", from_addr: str = None, to_addrs: [str] = None, body="",
-                  attachments: [FileParam] = None, subtype="plain", starttls=False):
+                  attachments: [FileParam] = None, subtype="plain", starttls=True):
         """ Send mail.
         To send attachments, add files in the body of the request as multipart/form-data. """
 
