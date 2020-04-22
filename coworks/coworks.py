@@ -254,7 +254,7 @@ class BizFactory(TechMicroService):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        self.__sfn_client__ = None
+        self.aws_profile = self.__sfn_client__ = None
         self.services: Dict[str, BizMicroService] = {}
 
     @property
@@ -264,7 +264,8 @@ class BizFactory(TechMicroService):
     @property
     def sfn_client(self):
         if self.__sfn_client__ is None:
-            self.__sfn_client__ = AwsSFNSession().client
+            session = AwsSFNSession(profile_name=self.aws_profile)
+            self.__sfn_client__ = session.client
         return self.__sfn_client__
 
     def get_sfn(self, sfn_name=None):

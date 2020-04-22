@@ -4,7 +4,6 @@ import pytest
 
 from coworks import TechMicroService
 
-
 client = MagicMock()
 session = MagicMock()
 session.client = client
@@ -16,6 +15,13 @@ class TechMS(TechMicroService):
         return "get"
 
 
+class LambdaContext:
+
+    def __init__(self):
+        self.aws_request_id = "id"
+        self.function_name = "fun"
+
+
 @pytest.mark.wip
 def test_save_on_s3():
     data = {
@@ -24,6 +30,7 @@ def test_save_on_s3():
     }
     tech: TechMS = TechMS()
     tech.aws_s3_sfn_data_session = session
+    tech.lambda_context = LambdaContext()
     res = tech._set_data_on_s3(data)
     client.put_object.assert_called()
     assert res['short'] == 'normal'

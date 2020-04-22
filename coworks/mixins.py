@@ -237,15 +237,17 @@ def _convert_response(resp):
 
 class Boto3Mixin:
 
-    def __init__(self, service='s3', env_var_profile='aws_access_profile', env_var_access_key='aws_access_key_id',
-                 env_var_secret_key='aws_secret_access_key', env_var_region='aws_region', **kwargs):
+    def __init__(self, service='s3', profile_name=None, env_var_access_key='aws_access_key_id',
+                 env_var_secret_key='aws_secret_access_key', env_var_region='aws_region',
+                 **kwargs):
         super().__init__(**kwargs)
         self.__session__ = self.__client__ = None
         self.__service = service
-        self.__env_var_profile = env_var_profile
         self.__env_var_access_key = env_var_access_key
         self.__env_var_secret_key = env_var_secret_key
         self.__env_var_region = env_var_region
+
+        self.__profile_name = profile_name
 
     @property
     def aws_access_key(self):
@@ -281,12 +283,11 @@ class Boto3Mixin:
     def __session(self):
         if self.__session__ is None:
             region_name = self.region_name
-            aws_profile = os.getenv(self.__env_var_profile)
-            if aws_profile is not None:
+            if self.__profile_name is not None:
                 try:
-                    self.__session__ = boto3.Session(profile_name=aws_profile, region_name=region_name)
+                    self.__session__ = boto3.Session(profile_name=self.__profile_name, region_name=region_name)
                 except Exception:
-                    print(f"Cannot create session for profile {aws_profile} and region {region_name}")
+                    print(f"Cannot create session for profile {self.__profile_name} and region {region_name}")
                     raise
             else:
                 access_key = self.aws_access_key
