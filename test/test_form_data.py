@@ -2,11 +2,9 @@ import io
 import json
 from unittest.mock import MagicMock
 
-import pytest
 import requests
 
 from coworks import TechMicroService
-from coworks import utils
 from coworks.cli.sfn import TechState
 
 
@@ -22,15 +20,17 @@ class TechMS(TechMicroService):
         return f"post {text}, {context}"
 
 
-client = MagicMock()
-utils.BotoSession.client = MagicMock(return_value=client)
+session = MagicMock()
+session.client = MagicMock()
 s3_object = {'Body': io.BytesIO(b'test'), 'ContentType': 'text/plain'}
-client.get_object = MagicMock(return_value=s3_object)
+session.client.get_object = MagicMock(return_value=s3_object)
 
 
 def test_arg_params(local_server_factory):
     """normal API call."""
-    local_server = local_server_factory(TechMS())
+    tech = TechMS()
+    tech.aws_s3_session = session
+    local_server = local_server_factory(tech)
     data = {'key': 'value'}
     multiple_files = [
         ('text', (None, "hello world")),
@@ -39,13 +39,15 @@ def test_arg_params(local_server_factory):
         ('files', ('f2.txt', 'some,data,to,send\nanother,row,to,send\n', 'text/plain')),
         ('files', ('f3.j2', 'bucket/key', 'text/s3')),
     ]
-    response = local_server.make_call(requests.post, '/params', files=multiple_files, json=data)
+    response = local_server.make_call(requests.post, '/params', files=multiple_files, json=data, timeout=500)
     assert response.status_code == 200
     assert response.text == "post hello world, {'key': 'value'} and ['f1.csv', 'f2.txt', 'f3.j2']"
 
 
-def test_sfn_arg_params(local_server_factory):
+def test_sfn_arg_params():
     """step function call."""
+    tech = TechMS()
+    tech.aws_s3_session = session
     form_data = {
         'text': {'content': "hello world"},
         'context': {'content': {'key': 'value'}, 'mime_type': 'application/json'},
@@ -57,14 +59,15 @@ def test_sfn_arg_params(local_server_factory):
     }
     data = {'post': '/params', 'form-data': form_data}
     call = TechState.get_call_data(None, data)
-    response = TechMS()(call, {})
+    response = tech(call, {})
     assert response['statusCode'] == 200
     assert response['body'] == "post hello world, {'key': 'value'} and ['f1.csv', 'f2.txt', 'f3.j2']"
 
 
-@pytest.mark.wip
-def test_sfn_simple_arg_params(local_server_factory):
+def test_sfn_simple_arg_params():
     """simlplified step function call."""
+    tech = TechMS()
+    tech.aws_s3_session = session
     form_data = {
         'text': "hello world",
         'context': {'json': True},
@@ -72,6 +75,6 @@ def test_sfn_simple_arg_params(local_server_factory):
     }
     data = {'post': '/params', 'form-data': form_data}
     call = TechState.get_call_data(None, data)
-    response = TechMS()(call, {})
+    response = tech(call, {})
     assert response['statusCode'] == 200
     assert response['body'] == "post hello world, True and ['key']"

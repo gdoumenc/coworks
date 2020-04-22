@@ -3,7 +3,7 @@ import threading
 import pytest
 import requests
 import time
-from coworks.cli import CWSFactory
+from coworks.cli.client import CWSFactory
 from coworks.pytest.local_server import ThreadedLocalServer
 
 

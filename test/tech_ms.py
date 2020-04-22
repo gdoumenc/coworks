@@ -1,12 +1,24 @@
-from coworks import TechMicroService
+import io
+from unittest.mock import MagicMock
 
 from chalice import Response
+
+from coworks import TechMicroService
 
 
 class TechMS(TechMicroService):
     def __init__(self):
         super().__init__(app_name='test')
 
+
+class S3MockTechMS(TechMicroService):
+    def __init__(self):
+        super().__init__(app_name='test')
+        session = MagicMock()
+        session.client = MagicMock()
+        s3_object = {'Body': io.BytesIO(b'test'), 'ContentType': 'text/plain'}
+        session.client.get_object = MagicMock(return_value=s3_object)
+        self.aws_s3_run_session = session
 
 class SimpleMS(TechMS):
 

@@ -224,14 +224,6 @@ class TechState(State):
         form_data = tech_data.get('form-data')
         content_type = "application/json" if form_data is None else "multipart/form-data"
 
-        # simple params
-        if query_params is None and body is None and form_data is None:
-            params = tech_data.get('params')
-            if method == "GET":
-                query_params = [] if params else None
-            else:
-                body = params if params else None
-
         return {
             "type": "CWS_SFN",
             "resource": route,

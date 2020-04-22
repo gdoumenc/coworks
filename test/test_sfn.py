@@ -3,14 +3,13 @@ import json
 
 import pytest
 
-from coworks import TechMicroService, BizFactory
+from coworks import BizFactory
 from coworks.cli.sfn import StepFunctionWriter, TechState
 from coworks.cli.writer import WriterError
+from .tech_ms import S3MockTechMS
 
 
-class TechMS(TechMicroService):
-    def __init__(self):
-        super().__init__(app_name='test')
+class TechMS(S3MockTechMS):
 
     def get_test(self):
         return "get"

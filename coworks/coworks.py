@@ -9,20 +9,19 @@ from threading import Lock
 from typing import Dict
 
 from aws_xray_sdk.core import xray_recorder
+from chalice import AuthResponse, BadRequestError, Rate, Cron
 from chalice import Chalice, Blueprint as ChaliceBlueprint
-from chalice import Response, AuthResponse, BadRequestError, Rate, Cron
-from requests_toolbelt.multipart import MultipartDecoder, MultipartEncoder
+from requests_toolbelt.multipart import MultipartEncoder
 
-from .utils import Boto3Mixin
+from .mixins import CoworksMixin, AwsSFNSession
 from .utils import begin_xray_subsegment, end_xray_subsegment
 from .utils import class_auth_methods, class_rest_methods, class_attribute, trim_underscores
-from .utils import get_multipart_content, set_multipart_content
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
-class TechMicroService(Chalice):
+class TechMicroService(CoworksMixin, Chalice):
     """Simple microservice app created directly from class."""
 
     def __init__(self, app_name=None, **kwargs):
@@ -35,7 +34,6 @@ class TechMicroService(Chalice):
         ])
 
         self.__auth__ = self._create_auth_proxy(self, authorizer) if authorizer else None
-        self.debug = kwargs.pop('debug', False)
         self.blueprints = {}
         self.extensions = {}
 
@@ -122,7 +120,7 @@ class TechMicroService(Chalice):
                     route = route + f"/{{_{index}}}" if route else f"{{_{index}}}"
                 kwarg_keys = {}
 
-            proxy = TechMicroService._create_rest_proxy(component, func, kwarg_keys, args, varkw)
+            proxy = component._create_rest_proxy(func, kwarg_keys, args, varkw)
 
             # complete all entries
             component.route(f"/{route}", methods=[method.upper()], authorizer=auth,
@@ -162,96 +160,6 @@ class TechMicroService(Chalice):
         proxy.__name__ = 'app'
         return component.authorizer(name='auth')(proxy)
 
-    @staticmethod
-    def _create_rest_proxy(component, func, kwarg_keys, args, varkw):
-
-        def proxy(**kws):
-            if component.debug:
-                print(f"Calling {func} for {component}")
-
-            subsegment = begin_xray_subsegment(f"{func.__name__} microservice")
-            try:
-                if subsegment:
-                    subsegment.put_metadata('headers', component.current_request.headers, "CoWorks")
-
-                # Renames positionnal parameters (index added in label)
-                kwargs = {}
-                for kw, value in kws.items():
-                    param = args[int(kw[1:])]
-                    kwargs[param] = value
-
-                # Adds kwargs parameters
-                def check_param_expected_in_lambda(param_name):
-                    """Alerts when more parameters than expected are defined in request."""
-                    if param_name not in kwarg_keys and varkw is None:
-                        raise BadRequestError(f"TypeError: got an unexpected keyword argument '{param_name}'")
-
-                def add_param(param_name, param_value):
-                    check_param_expected_in_lambda(param_name)
-                    if param_name in params:
-                        if isinstance(params[param_name], list):
-                            params[param_name].append(param_value)
-                        else:
-                            params[param_name] = [params[param_name], param_value]
-                    else:
-                        params[param_name] = param_value
-
-                req = component.current_request
-                if kwarg_keys or varkw:
-                    params = {}
-                    if req.raw_body:  # POST request
-                        content_type = req.headers['content-type']
-                        if content_type.startswith('multipart/form-data'):
-                            try:
-                                multipart_decoder = MultipartDecoder(req.raw_body, content_type)
-                                for part in multipart_decoder.parts:
-                                    name, content = get_multipart_content(part)
-                                    add_param(name, content)
-                            except Exception as e:
-                                print(e)
-                            kwargs = dict(**kwargs, **params)
-
-                        elif content_type.startswith('application/json'):
-                            if hasattr(req.json_body, 'items'):
-                                params = {}
-                                for k, v in req.json_body.items():
-                                    add_param(k, v)
-                                kwargs = dict(**kwargs, **params)
-                            else:
-                                kwargs[kwarg_keys[0]] = req.json_body
-                        elif content_type.startswith('text/plain'):
-                            kwargs[kwarg_keys[0]] = req.json_body
-                        else:
-                            BadRequestError(f"Cannot manage content type {content_type} for {component}")
-
-                    else:  # GET request
-
-                        # adds parameters from qurey parameters
-                        for k in req.query_params or []:
-                            value = req.query_params.getlist(k)
-                            add_param(k, value if len(value) > 1 else value[0])
-                        kwargs = dict(**kwargs, **params)
-
-                if component.debug:
-                    print(f"Calling {component} with event {kwargs}")
-
-                resp = func(component, **kwargs)
-                return TechMicroService._convert_response(resp)
-
-            except Exception as e:
-                print(f"Exception : {str(e)}")
-                print(traceback.print_exception(*sys.exc_info()))
-                # traceback.print_stack()
-                if subsegment:
-                    subsegment.add_exception(e, traceback.extract_stack())
-                raise BadRequestError(str(e))
-            finally:
-                end_xray_subsegment()
-
-        proxy = update_wrapper(proxy, func)
-        proxy.__class_func__ = func
-        return proxy
-
     def __call__(self, event, context):
         with self._before_request_lock:
             if not self._got_first_request:
@@ -290,11 +198,11 @@ class TechMicroService(Chalice):
             self.sfn_call = True
             content_type = event['headers']['Content-Type']
             if content_type == 'application/json':
-                if event.get('body'):
-                    event['body'] = json.dumps(event.get('body'))
+                body = event.get('body')
+                event['body'] = json.dumps(self._get_data_on_s3(body)) if body else body
             elif content_type == 'multipart/form-data':
                 if event.get('form-data'):
-                    multi_parts = MultipartEncoder(set_multipart_content(event.get('form-data')))
+                    multi_parts = MultipartEncoder(self._set_multipart_content(event.get('form-data')))
                     event['headers']['Content-Type'] = multi_parts.content_type
                     event['body'] = multi_parts.to_string()
             else:
@@ -309,7 +217,7 @@ class TechMicroService(Chalice):
             if res['statusCode'] < 200 or res['statusCode'] >= 300:
                 raise BadRequestError(f"Status code is {res['statusCode']} : {res['body']}")
             try:
-                res['body'] = json.loads(res['body'])
+                res['body'] = self._set_data_on_s3(json.loads(res['body']))
             except json.JSONDecodeError:
                 pass
 
@@ -339,22 +247,8 @@ class TechMicroService(Chalice):
         self.after_request_funcs.append(f)
         return f
 
-    @staticmethod
-    def _convert_response(resp):
-        if type(resp) is tuple:
-            status_code = resp[1]
-            if len(resp) == 2:
-                return Response(body=resp[0], status_code=status_code)
-            else:
-                return Response(body=resp[0], status_code=status_code, headers=resp[2])
 
-        elif not isinstance(resp, Response):
-            return Response(body=resp)
-
-        return resp
-
-
-class BizFactory(Boto3Mixin, TechMicroService):
+class BizFactory(TechMicroService):
     """Microservice to create and update biz microservices."""
 
     def __init__(self, **kwargs):
@@ -370,7 +264,7 @@ class BizFactory(Boto3Mixin, TechMicroService):
     @property
     def sfn_client(self):
         if self.__sfn_client__ is None:
-            self.__sfn_client__ = self.boto3_session.client('stepfunctions')
+            self.__sfn_client__ = AwsSFNSession().client
         return self.__sfn_client__
 
     def get_sfn(self, sfn_name=None):
@@ -510,14 +404,12 @@ class BizMicroService(BizFactory):
         return super().handler(event, context)
 
 
-class Blueprint(ChaliceBlueprint):
+class Blueprint(CoworksMixin, ChaliceBlueprint):
     """Chalice blueprint created directly from class."""
 
     def __init__(self, **kwargs):
         import_name = kwargs.pop('import_name', self.__class__.__name__)
         super().__init__(import_name)
-
-        self.debug = kwargs.pop('debug', False)
 
     @property
     def import_name(self):
