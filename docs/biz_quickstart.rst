@@ -27,7 +27,7 @@ A biz microservice is defined by a definition of state (in YAML):
         tech:
           service: "mail"
           post: "/send"
-          params:
+          body:
             from_addr: "test@test.com"
             to_addrs: ["test@test.com"]
             body: "No more hello world!!"

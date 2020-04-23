@@ -66,8 +66,14 @@ def create_step_function(sfn_name, filepath):
             first.state['Result'] = {}
             first.state['Next'] = all_states[1].name
 
-            error_fallback = EndState({'name': LAMBDA_ERROR_FALLBACK})
-            all_states.append(error_fallback)
+            # global catch state
+            if 'catch' not in data:
+                error_fallback = EndState({'name': LAMBDA_ERROR_FALLBACK})
+                all_states.append(error_fallback)
+            else:
+                error_fallback = PassState({'name': LAMBDA_ERROR_FALLBACK})
+                all_states.append(error_fallback)
+                add_actions(all_states, data['catch'])
 
             return {
                 "Version": "1.0",
@@ -87,7 +93,7 @@ def add_actions(states, actions):
 
     previous_state = states[-1]
     for action in actions:
-        state = create_state(action, previous_state)
+        state = new_state(action, previous_state)
         states.append(state)
         previous_state = state
 
@@ -95,22 +101,25 @@ def add_actions(states, actions):
             state.state['End'] = True
 
 
-def create_state(action, previous_state):
-    def add_next(name):
-        if 'Next' not in previous_state.state:
-            if isinstance(previous_state, ChoiceState):
-                previous_state.state['Default'] = name
-            else:
-                previous_state.state['Next'] = name
+def new_state(action, previous_state):
+    def add_next_to_previous_state():
+        if isinstance(previous_state, ChoiceState):
+            if 'Default' not in previous_state.state:
+                previous_state.state['Default'] = state.name
+        else:
+            if 'Next' not in previous_state.state and 'End' not in previous_state.state:
+                previous_state.state['Next'] = state.name
 
     if 'choices' in action:
         state = ChoiceState(action)
-        add_next(state.name)
     elif 'tech' in action:
         state = TechState(action)
-        add_next(state.name)
+    elif 'wait' in action:
+        state = WaitState(action)
     else:
         raise WriterError(f"Undefined type of action for {action}")
+
+    add_next_to_previous_state()
 
     return state
 
@@ -145,6 +154,12 @@ class State:
         except KeyError:
             raise WriterError(f"The key {key} is missing for {action}")
 
+    def add_goto(self, action):
+        entry = self.get_goto(action)
+        if entry:
+            key, value = entry
+            self.state[key] = value
+
 
 class SuccessState(State):
     def __init__(self, action=None, **kwargs):
@@ -163,6 +178,13 @@ class EndState(PassState):
     def __init__(self, action, **kwargs):
         super().__init__(action, **kwargs)
         self.state['End'] = True
+
+
+class WaitState(State):
+    def __init__(self, action, **kwargs):
+        super().__init__(action, Type="Wait", **kwargs)
+        self.state['Seconds'] = action['wait']
+        self.add_goto(action)
 
 
 class TechState(State):
@@ -190,11 +212,7 @@ class TechState(State):
         except KeyError as e:
             raise WriterError(f"The key {e} is missing for {action}")
 
-        # creates "Next" or "End" entry
-        entry = self.get_goto(action)
-        if entry:
-            key, value = entry
-            self.state[key] = value
+        self.add_goto(action)
 
         # complementary informations
         timeout = tech_data.get('timeout')
@@ -255,6 +273,9 @@ class ChoiceState(State):
 
         choices = self.get_or_raise(action, 'choices')
         self.state['Choices'] = self.create_choices_sequence(choices)
+
+        if 'default' in action:
+            self.state['Default'] = action.get('default')
 
     def create_choices_sequence(self, choices):
 
