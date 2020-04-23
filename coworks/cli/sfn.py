@@ -1,6 +1,7 @@
 import json
 import os
 import pathlib
+from abc import ABC, abstractmethod
 
 import yaml
 
@@ -64,7 +65,7 @@ def create_step_function(sfn_name, filepath):
             add_actions(all_states, states)
 
             first.state['Result'] = {}
-            first.state['Next'] = all_states[1].name
+            first.add_next_or_end('Next', all_states[1].name)
 
             # global catch state
             if 'catch' not in data:
@@ -91,14 +92,16 @@ def add_actions(states, actions):
     if not actions:
         raise WriterError("Actions list cannot be empty.")
 
-    previous_state = states[-1]
+    previous_state = states[-1] if len(states) > 0 else None
     for action in actions:
         state = new_state(action, previous_state)
         states.append(state)
         previous_state = state
 
         if action == actions[-1] and 'Next' not in state.state:
-            state.state['End'] = True
+            state.add_next_or_end('End', True)
+
+        states.extend(state.catch_states)
 
 
 def new_state(action, previous_state):
@@ -112,6 +115,12 @@ def new_state(action, previous_state):
 
     if 'choices' in action:
         state = ChoiceState(action)
+    elif 'fail' in action:
+        state = FailState(action)
+    elif 'pass' in action:
+        state = PassState(action)
+    elif 'success' in action:
+        state = SuccessState(action)
     elif 'tech' in action:
         state = TechState(action)
     elif 'wait' in action:
@@ -119,16 +128,18 @@ def new_state(action, previous_state):
     else:
         raise WriterError(f"Undefined type of action for {action}")
 
-    add_next_to_previous_state()
+    if previous_state is not None:
+        add_next_to_previous_state()
 
     return state
 
 
-class State:
+class State(ABC):
 
     def __init__(self, action, **kwargs):
         self.action = action or {}
         self.state = {**kwargs}
+        self.catch_states = []
 
     @property
     def name(self):
@@ -139,6 +150,14 @@ class State:
         return "_".join(self.name.split()).lower()
 
     @staticmethod
+    def get_or_raise(action, key):
+        """Get the value at key or raise an error if the key doesn't exist."""
+        try:
+            return action[key]
+        except (KeyError, TypeError):
+            raise WriterError(f"The key {key} is missing for {action}")
+
+    @staticmethod
     def get_goto(action_or_choice):
         goto = action_or_choice.get('goto')
         if goto == "End":
@@ -147,18 +166,18 @@ class State:
             return "Next", goto
         return None
 
-    @staticmethod
-    def get_or_raise(action, key):
-        try:
-            return action[key]
-        except KeyError:
-            raise WriterError(f"The key {key} is missing for {action}")
-
     def add_goto(self, action):
         entry = self.get_goto(action)
         if entry:
             key, value = entry
-            self.state[key] = value
+            self.add_next_or_end(key, value)
+
+    def __repr__(self):
+        return f"{self.name} : {json.dumps(self.state, indent=2)}"
+
+    @abstractmethod
+    def add_next_or_end(self, key, value):
+        """Do nothing by default."""
 
 
 class SuccessState(State):
@@ -168,10 +187,68 @@ class SuccessState(State):
         })
         super().__init__(action, **kwargs)
 
+    def add_next_or_end(self, key, value):
+        super().add_next_or_end(key, value)
+
+
+class FailState(State):
+    def __init__(self, action, **kwargs):
+        super().__init__(action, Type="Fail", **kwargs)
+
+    def add_next_or_end(self, key, value):
+        super().add_next_or_end(key, value)
+
+
+class ChoiceState(State):
+
+    def __init__(self, action, **kwargs):
+        super().__init__(action, Type="Choice", **kwargs)
+
+        choices = self.get_or_raise(action, 'choices')
+        self.state['Choices'] = self.create_choices_sequence(choices)
+
+        if 'default' in action:
+            self.state['Default'] = action.get('default')
+
+    def create_choices_sequence(self, choices):
+
+        def create_condition(data):
+            var = self.get_or_raise(data, 'var')
+            oper = self.get_or_raise(data, 'oper')
+            val = self.get_or_raise(data, 'value')
+            return {
+                'Variable': var,
+                oper: val,
+            }
+
+        switch = []
+        for choice in choices:
+            entry = self.get_goto(choice)
+            if entry is None:
+                raise KeyError(f"The key goto is missing for {choice}")
+
+            key, value = entry
+            if 'not' in choice:
+                switch.append({"Not": create_condition(choice['not']), key: value})
+            elif 'or' in choice:
+                switch.append({"Or": create_condition(choice['or']), key: value})
+            elif 'and' in choice:
+                switch.append({"And": create_condition(choice['and']), key: value})
+            else:
+                switch.append({**create_condition(choice), key: value})
+        return switch
+
+    def add_next_or_end(self, key, value):
+        super().add_next_or_end(key, value)
+
 
 class PassState(State):
     def __init__(self, action, **kwargs):
-        super().__init__(action, Type="Pass", **kwargs)
+        kwargs.setdefault("Type", "Pass")
+        super().__init__(action, **kwargs)
+
+    def add_next_or_end(self, key, value):
+        self.state[key] = value
 
 
 class EndState(PassState):
@@ -179,36 +256,51 @@ class EndState(PassState):
         super().__init__(action, **kwargs)
         self.state['End'] = True
 
+    def add_next_or_end(self, key, value):
+        super().add_next_or_end(key, value)
 
-class WaitState(State):
+
+class WaitState(PassState):
     def __init__(self, action, **kwargs):
         super().__init__(action, Type="Wait", **kwargs)
         self.state['Seconds'] = action['wait']
         self.add_goto(action)
 
 
-class TechState(State):
+class TechState(PassState):
     def __init__(self, action, **kwargs):
         super().__init__(action, Type="Task", **kwargs)
 
         tech_data = self.get_or_raise(action, 'tech')
+        if not tech_data:
+            raise WriterError(f"The content of tech action is empty")
+
         try:
-            self.state['Resource'] = f"arn:aws:lambda:eu-west-1:935392763270:function:{tech_data['service']}"
+            self.state['Resource'] = \
+                f"arn:aws:lambda:eu-west-1:935392763270:function:{self.get_or_raise(tech_data, 'service')}"
             self.state["InputPath"] = f"$"
             self.state["ResultPath"] = f"$.{self.slug}.result"
             self.state["OutputPath"] = "$"
             self.state["Parameters"] = self.get_call_data(action, tech_data)
 
-            self.state["Catch"] = [
-                {
+            if 'catch' not in action:
+                self.state["Catch"] = [
+                    {
+                        "ErrorEquals": ["BadRequestError"],
+                        "Next": LAMBDA_ERROR_FALLBACK
+                    },
+                    {
+                        "ErrorEquals": ["States.TaskFailed"],
+                        "Next": LAMBDA_ERROR_FALLBACK
+                    },
+                ]
+            else:
+                add_actions(self.catch_states, action['catch'])
+                self.state["Catch"] = [{
                     "ErrorEquals": ["BadRequestError"],
-                    "Next": LAMBDA_ERROR_FALLBACK
-                },
-                {
-                    "ErrorEquals": ["States.TaskFailed"],
-                    "Next": LAMBDA_ERROR_FALLBACK
-                },
-            ]
+                    "Next": self.catch_states[0].name
+                }]
+
         except KeyError as e:
             raise WriterError(f"The key {e} is missing for {action}")
 
@@ -264,43 +356,3 @@ class TechState(State):
     @staticmethod
     def validate_form_data(form_data):
         return form_data
-
-
-class ChoiceState(State):
-
-    def __init__(self, action, **kwargs):
-        super().__init__(action, Type="Choice", **kwargs)
-
-        choices = self.get_or_raise(action, 'choices')
-        self.state['Choices'] = self.create_choices_sequence(choices)
-
-        if 'default' in action:
-            self.state['Default'] = action.get('default')
-
-    def create_choices_sequence(self, choices):
-
-        def create_condition(data):
-            var = self.get_or_raise(data, 'var')
-            oper = self.get_or_raise(data, 'oper')
-            val = self.get_or_raise(data, 'value')
-            return {
-                'Variable': var,
-                oper: val,
-            }
-
-        switch = []
-        for choice in choices:
-            entry = self.get_goto(choice)
-            if entry is None:
-                raise KeyError(f"The key goto is missing for {choice}")
-
-            key, value = entry
-            if 'not' in choice:
-                switch.append({"Not": create_condition(choice['not']), key: value})
-            elif 'or' in choice:
-                switch.append({"Or": create_condition(choice['or']), key: value})
-            elif 'and' in choice:
-                switch.append({"And": create_condition(choice['and']), key: value})
-            else:
-                switch.append({**create_condition(choice), key: value})
-        return switch

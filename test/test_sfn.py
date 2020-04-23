@@ -4,7 +4,7 @@ import json
 import pytest
 
 from coworks import BizFactory
-from coworks.cli.sfn import StepFunctionWriter, TechState
+from coworks.cli.sfn import StepFunctionWriter, TechState, add_actions
 from coworks.cli.writer import WriterError
 from .tech_ms import S3MockTechMS
 
@@ -88,6 +88,7 @@ def test_biz_empty():
 
 
 def test_biz_complete():
+    """Tests the doc example."""
     biz = BizFactory()
     biz.create('test/biz/complete', 'test')
     writer = StepFunctionWriter(biz)
@@ -111,3 +112,81 @@ def test_biz_complete():
     assert state is not None
     assert state['Type'] == 'Task'
     assert state['End'] == True
+
+
+def test_fail():
+    states = []
+    actions = [{
+        'name': "fail",
+        'fail': None
+    }]
+    add_actions(states, actions)
+    assert len(states) == 1
+    assert 'End' not in states[0].state
+
+
+@pytest.mark.wip
+def test_pass():
+    # missing key cases
+    states = []
+    actions = [{
+        'name': "action",
+        'pass': None
+    }]
+    add_actions(states, actions)
+    assert len(states) == 1
+    assert 'End' in states[0].state
+
+
+def test_tech():
+    # missing key cases
+    states = []
+    actions = [{
+        'name': "action",
+        'tech': {
+            'service': "tech",
+        }
+    }]
+    with pytest.raises(WriterError):
+        add_actions(states, actions)
+    actions = [{
+        'name': "action",
+        'tech': {
+            'get': "/",
+        }
+    }]
+    with pytest.raises(WriterError):
+        add_actions(states, actions)
+
+    # normal usage
+    states = []
+    actions = [{
+        'name': "action",
+        'tech': {
+            'service': "tech",
+            'get': "/",
+        }
+    }]
+    add_actions(states, actions)
+    assert len(states) == 1
+    assert 'End' in states[0].state
+
+    states = []
+    actions = [{
+        'name': "action 1",
+        'tech': {
+            'service': "tech",
+            'get': "/",
+        }
+    }, {
+        'name': "action 2",
+        'tech': {
+            'service': "tech",
+            'get': "/",
+        }
+    }]
+    add_actions(states, actions)
+    print(states)
+    assert 'Next' in states[0].state
+    assert states[0].state['Next'] == states[1].name
+    assert 'End' in states[1].state
