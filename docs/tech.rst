@@ -1,7 +1,7 @@
-.. _tutorial:
+.. _tech:
 
-TechMicroservices
-=================
+TechMS
+======
 
 TechMicroservices are the 'atom' of the CoWorks microservices framework. They represent the building blocks
 for other more complex microservices.
@@ -15,7 +15,7 @@ The function names must follow the syntax below::
 	<request_method><associated_route>
 
 The request method is then defined for the associated route.
-Composed routes are defined thru the ``_`` separator.
+Composed routes are defined with the ``_`` separator.
 
 Examples
 ^^^^^^^^
@@ -233,68 +233,73 @@ If you have an authorized access:
 		assert response.status_code == 200
 
 
-Predefined TechMicroservices
-----------------------------
+Blueprints and Extensions
+-------------------------
 
-Mail
-^^^^^
+Blueprints
+^^^^^^^^^^
 
-The ``mail`` microservice is a SMTP mail service :
+CoWorks blueprints are used to add to your application more routes deriving from logical components.
+Blueprints allow you to complete your microservices with transversal functionalities.
 
-``/send``
+Blueprint Registration
+**********************
 
-	[POST] Send mail.
+Blueprints are defined as classes as microservice.
 
-	- Params :
-		- from_addr=None : Required
-		- to_addrs=None : Required
-		- subject=""
-		- body=""
-		- starttls=False
+.. code-block:: python
 
+	from coworks import Blueprint
 
+	class Admin(Blueprint):
 
+		def get_context(self):
+			return self.current_request.to_dict()
 
-S3
-^^
+This blueprint defines a new route ``context``. To add this route to your microservice, just register the
+blueprint to the microservice.
 
-The S3 microservice allows bucket manipulation :
+.. code-block:: python
 
-``/buckets``
+	app = SimpleExampleMicroservice()
+	app.register_blueprint(Admin(), url_prefix="/admin")
 
-	[GET] Return the list of buckets.
+The ``url_prefix`` parameter adds the prefix ``admin`` to the route ``context``.
+Now the ``SimpleExampleMicroservice`` has a new route ``/admin/context``.
 
-``/bucket/{bucket}``
+Predefined Blueprints
+*********************
 
-	[GET] If the key is undefined, returns the list of objects in the bucket ``bucket``.
-	Else returns the object defined by the key ``key`` in the bucket ``bucket``.
+Admin
+:::::
 
-		Params :
-			- key=None
+The admin blueprint adds the following routes :
 
-	[PUT] Creates the bucket ``bucket``.
+``/routes``
 
-	[DELETE] If the key is undefined, deletes the bucket ``bucket``.
-	Else deletes the object defined by the key ``key`` in the bucket ``bucket``.
+	List all the routes of the microservice with the signature extracted from its associated function.
 
-		Params :
-			- key=None
+``/context``
 
-``/content/{bucket}``
+	Return the deploiement context of the microservice.
 
-	[GET] Returns the content of the bucket object defined by ``key`` in ``bucket``.
+Extensions
+^^^^^^^^^^
 
-		Params :
-			- key: Required
-
-	[PUT] Create the object defined by ``key`` in ``bucket`` with ``body`` as content.
-
-		Params :
-			- key: Required
-			- body:b'' : Content in bytes.
+Extensions are extra packages that add functionality to a CoWorks application.
+Extensions are inspired from `Flask <https://flask.palletsprojects.com/en/1.1.x/extensions/>`_.
 
 
-ODOO
-^^^^
+Predefined Extensions
+*********************
 
+Writer
+::::::
 
+Writers are extensions used by the ``format`` option of the ``cws export`` command. It uses Jinja templating to
+generate service description.
+
+Terraform writer
+::::::::::::::::
+
+** TO BE COMPLETED **

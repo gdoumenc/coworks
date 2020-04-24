@@ -6,7 +6,7 @@ Installation
 Python Version
 --------------
 
-CoWorks supports only AWS Lambda python3 versions (currently 3.7).
+CoWorks supports only AWS Lambda python version >= 3.7 versions.
 
 Install
 -------

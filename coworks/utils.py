@@ -44,6 +44,14 @@ def class_attribute(obj, name: str = None, defaut=None):
     return filtered[0] if filtered else defaut
 
 
+def trim_underscores(name):
+    while name.startswith('_'):
+        name = name[1:]
+    while name.endswith('_'):
+        name = name[:-1]
+    return name
+
+
 def begin_xray_subsegment(subsegment_name):
     if xray_recorder.in_segment().segment is not None:
         return xray_recorder.begin_subsegment(subsegment_name)

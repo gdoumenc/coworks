@@ -21,7 +21,7 @@ master_doc = 'index'
 # -- Project information -----------------------------------------------------
 
 project = 'CoWorks'
-copyright = '2019, gdoumenc'
+copyright = '2020, gdoumenc - FPR'
 author = 'gdoumenc'
 
 # The full version, including alpha/beta/rc tags
@@ -49,7 +49,14 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # a list of builtin themes.
 #
 html_theme = 'alabaster'
-
+html_theme_options = {
+    'logo': 'img/coworks.png',
+}
+html_sidebars = {
+    '**': [
+        'globaltoc.html',
+    ]
+}
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".

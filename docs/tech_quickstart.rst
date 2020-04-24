@@ -1,7 +1,7 @@
-.. _quickstart:
+.. _tech_quickstart:
 
-Quickstart
-==========
+TechMS Quickstart
+=================
 
 This page gives a quick and partial introduction to CoWorks technical microservices.
 Follow :doc:`installation` to set up a project and install CoWorks first.
@@ -18,7 +18,7 @@ A tech microservice is simply defined by a python class which looks like this:
 Creation
 --------
 
-To realize you first techn microservice, create a file ``app.py`` with the following content:
+To create you first techn microservice, create a file ``app.py`` with the following content:
 
 .. code-block:: python
 
@@ -58,8 +58,8 @@ Then enter the following command::
 	Creating lambda function: project-dev
 	Creating Rest API
 	Resources deployed:
-		- Lambda ARN: arn:aws:lambda:eu-west-1:760589174259:function:project-dev
-		- Rest API URL: https://9ssszma6mg.execute-api.eu-west-1.amazonaws.com/api/
+		- Lambda ARN: arn:aws:lambda:eu-west-1:123456789:function:project-dev
+		- Rest API URL: https://1aaaaa2bbb3c.execute-api.eu-west-1.amazonaws.com/api/
 
 That's it, your first microservice is online!
 
@@ -68,7 +68,7 @@ Execution
 
 Execute it::
 
-	(project) $ curl https://9ssszma6mg.execute-api.eu-west-1.amazonaws.com/api/
+	(project) $ curl https://1aaaaa2bbb3c.execute-api.eu-west-1.amazonaws.com/api/
 	Simple microservice ready.
 
 Deletion
@@ -104,8 +104,8 @@ To get all CoWorks commands and options::
 	  init
 	  run
 
-You can configure several files and entries in you project. for that use the ``module`` and ``app`` options of the
-``run`` command::
+You can configure several files and entries in you project. For that purpose, you can use the ``module``
+nd ``app`` options of the ``run`` command::
 
 	(project) $ cws run --help
 	Usage: cws run [OPTIONS]

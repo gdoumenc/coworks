@@ -2,7 +2,7 @@ import json
 
 import requests
 
-from coworks import Admin
+from coworks.blueprint import Admin
 from .tech_ms import *
 
 
