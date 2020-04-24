@@ -1,12 +1,27 @@
 import io
 import json
+import yaml
 
 import pytest
+from unittest.mock import Mock, MagicMock
 
 from coworks import BizFactory
-from coworks.cli.sfn import StepFunctionWriter, TechState, add_actions
+from coworks.cli.sfn import StepFunctionWriter, StepFunction, TechState
 from coworks.cli.writer import WriterError
 from .tech_ms import S3MockTechMS
+
+
+class TestStepFunction(StepFunction):
+
+    def __init__(self, data):
+        filepath = Mock()
+        file = MagicMock()
+        file.__enter__ = Mock(return_value=data)
+        filepath.open = Mock(return_value=file)
+        with filepath.open() as file:
+            self.data = yaml.load(file, Loader=yaml.SafeLoader)
+
+        super().__init__("test", filepath)
 
 
 class TechMS(S3MockTechMS):
@@ -98,7 +113,7 @@ def test_biz_complete():
     source = json.loads(output.read())
     assert source['Version'] == "1.0"
     assert 'Comment' in source
-    assert len(source['States']) == 5
+    assert len(source['States']) == 4
 
     states = source['States']
     data = states['Init']['Result']
@@ -111,68 +126,86 @@ def test_biz_complete():
     state = states['Send mail']
     assert state is not None
     assert state['Type'] == 'Task'
-    assert state['End'] == True
+    assert state['End'] is True
 
 
 def test_fail():
-    states = []
-    actions = [{
+    data = {'states': [{
         'name': "fail",
         'fail': None
-    }]
-    add_actions(states, actions)
-    assert len(states) == 1
-    assert 'End' not in states[0].state
+    }]}
+    sfn = TestStepFunction(yaml.dump(data))
+    sfn.generate()
+    assert len(sfn.all_states) == 2
+    assert 'End' not in sfn.all_states[1].state
+    assert 'Cause' in sfn.all_states[1].state
+    assert 'Error' in sfn.all_states[1].state
 
 
-@pytest.mark.wip
 def test_pass():
     # missing key cases
-    states = []
-    actions = [{
+    data = {'states': [{
         'name': "action",
         'pass': None
-    }]
-    add_actions(states, actions)
-    assert len(states) == 1
-    assert 'End' in states[0].state
+    }]}
+    sfn = TestStepFunction(yaml.dump(data))
+    sfn.generate()
+    assert len(sfn.all_states) == 2
+    assert 'End' in sfn.all_states[1].state
 
 
 def test_tech():
     # missing key cases
-    states = []
-    actions = [{
+    data = {'states': [{
         'name': "action",
         'tech': {
             'service': "tech",
         }
-    }]
+    }]}
+    sfn = TestStepFunction(yaml.dump(data))
     with pytest.raises(WriterError):
-        add_actions(states, actions)
-    actions = [{
+        sfn.generate()
+    data = {'states': [{
         'name': "action",
         'tech': {
             'get': "/",
         }
-    }]
+    }]}
+    sfn = TestStepFunction(yaml.dump(data))
     with pytest.raises(WriterError):
-        add_actions(states, actions)
+        sfn.generate()
 
-    # normal usage
-    states = []
-    actions = [{
+
+@pytest.mark.wip
+def test_catch_all():
+    data = {'states': [{
         'name': "action",
         'tech': {
-            'service': "tech",
+            'service': "tech1",
             'get': "/",
         }
-    }]
-    add_actions(states, actions)
-    assert len(states) == 1
-    assert 'End' in states[0].state
+    }], 'catch': [{'fail': None}]}
+    sfn = TestStepFunction(yaml.dump(data))
+    sfn.generate()
+    assert len(sfn.all_states) == 4
+    assert len(sfn.all_states[1].state['Catch']) == 1
 
-    states = []
-    actions = [{
+    data = {'states': [{
+        'name': "action",
+        'tech': {
+            'service': "tech1",
+            'get': "/",
+        },
+        'catch': [{'fail': None}]
+    }], 'catch': [{'fail': None}]}
+    sfn = TestStepFunction(yaml.dump(data))
+    sfn.generate()
+    assert len(sfn.all_states) == 5
+    assert len(sfn.all_states[1].state['Catch']) == 2
+
+
+def test_list():
+    data = {'states': [{
         'name': "action 1",
         'tech': {
             'service': "tech",
@@ -184,9 +217,35 @@ def test_tech():
             'service': "tech",
             'get': "/",
         }
-    }]
-    add_actions(states, actions)
-    print(states)
-    assert 'Next' in states[0].state
-    assert states[0].state['Next'] == states[1].name
-    assert 'End' in states[1].state
+    }]}
+    sfn = TestStepFunction(yaml.dump(data))
+    sfn.generate()
+    assert 'Next' in sfn.all_states[1].state
+    assert sfn.all_states[1].state['Next'] == sfn.all_states[2].name
+    assert 'End' in sfn.all_states[2].state
+
+
+def test_choice():
+    # missing key cases
+    data = {'states': [{
+        'name': "action",
+        'choices': None
+    }]}
+    sfn = TestStepFunction(yaml.dump(data))
+    with pytest.raises(WriterError):
+        sfn.generate()
+
+    data = {'states': [{
+        'name': "action",
+        'choices': [{
+            'var': '', 'oper': '', 'value': '', 'goto': 'Step'
+        }]
+    }, {
+        'name': "Step",
+        'pass': None
+    }]}
+    sfn = TestStepFunction(yaml.dump(data))
+    sfn.generate()
+    assert len(sfn.all_states) == 3
+    assert 'Default' in sfn.all_states[1].state
+    assert 'End' in sfn.all_states[2].state
