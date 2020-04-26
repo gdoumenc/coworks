@@ -1,16 +1,24 @@
 import os
 import sqlalchemy
-from sqlalchemy import create_engine, text
+import re
+
+from chalice import BadRequestError
+from sqlalchemy import create_engine, text, MetaData, or_, and_, Table
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from collections import defaultdict
+from typing import List
 
 from ..coworks import TechMicroService
 
 
-class PsqlMicroService(TechMicroService):
+class SqlMicroService(TechMicroService):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.dialect = self.host = self.port = self.dbname = self.user = self.password = None
         self.engine = None
+        self.session = None
 
         @self.before_first_request
         def check_env_vars():
@@ -29,7 +37,7 @@ class PsqlMicroService(TechMicroService):
                 raise EnvironmentError('USER not defined in environment')
             self.password = os.getenv('PASSWD')
             if not self.password:
-                raise EnvironmentError('PASSWD not defined in environment')
+                self.password = ''
 
         @self.before_first_request
         def engine():
@@ -38,11 +46,9 @@ class PsqlMicroService(TechMicroService):
                     self.port = 3306
                 elif self.dialect == 'postgres':
                     self.port = 5432
-
-            print(f'{self.dialect}://{self.user}:{self.password}@{self.host}:{self.port}/{self.dbname}')
             self.engine = create_engine(
                 f'{self.dialect}://{self.user}:{self.password}@{self.host}:{self.port}/{self.dbname}',
-                echo=True)
+                echo=False)
 
     def get_version(self):
         """Returns SQLAlchemy version."""
@@ -52,3 +58,7 @@ class PsqlMicroService(TechMicroService):
         conn = self.engine.connect()
         rows = conn.execute(text(query), **kwargs).fetchall()
         return [dict(row) for row in rows]
+
+    def reflect_tables(self, schema, tables):
+        metadata = MetaData(bind=self.engine)
+        return list(map(lambda table: Table(table, metadata, autoload=True, autoload_with=self.engine, schema=schema), tables))

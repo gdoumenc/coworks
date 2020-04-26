@@ -6,19 +6,7 @@ Installation
 Python Version
 --------------
 
-Currently ``CoWorks`` supports only AWS Lambda python3 versions (currently 3.7).
-
-AWS Credentials
----------------
-
-If you have previously configured your machine to run ``boto3`` (the AWS SDK for Python)
-or the AWS CLI then you can skip this section.
-
-Before you can deploy and test an application, be sure you have AWS credentials configured.
-We recommand using, the share credentials file method `Shared Credentials <https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#shared-credentials-file>`_:
-
-If you want more information on all the supported methods for configuring credentials, see
-`boto3 <https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html>`_
+CoWorks supports only AWS Lambda python version >= 3.7 versions.
 
 Install
 -------

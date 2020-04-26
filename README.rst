@@ -1,3 +1,8 @@
+.. figure:: ./img/coworks.png
+  :height: 100px
+  :alt: CoWorks Logo
+  :target: https://coworks.readthedocs.io/en/latest/?badge=latest
+
 =======
 CoWorks
 =======
@@ -16,118 +21,26 @@ CoWorks is an unified compositional microservices framework over AWS technologie
 based on the `Chalice <https://github.com/aws/chalice>`__ microframework.
 The aim of this project, is to offer a very simplified experience of microservices over the awesome technologies of AWS.
 
-Each atomic microservice (Tech Microservice) is a simple python class deployed on the serverless Lambda product and
-composition of microservices (Biz Microservice) is performed over the Step Function product. Other AWS products are used
-for logging, administrate, ...
+Each atomic microservice (Tech Microservice) is a simple python class deployed as serverless Lambda and
+composition of microservices (Biz Microservice) is performed over the Step Function product.
 
-Get started with `installation <https://coworks.readthedocs.io/en/latest/installation.html>`_ and then
-get an overview with the `quickstart <https://coworks.readthedocs.io/en/latest/quickstart.html>`_.
-Read `faq <https://coworks.readthedocs.io/en/latest/faq.html>`_ for a quick presentation,
-a complete presentation can be found `here <https://coworks.readthedocs.io/en/latest/>`_.
+You can get a quickstart on `TechMicroService <https://coworks.readthedocs.io/en/latest/tech_quickstart.html>`_ then
+continue with `BizMicroService <https://coworks.readthedocs.io/en/latest/biz_quickstart.html>`_
 
 
-Installation
+Documentation
+-------------
+
+* Get started: `installation <https://coworks.readthedocs.io/en/latest/installation.html>`_
+* Complete reference guide: `documentation <https://coworks.readthedocs.io/en/latest/>`_.
+* Read `FAQ <https://coworks.readthedocs.io/en/latest/faq.html>`_ for other informations.
+
+
+Contributing
 ------------
 
-Install the extension with::
+If you want to contribute to this project in any kind, your help will be very welcome.
 
-    $ pip install coworks
-
-Let's see how it works
-----------------------
-
-As a simple example is often more helpful and descriptive than a complete manual, lets write our first simple
-microservice in file `app.py`.
-
-.. code-block:: python
-
-	from coworks import TechMicroService
-
-	class SimpleExampleMicroservice(TechMicroService):
-
-		def get(self, usage="test"):
-			return f"Simple microservice for {usage}.\n"
-
-	app = SimpleExampleMicroservice(app_name="demo")
-
-initialize the coworks project::
-
-    $ cws init
-
-Then make our microservice run locally::
-
-    $ cws run
-    Serving on http://127.0.0.1:8000
-    127.0.0.1 - - [26/Dec/2019 18:29:11] "GET / HTTP/1.1" 200 -
-
-Now test our microservice::
-
-	$ curl http://127.0.1:8000
-	Simple microservice for test.
-	$ curl http://127.0.1:8000?usage=me
-	Simple microservice for me.
-
-Now complete it with more entrypoints:
-
-.. code-block:: python
-
-	from collections import defaultdict
-	from coworks import TechMicroService
-
-	class SimpleExampleMicroservice(TechMicroService):
-		values = defaultdict(int)
-
-		def get(self, usage="test"):
-			return f"Simple microservice for {usage}.\n"
-
-		def get_value(self, index):
-			return f"{self.values[index]}\n"
-
-		def put_value(self, index, value=0):
-			self.values[index] = value
-
-	app = SimpleExampleMicroservice(app_name="demo")
-
-Now test our completion::
-
-	$ curl http://127.0.1:8000/value/123
-	0
-	$ curl -X PUT -d '{"value":456}' -H "Content-Type: application/json" http://127.0.1:8000/value/123
-	null
-	$ curl http://127.0.1:8000/value/123
-	456
-	$ curl -X PUT -d '789' -H "Content-Type: application/json" http://127.0.1:8000/value/123
-	null
-	$ curl http://127.0.1:8000/value/123
-	789
-
-
-Deploy this first simple microservice on AWS with Chalice
----------------------------------------------------------
-
-Just deploy the microservice::
-
-    $ pip freeze > requirements.txt
-    $ chalice deploy
-	Creating deployment package.
-	Updating policy for IAM role: simple-dev
-	Updating lambda function: simple-dev
-	Updating rest API
-	Resources deployed:
-	  - Lambda ARN: arn:aws:lambda:eu-west-1:760589174259:function:simple-dev
-	  - Rest API URL: https://bd2ht6jc2m.execute-api.eu-west-1.amazonaws.com/dev/
-
-Then test it::
-
-	$ curl https://bd2ht6jc2m.execute-api.eu-west-1.amazonaws.com/dev/
-	Simple microservice for test.
-
-Delete it
----------
-
-Just delete the microservice with ::
-
-	$ chalice delete
 
 Related Projects
 ----------------

@@ -1,11 +1,9 @@
 import requests
-import pytest
 
 from .tech_ms import *
-from coworks import Every, At
 
 
-def test_request(local_server_factory):
+def test_request_arg(local_server_factory):
     local_server = local_server_factory(SimpleMS())
     response = local_server.make_call(requests.get, '/')
     assert response.status_code == 200
@@ -35,6 +33,9 @@ def test_request(local_server_factory):
     response = local_server.make_call(requests.post, '/content/3', json={"other": 'other', "value": 5})
     assert response.status_code == 400
 
+
+def test_request_kwargs(local_server_factory):
+    local_server = local_server_factory(SimpleMS())
     response = local_server.make_call(requests.get, '/kwparam1', params={"value": 5})
     assert response.status_code == 200
     assert response.text == "get **param with only 5"
