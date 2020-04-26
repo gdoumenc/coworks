@@ -1,4 +1,4 @@
-.. figure:: ./img/snowflake-coworks.png
+.. figure:: ./img/coworks.png
   :height: 100px
   :alt: CoWorks Logo
   :target: https://coworks.readthedocs.io/en/latest/?badge=latest
