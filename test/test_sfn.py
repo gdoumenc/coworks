@@ -1,9 +1,9 @@
 import io
 import json
-import yaml
+from unittest.mock import Mock, MagicMock
 
 import pytest
-from unittest.mock import Mock, MagicMock
+import yaml
 
 from coworks import BizFactory
 from coworks.cli.sfn import StepFunctionWriter, StepFunction, TechState
@@ -91,8 +91,8 @@ def test_kwargs_params():
 
 
 def test_biz_empty():
-    biz = BizFactory()
-    biz.create('test/biz/empty', 'test')
+    biz = BizFactory('test/biz/empty')
+    biz.create('test')
     writer = StepFunctionWriter(biz)
     output = io.StringIO()
     with pytest.raises(WriterError):
@@ -104,9 +104,9 @@ def test_biz_empty():
 
 def test_biz_complete():
     """Tests the doc example."""
-    biz = BizFactory()
-    biz.create('test/biz/complete', 'test')
-    writer = StepFunctionWriter(biz)
+    fact = BizFactory('test/biz/complete')
+    fact.create('test')
+    writer = StepFunctionWriter(fact)
     output = io.StringIO()
     writer.export(output=output, error=output)
     output.seek(0)
@@ -176,7 +176,6 @@ def test_tech():
         sfn.generate()
 
 
-@pytest.mark.wip
 def test_catch_all():
     data = {'states': [{
         'name': "action",

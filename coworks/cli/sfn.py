@@ -20,24 +20,19 @@ class StepFunctionWriter(Writer):
     def _export_content(self, module_name='app', handler_name='biz', project_dir='.', **kwargs):
 
         # checks at least one microservices is defined
-        if not self.app.services:
+        if not self.app.biz:
             print(f"No bizz service defined for {self.app.app_name}", file=self.error)
 
         module_path = module_name.split('.')
         step_functions = {}
+        sfn_name = self.app.sfn_name
         errors = {}
-        biz = kwargs.get('biz')
-        for service in self.app.services.values():
-            sfn_name = service.sfn_name
-            if sfn_name in step_functions or (biz is not None and sfn_name != biz):
-                continue
-
-            filename = pathlib.Path(project_dir, *module_path[:-1]) / f"{sfn_name}.{self.extension}"
-            try:
-                sfn = StepFunction(sfn_name, filename)
-                step_functions[sfn_name] = sfn.generate()
-            except WriterError as e:
-                errors[sfn_name] = str(e)
+        filename = pathlib.Path(project_dir, *module_path[:-1]) / f"{sfn_name}.{self.extension}"
+        try:
+            sfn = StepFunction(sfn_name, filename)
+            step_functions[sfn_name] = sfn.generate()
+        except WriterError as e:
+            errors[sfn_name] = str(e)
 
         if errors:
             for sfn_name, error in errors.items():
@@ -61,8 +56,10 @@ class StepFunction:
                 if not self.data:
                     raise WriterError(f"The content of the {sfn_name} microservice seems to be empty.")
         except FileNotFoundError:
-            full_file_path = f"{os.getcwd()}/{filepath}"
-            raise WriterError(f"The source for the {sfn_name} microservice should be found in {full_file_path}.")
+            path = pathlib.Path(filepath)
+            if not path.is_absolute():
+                path = pathlib.Path(f"{os.getcwd()}/{filepath}")
+            raise WriterError(f"The source for the {sfn_name} microservice should be found in {path}.")
         except Exception as e:
             raise WriterError(str(e))
 

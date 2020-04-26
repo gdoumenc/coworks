@@ -45,10 +45,10 @@ The following function defines the PUT method for the root of the microservice:
 Entrypoint Parameters
 ---------------------
 
-URL Parameters
+URI Parameters
 ^^^^^^^^^^^^^^
 
-You can define entrypoint function arguments as part of the URL:
+You can define entrypoint function arguments as part of the URI:
 
 .. code-block:: python
 

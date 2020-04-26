@@ -20,10 +20,12 @@ class CoworksMixin:
         super().__init__(*args, **kwargs)
         self.debug = kwargs.pop('debug', False)
 
-        self.aws_s3_session = AwsS3Session()
         self.aws_s3_sfn_data_session = AwsS3Session(env_var_access_key="AWS_RUN_ACCESS_KEY_ID",
                                                     env_var_secret_key="AWS_RUN_SECRET_KEY",
                                                     env_var_region="AWS_RUN_REGION")
+        self.aws_s3_form_data_session = AwsS3Session(env_var_access_key="AWS_FORM_DATA_ACCESS_KEY_ID",
+                                                     env_var_secret_key="AWS_FORM_DATA_SECRET_KEY",
+                                                     env_var_region="AWS_FORM_DATA_REGION")
 
     def _create_rest_proxy(self, func, kwarg_keys, args, varkw):
 
@@ -131,7 +133,7 @@ class CoworksMixin:
         if part_content_type == 'text/s3':
             pathes = content.decode('utf-8').split('/', 1)
             try:
-                s3_object = self.aws_s3_session.client.get_object(Bucket=pathes[0], Key=pathes[1])
+                s3_object = self.aws_s3_form_data_session.client.get_object(Bucket=pathes[0], Key=pathes[1])
             except BotoCoreError:
                 print(f"Bucket={pathes[0]} Key={pathes[1]} not found on s3")
                 return BadRequestError(f"Bucket={pathes[0]} Key={pathes[1]} not found on s3")

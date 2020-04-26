@@ -2,6 +2,7 @@ import io
 import json
 from unittest.mock import MagicMock
 
+import pytest
 import requests
 
 from coworks import TechMicroService
@@ -29,7 +30,7 @@ session.client.get_object = MagicMock(return_value=s3_object)
 def test_arg_params(local_server_factory):
     """normal API call."""
     tech = TechMS()
-    tech.aws_s3_session = session
+    tech.aws_s3_form_data_session = session
     local_server = local_server_factory(tech)
     data = {'key': 'value'}
     multiple_files = [
@@ -47,7 +48,7 @@ def test_arg_params(local_server_factory):
 def test_sfn_arg_params():
     """step function call."""
     tech = TechMS()
-    tech.aws_s3_session = session
+    tech.aws_s3_form_data_session = session
     form_data = {
         'text': {'content': "hello world"},
         'context': {'content': {'key': 'value'}, 'mime_type': 'application/json'},
@@ -67,7 +68,7 @@ def test_sfn_arg_params():
 def test_sfn_simple_arg_params():
     """simlplified step function call."""
     tech = TechMS()
-    tech.aws_s3_session = session
+    tech.aws_s3_form_data_session = session
     form_data = {
         'text': "hello world",
         'context': {'json': True},
