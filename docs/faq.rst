@@ -1,9 +1,9 @@
 .. _faq:
 
-CoWorks FAQ
-===========
+FAQ
+===
 
-This is a list of Frequently Asked Questions about CoWorks.  Feel free to
+This is a list of Frequently Asked Questions about ``CoWorks``.  Feel free to
 suggest new entries!
 
 Is CoWorks ...

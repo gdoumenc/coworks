@@ -113,23 +113,21 @@ def export(ctx, module, app, biz, format, out):
               help="Filename of your microservice python source file.")
 @click.option('-a', '--app', default='app',
               help="Coworks application in the source file.")
-@click.option('-b', '--biz', required=True, help="BizMicroservice name.")
 @click.option('-p', '--profile', default=None)
 @click.pass_context
-def update(ctx, module, app, biz, profile):
+def update(ctx, module, app, profile):
     out = SpooledTemporaryFile(mode='w+')
-    handler = export_to_file(module, app, 'sfn', out, project_dir=ctx.obj['project_dir'], biz=biz)
+    handler = export_to_file(module, app, 'sfn', out, project_dir=ctx.obj['project_dir'])
     if handler is None:
         sys.exit(1)
     handler.aws_profile = profile
 
     out.seek(0)
     if isinstance(handler, BizFactory):
-        sfn_name = f"{module.split('.')[-1]}-{biz}"
         try:
-            update_sfn(handler, sfn_name, out.read())
+            update_sfn(handler, out.read())
         except BadRequestError:
-            sys.stderr.write(f"Cannot update undefined step function '{sfn_name}'.\n")
+            sys.stderr.write(f"Cannot update undefined step function '{handler.sfn_name}'.\n")
             sys.exit(1)
 
     else:
@@ -152,10 +150,9 @@ def export_to_file(module, app, _format, out, **kwargs):
     return handler
 
 
-def update_sfn(handler, biz, src):
+def update_sfn(handler, src):
     sfn_client = handler.sfn_client
-    sfn_arn = handler.get_sfn(biz)
-    response = sfn_client.update_state_machine(stateMachineArn=sfn_arn, definition=src)
+    response = sfn_client.update_state_machine(stateMachineArn=handler.sfn_arn, definition=src)
     print(response)
 
 

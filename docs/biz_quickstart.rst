@@ -6,7 +6,7 @@ BizMS Quickstart
 This page gives a quick and partial introduction to CoWorks business microservices.
 You must have understand first how to deploy technical microservice :doc:`tech`.
 
-A biz microservice is defined by a definition of state (in YAML):
+A biz microservice is defined by a definition of states (in YAML):
 
 .. code-block:: yaml
 
@@ -22,7 +22,7 @@ A biz microservice is defined by a definition of state (in YAML):
               var: "$.check_server.result.statusCode"
               oper: "NumericEquals"
               value: 200
-            goto: "Send mail to Eric"
+            goto: "Send mail"
       - name: "Send mail"
         tech:
           service: "mail"
@@ -30,15 +30,27 @@ A biz microservice is defined by a definition of state (in YAML):
           body:
             from_addr: "test@test.com"
             to_addrs: ["test@test.com"]
-            body: "No more hello world!!"
-            starttls: True
+            body: "Server is down!"
 
-And define a reactor which will trigger the execution:
+And define a biz microservice  which will be triggered with a reactor :
 
 .. code-block:: python
 
-	biz = BizFactory(app_name='biz')
-	biz.create('check_server', 'check', Once())
+	from coworks import TechMicroService
+
+	class CheckServerMicroService(TechMicroService):
+
+		def post(self, url=None):
+			if url is None:
+				raise BadRequestError("No URL given...")
+			resp = requests.get(url)
+			return resp.status_code
+
+	check = CheckMicroService(app_name='check')
+
+	fact = BizFactory('check-server')
+	fact.create('check', Once(), data={'url': 'http://www.google.com'})
+
 
 Deployment
 ----------

@@ -20,24 +20,19 @@ class StepFunctionWriter(Writer):
     def _export_content(self, module_name='app', handler_name='biz', project_dir='.', **kwargs):
 
         # checks at least one microservices is defined
-        if not self.app.services:
+        if not self.app.biz:
             print(f"No bizz service defined for {self.app.app_name}", file=self.error)
 
         module_path = module_name.split('.')
         step_functions = {}
+        sfn_name = self.app.sfn_name
         errors = {}
-        biz = kwargs.get('biz')
-        for service in self.app.services.values():
-            sfn_name = service.sfn_name
-            if sfn_name in step_functions or (biz is not None and sfn_name != biz):
-                continue
-
-            filename = pathlib.Path(project_dir, *module_path[:-1]) / f"{sfn_name}.{self.extension}"
-            try:
-                sfn = create_step_function(sfn_name, filename)
-                step_functions[sfn_name] = sfn
-            except WriterError as e:
-                errors[sfn_name] = str(e)
+        filename = pathlib.Path(project_dir, *module_path[:-1]) / f"{sfn_name}.{self.extension}"
+        try:
+            sfn = StepFunction(sfn_name, filename)
+            step_functions[sfn_name] = sfn.generate()
+        except WriterError as e:
+            errors[sfn_name] = str(e)
 
         if errors:
             for sfn_name, error in errors.items():
@@ -50,93 +45,101 @@ class StepFunctionWriter(Writer):
                 print(json.dumps(sfn, indent=2), file=self.output)
 
 
-def create_step_function(sfn_name, filepath):
-    """Returns a tuple of step function, error"""
-    try:
-        with filepath.open() as file:
-            data = yaml.load(file, Loader=yaml.SafeLoader)
-            if not data:
-                raise WriterError(f"The content of the {sfn_name} microservice seems to be empty.")
+class StepFunction:
 
-            first = PassState({'name': INITIAL_STATE_NAME})
+    def __init__(self, sfn_name, filepath):
+        self.name = sfn_name
+        self.all_states = []
+        try:
+            with filepath.open() as file:
+                self.data = yaml.load(file, Loader=yaml.SafeLoader)
+                if not self.data:
+                    raise WriterError(f"The content of the {sfn_name} microservice seems to be empty.")
+        except FileNotFoundError:
+            path = pathlib.Path(filepath)
+            if not path.is_absolute():
+                path = pathlib.Path(f"{os.getcwd()}/{filepath}")
+            raise WriterError(f"The source for the {sfn_name} microservice should be found in {path}.")
+        except Exception as e:
+            raise WriterError(str(e))
 
-            all_states = [first]
-            states = State.get_or_raise(data, 'states')
-            add_actions(all_states, states)
+        self.global_catch = 'catch' in self.data
 
-            first.state['Result'] = {}
-            first.add_next_or_end('Next', all_states[1].name)
+    def generate(self):
+        first = PassState(self, {'name': INITIAL_STATE_NAME})
 
-            # global catch state
-            if 'catch' not in data:
-                error_fallback = EndState({'name': LAMBDA_ERROR_FALLBACK})
-                all_states.append(error_fallback)
+        self.all_states.append(first)
+        states = State.get_or_raise(self.data, 'states')
+        self.add_actions(self.all_states, states)
+
+        first.state['Result'] = {}
+        first.add_next_or_end('Next', self.all_states[1].name)
+
+        # global catch state (no automatic catch in corresponding ations)
+        if self.global_catch:
+            error_fallback = PassState(self, {'name': LAMBDA_ERROR_FALLBACK})
+            self.all_states.append(error_fallback)
+            self.add_actions(self.all_states, self.data['catch'], no_catch=True)
+
+        return {
+            "Version": "1.0",
+            "Comment": self.data.get('comment', self.name),
+            "StartAt": "Init",
+            "States": {state.name: state.state for state in self.all_states}
+        }
+
+    def add_actions(self, states, actions, no_catch=False):
+        if not actions:
+            raise WriterError("Actions list cannot be empty.")
+
+        previous_state = states[-1] if len(states) > 0 else None
+        for action in actions:
+            state = self.new_state(action, previous_state, no_catch=no_catch)
+            states.append(state)
+            previous_state = state
+
+            if action == actions[-1] and 'Next' not in state.state:
+                state.add_next_or_end('End', True)
+
+            states.extend(state.catch_states)
+
+    def new_state(self, action, previous_state, no_catch=False):
+        def add_next_to_previous_state():
+            if isinstance(previous_state, ChoiceState):
+                if 'Default' not in previous_state.state:
+                    previous_state.state['Default'] = state.name
             else:
-                error_fallback = PassState({'name': LAMBDA_ERROR_FALLBACK})
-                all_states.append(error_fallback)
-                add_actions(all_states, data['catch'])
+                if 'Next' not in previous_state.state and 'End' not in previous_state.state:
+                    previous_state.state['Next'] = state.name
 
-            return {
-                "Version": "1.0",
-                "Comment": data.get('comment', sfn_name),
-                "StartAt": "Init",
-                "States": {state.name: state.state for state in all_states}
-            }
-    except FileNotFoundError:
-        raise WriterError(f"The source for the {sfn_name} microservice should be found in {os.getcwd()}/{filepath}.")
-    except Exception as e:
-        raise WriterError(str(e))
-
-
-def add_actions(states, actions):
-    if not actions:
-        raise WriterError("Actions list cannot be empty.")
-
-    previous_state = states[-1] if len(states) > 0 else None
-    for action in actions:
-        state = new_state(action, previous_state)
-        states.append(state)
-        previous_state = state
-
-        if action == actions[-1] and 'Next' not in state.state:
-            state.add_next_or_end('End', True)
-
-        states.extend(state.catch_states)
-
-
-def new_state(action, previous_state):
-    def add_next_to_previous_state():
-        if isinstance(previous_state, ChoiceState):
-            if 'Default' not in previous_state.state:
-                previous_state.state['Default'] = state.name
+        if 'choices' in action:
+            state = ChoiceState(self, action)
+        elif 'fail' in action:
+            state = FailState(self, action)
+        elif 'pass' in action:
+            state = PassState(self, action)
+        elif 'success' in action:
+            state = SuccessState(self, action)
+        elif 'tech' in action:
+            state = TechState(self, action, no_catch=no_catch)
+        elif 'wait' in action:
+            state = WaitState(self, action)
         else:
-            if 'Next' not in previous_state.state and 'End' not in previous_state.state:
-                previous_state.state['Next'] = state.name
+            raise WriterError(f"Undefined type of action for {action}")
 
-    if 'choices' in action:
-        state = ChoiceState(action)
-    elif 'fail' in action:
-        state = FailState(action)
-    elif 'pass' in action:
-        state = PassState(action)
-    elif 'success' in action:
-        state = SuccessState(action)
-    elif 'tech' in action:
-        state = TechState(action)
-    elif 'wait' in action:
-        state = WaitState(action)
-    else:
-        raise WriterError(f"Undefined type of action for {action}")
+        if previous_state is not None:
+            add_next_to_previous_state()
 
-    if previous_state is not None:
-        add_next_to_previous_state()
+        return state
 
-    return state
+    def __repr__(self):
+        return f"{self.name} : {self.all_states}"
 
 
 class State(ABC):
 
-    def __init__(self, action, **kwargs):
+    def __init__(self, sfn, action, **kwargs):
+        self.sfn = sfn
         self.action = action or {}
         self.state = {**kwargs}
         self.catch_states = []
@@ -181,19 +184,21 @@ class State(ABC):
 
 
 class SuccessState(State):
-    def __init__(self, action=None, **kwargs):
+    def __init__(self, sfn, action=None, **kwargs):
         kwargs.update({
             "Type": "Succeed",
         })
-        super().__init__(action, **kwargs)
+        super().__init__(sfn, action, **kwargs)
 
     def add_next_or_end(self, key, value):
         super().add_next_or_end(key, value)
 
 
 class FailState(State):
-    def __init__(self, action, **kwargs):
-        super().__init__(action, Type="Fail", **kwargs)
+    def __init__(self, sfn, action, **kwargs):
+        super().__init__(sfn, action, Type="Fail", **kwargs)
+        self.state['Cause'] = action.get('cause', "Undefined reason")
+        self.state['Error'] = action.get('error', "Undefined error")
 
     def add_next_or_end(self, key, value):
         super().add_next_or_end(key, value)
@@ -201,10 +206,13 @@ class FailState(State):
 
 class ChoiceState(State):
 
-    def __init__(self, action, **kwargs):
-        super().__init__(action, Type="Choice", **kwargs)
+    def __init__(self, sfn, action, **kwargs):
+        super().__init__(sfn, action, Type="Choice", **kwargs)
 
         choices = self.get_or_raise(action, 'choices')
+        if not choices:
+            raise WriterError(f"The list of choices may not be empty {action}")
+
         self.state['Choices'] = self.create_choices_sequence(choices)
 
         if 'default' in action:
@@ -243,17 +251,17 @@ class ChoiceState(State):
 
 
 class PassState(State):
-    def __init__(self, action, **kwargs):
+    def __init__(self, sfn, action, **kwargs):
         kwargs.setdefault("Type", "Pass")
-        super().__init__(action, **kwargs)
+        super().__init__(sfn, action, **kwargs)
 
     def add_next_or_end(self, key, value):
         self.state[key] = value
 
 
 class EndState(PassState):
-    def __init__(self, action, **kwargs):
-        super().__init__(action, **kwargs)
+    def __init__(self, sfn, action, **kwargs):
+        super().__init__(sfn, action, **kwargs)
         self.state['End'] = True
 
     def add_next_or_end(self, key, value):
@@ -261,45 +269,46 @@ class EndState(PassState):
 
 
 class WaitState(PassState):
-    def __init__(self, action, **kwargs):
-        super().__init__(action, Type="Wait", **kwargs)
+    def __init__(self, sfn, action, **kwargs):
+        super().__init__(sfn, action, Type="Wait", **kwargs)
         self.state['Seconds'] = action['wait']
         self.add_goto(action)
 
 
 class TechState(PassState):
-    def __init__(self, action, **kwargs):
-        super().__init__(action, Type="Task", **kwargs)
+    def __init__(self, sfn, action, **kwargs):
+        self.no_catch = kwargs.pop('no_catch', False)
+        super().__init__(sfn, action, Type="Task", **kwargs)
 
         tech_data = self.get_or_raise(action, 'tech')
         if not tech_data:
             raise WriterError(f"The content of tech action is empty")
 
         try:
-            self.state['Resource'] = \
-                f"arn:aws:lambda:eu-west-1:935392763270:function:{self.get_or_raise(tech_data, 'service')}"
+            res = self.get_or_raise(tech_data, 'service')
+            self.state['Resource'] = f"arn:aws:lambda:eu-west-1:935392763270:function:{res}"
             self.state["InputPath"] = f"$"
             self.state["ResultPath"] = f"$.{self.slug}.result"
             self.state["OutputPath"] = "$"
             self.state["Parameters"] = self.get_call_data(action, tech_data)
 
             if 'catch' not in action:
-                self.state["Catch"] = [
-                    {
+                if self.sfn.global_catch and not self.no_catch:
+                    self.state["Catch"] = [{
                         "ErrorEquals": ["BadRequestError"],
                         "Next": LAMBDA_ERROR_FALLBACK
-                    },
-                    {
-                        "ErrorEquals": ["States.TaskFailed"],
-                        "Next": LAMBDA_ERROR_FALLBACK
-                    },
-                ]
+                    }]
             else:
-                add_actions(self.catch_states, action['catch'])
+                self.sfn.add_actions(self.catch_states, action['catch'])
                 self.state["Catch"] = [{
                     "ErrorEquals": ["BadRequestError"],
                     "Next": self.catch_states[0].name
                 }]
+                if self.sfn.global_catch and "States.TaskFailed" not in [c["ErrorEquals"] for c in self.state["Catch"]]:
+                    self.state["Catch"].append({
+                        "ErrorEquals": ["States.TaskFailed"],
+                        "Next": LAMBDA_ERROR_FALLBACK
+                    })
 
         except KeyError as e:
             raise WriterError(f"The key {e} is missing for {action}")
