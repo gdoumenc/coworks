@@ -108,7 +108,16 @@ class OdooMicroService(TechMicroService):
         if res.status_code == 200:
             return Response(body=res.content, status_code=200, headers=res.headers)
         else:
-            raise NotFoundError(f"Couldn't retreive invoice {id}")
+            raise NotFoundError(f"Couldn't retreive invoice {id}, status_code : {res.status_code}")
+
+    def post_test(self):
+        return 'ok post'
+
+    def post_testdata(self, data=None):
+        return 'ok with data'
+
+    def get_test(self):
+        return 'ok get'
 
     def put_invoice(self, data=None):
         """ Put a new invoice in Odoo database
