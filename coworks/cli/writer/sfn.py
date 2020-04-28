@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 
 import yaml
 
-from coworks.cli.writer import Writer, WriterError
+from .writer import Writer, WriterError
 
 INITIAL_STATE_NAME = "Init"
 LAMBDA_ERROR_FALLBACK = "MicroServiceErrorFallback"
@@ -18,15 +18,10 @@ class StepFunctionWriter(Writer):
         self.extension = extension
 
     def _export_content(self, module_name='app', handler_name='biz', project_dir='.', **kwargs):
-
-        # checks at least one microservices is defined
-        if not self.app.biz:
-            print(f"No bizz service defined for {self.app.app_name}", file=self.error)
-
         module_path = module_name.split('.')
         step_functions = {}
-        sfn_name = self.app.sfn_name
         errors = {}
+        sfn_name = self.app.sfn_name
         filename = pathlib.Path(project_dir, *module_path[:-1]) / f"{sfn_name}.{self.extension}"
         try:
             sfn = StepFunction(sfn_name, filename)

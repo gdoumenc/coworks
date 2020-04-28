@@ -6,8 +6,8 @@ import pytest
 import yaml
 
 from coworks import BizFactory
-from coworks.cli.sfn import StepFunctionWriter, StepFunction, TechState
-from coworks.cli.writer import WriterError
+from coworks.cli.writer.sfn import StepFunctionWriter, StepFunction, TechState
+from coworks.cli.writer.writer import WriterError
 from .tech_ms import S3MockTechMS
 
 

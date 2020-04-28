@@ -2,11 +2,10 @@ import io
 import json
 from unittest.mock import MagicMock
 
-import pytest
 import requests
 
 from coworks import TechMicroService
-from coworks.cli.sfn import TechState
+from coworks.cli.writer.sfn import TechState
 
 
 class TechMS(TechMicroService):

@@ -1,0 +1,12 @@
+terraform {{ cmd }}
+-target=aws_api_gateway_rest_api.{{ module_file }}_{{ app_name }}
+-target=aws_api_gateway_authorizer.{{ module_file }}_{{ app_name }}
+{% for res, (prev, path, methods) in writer.entries.items() %}
+  -target=aws_api_gateway_resource.{{ module_file }}_{{ res }}
+  {%- if methods %}{% for method in methods %}
+    -target=aws_api_gateway_method.{{ module_file }}_{{ res }}_{{ method }}
+    -target=aws_api_gateway_integration.{{ module_file }}_{{ res }}_{{ method }}
+  {% endfor %}{% endif -%}
+{% endfor %}
+-target=aws_api_gateway_deployment.{{ module_file }}_{{ app_name }}
+-out {{ module_file }}_{{ app_name }}.plan
