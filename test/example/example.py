@@ -2,7 +2,7 @@ import os
 from collections import defaultdict
 
 from coworks import TechMicroService
-from coworks.cli.writer import TerraformWriter
+from coworks.cli.writer.terraform import TerraformWriter
 
 
 class TechMS(TechMicroService):

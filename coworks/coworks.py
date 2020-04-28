@@ -322,8 +322,6 @@ class BizFactory(TechMicroService):
 
     def create(self, biz_name, trigger=None, data: dict = None, **kwargs):
         """Creates a biz microservice. If the trigger is not defined the microservice can only be triggered manually."""
-        if self.debug:
-            print(f"Create {biz_name} biz microservice")
 
         if biz_name in self.biz:
             raise BadRequestError(f"Biz microservice {biz_name} already defined for {self.sfn_name}")

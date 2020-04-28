@@ -11,9 +11,8 @@ from chalice.utils import serialize_to_json
 
 from coworks import BizFactory
 from coworks.version import __version__
-from .sfn import StepFunctionWriter
-from .writer import Writer, TerraformWriter, WriterError
 from .factory import CWSFactory
+from coworks.cli.writer import Writer, WriterError
 
 
 @click.group()

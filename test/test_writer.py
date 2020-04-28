@@ -2,8 +2,9 @@ import io
 import re
 
 import yaml
-from coworks.cli.writer import ListWriter, OpenApiWriter, TerraformWriter
 
+from coworks.cli.writer.terraform import TerraformWriter
+from coworks.cli.writer.writer import ListWriter, OpenApiWriter
 from .tech_ms import SimpleMS
 
 
