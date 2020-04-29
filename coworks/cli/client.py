@@ -137,11 +137,17 @@ def update(ctx, module, app, profile):
 def export_to_file(module, app, _format, out, **kwargs):
     try:
         handler = CWSFactory.import_attr(module, app, cwd=kwargs['project_dir'])
-        _writer: Writer = handler.extensions['writers'][_format]
     except (AttributeError, ModuleNotFoundError):
         sys.stderr.write(f"Module '{module}' has no service {app}\n")
         return
-    except KeyError:
+    except Exception as e:
+        sys.stderr.write(f"Error {e} when loading module '{module}'\n")
+        return
+
+    try:
+        _writer: Writer = handler.extensions['writers'][_format]
+    except KeyError as e:
+        print(e)
         sys.stderr.write(f"Format '{_format}' undefined (you haven't add a {_format} writer to {app} )\n")
         return
 
