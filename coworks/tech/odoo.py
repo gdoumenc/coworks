@@ -175,6 +175,56 @@ class OdooMicroService(TechMicroService):
         self.execute_kw('account.invoice', 'compute_taxes', [invoice_id])
         return f'Created invoice with id {invoice_id}'
 
+    def put_customer(self, data=None):
+        """ Put a new customer (Odoo partner of type contact) in Odoo database
+         Example json body :
+         {
+            "data": {
+                    "name": "name",
+                    "street": "street",
+                    "city": "city",
+                    "zip": "69007",
+                    "email": "user@email.com",
+                    "street2": "street2",
+                    "phone": "04 00 00 00 00",
+                    "mobile": "06 00 00 00 00"
+                }
+        }
+        """
+        data['type'] = 'contact'
+        if 'name' not in data:
+            raise BadRequestError(f"Customer must have a name specified in the json body")
+        partner_id = self.execute_kw('res.partner', 'create', [[data]])
+        return f'Created partner with id {partner_id}'
+
+    def put_invoicingaddress(self, data=None):
+        """ Put a new invoicing address (Odoo partner of type invoice) in Odoo database
+                Example json body :
+                {
+                   "data": {
+                           "name": "name",
+                           "customer_id": "123",
+                           "street": "street",
+                           "city": "city",
+                           "zip": "69007",
+                           "email": "user@email.com",
+                           "street2": "street2",
+                           "phone": "04 00 00 00 00",
+                           "mobile": "06 00 00 00 00"
+                       }
+               }
+               """
+        data['type'] = 'invoice'
+        if 'name' not in data:
+            raise BadRequestError(f"Invoicing address must have a name specified in the json body")
+        if 'customer_id' not in data:
+            raise BadRequestError(f"Invoicing address must have its associated customer_id specified in the json body")
+        data['commercial_partner_id'] = data['customer_id']
+        data['parent_id'] = data['customer_id']
+        data.pop('customer_id')
+        partner_id = self.execute_kw('res.partner', 'create', [[data]])
+        return f'Created partner with id {partner_id}'
+
     def create(self, model, data: dict, dry=False):
         return self.execute_kw(model, 'create', [self._replace_tuple(data)], dry=dry)
 
