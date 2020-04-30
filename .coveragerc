@@ -13,3 +13,4 @@ omit =
 	docs/*
 	test/*
     coworks/cli/templates/*
+    coworks/tech/*

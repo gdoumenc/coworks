@@ -29,3 +29,6 @@ Within the activated environment, init the project with the following command ::
 	(project) $ cws init
 
 CoWorks is now ready for you.
+
+*Beware*: As ``awscli`` (even ``boto3``) evolves often, be sure you have a recent version of it if you have installed it in
+your python virutal environment or dependencies conflicts may occur.

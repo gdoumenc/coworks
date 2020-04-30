@@ -3,6 +3,7 @@ import os
 import sys
 
 from chalice.cli import CLIFactory
+from chalice.local import LocalChalice as LocalChaliceMixin
 
 
 class CWSFactory(CLIFactory):
@@ -26,7 +27,7 @@ class CWSFactory(CLIFactory):
 
     def run_local_server(self, config, host, port):
         app_obj = config.chalice_app
-        server = super().create_local_server(app_obj, config, host, port)
+        server = self.create_local_server(app_obj, config, host, port)
         server.serve_forever()
 
     def create_default_deployer(self, session, config, ui):

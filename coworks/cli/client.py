@@ -8,19 +8,18 @@ from chalice import BadRequestError
 from chalice.cli import CONFIG_VERSION, DEFAULT_STAGE_NAME, DEFAULT_APIGATEWAY_STAGE_NAME
 from chalice.cli import chalice_version, get_system_info
 from chalice.utils import serialize_to_json
-
 from coworks import BizFactory
-from coworks.version import __version__
-from .factory import CWSFactory
 from coworks.cli.writer import Writer, WriterError
+from coworks.version import __version__
+
+from .factory import CWSFactory
 
 
 @click.group()
 @click.version_option(version=__version__,
                       message=f'%(prog)s %(version)s, chalice {chalice_version}, {get_system_info()}')
 @click.option('--project-dir',
-              help='The project directory path (absolute or relative).'
-                   'Defaults to CWD')
+              help='The project directory path (absolute or relative). Defaults to CWD')
 @click.pass_context
 def client(ctx, project_dir=None):
     if project_dir is None:
@@ -38,7 +37,7 @@ def init(ctx, force):
     """Init chalice configuration file."""
     project_name = os.path.basename(os.path.normpath(ctx.obj['project_dir']))
 
-    chalice_dir = os.path.join('.chalice')
+    chalice_dir = os.path.join(ctx.obj['project_dir'], '.chalice')
     if os.path.exists(chalice_dir):
         if force:
             shutil.rmtree(chalice_dir)

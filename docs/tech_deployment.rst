@@ -20,7 +20,8 @@ In CoWorks, only one simple authorizer is defined per class. The authorizer is d
 		def auth(self, auth_request):
 			return True
 
-The function must accept a single arg, which will be an instance of `AuthRequest <https://chalice.readthedocs.io/en/latest/api.html#AuthRequest>`_.
+The function must accept a single arg, which will be an instance of
+`AuthRequest <https://chalice.readthedocs.io/en/latest/api.html#AuthRequest>`_.
 If the method returns ``True`` all the routes are allowed. If it returns ``False`` all routes are denied.
 
 Using the APIGateway model, the authorization protocol is defined by passing a token 'authorization'.
@@ -38,7 +39,7 @@ The API client must include a header of this name to send the authorization toke
 
 To call this microservice, we have to put the right token in header::
 
-	http https://qmk6utp3mh.execute-api.eu-west-1.amazonaws.com/dev/product/0301-100 'authorization: thetokendefined'
+	curl https://zzzzzzzzz.execute-api.eu-west-1.amazonaws.com/my/route -H 'authorization: thetokendefined'
 
 If only some routes are allowed, the authorizer must return a list of the allowed routes.
 
@@ -57,7 +58,7 @@ If only some routes are allowed, the authorizer must return a list of the allowe
 
 
 **BEWARE** : Even if you don't use the token if the authorizatin method, you must define it in the header or the call
-will be rejected.
+will be rejected by ``API Gateway``.
 
 
 Fine grained control
@@ -65,6 +66,15 @@ Fine grained control
 
 
 ** TO BE COMPLETED **
+
+
+Deploy vs update
+----------------
+
+Deployment and updatation are two important steps for the usage of the code. But we think this are different, so made
+in different manner
+
+For deployment, we prefer using ``terraform`` and to update we will use ``cws``.
 
 
 Stages
