@@ -1,4 +1,4 @@
-.. figure:: ./img/coworks.png
+.. figure:: docs/img/coworks.png
   :height: 100px
   :alt: CoWorks Logo
   :target: https://coworks.readthedocs.io/en/latest/_images/coworks.png
