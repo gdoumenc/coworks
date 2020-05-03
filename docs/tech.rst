@@ -195,14 +195,14 @@ You can also run you microservice in a classical manner of python application:
 
 You can add more options for testing as changing the port or the stage::
 
-	$ cws run --stage prod --port 8001
+	$ cws run --port 8001
 
 Then same for python application:
 
 .. code-block:: python
 
 	if __name__ == '__main__':
-		app.run(stage="prod", port=8001)
+		app.run(port=8001)
 
 To get the list of options::
 

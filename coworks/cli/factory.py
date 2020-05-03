@@ -6,7 +6,7 @@ from chalice.cli import CLIFactory
 from chalice.local import LocalChalice as LocalChaliceMixin
 
 
-class CWSFactory(CLIFactory):
+class CwsCLIFactory(CLIFactory):
     def __init__(self, app, project_dir, **kwargs):
         self.app = app
         super().__init__(project_dir, **kwargs)

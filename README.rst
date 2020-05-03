@@ -1,11 +1,9 @@
 .. figure:: docs/img/coworks.png
   :height: 100px
   :alt: CoWorks Logo
-  :target: https://coworks.readthedocs.io/en/latest/_images/coworks.png
+  :target: https://coworks.readthedocs.io/en/latest
 
-=======
-CoWorks
-=======
+|
 
 .. image:: https://travis-ci.com/gdoumenc/coworks.svg?branch=master
   :target: https://travis-ci.com/gdoumenc/coworks
@@ -31,9 +29,9 @@ continue with `BizMicroService <https://coworks.readthedocs.io/en/latest/biz_qui
 Documentation
 -------------
 
-* Get started: `installation <https://coworks.readthedocs.io/en/latest/installation.html>`_
-* Complete reference guide: `documentation <https://coworks.readthedocs.io/en/latest/>`_.
-* Read `FAQ <https://coworks.readthedocs.io/en/latest/faq.html>`_ for other informations.
+* Get started: `Installation <https://coworks.readthedocs.io/en/latest/installation.html/>`_
+* Complete reference guide: `Documentation <https://coworks.readthedocs.io/en/latest/>`_.
+* Read `FAQ <https://coworks.readthedocs.io/en/latest/faq.html/>`_ for other informations.
 
 
 Contributing
