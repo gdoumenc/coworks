@@ -28,6 +28,7 @@ class CoworksMixin:
                                                      env_var_region="AWS_FORM_DATA_REGION")
 
     def _create_rest_proxy(self, func, kwarg_keys, args, varkw):
+        original_app_class = self.__class__
 
         def proxy(**kws):
             if self.debug:
@@ -99,7 +100,13 @@ class CoworksMixin:
                 if self.debug:
                     print(f"Calling {self} with event {kwargs}")
 
+                # chalice is changing class for local server for threading reason (why not mixin..?)
+                self_class = self.__class__
+                if self_class != original_app_class:
+                    self.__class__ = original_app_class
                 resp = func(self, **kwargs)
+                self.__class__ = self_class
+
                 return _convert_response(resp)
 
             except Exception as e:

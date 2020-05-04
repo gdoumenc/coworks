@@ -3,13 +3,13 @@ import threading
 import pytest
 import requests
 import time
-from coworks.cli.client import CWSFactory
+from coworks.cli.client import CwsCLIFactory
 from coworks.pytest.local_server import ThreadedLocalServer
 
 
 def run_server(port):
     print(f"Server starting on port {port}")
-    app = CWSFactory.import_attr('example', 'app', cwd="test/example/")
+    app = CwsCLIFactory.import_attr('example', 'app', cwd="test/example/")
     app.run(host='localhost', port=port, project_dir="test/example/")
 
 

@@ -89,27 +89,15 @@ To get all CoWorks commands and options::
 	Usage: cws [OPTIONS] COMMAND [ARGS]...
 
 	Options:
-	  --version           Show the version and exit.
-	  --project-dir TEXT  The project directory path (absolute or
-						  relative).Defaults to CWD
-	  --help              Show this message and exit.
+	  --version               Show the version and exit.
+	  -p, --project-dir TEXT  The project directory path (absolute or relative).
+							  Defaults to CWD
+
+	  --help                  Show this message and exit.
 
 	Commands:
-	  export
-	  init
-	  run
-
-You can configure several files and entries in you project. For that purpose, you can use the ``module``
-nd ``app`` options of the ``run`` command::
-
-	(project) $ cws run --help
-	Usage: cws run [OPTIONS]
-
-	Options:
-	  -m, --module TEXT     Filename of your microservice python source file.
-	  -a, --app TEXT        Coworks application in the source file.
-	  -h, --host TEXT
-	  -p, --port INTEGER
-	  -s, --stage TEXT      Name of the Chalice stage for the local server to use.
-	  --debug / --no-debug  Print debug logs to stderr.
-	  --help                Show this message and exit.
+	  export  Exports microservice description in other descrioption languages.
+	  info    Information on a microservice.
+	  init    Init chalice configuration file.
+	  run     Runs local server.
+	  update

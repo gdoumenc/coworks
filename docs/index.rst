@@ -17,9 +17,11 @@ Documentation
 
 * Get started: :ref:`installation`.
 * Quick overview: :ref:`tech_quickstart` then :ref:`biz_quickstart`.
+* The Command Line Interface :ref:`cli`.
 * At least :ref:`faq` if not enough...
 
-Using and derived from `Chalice <https://github.com/aws/chalice>`_ and ideas from `Flask-Classy <https://github.com/apiguy/flask-classy/>`_.
+Using and derived from `Chalice <https://github.com/aws/chalice>`_ and ideas from
+`Flask-Classy <https://github.com/apiguy/flask-classy/>`_.
 
 What does microservice means in CoWorks?
 ****************************************
@@ -107,6 +109,7 @@ User’s Guide
   biz_quickstart
   biz
   biz_deployment
+  cli
   faq
   changelog
 

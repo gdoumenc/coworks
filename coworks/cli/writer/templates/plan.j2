@@ -9,4 +9,4 @@ terraform {{ cmd }}
   {% endfor %}{% endif -%}
 {% endfor %}
 -target=aws_api_gateway_deployment.{{ module_file }}_{{ app_name }}
--out {{ module_file }}_{{ app_name }}.plan
+{%- if cmd=='plan' %}-out plan/_api_{{ module_file }}_{{ app_name }}.plan{% endif -%}

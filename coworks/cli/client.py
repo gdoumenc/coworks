@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import sys
@@ -8,19 +9,18 @@ from chalice import BadRequestError
 from chalice.cli import CONFIG_VERSION, DEFAULT_STAGE_NAME, DEFAULT_APIGATEWAY_STAGE_NAME
 from chalice.cli import chalice_version, get_system_info
 from chalice.utils import serialize_to_json
-
-from coworks import BizFactory
-from coworks.version import __version__
-from .factory import CWSFactory
+from coworks import TechMicroService, BizMicroService, BizFactory
 from coworks.cli.writer import Writer, WriterError
+from coworks.version import __version__
+
+from .factory import CwsCLIFactory
 
 
 @click.group()
 @click.version_option(version=__version__,
                       message=f'%(prog)s %(version)s, chalice {chalice_version}, {get_system_info()}')
-@click.option('--project-dir',
-              help='The project directory path (absolute or relative).'
-                   'Defaults to CWD')
+@click.option('-p', '--project-dir',
+              help='The project directory path (absolute or relative). Defaults to CWD')
 @click.pass_context
 def client(ctx, project_dir=None):
     if project_dir is None:
@@ -38,7 +38,7 @@ def init(ctx, force):
     """Init chalice configuration file."""
     project_name = os.path.basename(os.path.normpath(ctx.obj['project_dir']))
 
-    chalice_dir = os.path.join('.chalice')
+    chalice_dir = os.path.join(ctx.obj['project_dir'], '.chalice')
     if os.path.exists(chalice_dir):
         if force:
             shutil.rmtree(chalice_dir)
@@ -50,7 +50,7 @@ def init(ctx, force):
         created = True
 
     os.makedirs(chalice_dir)
-    config = os.path.join('.chalice', 'config.json')
+    config = os.path.join(chalice_dir, 'config.json')
     cfg = {
         'version': CONFIG_VERSION,
         'app_name': project_name,
@@ -69,6 +69,24 @@ def init(ctx, force):
         sys.stdout.write(f"Project {project_name} reinitialized\n")
 
 
+@client.command('info')
+@click.option('-m', '--module', default='app',
+              help="Filename of your microservice python source file.")
+@click.option('-a', '--app', default='app',
+              help="Coworks application in the source file.")
+@click.pass_context
+def info(ctx, module, app):
+    """Information on a microservice."""
+    handler = CwsCLIFactory.import_attr(module, app, cwd=ctx.obj['project_dir'])
+    if not isinstance(handler, TechMicroService):
+        print("Not a microservice")
+        sys.exit(1)
+    print(json.dumps({
+        'name': handler.app_name,
+        'type': 'biz' if isinstance(handler, BizMicroService) else 'tech'
+    }))
+
+
 @client.command('run')
 @click.option('-m', '--module', default='app',
               help="Filename of your microservice python source file.")
@@ -76,14 +94,12 @@ def init(ctx, force):
               help="Coworks application in the source file.")
 @click.option('-h', '--host', default='127.0.0.1')
 @click.option('-p', '--port', default=8000, type=click.INT)
-@click.option('-s', '--stage', default=DEFAULT_STAGE_NAME, type=click.STRING,
-              help="Name of the Chalice stage for the local server to use.")
 @click.option('--debug/--no-debug', default=False,
               help='Print debug logs to stderr.')
 @click.pass_context
 def run(ctx, module, app, host, port, stage, debug):
     """Runs local server."""
-    handler = CWSFactory.import_attr(module, app, cwd=ctx.obj['project_dir'])
+    handler = CwsCLIFactory.import_attr(module, app, cwd=ctx.obj['project_dir'])
     handler.run(host=host, port=port, stage=stage, debug=debug, project_dir=ctx.obj['project_dir'])
 
 
@@ -136,12 +152,18 @@ def update(ctx, module, app, profile):
 
 def export_to_file(module, app, _format, out, **kwargs):
     try:
-        handler = CWSFactory.import_attr(module, app, cwd=kwargs['project_dir'])
-        _writer: Writer = handler.extensions['writers'][_format]
+        handler = CwsCLIFactory.import_attr(module, app, cwd=kwargs['project_dir'])
     except (AttributeError, ModuleNotFoundError):
         sys.stderr.write(f"Module '{module}' has no service {app}\n")
         return
-    except KeyError:
+    except Exception as e:
+        sys.stderr.write(f"Error {e} when loading module '{module}'\n")
+        return
+
+    try:
+        _writer: Writer = handler.extensions['writers'][_format]
+    except KeyError as e:
+        print(e)
         sys.stderr.write(f"Format '{_format}' undefined (you haven't add a {_format} writer to {app} )\n")
         return
 

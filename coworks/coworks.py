@@ -74,13 +74,13 @@ class TechMicroService(CoworksMixin, Chalice):
     def run(self, host='127.0.0.1', port=8000, project_dir='.', stage=None, debug=True):
         # chalice.cli package not defined in deployment package
         from chalice.cli import DEFAULT_STAGE_NAME
-        from .cli.factory import CWSFactory
+        from .cli.factory import CwsCLIFactory
 
         if debug:
             logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')
 
         stage = stage or DEFAULT_STAGE_NAME
-        factory = CWSFactory(self, project_dir, debug=debug)
+        factory = CwsCLIFactory(self, project_dir, debug=debug)
         config = factory.create_config_obj(chalice_stage_name=stage)
         factory.run_local_server(config, host, port)
 

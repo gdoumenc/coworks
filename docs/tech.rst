@@ -106,6 +106,15 @@ This is usefull for offering a CRUD microservice:
 	def put_(self, id, data):
 		return f"modifies an instance identified by {id} with {data}"
 
+**Note**: `API Gateway` accepts only numerated parameters for routes, so the uri_parameters are renamed
+for deployement as::
+
+	/content
+	/content/{_0}
+	/content/{_0}/{_1}
+
+The actual routes are defined this way for the microservice.
+This will change nothing for code but must be known for `Step Function` calls.
 
 Query or body parameters
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -128,7 +137,7 @@ Or in python code using the ``requests`` module::
 
 or by a JSON structure::
 
-	request.get(""/content", json={"id": 32, "name": "test"}")
+	request.get("/content", json={"id": 32, "name": "test"}")
 
 A list parameter can be defined by a multi value parameter::
 
@@ -136,19 +145,19 @@ A list parameter can be defined by a multi value parameter::
 
 Which is equivalent to the JSON call::
 
-	request.get(""/content", json={"id": 32, "name": ["test", "other"]}")
+	request.get("/content", json={"id": 32, "name": ["test", "other"]}")
 
-
-
-**Note**: The current implementation doesn't take in account the typing of the entrypoint function parameters (forcasted).
-So all query paramerters are from type ``string``.
-If you want to pass typed or structured values, use the JSON mode.
+*Beware*: With `API gateway` you can only use query parameters for a GET method, and body
+parameters with a GET method will raise an error in execution.
 
 You can also use the ``**`` notation to get any values::
 
 	def get_content(self, **kwargs):
 		return f"here are all the parameters: {kwargs}"
 
+**Note**: The current implementation doesn't take in account the typing of the entrypoint function parameters (forcasted).
+So all query paramerters are from type ``string``.
+If you want to pass typed or structured values, use the JSON mode.
 
 Microservice Response
 ---------------------
@@ -159,80 +168,8 @@ As for ``Flask`` and ``Chalice``, the return value from a class microservice is 
 * If the return value is a ``dict`` or a ``list``, it's converted to a JSON structure.
 * If a ``tuple`` is returned the items in the tuple can provide extra information. Such tuples have to be in the form (response, status), or (response, status, headers). The status value will override the status code and headers can be a list or dictionary of additional header values.
 
-If none of that works, ``CoWorks`` will assume the return value is a valid ``Chalice`` `Response <https://chalice.readthedocs.io/en/latest/api.html#Response>`_. instance.
-
-.. _authorization:
-
-Authorization
--------------
-
-Simple control
-^^^^^^^^^^^^^^
-
-In CoWorks, only one simple authorizer is defined per class. The authorizer is defined by the method `auth`.
-
-.. code-block:: python
-
-	from coworks import TechMicroService
-
-	class SimpleExampleMicroservice(TechMicroService):
-
-		def auth(self, auth_request):
-			return True
-
-The function must accept a single arg, which will be an instance of `AuthRequest <https://chalice.readthedocs.io/en/latest/api.html#AuthRequest>`_.
-If the method returns ``True`` all the routes are allowed. If it returns ``False`` all routes are denied.
-
-Using the APIGateway model, the authorization protocol is defined by passing a token 'authorization'.
-The API client must include a header of this name to send the authorization token to the Lambda authorizer.
-
-.. code-block:: python
-
-	from coworks import TechMicroService
-
-	class SimpleExampleMicroservice(TechMicroService):
-
-		def auth(self, auth_request):
-			return auth_request.token == os.getenv('TOKEN')
-
-
-To call this microservice, we have to put the right token in header::
-
-	http https://qmk6utp3mh.execute-api.eu-west-1.amazonaws.com/dev/product/0301-100 'authorization: thetokendefined'
-
-If only some routes are allowed, the authorizer must return a list of the allowed routes.
-
-.. code-block:: python
-
-	from coworks import TechMicroService
-
-	class SimpleExampleMicroservice(TechMicroService):
-
-		def auth(self, auth_request):
-			if auth_request.token == os.getenv('ADMIN_TOKEN'):
-				return True
-			elif auth_request.token == os.getenv('USER_TOKEN'):
-				return ['product/*']
-			return False
-
-
-**BEWARE** : Even if you don't use the token, if the authorizatin method is defined, you must define an authorization token in the header or the call
-will be rejected.
-
-
-Composed control
-^^^^^^^^^^^^^^^^
-
-There are two kinds of authorization defined in ``CoWorks``
-
-* Execution rights for microservice,
-* Access control on resources.
-
-For composition of microservices, it is very annoying to have as many token as microservices used.
-Especially when you have many tokens for execution rights (allowing respectively admin mode, debug information, ...)
-and resource access control (read only, complete access, ..)
-
-To be completed.
+If none of that works, ``CoWorks`` will assume the return value is a valid
+``Chalice`` `Response <https://chalice.readthedocs.io/en/latest/api.html#Response>`_ instance.
 
 Test
 ----
@@ -247,7 +184,7 @@ As a classical python application
 
 As seen, you can run your microservice on local with the command::
 
-	$ cws local
+	$ cws run
 
 You can also run you microservice in a classical manner of python application:
 
@@ -258,18 +195,18 @@ You can also run you microservice in a classical manner of python application:
 
 You can add more options for testing as changing the port or the stage::
 
-	$ cws local --stage prod --port 8001
+	$ cws run --port 8001
 
 Then same for python application:
 
 .. code-block:: python
 
 	if __name__ == '__main__':
-		app.run(stage="prod", port=8001)
+		app.run(port=8001)
 
 To get the list of options::
 
-	$ cws local --help
+	$ cws run --help
 
 PyTest
 ^^^^^^

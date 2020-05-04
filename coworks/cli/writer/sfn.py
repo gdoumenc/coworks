@@ -67,7 +67,6 @@ class StepFunction:
         states = State.get_or_raise(self.data, 'states')
         self.add_actions(self.all_states, states)
 
-        first.state['Result'] = {}
         first.add_next_or_end('Next', self.all_states[1].name)
 
         # global catch state (no automatic catch in corresponding ations)

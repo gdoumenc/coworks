@@ -116,9 +116,6 @@ def test_biz_complete():
     assert len(source['States']) == 4
 
     states = source['States']
-    data = states['Init']['Result']
-    print(data)
-
     state = states['Check server']
     assert state is not None
     assert state['Type'] == 'Task'

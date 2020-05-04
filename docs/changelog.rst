@@ -4,6 +4,15 @@ Changelogs
 ==========
 
 
+Version 0.3
+^^^^^^^^^^^
+
+Released 2020-04-26
+
+* BizMicroservice YAML description language defined.
+* BizMicroservice service added.
+* BizFactory service added.
+
 Version 0.2
 ^^^^^^^^^^^
 
