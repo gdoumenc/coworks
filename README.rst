@@ -5,13 +5,13 @@
 
 |
 
-.. image:: https://travis-ci.com/gdoumenc/coworks.svg?branch=master
+.. image:: https://travis-ci.com/gdoumenc/coworks.svg?branch=dev
   :target: https://travis-ci.com/gdoumenc/coworks
   :alt: Travis CI
-.. image:: https://readthedocs.org/projects/coworks/badge/?version=latest
-  :target: https://readthedocs.org/projects/coworks/badge/
+.. image:: https://readthedocs.org/projects/coworks/badge/?version=dev
+  :target: https://readthedocs.org/projects/coworks/
   :alt: Documentation Status
-.. image:: https://codecov.io/gh/gdoumenc/coworks/branch/master/graph/badge.svg
+.. image:: https://codecov.io/gh/gdoumenc/coworks/branch/dev/graph/badge.svg
   :target: https://codecov.io/gh/gdoumenc/coworks
   :alt: Documentation Status
 
