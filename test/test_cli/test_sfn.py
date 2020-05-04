@@ -8,7 +8,7 @@ import yaml
 from coworks import BizFactory
 from coworks.cli.writer.sfn import StepFunctionWriter, StepFunction, TechState
 from coworks.cli.writer.writer import WriterError
-from .tech_ms import S3MockTechMS
+from test.test_cws.tech_ms import S3MockTechMS
 
 
 class TestStepFunction(StepFunction):

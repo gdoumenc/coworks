@@ -3,7 +3,7 @@ import requests
 from chalice import AuthResponse
 
 from .tech_ms import *
-from .blueprint import *
+from test.blueprint import *
 
 
 class AuthorizeAllMS(SimpleMS):

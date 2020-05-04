@@ -9,7 +9,7 @@ from coworks.pytest.local_server import ThreadedLocalServer
 
 def run_server(port):
     print(f"Server starting on port {port}")
-    app = CwsCLIFactory.import_attr('example', 'tech_app', cwd="test/example/")
+    app = CwsCLIFactory.import_attr('example', 'app', cwd="test/example/")
     app.run(host='localhost', port=port, project_dir="test/example/")
 
 
