@@ -8,7 +8,8 @@ from coworks.cli.client import client
 
 def test_init():
     chalice_dir = os.path.join('test', '.chalice')
-    shutil.rmtree(chalice_dir)
+    if  os.path.exists(chalice_dir):
+        shutil.rmtree(chalice_dir)
 
     with pytest.raises(SystemExit) as pytest_wrapped_e:
         client(prog_name='cws', args=['-p', 'test', 'init'], obj={})
@@ -17,6 +18,8 @@ def test_init():
 
     assert os.path.exists(chalice_dir)
     assert os.path.exists(f"{chalice_dir}/config.json")
+
+    shutil.rmtree(chalice_dir)
 
 
 def test_info():
