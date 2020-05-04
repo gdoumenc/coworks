@@ -26,8 +26,8 @@ class TechMS(TechMicroService):
         return f"Simple microservice for {os.getenv('test')}.\n"
 
 
-app = tech_app = TechMS()
-TerraformWriter(app)
+tech_app = TechMS()
+TerraformWriter(tech_app)
 
 if __name__ == '__main__':
-    app.run()
+    tech_app.run()

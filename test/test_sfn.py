@@ -160,8 +160,11 @@ def test_tech():
         }
     }]}
     sfn = TestStepFunction(yaml.dump(data))
-    with pytest.raises(WriterError):
+    with pytest.raises(WriterError) as pytest_wrapped_e:
         sfn.generate()
+    assert pytest_wrapped_e.type == WriterError
+    assert pytest_wrapped_e.value.args[0] == "No route defined for {'name': 'action', 'tech': {'service': 'tech'}}"
+
     data = {'states': [{
         'name': "action",
         'tech': {
@@ -169,8 +172,24 @@ def test_tech():
         }
     }]}
     sfn = TestStepFunction(yaml.dump(data))
-    with pytest.raises(WriterError):
+    with pytest.raises(WriterError) as pytest_wrapped_e:
         sfn.generate()
+    assert pytest_wrapped_e.type == WriterError
+    assert pytest_wrapped_e.value.args[0] == "The key service is missing for {'get': '/'}"
+
+    data = {'states': [{
+        'name': "action",
+        'tech': {
+            'service': "tech1",
+            'get': "/",
+            'post': "/",
+        }
+    }]}
+    sfn = TestStepFunction(yaml.dump(data))
+    with pytest.raises(WriterError) as pytest_wrapped_e:
+        sfn.generate()
+    assert pytest_wrapped_e.type == WriterError
+    assert pytest_wrapped_e.value.args[0].startswith("Too many methods defined for ")
 
 
 def test_catch_all():

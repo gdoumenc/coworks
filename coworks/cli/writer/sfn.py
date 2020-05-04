@@ -319,14 +319,20 @@ class TechState(PassState):
 
         # get route and method
         route = method = None
-        if 'get' in tech_data:
+        has_get = 'get' in tech_data
+        has_post = 'post' in tech_data
+        has_put = 'put' in tech_data
+        if has_get + has_post + has_put > 1:
+            raise WriterError(f"Too many methods defined for {action}")
+        if has_get:
             route = tech_data['get']
             method = 'GET'
-        if 'post' in tech_data:
-            if route is not None:
-                raise WriterError(f"A route was already defined for {action}")
+        if has_post:
             route = tech_data['post']
             method = 'POST'
+        if has_put:
+            route = tech_data['put']
+            method = 'PUT'
         if route is None:
             raise WriterError(f"No route defined for {action}")
 

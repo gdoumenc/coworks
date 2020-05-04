@@ -3,7 +3,6 @@ import os
 import sys
 
 from chalice.cli import CLIFactory
-from chalice.local import LocalChalice as LocalChaliceMixin
 
 
 class CwsCLIFactory(CLIFactory):

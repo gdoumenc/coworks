@@ -22,7 +22,6 @@ class LambdaContext:
         self.function_name = "fun"
 
 
-@pytest.mark.wip
 def test_save_on_s3():
     data = {
         'short': "normal",

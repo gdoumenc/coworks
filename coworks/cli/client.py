@@ -10,10 +10,14 @@ from chalice.cli import CONFIG_VERSION, DEFAULT_STAGE_NAME, DEFAULT_APIGATEWAY_S
 from chalice.cli import chalice_version, get_system_info
 from chalice.utils import serialize_to_json
 from coworks import TechMicroService, BizMicroService, BizFactory
-from coworks.cli.writer import Writer, WriterError
+from coworks.cli.writer import Writer
 from coworks.version import __version__
 
 from .factory import CwsCLIFactory
+
+
+class CLIError(Exception):
+    ...
 
 
 @click.group()
@@ -77,14 +81,20 @@ def init(ctx, force):
 @click.pass_context
 def info(ctx, module, app):
     """Information on a microservice."""
-    handler = CwsCLIFactory.import_attr(module, app, cwd=ctx.obj['project_dir'])
-    if not isinstance(handler, TechMicroService):
-        print("Not a microservice")
+    try:
+        handler = import_attr(module, app, cwd=ctx.obj['project_dir'])
+        if not isinstance(handler, TechMicroService):
+            print("Not a microservice")
+            sys.exit(1)
+        print(json.dumps({
+            'name': handler.app_name,
+            'type': 'biz' if isinstance(handler, BizMicroService) else 'tech'
+        }))
+    except CLIError:
         sys.exit(1)
-    print(json.dumps({
-        'name': handler.app_name,
-        'type': 'biz' if isinstance(handler, BizMicroService) else 'tech'
-    }))
+    except Exception as e:
+        sys.stderr.write(str(e))
+        sys.exit(1)
 
 
 @client.command('run')
@@ -94,13 +104,20 @@ def info(ctx, module, app):
               help="Coworks application in the source file.")
 @click.option('-h', '--host', default='127.0.0.1')
 @click.option('-p', '--port', default=8000, type=click.INT)
+@click.option('-s', '--stage', default='dev')
 @click.option('--debug/--no-debug', default=False,
               help='Print debug logs to stderr.')
 @click.pass_context
 def run(ctx, module, app, host, port, stage, debug):
     """Runs local server."""
-    handler = CwsCLIFactory.import_attr(module, app, cwd=ctx.obj['project_dir'])
-    handler.run(host=host, port=port, stage=stage, debug=debug, project_dir=ctx.obj['project_dir'])
+    try:
+        handler = import_attr(module, app, cwd=ctx.obj['project_dir'])
+        handler.run(host=host, port=port, stage=stage, debug=debug, project_dir=ctx.obj['project_dir'])
+    except CLIError:
+        sys.exit(1)
+    except Exception as e:
+        sys.stderr.write(str(e))
+        sys.exit(1)
 
 
 @client.command('export')
@@ -116,10 +133,11 @@ def run(ctx, module, app, host, port, stage, debug):
 def export(ctx, module, app, biz, format, out):
     """Exports microservice description in other descrioption languages."""
     try:
-        handler = export_to_file(module, app, format, out, project_dir=ctx.obj['project_dir'], biz=biz)
-        if handler is None:
-            sys.exit(1)
-    except WriterError:
+        export_to_file(module, app, format, out, project_dir=ctx.obj['project_dir'], biz=biz)
+    except CLIError:
+        sys.exit(1)
+    except Exception as e:
+        sys.stderr.write(str(e))
         sys.exit(1)
 
 
@@ -150,25 +168,30 @@ def update(ctx, module, app, profile):
         sys.exit(1)
 
 
-def export_to_file(module, app, _format, out, **kwargs):
+def import_attr(module, app, cwd):
     try:
-        handler = CwsCLIFactory.import_attr(module, app, cwd=kwargs['project_dir'])
-    except (AttributeError, ModuleNotFoundError):
+        return CwsCLIFactory.import_attr(module, app, cwd=cwd)
+    except AttributeError:
         sys.stderr.write(f"Module '{module}' has no service {app}\n")
-        return
+        raise CLIError()
+    except ModuleNotFoundError:
+        sys.stderr.write(f"The module '{module}' is not defined in {cwd}\n")
+        raise CLIError()
     except Exception as e:
         sys.stderr.write(f"Error {e} when loading module '{module}'\n")
-        return
+        raise CLIError()
+
+
+def export_to_file(module, app, _format, out, **kwargs):
+    handler = import_attr(module, app, cwd=kwargs['project_dir'])
 
     try:
         _writer: Writer = handler.extensions['writers'][_format]
     except KeyError as e:
-        print(e)
         sys.stderr.write(f"Format '{_format}' undefined (you haven't add a {_format} writer to {app} )\n")
-        return
+        raise CLIError()
 
     _writer.export(output=out, module_name=module, handler_name=app, **kwargs)
-    return handler
 
 
 def update_sfn(handler, src):

@@ -15,9 +15,9 @@ features to help user to :
 Usage
 -----
 
-::
+To view a list of the available commands at any time, just run `cws` with no arguments::
 
-	$ cws --help
+	$ cws
 	Usage: cws [OPTIONS] COMMAND [ARGS]...
 
 	Options:
@@ -33,6 +33,21 @@ Usage
 	  init    Init chalice configuration file.
 	  run     Runs local server.
 	  update
+
+To get help for any specific command, pass the --help flag to the relevant subcommand::
+
+	$ pipenv run cws run --help
+	Usage: cws run [OPTIONS]
+
+	  Runs local server.
+
+	Options:
+	  -m, --module TEXT     Filename of your microservice python source file.
+	  -a, --app TEXT        Coworks application in the source file.
+	  -h, --host TEXT
+	  -p, --port INTEGER
+	  --debug / --no-debug  Print debug logs to stderr.
+	  --help                Show this message and exit.
 
 init
 ^^^^
@@ -53,6 +68,9 @@ Then to create the new initialized folder ``src``::
 
 	$ cws --project-dir src init
 	Project src initialized
+
+You can use `chalice` to deploy or the `export` command for terraform generation or other.
+These two methods are completly distinct.
 
 info
 ^^^^
