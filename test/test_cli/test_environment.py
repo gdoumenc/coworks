@@ -1,7 +1,7 @@
 import requests
 import os
 
-from .tech_ms import *
+from test.test_cws.tech_ms import *
 
 
 class WithEnvMS(SimpleMS):

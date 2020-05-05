@@ -3,7 +3,7 @@ import json
 import requests
 
 from coworks.blueprint import Admin
-from .tech_ms import *
+from test.test_cws.tech_ms import *
 
 
 class DoumentedMS(TechMS):

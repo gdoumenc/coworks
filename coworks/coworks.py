@@ -61,6 +61,10 @@ class TechMicroService(CoworksMixin, Chalice):
     def component_name(self):
         return class_attribute(self, 'url_prefix', '')
 
+    @property
+    def ms_type(self):
+        return 'tech'
+
     def register_blueprint(self, blueprint, **kwargs):
         if 'name_prefix' not in kwargs:
             kwargs['name_prefix'] = blueprint.component_name
@@ -261,6 +265,10 @@ class BizFactory(TechMicroService):
         @self.before_first_request
         def check_sfn():
             return self.sfn_arn
+
+    @property
+    def ms_type(self):
+        return 'biz'
 
     @property
     def trigger_sources(self):

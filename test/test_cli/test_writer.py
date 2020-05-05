@@ -1,3 +1,4 @@
+import functools
 import io
 import re
 
@@ -5,7 +6,7 @@ import yaml
 
 from coworks.cli.writer.terraform import TerraformWriter
 from coworks.cli.writer.writer import ListWriter, OpenApiWriter
-from .tech_ms import SimpleMS
+from test.test_cws.tech_ms import SimpleMS
 
 
 def test_export_list():
@@ -31,6 +32,11 @@ def test_export_open_api():
     assert {'info', 'openapi', 'paths', 'version'} == set(data.keys())
     assert {'/', '/content', '/content/{_0}', '/content/{_0}/{_1}', '/extended/content', '/kwparam1',
             '/kwparam2'} == set(data['paths'].keys())
+    print(writer.pathes)
+    assert len(writer.pathes) == 7
+    sum = lambda x, y: x + y
+    print([e.keys() for e in writer.pathes.values()])
+    assert functools.reduce(sum, [len(e.keys()) for e in writer.pathes.values()], 0) == 9
 
 
 def test_export_terraform():
@@ -43,6 +49,8 @@ def test_export_terraform():
     print(output.read())
     output.seek(0)
     assert len(re.sub(r"\s", "", output.read())) == 1969
+    print(writer.entries)
+    assert len(writer.entries) == 8
 
 # def test_export_terraform_double():
 #     simple = OdooMicroService(app_name='test')
