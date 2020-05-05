@@ -83,7 +83,6 @@ def info(ctx, module, app):
     """Information on a microservice."""
     try:
         handler = import_attr(module, app, cwd=ctx.obj['project_dir'])
-        print(type(handler))
         print(json.dumps({
             'name': handler.app_name,
             'type': handler.ms_type

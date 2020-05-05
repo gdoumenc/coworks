@@ -40,7 +40,7 @@ class TerraformWriter(TemplateWriter):
             for path in splited_route[:-1]:
                 current_path_id = combine(prev_path_id, path)
                 if uid(current_path_id) not in all_pathes_id:
-                    all_pathes_id[uid(current_path_id)] = (uid(prev_path_id), path, entry.keys())
+                    all_pathes_id[uid(current_path_id)] = (uid(prev_path_id), path, None)
                 prev_path_id = current_path_id
 
             # set entryes keys for last entry
