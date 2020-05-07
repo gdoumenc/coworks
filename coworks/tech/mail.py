@@ -2,6 +2,7 @@ import os
 import smtplib
 from email.message import EmailMessage
 
+import requests
 from aws_xray_sdk.core import xray_recorder
 from chalice import ChaliceViewError, BadRequestError
 
@@ -28,7 +29,7 @@ class MailMicroService(TechMicroService):
                 raise EnvironmentError('SMTP_PASSWD not defined in environment')
 
     def post_send(self, subject="", from_addr: str = None, to_addrs: [str] = None, body="",
-                  attachments: [FileParam] = None, subtype="plain", starttls=True):
+                  attachments: [FileParam] = None, attachment_urls: dict = None, subtype="plain", starttls=True):
         """ Send mail.
         To send attachments, add files in the body of the request as multipart/form-data. """
 
@@ -56,6 +57,17 @@ class MailMicroService(TechMicroService):
                     maintype, subtype = attachment.mime_type.split("/")
                     msg.add_attachment(attachment.file.read(), maintype=maintype, subtype=subtype,
                                        filename=attachment.file.name)
+
+            if attachment_urls:
+                for attachment_name, attachment_url in attachment_urls.items():
+                    response = requests.get(attachment_url)
+                    if response.status_code == 200:
+                        attachment = response.content
+                        maintype, subtype = response.headers['Content-Type'].split('/')
+                        msg.add_attachment(response.content, maintype=maintype, subtype=subtype,
+                                           filename=attachment_name)
+                    else:
+                        raise BadRequestError(f"Failed to download attachment, error {response.status_code}")
 
         except Exception as e:
             raise ChaliceViewError(f"Cannot create email message (Error: {str(e)}).")

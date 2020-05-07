@@ -1,5 +1,7 @@
 import logging
 import os
+import io
+import uuid
 from http.client import BadStatusLine
 from xmlrpc import client
 
@@ -7,15 +9,33 @@ import requests
 from aws_xray_sdk.core import xray_recorder
 from chalice import ChaliceViewError, NotFoundError, BadRequestError, Response
 from pyexpat import ExpatError
+from datetime import datetime
 
+from coworks.mixins import Boto3Mixin, AwsS3Session
 from .. import Blueprint
 from ..coworks import TechMicroService
 
 
-class OdooMicroService(TechMicroService):
-    def __init__(self, **kwargs):
+class OdooMicroService(TechMicroService, Boto3Mixin):
+    def __init__(self, bucket, **kwargs):
         super().__init__(**kwargs)
         self.url = self.db = self.username = self.password = self.models_url = self.api_uid = self.logger = None
+        self.aws_s3_session = AwsS3Session()
+        self.bucket = bucket
+
+    def uplod_to_s3(self, file_obj, expiration=3600):
+        """ Upload a file to s3 and return a presigned url to download it """
+        try:
+            response = self.aws_s3_session.client.upload_fileobj(file_obj, self.bucket, file_obj.name)
+        except Exception as e:
+            print(e)
+        try:
+            response = self.aws_s3_session.client.generate_presigned_url('get_object',
+                                                          Params={'Bucket': self.bucket, 'Key': file_obj.name},
+                                                          ExpiresIn=expiration)
+            return response
+        except Exception as e:
+            print(e)
 
     def get_model(self, model: str, searched_field: str, searched_value=None, fields=None, searched_type="str",
                   ensure_one=False, **kwargs):
@@ -105,8 +125,10 @@ class OdooMicroService(TechMicroService):
         host = self.url
         url = f"{host}/my/invoices/{id}/?report_type=pdf&download=true&access_token={access_token}"
         res = requests.get(url=url)
+        file_obj = io.BytesIO(res.content)
+        file_obj.name = f"invoice_{id}.pdf"
         if res.status_code == 200:
-            return Response(body=res.content, status_code=200, headers=res.headers)
+            return self.uplod_to_s3(file_obj)
         else:
             raise NotFoundError(f"Couldn't retreive invoice {id}, status_code : {res.status_code}")
 
@@ -145,6 +167,10 @@ class OdooMicroService(TechMicroService):
         """
 
         invoice_data = dict(data)
+        if 'access_token' not in data:
+            invoice_data['access_token'] = str(uuid.uuid4().int)
+        if 'date_invoice' not in data:
+            invoice_data['date_invoice'] = datetime.today().strftime('%Y-%m-%d')
         invoice_data.pop('lines')
         invoice_id = self.execute_kw('account.invoice', 'create', [[invoice_data]])[0]
 
@@ -163,7 +189,8 @@ class OdooMicroService(TechMicroService):
                 invoice_line['account_id'] = account_id
 
             try:
-                taxes_id = self.get_field('product.product', 'id', invoice_line['product_id'], returned_field='taxes_id')
+                taxes_id = self.get_field('product.product', 'id', invoice_line['product_id'],
+                                          returned_field='taxes_id')
             except NotFoundError as e:
                 raise BadRequestError(f"Invoicing product with id {invoice_line['product_id']} not found in Odoo")
 
@@ -173,7 +200,7 @@ class OdooMicroService(TechMicroService):
 
         self.execute_kw('account.invoice.line', 'create', [invoice_lines_data])
         self.execute_kw('account.invoice', 'compute_taxes', [invoice_id])
-        return f'Created invoice with id {invoice_id}'
+        return {'invoice_id': invoice_id}
 
     def put_customer(self, data=None):
         """ Put a new customer (Odoo partner of type contact) in Odoo database
@@ -195,7 +222,7 @@ class OdooMicroService(TechMicroService):
         if 'name' not in data:
             raise BadRequestError(f"Customer must have a name specified in the json body")
         partner_id = self.execute_kw('res.partner', 'create', [[data]])
-        return f'Created partner with id {partner_id}'
+        return {'partner_id': partner_id[0]}
 
     def put_invoicingaddress(self, data=None):
         """ Put a new invoicing address (Odoo partner of type invoice) in Odoo database
@@ -223,7 +250,7 @@ class OdooMicroService(TechMicroService):
         data['parent_id'] = data['customer_id']
         data.pop('customer_id')
         partner_id = self.execute_kw('res.partner', 'create', [[data]])
-        return f'Created partner with id {partner_id}'
+        return {'partner_id': partner_id[0]}
 
     def create(self, model, data: dict, dry=False):
         return self.execute_kw(model, 'create', [self._replace_tuple(data)], dry=dry)
