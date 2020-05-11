@@ -147,7 +147,6 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
         {
             "data": {
                 "partner_id": 10,
-                "state": "paid",
                 "lines": [
                     {
                         "product_id": "24",
@@ -167,9 +166,11 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
         """
 
         invoice_data = dict(data)
-        if 'access_token' not in data:
-            invoice_data['access_token'] = str(uuid.uuid4().int)
-        if 'date_invoice' not in data:
+        if 'state' not in invoice_data:
+            invoice_data['state'] = 'draft'
+        if 'access_token' not in invoice_data:
+            invoice_data['access_token'] = str(uuid.uuid4())
+        if 'date_invoice' not in invoice_data:
             invoice_data['date_invoice'] = datetime.today().strftime('%Y-%m-%d')
         invoice_data.pop('lines')
         invoice_id = self.execute_kw('account.invoice', 'create', [[invoice_data]])[0]
@@ -200,6 +201,7 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
 
         self.execute_kw('account.invoice.line', 'create', [invoice_lines_data])
         self.execute_kw('account.invoice', 'compute_taxes', [invoice_id])
+        self.execute_kw('account.invoice', 'action_invoice_open', [invoice_id])
         return {'invoice_id': invoice_id}
 
     def put_customer(self, data=None):
