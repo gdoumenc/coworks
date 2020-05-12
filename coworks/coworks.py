@@ -27,8 +27,10 @@ class TechMicroService(CoworksMixin, Chalice):
     def __init__(self, app_name=None, **kwargs):
         app_name = app_name or self.__class__.__name__
         authorizer = kwargs.pop('authorizer', None)
+        cors = kwargs.pop('cors', False)
 
         super().__init__(app_name, **kwargs)
+        self.api.cors = cors
         self.experimental_feature_flags.update([
             'BLUEPRINTS'
         ])
@@ -92,13 +94,13 @@ class TechMicroService(CoworksMixin, Chalice):
         if component is None:
             component = self
 
-            # Adds class authorizer for every entries (if not defined at creation)
+            # Adds class authorizer for every entries (if not already added before)
             auth = class_auth_methods(component)
             if auth and component.__auth__ is None:
                 auth = TechMicroService._create_auth_proxy(component, auth)
                 component.__auth__ = auth
         else:
-            # Add the current_app auth
+            # Adds the current_app auth for blueprints
             auth = self.__auth__
 
         # Adds entrypoints

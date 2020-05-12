@@ -1,12 +1,15 @@
 import requests
-
 from chalice import AuthResponse
 
-from .tech_ms import *
 from test.blueprint import *
+from .tech_ms import *
 
 
 class AuthorizeAllMS(SimpleMS):
+
+    def __init__(self):
+        super().__init__()
+        self.register_blueprint(BP(), url_prefix="/blueprint")
 
     def auth(self, auth_request):
         return True
@@ -36,6 +39,9 @@ def test_authorize_all(local_server_factory):
     response = local_server.make_call(requests.get, '/', headers={'authorization': 'token'})
     assert response.status_code == 200
     assert response.text == 'get'
+    response = local_server.make_call(requests.get, '/blueprint/test/3', headers={'authorization': 'token'})
+    assert response.status_code == 200
+    assert response.text == 'blueprint test 3'
 
 
 def test_authorize_nothing(local_server_factory):
