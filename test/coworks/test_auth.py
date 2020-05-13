@@ -1,7 +1,7 @@
 import requests
 from chalice import AuthResponse
 
-from test.blueprint import *
+from test.blueprint.blueprint import *
 from .tech_ms import *
 
 

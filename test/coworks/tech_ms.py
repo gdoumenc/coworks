@@ -20,6 +20,7 @@ class S3MockTechMS(TechMicroService):
         session.client.get_object = MagicMock(return_value=s3_object)
         self.aws_s3_run_session = session
 
+
 class SimpleMS(TechMS):
 
     def get(self):

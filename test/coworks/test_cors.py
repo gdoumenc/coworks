@@ -15,7 +15,6 @@ class CorsMS(TechMicroService):
         return "get"
 
 
-@pytest.mark.wip
 def test_authorize_all(local_server_factory):
     ms = CorsMS()
     local_server = local_server_factory(ms)

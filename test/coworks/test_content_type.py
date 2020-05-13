@@ -26,7 +26,17 @@ s3_object = {'Body': io.BytesIO(b'test'), 'ContentType': 'text/plain'}
 session.client.get_object = MagicMock(return_value=s3_object)
 
 
-def test_arg_params(local_server_factory):
+def test_text_plain(local_server_factory):
+    """normal API call."""
+    tech = TechMS()
+    local_server = local_server_factory(tech)
+    data = json.dumps({'text': 'value'})
+    headers = {'Content-type': 'text/plain'}
+    response = local_server.make_call(requests.post, '/params', data=data, timeout=500, headers=headers)
+    assert response.status_code == 415
+
+
+def test_form_data(local_server_factory):
     """normal API call."""
     tech = TechMS()
     tech.aws_s3_form_data_session = session
@@ -39,7 +49,7 @@ def test_arg_params(local_server_factory):
         ('files', ('f2.txt', 'some,data,to,send\nanother,row,to,send\n', 'text/plain')),
         ('files', ('f3.j2', 'bucket/key', 'text/s3')),
     ]
-    response = local_server.make_call(requests.post, '/params', files=multiple_files, json=data, timeout=500)
+    response = local_server.make_call(requests.post, '/params', files=multiple_files, json=data)
     assert response.status_code == 200
     assert response.text == "post hello world, {'key': 'value'} and ['f1.csv', 'f2.txt', 'f3.j2']"
 

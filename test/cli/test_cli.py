@@ -29,7 +29,7 @@ def test_info():
     assert pytest_wrapped_e.value.code == 1
 
     with pytest.raises(SystemExit) as pytest_wrapped_e:
-        client(prog_name='cws', args=['-p', 'test/example', 'info', '-m', 'example'], obj={})
+        client(prog_name='cws', args=['-p', 'test/example', 'info', '-m', 'example', '-a', 'test'], obj={})
     assert pytest_wrapped_e.type == SystemExit
     assert pytest_wrapped_e.value.code == 1
 

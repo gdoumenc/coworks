@@ -1,7 +1,7 @@
 import requests
 
-from test.blueprint import *
-from test.test_cws.tech_ms import *
+from test.blueprint.blueprint import *
+from test.coworks.tech_ms import *
 
 
 def test_request(local_server_factory):

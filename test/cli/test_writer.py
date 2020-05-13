@@ -6,7 +6,7 @@ import yaml
 
 from coworks.cli.writer.terraform import TerraformWriter
 from coworks.cli.writer.writer import ListWriter, OpenApiWriter
-from test.test_cws.tech_ms import SimpleMS
+from test.coworks.tech_ms import SimpleMS
 
 
 def test_export_list():

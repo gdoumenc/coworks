@@ -3,7 +3,7 @@ import json
 import requests
 
 from coworks.blueprint import Admin
-from test.test_cws.tech_ms import *
+from test.coworks.tech_ms import *
 
 
 class DoumentedMS(TechMS):
@@ -12,7 +12,11 @@ class DoumentedMS(TechMS):
         """Root access."""
         return "get"
 
-    def post_content(self, value: int, other: str = "none"):
+    def post_content(self, value, other="none"):
+        """Add content."""
+        return f"post_content {value}{other}"
+
+    def post_contentannotated(self, value: int, other: str = "none"):
         """Add content."""
         return f"post_content {value}{other}"
 
@@ -26,18 +30,24 @@ def test_documentation(local_server_factory):
     assert json.loads(response.text)["/"] == {
         "GET": {
             "doc": "Root access.",
-            "signature": "(self)"
+            "signature": "()"
         }
     }
     assert json.loads(response.text)["/content/{_0}"] == {
         "POST": {
             "doc": "Add content.",
-            "signature": "(self, value: int, other: str = \'none\')"
+            "signature": "(value, other=\'none\')"
+        }
+    }
+    assert json.loads(response.text)["/contentannotated/{_0}"] == {
+        "POST": {
+            "doc": "Add content.",
+            "signature": "(value:int, other:str=\'none\')"
         }
     }
     assert json.loads(response.text)["/admin/routes"] == {
         "GET": {
             "doc": 'Returns the list of entrypoints with signature.',
-            "signature": "(self)"
+            "signature": "()"
         }
     }
