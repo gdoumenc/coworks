@@ -28,7 +28,7 @@ class MailMicroService(TechMicroService):
             if not self.smtp_passwd:
                 raise EnvironmentError('SMTP_PASSWD not defined in environment')
 
-    def post_send(self, subject="", from_addr: str = None, to_addrs: [str] = None, body="",
+    def post_send(self, subject="", from_addr: str = None, to_addrs: [str] = None, cc_addrs: [str] = None, bcc_addrs: [str] = None, body="",
                   attachments: [FileParam] = None, attachment_urls: dict = None, subtype="plain", starttls=True):
         """ Send mail.
         To send attachments, add files in the body of the request as multipart/form-data. """
@@ -46,6 +46,10 @@ class MailMicroService(TechMicroService):
             msg['Subject'] = subject
             msg['From'] = from_addr
             msg['To'] = to_addrs if isinstance(to_addrs, str) else ', '.join(to_addrs)
+            if cc_addrs:
+                msg['Cc'] = cc_addrs if isinstance(cc_addrs, str) else ', '.join(cc_addrs)
+            if bcc_addrs:
+                msg['Bcc'] = bcc_addrs if isinstance(bcc_addrs, str) else ', '.join(bcc_addrs)
             msg.set_content(body, subtype=subtype)
 
             if attachments:
