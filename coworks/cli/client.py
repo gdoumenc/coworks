@@ -138,7 +138,7 @@ def export(ctx, module, app, biz, format, out, debug):
         sys.exit(1)
     except Exception as e:
         if debug:
-            traceback.print_exception()
+            traceback.print_exc()
         sys.stderr.write(str(e))
         sys.exit(1)
 

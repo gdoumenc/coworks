@@ -4,19 +4,34 @@ from typing import List
 from .writer import TemplateWriter
 from ... import TechMicroService
 
+UID_SEP = '_'
 
-@dataclass(frozen=True)
+
+@dataclass
 class Entry:
     app: TechMicroService
-    prefix: str
-    last: str
+    parent_uid: str
+    path: str
     methods: List[str]
 
     @property
-    def full_path(self):
-        if self.last is None:
-            return 'root'
-        return f"{self.prefix}_{self.last}" if self.prefix else self.last
+    def uid(self):
+        def remove_brackets(path):
+            return f"{path.replace('{', '').replace('}', '')}"
+
+        if self.path is None:
+            return UID_SEP
+
+        last = remove_brackets(self.path)
+        return f"{self.parent_uid}{UID_SEP}{last}" if self.parent_uid else last
+
+    @property
+    def is_root(self):
+        return self.path is None
+
+    @property
+    def parent_is_root(self):
+        return self.parent_uid == UID_SEP
 
     @property
     def cors(self):
@@ -30,6 +45,9 @@ class Entry:
                 cors.setdefault('Access-Control-Allow-Headers',
                                 "Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key")
         return cors
+
+    def __repr__(self):
+        return f"{self.uid}:{self.methods}"
 
 
 class TerraformWriter(TemplateWriter):
@@ -49,20 +67,17 @@ class TerraformWriter(TemplateWriter):
         """Returns the list of flatten path (prev, last, keys)."""
         all_pathes_id = {}
 
-        def normalize(_path):
-            if _path:
-                return f"{_path.replace('{', '').replace('}', '')}"
-            return None
-
         def add_entry(previous, last, meth):
-            entry = Entry(self.app, normalize(previous), last, meth)
-            combined_path = normalize(entry.full_path)
-            if combined_path not in all_pathes_id:
-                all_pathes_id[combined_path] = entry
-            return entry.full_path
+            entry = Entry(self.app, previous, last, meth)
+            uid = entry.uid
+            if uid not in all_pathes_id:
+                all_pathes_id[uid] = entry
+            if all_pathes_id[uid].methods is None:
+                all_pathes_id[uid].methods = meth
+            return uid
 
         for route, methods in self.app.routes.items():
-            prev_path = None
+            previous_uid = UID_SEP
             splited_route = route[1:].split('/')
 
             # special root case
@@ -73,10 +88,10 @@ class TerraformWriter(TemplateWriter):
             # creates intermediate resources
             last_path = splited_route[-1:][0]
             for prev in splited_route[:-1]:
-                prev_path = add_entry(prev_path, prev, None)
+                previous_uid = add_entry(previous_uid, prev, None)
 
             # set entryes keys for last entry
-            add_entry(prev_path, last_path, methods.keys())
+            add_entry(previous_uid, last_path, methods.keys())
 
         return all_pathes_id
 

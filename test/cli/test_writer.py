@@ -1,6 +1,7 @@
 import functools
 import io
 import re
+import pytest
 
 import yaml
 
@@ -39,6 +40,7 @@ def test_export_open_api():
     assert functools.reduce(sum, [len(e.keys()) for e in writer.pathes.values()], 0) == 9
 
 
+@pytest.mark.wip
 def test_export_terraform():
     simple = SimpleMS()
     writer = TerraformWriter(simple)
@@ -52,12 +54,22 @@ def test_export_terraform():
     print(writer.entries)
     assert len(writer.entries) == 8
 
-# def test_export_terraform_double():
-#     simple = OdooMicroService(app_name='test')
-#     writer = TerraformWriter(simple)
-#     routes = set(writer.entries.keys())
-#     assert len(routes) == len(writer.entries.keys())
-#     assert routes == {'test_call', 'test_call__0', 'test_call__0__1',
-#                       'test_field', 'test_field__0', 'test_field__0__1', 'test_field__0__1__2',
-#                       'test_id', 'test_id__0', 'test_id__0__1', 'test_id__0__1__2',
-#                       'test_model', 'test_model__0', 'test_model__0__1'}
+    assert writer.entries['_'].parent_uid is None
+    assert writer.entries['_'].is_root
+    assert writer.entries['_'].path is None
+    assert 'GET' in writer.entries['_'].methods
+    assert 'POST' not in writer.entries['_'].methods
+
+    assert writer.entries['__content'].parent_uid == '_'
+    assert not writer.entries['__content'].is_root
+    assert writer.entries['__content'].parent_is_root
+    assert writer.entries['__content'].path == 'content'
+    assert 'GET' in writer.entries['__content'].methods
+    assert 'POST' in writer.entries['__content'].methods
+
+    assert writer.entries['__extended'].methods is None
+
+    assert not writer.entries['__extended_content'].is_root
+    assert not writer.entries['__extended_content'].parent_is_root
+    assert 'GET' in writer.entries['__extended_content'].methods
+
