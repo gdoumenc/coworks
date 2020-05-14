@@ -75,7 +75,7 @@ def test_sfn_arg_params():
 
 
 def test_sfn_simple_arg_params():
-    """simlplified step function call."""
+    """simplified step function call."""
     tech = TechMS()
     tech.aws_s3_form_data_session = session
     form_data = {

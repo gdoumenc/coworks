@@ -120,7 +120,7 @@ def call_url(event, context):
             return resp.content
     except Exception as e:
         print(f"Exception : {str(e)}")
-        traceback.print_stack()
+        traceback.print_exception()
         segment.add_exception(e, traceback.extract_stack())
         raise
     finally:

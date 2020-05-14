@@ -1,4 +1,35 @@
+from dataclasses import dataclass
+from typing import List
+
 from .writer import TemplateWriter
+from ... import TechMicroService
+
+
+@dataclass(frozen=True)
+class Entry:
+    app: TechMicroService
+    prefix: str
+    last: str
+    methods: List[str]
+
+    @property
+    def full_path(self):
+        if self.last is None:
+            return 'root'
+        return f"{self.prefix}_{self.last}" if self.prefix else self.last
+
+    @property
+    def cors(self):
+        cors = self.app.api.cors
+        if cors:
+            if type(cors) == bool:
+                cors = {"Access-Control-Allow-Origin": "*"}
+            elif type(cors) == list:
+                cors = {"Access-Control-Allow-Origin": ",".join(cors)}
+            if 'Access-Control-Allow-Headers' not in cors:
+                cors.setdefault('Access-Control-Allow-Headers',
+                                "Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key")
+        return cors
 
 
 class TerraformWriter(TemplateWriter):
@@ -16,36 +47,36 @@ class TerraformWriter(TemplateWriter):
     @property
     def entries(self):
         """Returns the list of flatten path (prev, last, keys)."""
+        all_pathes_id = {}
 
-        def uid(_path):
+        def normalize(_path):
             if _path:
-                return f"{self.app.app_name}_{_path.replace('{', '').replace('}', '')}"
+                return f"{_path.replace('{', '').replace('}', '')}"
             return None
 
-        def combine(_prev, _path):
-            return f"{_prev}_{_path}" if _prev else _path
+        def add_entry(previous, last, meth):
+            entry = Entry(self.app, normalize(previous), last, meth)
+            combined_path = normalize(entry.full_path)
+            if combined_path not in all_pathes_id:
+                all_pathes_id[combined_path] = entry
+            return entry.full_path
 
-        all_pathes_id = {}
-        for route, entry in self.app.routes.items():
-            prev_path_id = None
+        for route, methods in self.app.routes.items():
+            prev_path = None
             splited_route = route[1:].split('/')
 
             # special root case
             if splited_route == ['']:
-                all_pathes_id[uid('root')] = (None, None, entry.keys())
+                add_entry(None, None, methods.keys())
                 continue
 
             # creates intermediate resources
-            last = splited_route[-1:][0]
-            for path in splited_route[:-1]:
-                current_path_id = combine(prev_path_id, path)
-                if uid(current_path_id) not in all_pathes_id:
-                    all_pathes_id[uid(current_path_id)] = (uid(prev_path_id), path, None)
-                prev_path_id = current_path_id
+            last_path = splited_route[-1:][0]
+            for prev in splited_route[:-1]:
+                prev_path = add_entry(prev_path, prev, None)
 
             # set entryes keys for last entry
-            current_path_id = combine(prev_path_id, last)
-            all_pathes_id[uid(current_path_id)] = (uid(prev_path_id), last, entry.keys())
+            add_entry(prev_path, last_path, methods.keys())
 
         return all_pathes_id
 

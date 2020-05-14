@@ -2,6 +2,7 @@ import json
 import os
 import shutil
 import sys
+import traceback
 from tempfile import SpooledTemporaryFile
 
 import click
@@ -126,14 +127,18 @@ def run(ctx, module, app, host, port, stage, debug):
               help="BizMicroservice name.")
 @click.option('-f', '--format', default='terraform')
 @click.option('-o', '--out')
+@click.option('--debug/--no-debug', default=False,
+              help='Print debug logs to stderr.')
 @click.pass_context
-def export(ctx, module, app, biz, format, out):
+def export(ctx, module, app, biz, format, out, debug):
     """Exports microservice description in other descrioption languages."""
     try:
         export_to_file(module, app, format, out, project_dir=ctx.obj['project_dir'], biz=biz)
     except CLIError:
         sys.exit(1)
     except Exception as e:
+        if debug:
+            traceback.print_exception()
         sys.stderr.write(str(e))
         sys.exit(1)
 

@@ -147,7 +147,7 @@ class TechMicroService(CoworksMixin, Chalice):
                     subsegment.put_metadata('result', auth)
             except Exception as e:
                 logger.info(f"Exception : {str(e)}")
-                traceback.print_stack()
+                traceback.print_exception()
                 if subsegment:
                     subsegment.add_exception(e, traceback.extract_stack())
                 raise BadRequestError(str(e))

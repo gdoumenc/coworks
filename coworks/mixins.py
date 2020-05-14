@@ -111,8 +111,7 @@ class CoworksMixin:
 
             except Exception as e:
                 print(f"Exception : {str(e)}")
-                print(traceback.print_exception(*sys.exc_info()))
-                # traceback.print_stack()
+                traceback.print_exception()
                 if subsegment:
                     subsegment.add_exception(e, traceback.extract_stack())
                 raise BadRequestError(str(e))
