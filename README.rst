@@ -43,6 +43,6 @@ If you want to contribute to this project in any kind, your help will be very we
 Related Projects
 ----------------
 
-* `Chalice <https://github.com/aws/chalice>`__ - Python Serverless Microframework for AWS.
+* `Chalice <https://github.com/aws/chalice>`_ - Python Serverless Microframework for AWS.
 
 

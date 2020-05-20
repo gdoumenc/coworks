@@ -1,0 +1,16 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[packages]
+aws-xray-sdk = "*"
+boto3 = "*"
+chalice = "*"
+coworks = {editable = true,path = "/home/studiogdo/workspace/coworks"}
+scons = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.7"

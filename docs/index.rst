@@ -10,6 +10,7 @@ CoWorks is unified serverless microservices framework on AWS technologies.
 
 Each atomic microservice (``class TechMicroService``) is a simple python class deployed as serverless Lambda AWS and
 composition of microservices (``class BizMicroService``) is performed over the Step Function AWS product.
+
 Other AWS technologies are used for logging, administrate, ...
 
 Documentation
@@ -29,7 +30,8 @@ What does microservice means in CoWorks?
 In short, the microservice architectural style is an approach to developing a single application as a suite of small services,
 each running in its own process and communicating with lightweight mechanisms.
 
-In Microservice Architecture, authors M. Amundsen, I. Nadareishvili, R. Mitra, and M. McLarty add detail to the definition
+In Microservice Architecture (Aligning Principles, Practices, and Culture),
+authors M. Amundsen, I. Nadareishvili, R. Mitra, and M. McLarty add detail to the definition
 by outlining traits microservice applications share:
 
 * Small in size
@@ -40,19 +42,19 @@ by outlining traits microservice applications share:
 * Decentralized
 * Built and released with automated processes
 
-In CoWorks, microservices are serverless services over RestFULL resource APIs.
+In CoWorks, microservices are serverless services over APIs.
 
 Small in size
   Simply implemented as a python class.
 
 Messaging enabled
-  HTTP request-response with AWS API Gateway and lightweight messaging with AWS SQS.
+  API Gateway request-response managed services.
 
 Service oriented
   Technological service on Lambda and Functional service over Step Function.
 
 Independently deployable
-  A single command line to deploy.
+  All needed deployement information defined in the python class.
 
 Decentralized
   Serverless components.
@@ -67,10 +69,10 @@ In ``CoWorks`` microservices are divided in two categories :
 
 **Small technical microservice**
 
-  Implemented as a simple AWS lambda function, this kind of microservice a dedicated to technical
+  Implemented as a simple AWS Lambda function, this kind of microservice a dedicated to technical
   operations over a specific service.
 
-  Here are some examples of predefined technical services in CoWorks :
+  Here are some examples of technical services in CoWorks :
 
     * Mail
     * Jinja templating
@@ -81,12 +83,12 @@ In ``CoWorks`` microservices are divided in two categories :
   Implemented over AWS Step Function, this kind of microservice allows non programmer to construct
   functional business workflows.
 
-  Here are some examples of predefined business services in CoWorks :
+  Here are some examples of business services in CoWorks :
 
-    * Alert
-    * Reminder
+    * Invoicing Process
+    * Automated Dashbords
 
-Distinction between TechMicroservice and BizMicroservice is not only the granularity size but also:
+Distinction between TechMicroservice and BizMicroservice is based not only on granularity size but also:
 
 * TechMicroservice should be use only as receivers of orders coming from BizMicroservices.
 * A BizMicroservice represents a logical workflow of actions while a MicroService represents a simple concrete action.
@@ -95,8 +97,8 @@ Distinction between TechMicroservice and BizMicroservice is not only the granula
 
 
 
-User’s Guide
-============
+Documentation
+=============
 
 .. toctree::
   :maxdepth: 2

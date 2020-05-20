@@ -1,15 +1,20 @@
-.chalice/
-Pipfile.lock
-requirements.txt
-/test/example/app.py
+# Project
+coworks.egg-info/
+dist/
 
+# Example
+**/example/.sconsign.dblite
+**/example/.chalice/
+**/example/.terraform*
+**/example/Pipfile.lock
+**/example/*.zip
+
+# Dev tools
 .idea/
 **/__pycache__/
 **/*.http
 docs/_build/
-
-coworks.egg-info/
-dist/
-
 .pytest_cache/
+**/*.log
+
 

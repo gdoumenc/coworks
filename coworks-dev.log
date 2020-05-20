@@ -1,8 +1,0 @@
----------
-Zip log opened Fri Apr 10 11:38:29 2020
-command line arguments:
- -rq --logfile-path coworks-dev.log ../coworks-dev.zip python 
-
-
-Total 31 entries (65K bytes)
-Done Fri Apr 10 11:38:29 2020

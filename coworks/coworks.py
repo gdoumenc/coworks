@@ -1,7 +1,6 @@
 import inspect
 import json
 import logging
-import os
 import sys
 import traceback
 from functools import update_wrapper
@@ -11,8 +10,10 @@ from typing import Dict
 from aws_xray_sdk.core import xray_recorder
 from chalice import AuthResponse, BadRequestError, Rate, Cron
 from chalice import Chalice, Blueprint as ChaliceBlueprint
+
 from requests_toolbelt.multipart import MultipartEncoder
 
+from .config import Config
 from .mixins import CoworksMixin, AwsSFNSession
 from .utils import begin_xray_subsegment, end_xray_subsegment
 from .utils import class_auth_methods, class_rest_methods, class_attribute, trim_underscores
@@ -24,40 +25,45 @@ logger.setLevel(logging.INFO)
 class TechMicroService(CoworksMixin, Chalice):
     """Simple tech microservice created directly from class."""
 
-    def __init__(self, app_name=None, **kwargs):
+    def __init__(self, app_name=None, config=None, **kwargs):
         app_name = app_name or self.__class__.__name__
         authorizer = kwargs.pop('authorizer', None)
-        cors = kwargs.pop('cors', False)
 
         super().__init__(app_name, **kwargs)
-        self.api.cors = cors
         self.experimental_feature_flags.update([
             'BLUEPRINTS'
         ])
 
+        self.config = config or Config()
+
         self.__auth__ = self._create_auth_proxy(self, authorizer) if authorizer else None
+
+        #: A dictionary of all view functions registered.  The keys will
+        #: be function names which are also used to generate URLs and
+        #: the values are the function objects themselves.
+        #: To register a view function, use the :meth:`route` decorator.
         self.blueprints = {}
         self.extensions = {}
 
-        self.entries = {}
-        self._add_route()
-
+        #: A list of functions that will be called at the first activation.
+        #: To register a function, use the :meth:`before_first_request` decorator.
         self.before_first_request_funcs = []
+
+        #: A list of functions that will be called at the beginning of each activation.
+        #: To register a function, use the :meth:`before_request` decorator.
         self.before_request_funcs = []
+
         self.after_request_funcs = []
 
         self._got_first_request = False
         self._before_request_lock = Lock()
 
+        self.entries = {}
+        self._add_route()
         self.sfn_call = False
 
         if "pytest" in sys.modules:
             xray_recorder.configure(context_missing="LOG_ERROR")
-
-    def _initialize(self, env):
-        super()._initialize(env)
-        for k, v in env.items():
-            os.environ[k] = v
 
     @property
     def component_name(self):
@@ -66,6 +72,14 @@ class TechMicroService(CoworksMixin, Chalice):
     @property
     def ms_type(self):
         return 'tech'
+
+    @property
+    def lambda_zip_file(self):
+        return None
+
+    @property
+    def layer_zip_file(self):
+        return None
 
     def register_blueprint(self, blueprint, **kwargs):
         if 'name_prefix' not in kwargs:
@@ -78,17 +92,17 @@ class TechMicroService(CoworksMixin, Chalice):
         self.blueprints[blueprint.import_name] = blueprint
 
     def run(self, host='127.0.0.1', port=8000, project_dir='.', stage=None, debug=True):
-        # chalice.cli package not defined in deployment package
+        # chalice.cli and .cws packages not defined in deployment
         from chalice.cli import DEFAULT_STAGE_NAME
-        from .cli.factory import CwsCLIFactory
+        from .cws.factory import CwsCLIFactory
 
         if debug:
             logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')
 
         stage = stage or DEFAULT_STAGE_NAME
         factory = CwsCLIFactory(self, project_dir, debug=debug)
-        config = factory.create_config_obj(chalice_stage_name=stage)
-        factory.run_local_server(config, host, port)
+        config = factory.mock_config_obj(self, stage)
+        factory.run_local_server(self, config, host, port)
 
     def _add_route(self, component=None, url_prefix=None):
         if component is None:
@@ -129,7 +143,7 @@ class TechMicroService(CoworksMixin, Chalice):
             proxy = component._create_rest_proxy(func, kwarg_keys, args, varkw)
 
             # complete all entries
-            component.route(f"/{route}", methods=[method.upper()], authorizer=auth,
+            component.route(f"/{route}", methods=[method.upper()], authorizer=auth, cors=self.config.cors,
                             content_types=['multipart/form-data', 'application/json'])(proxy)
             if url_prefix:
                 self.entries[f"{url_prefix}/{route}"] = (method.upper(), func)
@@ -233,22 +247,36 @@ class TechMicroService(CoworksMixin, Chalice):
         return res
 
     def before_first_request(self, f):
-        """Registers a function to be run before the first request to this instance of the application.
-           The function will be called without any arguments and its return value is ignored."""
+        """Registers a function to be run before the first request for this instance of the application.
+
+        May be used as a decorator.
+
+        The function will be called without any arguments and its return value is ignored.
+        """
 
         self.before_first_request_funcs.append(f)
         return f
 
     def before_request(self, f):
-        """Registers a function to be run before each request to this instance of the application.
-           The function will be called without any arguments and its return value is ignored."""
+        """Registers a function to run before each request for the instance of the application.
+        :param f:  Function added to the list.
+        :return: None.
+
+        May be used as a decorator.
+
+        The function will be called without any arguments and its return value is ignored.
+        """
 
         self.before_request_funcs.append(f)
         return f
 
     def after_request(self, f):
-        """Registers a function to be run before each request to this instance of the application.
-           The function will be called without any arguments and its return value is ignored."""
+        """Registers a function to be run before each request for this instance of the application.
+
+        May be used as a decorator.
+
+        The function will be called without any arguments and its return value is ignored.
+        """
 
         self.after_request_funcs.append(f)
         return f

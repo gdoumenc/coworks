@@ -14,6 +14,7 @@ sqlalchemy = "*"
 psycopg2 = "*"
 mysqlclient = "*"
 requests-toolbelt = "*"
+coworks = {editable = true,path = "."}
 
 [dev-packages]
 wheel = "*"
@@ -26,6 +27,7 @@ mock = "*"
 websocket = "*"
 sphinx = "*"
 ipdb = "*"
+pytest-env = "*"
 
 [requires]
 python_version = "3.7"
