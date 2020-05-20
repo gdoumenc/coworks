@@ -4,7 +4,6 @@ dist/
 
 # Example
 **/example/.sconsign.dblite
-**/example/.chalice/
 **/example/.terraform*
 **/example/Pipfile.lock
 **/example/*.zip
