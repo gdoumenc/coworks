@@ -181,10 +181,10 @@ def import_attr(module, app, cwd):
     try:
         return CwsCLIFactory.import_attr(module, app, cwd=cwd)
     except AttributeError:
-        sys.stderr.write(f"Module '{module}' has no microservice {app}\n")
+        sys.stderr.write(f"Module '{module}' has no microservice {app} : {str(e)}\n")
         raise CLIError()
-    except ModuleNotFoundError:
-        sys.stderr.write(f"The module '{module}' is not defined in {cwd}\n")
+    except ModuleNotFoundError as e:
+        sys.stderr.write(f"They module '{module}' is not defined in {cwd} : {str(e)}\n")
         raise CLIError()
     except Exception as e:
         sys.stderr.write(f"Error {e} when loading module '{module}'\n")

@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from typing import List
 
-from coworks import TechMicroService, CORSConfig
+from coworks import TechMicroService
+from coworks.config import CORSConfig
 from .writer import TemplateWriter
 
 UID_SEP = '_'

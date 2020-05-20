@@ -49,7 +49,7 @@ def test_export_terraform():
     output.seek(0)
     print(output.read())
     output.seek(0)
-    assert len(re.sub(r"\s", "", output.read())) == 19528
+    assert len(re.sub(r"\s", "", output.read())) == 18226
     print(writer.entries)
     assert len(writer.entries) == 8
 
