@@ -322,6 +322,7 @@ class BizFactory(TechMicroService):
 
         data = data or {}
         try:
+            self.biz[biz_name].data.update(data)
             return self.biz[biz_name](data, {})
         except KeyError:
             if self.debug:

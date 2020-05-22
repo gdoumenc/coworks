@@ -177,9 +177,17 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
 
         invoice_lines_data = data['lines']
         for invoice_line in invoice_lines_data:
-            if 'product_id' not in invoice_line:
+            if not ('product_id' in invoice_line or 'product_name' in invoice_line):
                 raise BadRequestError(
-                    "All invoice lines must have their associated product_id (id of the specific invoicing product) filled in")
+                    "All invoice lines must have their associated product_id or product_name filled in")
+
+            if 'product_name' in invoice_line:
+                product_tmpl_id = self.get_field('product.template', 'name', invoice_line['product_name'], returned_field='id')
+                print("product_tmpl_id", product_tmpl_id)
+                product_id = self.get_field('product.product', 'id', product_tmpl_id, returned_field='id')
+                print('product_id', product_id)
+                invoice_line['product_id'] = product_id
+
             if 'price_unit' not in invoice_line:
                 raise BadRequestError(
                     "All invoice lines must have their associated price_unit (per-unit price) filled in")
