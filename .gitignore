@@ -1,12 +1,14 @@
 # Project
 coworks.egg-info/
 dist/
+Pipfile.lock
 
 # Example
 **/example/.sconsign.dblite
 **/example/.terraform*
 **/example/Pipfile.lock
 **/example/*.zip
+**/example/*.tf*
 
 # Dev tools
 .idea/
