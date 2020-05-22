@@ -21,8 +21,14 @@ Documentation
 * The Command Line Interface :ref:`cli`.
 * At least :ref:`faq` if not enough...
 
-Using and derived from `Chalice <https://github.com/aws/chalice>`_ and ideas from
+Using and derived from `Chalice <https://github.com/aws/chalice>`_ and some ideas from
 `Flask-Classy <https://github.com/apiguy/flask-classy/>`_.
+
+Other tools used:
+
+* `Terraform <https://github.com/hashicorp/terraform>`_ - Infrastructure configuration management tool.
+* `SCons <https://github.com/SCons/scons>`_ -  A software construction tool.
+
 
 What does microservice means in CoWorks?
 ****************************************
@@ -120,6 +126,7 @@ Taking part in the project
 ==========================
 
 If you want to contribute to this project in any kind, your help will be very welcome.
+Don't hesitate to contact any project's member.
 
 
 Indices and tables

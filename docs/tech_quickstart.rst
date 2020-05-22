@@ -37,17 +37,10 @@ Looks good...
 Convert the try
 ---------------
 
-Add the default ``TerraformWriter`` to export terraform configuration file:
+First we will create the layer with the ``scons`` tool. This layer will contain all the needed python modules
+for a simple execution.
 
-.. literalinclude:: ../tests/example/quickstart2.py
-
-Create the terraform files for deployment::
-
-	(project) $ cws export -o app.tf
-
-This will create an ``app.tf`` terraform file for managing all the ressources needed for this first simple microservice.
-
-Now we will create the layer. For that purpose, create a file ``SConstruct`` with following content:
+For that purpose, create a file ``SConstruct`` with following content:
 
 .. literalinclude:: ../tests/example/SConstruct
 
@@ -60,9 +53,20 @@ Then do the following command::
 	generate_zip_file(["layer.zip"], [])
 	scons: done building targets.
 
-It will create the ``layer.zip`` file containing the needed python modules for a simple execution.
+A ``layer.zip`` file is then available.
 
-Enter the following command::
+Next, add the default ``TerraformWriter`` to export terraform configuration file from the microservice code:
+
+.. literalinclude:: ../tests/example/quickstart2.py
+
+Create the terraform files for deployment::
+
+	(project) $ cws export -o app.tf
+
+This will create an ``app.tf`` terraform file for managing all the ressources needed for this first simple microservice.
+
+
+Enter the following command to initialize terraform::
 
 	(project) $ terraform init
 	Initializing the backend...
@@ -73,7 +77,7 @@ Enter the following command::
 	- Downloading plugin for provider "archive" (hashicorp/archive) 1.3.0...
 	...
 
-And then you will get 9 resources creation ::
+And now apply the configuration (it will create the resources)::
 
 	(project) $ terraform apply
 
@@ -91,7 +95,7 @@ And then you will get 9 resources creation ::
 
 Validate the creation by entering ``yes``. Then after the creation of all resources::
 
-	Apply complete! Resources: 6 added, 0 changed, 0 destroyed.
+	Apply complete! Resources: 10 added, 0 changed, 0 destroyed.
 
 	Outputs:
 
