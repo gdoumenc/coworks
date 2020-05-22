@@ -25,7 +25,12 @@ logger.setLevel(logging.INFO)
 class TechMicroService(CoworksMixin, Chalice):
     """Simple tech microservice created directly from class."""
 
-    def __init__(self, app_name=None, config=None, **kwargs):
+    def __init__(self, app_name: str = None, config: Config = None, **kwargs):
+        """ Initialize a technical microservice.
+        :param app_name: Name used to identify the resource.
+        :param config: Deployment configuration.
+        :param kwargs: Other Chalice parameters.
+        """
         app_name = app_name or self.__class__.__name__
         authorizer = kwargs.pop('authorizer', None)
 
@@ -38,25 +43,24 @@ class TechMicroService(CoworksMixin, Chalice):
 
         self.__auth__ = self._create_auth_proxy(self, authorizer) if authorizer else None
 
-        #: A dictionary of all view functions registered.  The keys will
-        #: be function names which are also used to generate URLs and
-        #: the values are the function objects themselves.
-        #: To register a view function, use the :meth:`route` decorator.
+        # Blueprints added by names.
         self.blueprints = {}
+
+        # Extensions defined by type's name (xriters, ..)
         self.extensions = {}
 
-        #: A list of functions that will be called at the first activation.
-        #: To register a function, use the :meth:`before_first_request` decorator.
-        self.before_first_request_funcs = []
+        # A list of functions that will be called at the first activation.
+        # To register a function, use the :meth:`before_first_request` decorator.
+        self.before_first_activation_funcs = []
 
-        #: A list of functions that will be called at the beginning of each activation.
-        #: To register a function, use the :meth:`before_request` decorator.
-        self.before_request_funcs = []
+        # A list of functions that will be called at the beginning of each activation.
+        # To register a function, use the :meth:`before_activation` decorator.
+        self.before_activation_funcs = []
 
-        self.after_request_funcs = []
+        self.after_activation_funcs = []
 
-        self._got_first_request = False
-        self._before_request_lock = Lock()
+        self._got_first_activation = False
+        self._before_activation_lock = Lock()
 
         self.entries = {}
         self._add_route()
@@ -153,10 +157,10 @@ class TechMicroService(CoworksMixin, Chalice):
     @staticmethod
     def _create_auth_proxy(component, auth_method):
 
-        def proxy(auth_request):
+        def proxy(auth_activation):
             subsegment = begin_xray_subsegment(f"auth microservice")
             try:
-                auth = auth_method(component, auth_request)
+                auth = auth_method(component, auth_activation)
                 if subsegment:
                     subsegment.put_metadata('result', auth)
             except Exception as e:
@@ -181,18 +185,18 @@ class TechMicroService(CoworksMixin, Chalice):
         return component.authorizer(name='auth')(proxy)
 
     def __call__(self, event, context):
-        with self._before_request_lock:
-            if not self._got_first_request:
-                for func in self.before_first_request_funcs:
+        with self._before_activation_lock:
+            if not self._got_first_activation:
+                for func in self.before_first_activation_funcs:
                     func()
-                self._got_first_request = True
+                self._got_first_activation = True
 
-        for func in self.before_request_funcs:
+        for func in self.before_activation_funcs:
             func()
 
         res = self.handler(event, context)
 
-        for func in self.after_request_funcs:
+        for func in self.after_activation_funcs:
             func()
 
         return res
@@ -246,19 +250,19 @@ class TechMicroService(CoworksMixin, Chalice):
 
         return res
 
-    def before_first_request(self, f):
-        """Registers a function to be run before the first request for this instance of the application.
+    def before_first_activation(self, f):
+        """Registers a function to be run before the first activation of the microservice.
 
         May be used as a decorator.
 
         The function will be called without any arguments and its return value is ignored.
         """
 
-        self.before_first_request_funcs.append(f)
+        self.before_first_activation_funcs.append(f)
         return f
 
-    def before_request(self, f):
-        """Registers a function to run before each request for the instance of the application.
+    def before_activation(self, f):
+        """Registers a function to run before each activation of the microservice.
         :param f:  Function added to the list.
         :return: None.
 
@@ -267,18 +271,18 @@ class TechMicroService(CoworksMixin, Chalice):
         The function will be called without any arguments and its return value is ignored.
         """
 
-        self.before_request_funcs.append(f)
+        self.before_activation_funcs.append(f)
         return f
 
-    def after_request(self, f):
-        """Registers a function to be run before each request for this instance of the application.
+    def after_activation(self, f):
+        """Registers a function to be run after each activation of the microservice.
 
         May be used as a decorator.
 
         The function will be called without any arguments and its return value is ignored.
         """
 
-        self.after_request_funcs.append(f)
+        self.after_activation_funcs.append(f)
         return f
 
 
@@ -292,7 +296,7 @@ class BizFactory(TechMicroService):
         self.sfn_name = sfn_name
         self.biz: Dict[str, BizMicroService] = {}
 
-        @self.before_first_request
+        @self.before_first_activation
         def check_sfn():
             return self.sfn_arn
 

@@ -132,15 +132,15 @@ def test_after_before_request():
     simple = SimpleMS()
     evts = []
 
-    @simple.before_first_request
+    @simple.before_first_activation
     def always_first():
         evts.append("first")
 
-    @simple.before_request
+    @simple.before_activation
     def before():
         evts.append("before")
 
-    @simple.after_request
+    @simple.after_activation
     def always_first():
         evts.append("after")
 

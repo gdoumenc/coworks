@@ -29,6 +29,19 @@ CoWorks is now ready for you.
 *Beware*: As ``awscli`` (even ``boto3``) evolves often, be sure you have a compatible version of it in
 your python virtual environment or dependencies conflicts may occur.
 
+.. _coworks-init:
+
+Project initialization
+----------------------
+
+To start a project, we have to initialize it::
+
+	(project) $ cws init
+
+or if your project is somewhere else::
+
+	(project) $ cws --project-dir path_to_my_project init
+
 Other tools
 -----------
 

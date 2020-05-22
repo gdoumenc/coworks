@@ -119,6 +119,7 @@ Documentation
   biz_deployment
   cli
   faq
+  api
   changelog
 
 
