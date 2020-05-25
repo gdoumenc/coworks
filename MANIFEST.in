@@ -1,0 +1,2 @@
+include docs/img/*
+include coworks/cws/writer/templates/*

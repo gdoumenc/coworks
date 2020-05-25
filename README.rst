@@ -1,4 +1,4 @@
-.. figure:: docs/img/coworks.png
+.. image:: https://github.com/gdoumenc/coworks/raw/dev/docs/img/coworks.png
   :height: 80px
   :alt: CoWorks Logo
   :target: https://coworks.readthedocs.io/en/latest
@@ -38,11 +38,14 @@ Contributing
 ------------
 
 If you want to contribute to this project in any kind, your help will be very welcome.
+Don't hesitate to contact any project's member.
 
 
 Related Projects
 ----------------
 
-* `Chalice <https://github.com/aws/chalice>`__ - Python Serverless Microframework for AWS.
+* `Chalice <https://github.com/aws/chalice>`_ - Python Serverless Microframework for AWS.
+* `Terraform <https://github.com/hashicorp/terraform>`_ - Infrastructure configuration management tool.
+* `SCons <https://github.com/SCons/scons>`_ -  A software construction tool.
 
 

@@ -21,14 +21,16 @@ def class_rest_methods(obj):
     for name, func in methods:
         if name == 'get' or name.startswith('get_'):
             res.append(('get', func))
-        elif name.startswith('post'):
+        elif name == 'post' or name.startswith('post_'):
             res.append(('post', func))
-        elif name.startswith('put'):
+        elif name == 'put' or name.startswith('put_'):
             res.append(('put', func))
-        elif name.startswith('delete'):
+        elif name == 'delete' or name.startswith('delete_'):
             res.append(('delete', func))
-        elif name.startswith('patch'):
+        elif name == 'patch' or name.startswith('patch_'):
             res.append(('patch', func))
+        elif name == 'options' or name.startswith('options_'):
+            res.append(('options', func))
     return res
 
 

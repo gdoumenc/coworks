@@ -1,7 +1,6 @@
 import inspect
 import json
 import logging
-import os
 import sys
 import traceback
 from functools import update_wrapper
@@ -11,8 +10,10 @@ from typing import Dict
 from aws_xray_sdk.core import xray_recorder
 from chalice import AuthResponse, BadRequestError, Rate, Cron
 from chalice import Chalice, Blueprint as ChaliceBlueprint
+
 from requests_toolbelt.multipart import MultipartEncoder
 
+from .config import Config
 from .mixins import CoworksMixin, AwsSFNSession
 from .utils import begin_xray_subsegment, end_xray_subsegment
 from .utils import class_auth_methods, class_rest_methods, class_attribute, trim_underscores
@@ -24,7 +25,12 @@ logger.setLevel(logging.INFO)
 class TechMicroService(CoworksMixin, Chalice):
     """Simple tech microservice created directly from class."""
 
-    def __init__(self, app_name=None, **kwargs):
+    def __init__(self, app_name: str = None, config: Config = None, **kwargs):
+        """ Initialize a technical microservice.
+        :param app_name: Name used to identify the resource.
+        :param config: Deployment configuration.
+        :param kwargs: Other Chalice parameters.
+        """
         app_name = app_name or self.__class__.__name__
         authorizer = kwargs.pop('authorizer', None)
 
@@ -33,29 +39,35 @@ class TechMicroService(CoworksMixin, Chalice):
             'BLUEPRINTS'
         ])
 
+        self.config = config or Config()
+
         self.__auth__ = self._create_auth_proxy(self, authorizer) if authorizer else None
+
+        # Blueprints added by names.
         self.blueprints = {}
+
+        # Extensions defined by type's name (xriters, ..)
         self.extensions = {}
+
+        # A list of functions that will be called at the first activation.
+        # To register a function, use the :meth:`before_first_request` decorator.
+        self.before_first_activation_funcs = []
+
+        # A list of functions that will be called at the beginning of each activation.
+        # To register a function, use the :meth:`before_activation` decorator.
+        self.before_activation_funcs = []
+
+        self.after_activation_funcs = []
+
+        self._got_first_activation = False
+        self._before_activation_lock = Lock()
 
         self.entries = {}
         self._add_route()
-
-        self.before_first_request_funcs = []
-        self.before_request_funcs = []
-        self.after_request_funcs = []
-
-        self._got_first_request = False
-        self._before_request_lock = Lock()
-
         self.sfn_call = False
 
         if "pytest" in sys.modules:
             xray_recorder.configure(context_missing="LOG_ERROR")
-
-    def _initialize(self, env):
-        super()._initialize(env)
-        for k, v in env.items():
-            os.environ[k] = v
 
     @property
     def component_name(self):
@@ -64,6 +76,14 @@ class TechMicroService(CoworksMixin, Chalice):
     @property
     def ms_type(self):
         return 'tech'
+
+    @property
+    def lambda_zip_file(self):
+        return None
+
+    @property
+    def layer_zip_file(self):
+        return None
 
     def register_blueprint(self, blueprint, **kwargs):
         if 'name_prefix' not in kwargs:
@@ -76,29 +96,29 @@ class TechMicroService(CoworksMixin, Chalice):
         self.blueprints[blueprint.import_name] = blueprint
 
     def run(self, host='127.0.0.1', port=8000, project_dir='.', stage=None, debug=True):
-        # chalice.cli package not defined in deployment package
+        # chalice.cli and .cws packages not defined in deployment
         from chalice.cli import DEFAULT_STAGE_NAME
-        from .cli.factory import CwsCLIFactory
+        from .cws.factory import CwsCLIFactory
 
         if debug:
             logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')
 
         stage = stage or DEFAULT_STAGE_NAME
         factory = CwsCLIFactory(self, project_dir, debug=debug)
-        config = factory.create_config_obj(chalice_stage_name=stage)
-        factory.run_local_server(config, host, port)
+        config = factory.mock_config_obj(self, stage)
+        factory.run_local_server(self, config, host, port)
 
     def _add_route(self, component=None, url_prefix=None):
         if component is None:
             component = self
 
-            # Adds class authorizer for every entries (if not defined at creation)
+            # Adds class authorizer for every entries (if not already added before)
             auth = class_auth_methods(component)
             if auth and component.__auth__ is None:
                 auth = TechMicroService._create_auth_proxy(component, auth)
                 component.__auth__ = auth
         else:
-            # Add the current_app auth
+            # Adds the current_app auth for blueprints
             auth = self.__auth__
 
         # Adds entrypoints
@@ -127,7 +147,7 @@ class TechMicroService(CoworksMixin, Chalice):
             proxy = component._create_rest_proxy(func, kwarg_keys, args, varkw)
 
             # complete all entries
-            component.route(f"/{route}", methods=[method.upper()], authorizer=auth,
+            component.route(f"/{route}", methods=[method.upper()], authorizer=auth, cors=self.config.cors,
                             content_types=['multipart/form-data', 'application/json'])(proxy)
             if url_prefix:
                 self.entries[f"{url_prefix}/{route}"] = (method.upper(), func)
@@ -137,15 +157,15 @@ class TechMicroService(CoworksMixin, Chalice):
     @staticmethod
     def _create_auth_proxy(component, auth_method):
 
-        def proxy(auth_request):
+        def proxy(auth_activation):
             subsegment = begin_xray_subsegment(f"auth microservice")
             try:
-                auth = auth_method(component, auth_request)
+                auth = auth_method(component, auth_activation)
                 if subsegment:
                     subsegment.put_metadata('result', auth)
             except Exception as e:
                 logger.info(f"Exception : {str(e)}")
-                traceback.print_stack()
+                traceback.print_exc()
                 if subsegment:
                     subsegment.add_exception(e, traceback.extract_stack())
                 raise BadRequestError(str(e))
@@ -165,18 +185,18 @@ class TechMicroService(CoworksMixin, Chalice):
         return component.authorizer(name='auth')(proxy)
 
     def __call__(self, event, context):
-        with self._before_request_lock:
-            if not self._got_first_request:
-                for func in self.before_first_request_funcs:
+        with self._before_activation_lock:
+            if not self._got_first_activation:
+                for func in self.before_first_activation_funcs:
                     func()
-                self._got_first_request = True
+                self._got_first_activation = True
 
-        for func in self.before_request_funcs:
+        for func in self.before_activation_funcs:
             func()
 
         res = self.handler(event, context)
 
-        for func in self.after_request_funcs:
+        for func in self.after_activation_funcs:
             func()
 
         return res
@@ -230,25 +250,39 @@ class TechMicroService(CoworksMixin, Chalice):
 
         return res
 
-    def before_first_request(self, f):
-        """Registers a function to be run before the first request to this instance of the application.
-           The function will be called without any arguments and its return value is ignored."""
+    def before_first_activation(self, f):
+        """Registers a function to be run before the first activation of the microservice.
 
-        self.before_first_request_funcs.append(f)
+        May be used as a decorator.
+
+        The function will be called without any arguments and its return value is ignored.
+        """
+
+        self.before_first_activation_funcs.append(f)
         return f
 
-    def before_request(self, f):
-        """Registers a function to be run before each request to this instance of the application.
-           The function will be called without any arguments and its return value is ignored."""
+    def before_activation(self, f):
+        """Registers a function to run before each activation of the microservice.
+        :param f:  Function added to the list.
+        :return: None.
 
-        self.before_request_funcs.append(f)
+        May be used as a decorator.
+
+        The function will be called without any arguments and its return value is ignored.
+        """
+
+        self.before_activation_funcs.append(f)
         return f
 
-    def after_request(self, f):
-        """Registers a function to be run before each request to this instance of the application.
-           The function will be called without any arguments and its return value is ignored."""
+    def after_activation(self, f):
+        """Registers a function to be run after each activation of the microservice.
 
-        self.after_request_funcs.append(f)
+        May be used as a decorator.
+
+        The function will be called without any arguments and its return value is ignored.
+        """
+
+        self.after_activation_funcs.append(f)
         return f
 
 
@@ -262,7 +296,7 @@ class BizFactory(TechMicroService):
         self.sfn_name = sfn_name
         self.biz: Dict[str, BizMicroService] = {}
 
-        @self.before_first_request
+        @self.before_first_activation
         def check_sfn():
             return self.sfn_arn
 
