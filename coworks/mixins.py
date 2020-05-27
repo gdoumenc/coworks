@@ -19,6 +19,7 @@ class CoworksMixin:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.debug = kwargs.pop('debug', False)
+        self.__auth__ = None
 
         self.aws_s3_sfn_data_session = AwsS3Session(env_var_access_key="AWS_RUN_ACCESS_KEY_ID",
                                                     env_var_secret_key="AWS_RUN_SECRET_KEY",

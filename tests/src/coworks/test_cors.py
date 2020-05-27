@@ -14,14 +14,6 @@ class NoneCorsMS(TechMicroService):
         return "get"
 
 
-def test_authorize_none(local_server_factory):
-    ms = NoneCorsMS()
-    local_server = local_server_factory(ms)
-    response = local_server.make_call(requests.options, '/', timeout=500)
-    assert response.status_code == 200
-    assert 'Access-Control-Allow-Origin' not in response.headers
-
-
 class AllCorsMS(TechMicroService):
 
     def __init__(self, **kwargs):
@@ -31,14 +23,6 @@ class AllCorsMS(TechMicroService):
     def get(self):
         """Root access."""
         return "get"
-
-
-def test_authorize_all(local_server_factory):
-    ms = AllCorsMS()
-    local_server = local_server_factory(ms)
-    response = local_server.make_call(requests.options, '/')
-    assert response.status_code == 200
-    assert response.headers['Access-Control-Allow-Origin'] == '*'
 
 
 class OneCorsMS(TechMicroService):
@@ -52,14 +36,6 @@ class OneCorsMS(TechMicroService):
         return "get"
 
 
-def test_authorize_one(local_server_factory):
-    ms = OneCorsMS()
-    local_server = local_server_factory(ms)
-    response = local_server.make_call(requests.options, '/')
-    assert response.status_code == 200
-    assert response.headers['Access-Control-Allow-Origin'] == 'www.test.fr'
-
-
 class SeveralCorsMS(TechMicroService):
 
     def __init__(self, **kwargs):
@@ -69,14 +45,6 @@ class SeveralCorsMS(TechMicroService):
     def get(self):
         """Root access."""
         return "get"
-
-
-def test_authorize_several(local_server_factory):
-    ms = SeveralCorsMS()
-    local_server = local_server_factory(ms)
-    response = local_server.make_call(requests.options, '/')
-    assert response.status_code == 200
-    assert response.headers['Access-Control-Allow-Origin'] == 'www.test.fr, www.test.com'
 
 
 class OtherCorsMS(TechMicroService):
@@ -94,10 +62,39 @@ class OtherCorsMS(TechMicroService):
         return "get"
 
 
-def test_authorize_other(local_server_factory):
-    ms = OtherCorsMS()
-    local_server = local_server_factory(ms)
-    response = local_server.make_call(requests.options, '/')
-    assert response.status_code == 200
-    assert response.headers['Access-Control-Allow-Origin'] == 'https://www.test.fr'
-    assert response.headers['Access-Control-Max-Age'] == '600'
+class TestClass:
+    def test_authorize_none(self, local_server_factory):
+        ms = NoneCorsMS()
+        local_server = local_server_factory(ms)
+        response = local_server.make_call(requests.options, '/', timeout=500)
+        assert response.status_code == 200
+        assert 'Access-Control-Allow-Origin' not in response.headers
+
+    def test_authorize_all(self, local_server_factory):
+        ms = AllCorsMS()
+        local_server = local_server_factory(ms)
+        response = local_server.make_call(requests.options, '/')
+        assert response.status_code == 200
+        assert response.headers['Access-Control-Allow-Origin'] == '*'
+
+    def test_authorize_one(self, local_server_factory):
+        ms = OneCorsMS()
+        local_server = local_server_factory(ms)
+        response = local_server.make_call(requests.options, '/')
+        assert response.status_code == 200
+        assert response.headers['Access-Control-Allow-Origin'] == 'www.test.fr'
+
+    def test_authorize_several(self, local_server_factory):
+        ms = SeveralCorsMS()
+        local_server = local_server_factory(ms)
+        response = local_server.make_call(requests.options, '/')
+        assert response.status_code == 200
+        assert response.headers['Access-Control-Allow-Origin'] == 'www.test.fr, www.test.com'
+
+    def test_authorize_other(self, local_server_factory):
+        ms = OtherCorsMS()
+        local_server = local_server_factory(ms)
+        response = local_server.make_call(requests.options, '/')
+        assert response.status_code == 200
+        assert response.headers['Access-Control-Allow-Origin'] == 'https://www.test.fr'
+        assert response.headers['Access-Control-Max-Age'] == '600'

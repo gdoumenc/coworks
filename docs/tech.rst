@@ -242,6 +242,7 @@ If you have an authorized access:
 		response = local_server.make_call(requests.get, '/', headers={'authorization': 'allow'})
 		assert response.status_code == 200
 
+.. _blueprint:
 
 Blueprints and Extensions
 -------------------------

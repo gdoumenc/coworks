@@ -1,6 +1,8 @@
 from dataclasses import dataclass
+from typing import Callable, Union
 
 from chalice import CORSConfig as ChaliceCORSConfig
+from chalice.app import AuthRequest, AuthResponse
 
 
 class CORSConfig(ChaliceCORSConfig):
@@ -13,5 +15,12 @@ class CORSConfig(ChaliceCORSConfig):
 
 @dataclass
 class Config:
+    """ Configuration class for deployment.
+
+    """
+
+    authorizer: Callable[['TechMicroService', AuthRequest], Union[bool, list, AuthResponse]] = None
     cors: CORSConfig = CORSConfig(allow_origin='')
     timeout: int = 60
+    stage: str = "dev"
+    var_file: str = "env.vars"
