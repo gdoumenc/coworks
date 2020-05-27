@@ -22,5 +22,11 @@ class Config:
     authorizer: Callable[['TechMicroService', AuthRequest], Union[bool, list, AuthResponse]] = None
     cors: CORSConfig = CORSConfig(allow_origin='')
     timeout: int = 60
+
     stage: str = "dev"
-    var_file: str = "env.vars"
+
+    #: Variables defined for the Lambda
+    environment_variables_file: str = None
+
+    #: Variable defined in the staged API
+    stage_variables_file: str = None

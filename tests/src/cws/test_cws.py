@@ -2,6 +2,7 @@ import io
 import json
 import os
 import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -14,15 +15,14 @@ class TestClass:
 
     def test_init(self):
         with tempfile.TemporaryDirectory() as tmp:
-            chalice_dir = os.path.join(tmp, '.chalice')
-
             with pytest.raises(SystemExit) as pytest_wrapped_e:
                 client(prog_name='cws', args=['-p', tmp, 'init'], obj={})
             assert pytest_wrapped_e.type == SystemExit
             assert pytest_wrapped_e.value.code == 0
 
+            chalice_dir = Path(tmp) / '.chalice'
             assert os.path.exists(chalice_dir)
-            assert os.path.exists(f"{chalice_dir}/config.json")
+            assert os.path.exists(chalice_dir / "config.json")
 
     def test_info(self):
         with pytest.raises(SystemExit) as pytest_wrapped_e:
