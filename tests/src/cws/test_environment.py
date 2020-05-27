@@ -20,14 +20,14 @@ class TestClass:
 
     def test_dev_stage(self, local_server_factory):
         config = Config(environment_variables_file=Path(EXAMPLE_DIR) / "_dev_vars.json")
-        local_server = local_server_factory(WithEnvMS(config=config))
+        local_server = local_server_factory(WithEnvMS(configs=config))
         response = local_server.make_call(requests.get, '/')
         assert response.status_code == 200
         assert response.text == 'test environment variable'
 
     def test_prod_stage(self, local_server_factory):
         config = Config(environment_variables_file=Path(EXAMPLE_DIR) / "_prod_vars.json")
-        local_server = local_server_factory(WithEnvMS(config=config))
+        local_server = local_server_factory(WithEnvMS(configs=config))
         response = local_server.make_call(requests.get, '/')
         assert response.status_code == 200
         assert response.text == 'prod variable'

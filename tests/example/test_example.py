@@ -44,7 +44,7 @@ class TestClass:
 
     def test_env(self, local_server_factory):
         config = Config(environment_variables_file=Path(EXAMPLE_DIR) / "_dev_vars.json")
-        local_server = local_server_factory(TechMS(config=config))
+        local_server = local_server_factory(TechMS(configs=[config]))
         response = local_server.make_call(requests.get, '/env', timeout=500)
         assert response.status_code == 200
         assert response.text == "Simple microservice for test environment variable.\n"

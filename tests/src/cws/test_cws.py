@@ -13,17 +13,6 @@ EXAMPLE_DIR = os.getenv('EXAMPLE_DIR')
 
 class TestClass:
 
-    def test_init(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            with pytest.raises(SystemExit) as pytest_wrapped_e:
-                client(prog_name='cws', args=['-p', tmp, 'init'], obj={})
-            assert pytest_wrapped_e.type == SystemExit
-            assert pytest_wrapped_e.value.code == 0
-
-            chalice_dir = Path(tmp) / '.chalice'
-            assert os.path.exists(chalice_dir)
-            assert os.path.exists(chalice_dir / "config.json")
-
     def test_info(self):
         with pytest.raises(SystemExit) as pytest_wrapped_e:
             client(prog_name='cws', args=['-p', EXAMPLE_DIR, 'info'], obj={})

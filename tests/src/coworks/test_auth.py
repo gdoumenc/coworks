@@ -113,7 +113,7 @@ class TestClass:
 
     def test_authorized_external(self, local_server_factory):
         config = Config(authorizer=auth_external)
-        local_server = local_server_factory(AuthorizedMS(config=config))
+        local_server = local_server_factory(AuthorizedMS(configs=[config]))
         response = local_server.make_call(requests.get, '/', headers={'authorization': 'allow'})
         assert response.status_code == 200
         assert response.text == 'get'

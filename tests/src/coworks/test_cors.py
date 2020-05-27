@@ -18,7 +18,7 @@ class AllCorsMS(TechMicroService):
 
     def __init__(self, **kwargs):
         config = Config(cors=CORSConfig(allow_origin='*'))
-        super().__init__(config=config, **kwargs)
+        super().__init__(configs=config, **kwargs)
 
     def get(self):
         """Root access."""
@@ -29,7 +29,7 @@ class OneCorsMS(TechMicroService):
 
     def __init__(self, **kwargs):
         config = Config(cors=CORSConfig(allow_origin='www.test.fr'))
-        super().__init__(config=config, **kwargs)
+        super().__init__(configs=config, **kwargs)
 
     def get(self):
         """Root access."""
@@ -40,7 +40,7 @@ class SeveralCorsMS(TechMicroService):
 
     def __init__(self, **kwargs):
         config = Config(cors=CORSConfig(allow_origin=['www.test.fr', 'www.test.com']))
-        super().__init__(config=config, **kwargs)
+        super().__init__(configs=config, **kwargs)
 
     def get(self):
         """Root access."""
@@ -55,7 +55,7 @@ class OtherCorsMS(TechMicroService):
                                         max_age=600,
                                         expose_headers=['X-Special-Header'],
                                         allow_credentials=True))
-        super().__init__(config=config, **kwargs)
+        super().__init__(configs=config, **kwargs)
 
     def get(self):
         """Root access."""

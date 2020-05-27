@@ -1,16 +1,16 @@
 import inspect
 import json
 import logging
+import os
 import sys
 import traceback
 from functools import update_wrapper
 from threading import Lock
-from typing import Dict
+from typing import Dict, List, Union
 
 from aws_xray_sdk.core import xray_recorder
 from chalice import AuthResponse, BadRequestError, Rate, Cron
 from chalice import Chalice, Blueprint as ChaliceBlueprint
-
 from requests_toolbelt.multipart import MultipartEncoder
 
 from .config import Config
@@ -58,7 +58,7 @@ class TechMicroService(CoworksMixin, Chalice):
     
     """
 
-    def __init__(self, app_name: str = None, config: Config = None, **kwargs):
+    def __init__(self, app_name: str = None, configs: Union[Config, List[Config]] = None, **kwargs):
         """ Initialize a technical microservice.
         :param app_name: Name used to identify the resource.
         :param config: Deployment configuration.
@@ -71,7 +71,11 @@ class TechMicroService(CoworksMixin, Chalice):
             'BLUEPRINTS'
         ])
 
-        self.config = config or Config()
+        self.configs = configs or [Config()]
+        if type(self.configs) is not list:
+            self.configs = [configs]
+        self.config = self.configs[0]
+
         authorizer = self.config.authorizer
 
         # If defined replace the class defined authorizer (on the microservice and on the blueprint)
@@ -147,6 +151,10 @@ class TechMicroService(CoworksMixin, Chalice):
 
         if debug:
             logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')
+
+        if self.config.environment_variables_file:
+            with open(self.config.environment_variables_file) as f:
+                os.environ.update(json.loads(f.read()))
 
         stage = stage or DEFAULT_STAGE_NAME
         factory = CwsCLIFactory(self, project_dir, debug=debug)

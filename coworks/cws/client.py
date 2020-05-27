@@ -36,45 +36,6 @@ def client(ctx, project_dir=None):
     ctx.obj['project_dir'] = project_dir
 
 
-@client.command('init')
-@click.option('--force/--no-force', default=False,
-              help='Forces project reinitialization.')
-@click.pass_context
-def init(ctx, force):
-    """Init chalice configuration file."""
-    project_name = os.path.basename(os.path.normpath(ctx.obj['project_dir']))
-
-    chalice_dir = os.path.join(ctx.obj['project_dir'], '.chalice')
-    if os.path.exists(chalice_dir):
-        if force:
-            shutil.rmtree(chalice_dir)
-            created = False
-        else:
-            sys.stderr.write(f"Project {project_name} already initialized\n")
-            return
-    else:
-        created = True
-
-    os.makedirs(chalice_dir)
-    config = os.path.join(chalice_dir, 'config.json')
-    cfg = {
-        'version': CONFIG_VERSION,
-        'app_name': project_name,
-        'stages': {
-            DEFAULT_STAGE_NAME: {
-                'api_gateway_stage': DEFAULT_APIGATEWAY_STAGE_NAME,
-            }
-        }
-    }
-    with open(config, 'w') as f:
-        f.write(serialize_to_json(cfg))
-
-    if created:
-        sys.stdout.write(f"Project {project_name} initialized\n")
-    else:
-        sys.stdout.write(f"Project {project_name} reinitialized\n")
-
-
 @client.command('info')
 @click.option('-m', '--module', default='app',
               help="Filename of your microservice python source file.")

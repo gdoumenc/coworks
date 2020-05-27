@@ -19,11 +19,11 @@ class Config:
 
     """
 
+    workspace_name: str = "dev"
+
     authorizer: Callable[['TechMicroService', AuthRequest], Union[bool, list, AuthResponse]] = None
     cors: CORSConfig = CORSConfig(allow_origin='')
     timeout: int = 60
-
-    stage: str = "dev"
 
     #: Variables defined for the Lambda
     environment_variables_file: str = None
