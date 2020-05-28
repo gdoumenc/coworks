@@ -27,11 +27,6 @@ Test locally this microservice::
 	(project) $ cws run
 	Serving on http://127.0.0.1:8000
 
-*Beware*:  If you get the following message::
-
-	FileNotFoundError: [Errno 2] No such file or directory: '.chalice/config.json'
-
-You haven't initialized the project, see :ref:`Project initialization <coworks-init>`:
 
 On another terminal enter::
 
@@ -146,6 +141,5 @@ To get all CoWorks commands and options::
 	Commands:
 	  export  Export microservice in other description languages.
 	  info    Information on a microservice.
-	  init    Init chalice configuration file.
 	  run     Run local server.
 	  update  Update biz microservice.

@@ -4,6 +4,8 @@ from typing import Callable, Union
 from chalice import CORSConfig as ChaliceCORSConfig
 from chalice.app import AuthRequest, AuthResponse
 
+from .mixins import CoworksMixin
+
 
 class CORSConfig(ChaliceCORSConfig):
 
@@ -20,13 +22,15 @@ class Config:
     """
 
     workspace_name: str = "dev"
-
-    authorizer: Callable[['TechMicroService', AuthRequest], Union[bool, list, AuthResponse]] = None
-    cors: CORSConfig = CORSConfig(allow_origin='')
-    timeout: int = 60
+    debug: bool = False
+    version: str = ""
 
     #: Variables defined for the Lambda
     environment_variables_file: str = None
 
     #: Variable defined in the staged API
-    stage_variables_file: str = None
+    api_variables_file: str = None
+
+    authorizer: Callable[[CoworksMixin, AuthRequest], Union[bool, list, AuthResponse]] = None
+    cors: CORSConfig = CORSConfig(allow_origin='')
+    timeout: int = 60

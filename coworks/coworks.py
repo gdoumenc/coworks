@@ -64,17 +64,18 @@ class TechMicroService(CoworksMixin, Chalice):
         :param config: Deployment configuration.
         :param kwargs: Other Chalice parameters.
         """
+        self.configs = configs or [Config()]
+        if type(self.configs) is not list:
+            self.configs = [configs]
+        self.config = self.configs[0]
+
         app_name = app_name or self.__class__.__name__
+        kwargs.setdefault('debug', self.config.debug)
 
         super().__init__(app_name, **kwargs)
         self.experimental_feature_flags.update([
             'BLUEPRINTS'
         ])
-
-        self.configs = configs or [Config()]
-        if type(self.configs) is not list:
-            self.configs = [configs]
-        self.config = self.configs[0]
 
         authorizer = self.config.authorizer
 
@@ -165,9 +166,9 @@ class TechMicroService(CoworksMixin, Chalice):
         if component is None:
             component = self
 
-        # External authorizer has priority
+        # External authorizer has priority (forced)
         if self.__authorizer__:
-            auth = self.__authorizer__
+            auth = component.__auth__ = self.__authorizer__
         else:
             auth = class_auth_methods(component)
             if auth and component.__auth__ is None:

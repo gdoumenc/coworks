@@ -121,6 +121,7 @@ class TemplateWriter(Writer):
             'handler': handler_name,
             'app': self.app,
             'app_name': self.app.app_name,
+            'app_configs': self.app.configs,
         }
         data.update(self.data)
         try:
