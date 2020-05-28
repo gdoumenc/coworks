@@ -17,11 +17,16 @@ from ..coworks import TechMicroService
 
 
 class OdooMicroService(TechMicroService, Boto3Mixin):
-    def __init__(self, bucket, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.url = self.db = self.username = self.password = self.models_url = self.api_uid = self.logger = None
         self.aws_s3_session = AwsS3Session()
-        self.bucket = bucket
+
+        @self.before_first_activation
+        def check_env_vars():
+            self.bucket = os.getenv('BUCKET')
+            if not self.bucket:
+                raise EnvironmentError('BUCKET not defined in environment')
 
     def uplod_to_s3(self, file_obj, expiration=3600):
         """ Upload a file to s3 and return a presigned url to download it """
@@ -55,6 +60,14 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
 
         if not results:
             raise NotFoundError("No object found")
+        return results
+
+    def search_records_which_equals_to_json_data(self, model, data, fields):
+        criteria = []
+        for field_name, field_value in data.items():
+            criterion = (field_name, '=', field_value)
+            criteria.append(criterion)
+        results = self.search(model, filters=[criteria], fields=fields)
         return results
 
     def put_model(self, model, data=None):
@@ -122,11 +135,12 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
 
     def get_invoice(self, id):
         access_token = self.get_field('account.invoice', 'id', id, 'access_token')
+        tenant = self.get_field('account.invoice', 'id', id, 'x_tenant')
         host = self.url
         url = f"{host}/my/invoices/{id}/?report_type=pdf&download=true&access_token={access_token}"
         res = requests.get(url=url)
         file_obj = io.BytesIO(res.content)
-        file_obj.name = f"invoice_{id}.pdf"
+        file_obj.name = f"invoices/{str(tenant)}/invoice_{id}.pdf"
         if res.status_code == 200:
             return self.uplod_to_s3(file_obj)
         else:
@@ -182,10 +196,7 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
                     "All invoice lines must have their associated product_id or product_name filled in")
 
             if 'product_name' in invoice_line:
-                product_tmpl_id = self.get_field('product.template', 'name', invoice_line['product_name'], returned_field='id')
-                print("product_tmpl_id", product_tmpl_id)
-                product_id = self.get_field('product.product', 'id', product_tmpl_id, returned_field='id')
-                print('product_id', product_id)
+                product_id = self.get_field('product.product', 'product_tmpl_id.name',  invoice_line['product_name'], returned_field='id')
                 invoice_line['product_id'] = product_id
 
             if 'price_unit' not in invoice_line:
@@ -212,8 +223,8 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
         self.execute_kw('account.invoice', 'action_invoice_open', [invoice_id])
         return {'invoice_id': invoice_id}
 
-    def put_customer(self, data=None):
-        """ Put a new customer (Odoo partner of type contact) in Odoo database
+    def post_createcustomer(self, data=None):
+        """ Create a new customer (Odoo partner of type contact) in Odoo database
          Example json body :
          {
             "data": {
@@ -234,8 +245,31 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
         partner_id = self.execute_kw('res.partner', 'create', [[data]])
         return {'partner_id': partner_id[0]}
 
-    def put_invoicingaddress(self, data=None):
-        """ Put a new invoicing address (Odoo partner of type invoice) in Odoo database
+    def put_updatecustomer(self, id, data=None):
+        """ Update info of a given customer (Odoo partner of type contact) in Odoo database
+         Example json body :
+         {
+            "data": {
+                    "name": "name",
+                    "street": "street",
+                    "city": "city",
+                    "zip": "69007",
+                    "email": "user@email.com",
+                    "street2": "street2",
+                    "phone": "04 00 00 00 00",
+                    "mobile": "06 00 00 00 00"
+                }
+        }
+        """
+        data['type'] = 'contact'
+        if 'name' not in data:
+            raise BadRequestError(f"Customer must have a name specified in the json body")
+        self.execute_kw('res.partner', 'write', [[id], data])
+        return {'partner_id': id}
+
+    def post_createinvoicingaddress(self, data=None):
+        """ Create a new invoicing address (Odoo partner of type invoice) in Odoo database if an address
+        with same fields content doesn't exist yet
                 Example json body :
                 {
                    "data": {
@@ -259,8 +293,16 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
         data['commercial_partner_id'] = data['customer_id']
         data['parent_id'] = data['customer_id']
         data.pop('customer_id')
-        partner_id = self.execute_kw('res.partner', 'create', [[data]])
-        return {'partner_id': partner_id[0]}
+
+        partner_ids = self.search_records_which_equals_to_json_data('res.partner', data, 'id')
+
+        if len(partner_ids) == 0:  # create new address
+            partner_id = self.execute_kw('res.partner', 'create', [[data]])
+            return {'partner_id': partner_id[0]}
+        elif len(partner_ids) == 1:  # one address with same fields content already exists
+            return {'partner_id': partner_ids[0]['id']}
+        else:
+            return BadRequestError('Several addresses exist with these data')
 
     def create(self, model, data: dict, dry=False):
         return self.execute_kw(model, 'create', [self._replace_tuple(data)], dry=dry)

@@ -282,8 +282,10 @@ class TechState(PassState):
             res = self.get_or_raise(tech_data, 'service')
             self.state['Resource'] = f"arn:aws:lambda:eu-west-1:935392763270:function:{res}"
             self.state["InputPath"] = f"$"
-            self.state["ResultPath"] = f"$.{self.slug}.result"
-            self.state["OutputPath"] = "$"
+            result_path = tech_data.get('result_path')
+            self.state["ResultPath"] = result_path if result_path else f"$.{self.slug}.result"
+            output_path = tech_data.get('output_path')
+            self.state["OutputPath"] = output_path if output_path else "$"
             self.state["Parameters"] = self.get_call_data(action, tech_data)
 
             if 'catch' not in action:

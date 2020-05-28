@@ -180,7 +180,7 @@ def update(ctx, module, app, profile):
 def import_attr(module, app, cwd):
     try:
         return CwsCLIFactory.import_attr(module, app, cwd=cwd)
-    except AttributeError:
+    except AttributeError as e:
         sys.stderr.write(f"Module '{module}' has no microservice {app} : {str(e)}\n")
         raise CLIError()
     except ModuleNotFoundError as e:
