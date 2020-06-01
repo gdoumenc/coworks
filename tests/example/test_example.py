@@ -43,11 +43,11 @@ class TestClass:
         assert response.text == "456\n"
 
     def test_env(self, local_server_factory):
-        config = Config(environment_variables_file=Path(EXAMPLE_DIR) / "_dev_vars.json")
+        config = Config(environment_variables_file=Path(EXAMPLE_DIR) / "vars_dev.json")
         local_server = local_server_factory(TechMS(configs=[config]))
         response = local_server.make_call(requests.get, '/env', timeout=500)
         assert response.status_code == 200
-        assert response.text == "Simple microservice for test environment variable.\n"
+        assert response.text == "Simple microservice for test dev environment variable.\n"
 
     def test_run_example(self):
         app = CwsCLIFactory.import_attr('example', 'app', cwd=EXAMPLE_DIR)

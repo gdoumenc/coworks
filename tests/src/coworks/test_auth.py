@@ -112,7 +112,7 @@ class TestClass:
         assert response.text == '{"Message": "User is not authorized to access this resource"}'
 
     def test_authorized_external(self, local_server_factory):
-        config = Config(authorizer=auth_external)
+        config = Config(auth=auth_external)
         local_server = local_server_factory(AuthorizedMS(configs=[config]))
         response = local_server.make_call(requests.get, '/', headers={'authorization': 'allow'})
         assert response.status_code == 200

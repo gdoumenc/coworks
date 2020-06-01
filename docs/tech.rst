@@ -106,7 +106,7 @@ This is usefull for offering a CRUD microservice:
 	def put_(self, id, data):
 		return f"modifies an instance identified by {id} with {data}"
 
-**Note**: `API Gateway` accepts only numerated parameters for routes, so the uri_parameters are renamed
+*Note*: `API Gateway` accepts only numerated parameters for routes, so the uri_parameters are renamed
 for deployement as::
 
 	/content

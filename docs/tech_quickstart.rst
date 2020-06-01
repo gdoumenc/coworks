@@ -112,11 +112,11 @@ That's it, your first microservice is online! Let try::
 Deletion
 --------
 
-Now destroy all created  ressources::
+Now to destroy all created ressources::
 
 	(project) $ terraform destroy
 
-Finally, remove the project and its virtual environment::
+Finally, to remove the project and its virtual environment::
 
 	(project) $ exit
 	$ pipenv --rm

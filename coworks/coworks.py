@@ -2,6 +2,7 @@ import inspect
 import json
 import logging
 import os
+from pathlib import Path
 import sys
 import traceback
 from functools import update_wrapper
@@ -13,7 +14,7 @@ from chalice import AuthResponse, BadRequestError, Rate, Cron
 from chalice import Chalice, Blueprint as ChaliceBlueprint
 from requests_toolbelt.multipart import MultipartEncoder
 
-from .config import Config
+from .config import Config, DEFAULT_WORKSPACE
 from .mixins import CoworksMixin, AwsSFNSession
 from .utils import begin_xray_subsegment, end_xray_subsegment
 from .utils import class_auth_methods, class_rest_methods, class_attribute, trim_underscores
@@ -58,16 +59,25 @@ class TechMicroService(CoworksMixin, Chalice):
     
     """
 
-    def __init__(self, app_name: str = None, configs: Union[Config, List[Config]] = None, **kwargs):
+    def __init__(self, app_name: str = None, configs: Union[Config, List[Config]] = None,
+                 workspace: str = DEFAULT_WORKSPACE, **kwargs):
         """ Initialize a technical microservice.
         :param app_name: Name used to identify the resource.
-        :param config: Deployment configuration.
+        :param configs: Deployment configuration.
+        :param workspace used for execution.
         :param kwargs: Other Chalice parameters.
         """
+
+        # Set default configuration workspace for execution
         self.configs = configs or [Config()]
         if type(self.configs) is not list:
             self.configs = [configs]
-        self.config = self.configs[0]
+        for conf in self.configs:
+            if conf.workspace == workspace:
+                self.config = conf
+                break
+        if not self.config:
+            self.config = self.configs[0]
 
         app_name = app_name or self.__class__.__name__
         kwargs.setdefault('debug', self.config.debug)
@@ -77,10 +87,9 @@ class TechMicroService(CoworksMixin, Chalice):
             'BLUEPRINTS'
         ])
 
-        authorizer = self.config.authorizer
-
         # If defined replace the class defined authorizer (on the microservice and on the blueprint)
-        self.__authorizer__ = self._create_auth_proxy(self, authorizer) if authorizer else None
+        auth = self.config.auth
+        self.__global_auth__ = self._create_auth_proxy(self, auth) if auth else None
 
         # Blueprints added by names.
         self.blueprints = {}
@@ -135,31 +144,35 @@ class TechMicroService(CoworksMixin, Chalice):
         super().register_blueprint(blueprint, **kwargs)
         self.blueprints[blueprint.import_name] = blueprint
 
-    def run(self, host: str = '127.0.0.1', port: int = 8000, project_dir='.', stage=None, debug=True):
+    def run(self, host: str = '127.0.0.1', port: int = 8000, project_dir='.', workspace=None, debug=True):
         """ Runs the microservice in a local Lambda emulator.
         
         :param host: the hostname to listen on.
         :param port: the port of the webserver.
         :param project_dir: to be able to import the microservice module.
         :param debug: if given, enable or disable debug mode.
-        :param stage: DEPRECATED.
+        :param workspace: the workspace used for execution. If not defined, use the first configuration found.
         :return: None
         """
 
         # chalice.cli and .cws packages not defined in deployment
-        from chalice.cli import DEFAULT_STAGE_NAME
         from .cws.factory import CwsCLIFactory
 
         if debug:
             logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')
 
-        if self.config.environment_variables_file:
-            with open(self.config.environment_variables_file) as f:
-                os.environ.update(json.loads(f.read()))
+        workspace = workspace or self.config.workspace
 
-        stage = stage or DEFAULT_STAGE_NAME
+        if self.config.environment_variables_file:
+            var_file = Path(project_dir) / self.config.environment_variables_file
+            try:
+                with open(var_file) as f:
+                    os.environ.update(json.loads(f.read()))
+            except FileNotFoundError:
+                raise FileNotFoundError(f"Cannot find environment file {var_file} for workspace {workspace}")
+
         factory = CwsCLIFactory(self, project_dir, debug=debug)
-        config = factory.mock_config_obj(self, stage)
+        config = factory.mock_config_obj(self)
         factory.run_local_server(self, config, host, port)
 
     def _add_route(self, component=None, url_prefix=None):
@@ -167,8 +180,8 @@ class TechMicroService(CoworksMixin, Chalice):
             component = self
 
         # External authorizer has priority (forced)
-        if self.__authorizer__:
-            auth = component.__auth__ = self.__authorizer__
+        if self.__global_auth__:
+            auth = component.__auth__ = self.__global_auth__
         else:
             auth = class_auth_methods(component)
             if auth and component.__auth__ is None:
@@ -267,7 +280,7 @@ class TechMicroService(CoworksMixin, Chalice):
                 return self.__auth__(event, context)
 
             print(f"Undefined authorization method for {self.app_name} ")
-            raise Exception('Unauthorized')
+            return 'Unauthorized', 403
 
         # step function call
         if event.get('type') == 'CWS_SFN':

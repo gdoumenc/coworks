@@ -15,13 +15,16 @@ class CORSConfig(ChaliceCORSConfig):
         return super().get_access_control_headers()
 
 
+DEFAULT_WORKSPACE = 'dev'
+
+
 @dataclass
 class Config:
     """ Configuration class for deployment.
 
     """
 
-    workspace_name: str = "dev"
+    workspace: str = DEFAULT_WORKSPACE
     debug: bool = False
     version: str = ""
 
@@ -31,6 +34,6 @@ class Config:
     #: Variable defined in the staged API
     api_variables_file: str = None
 
-    authorizer: Callable[[CoworksMixin, AuthRequest], Union[bool, list, AuthResponse]] = None
+    auth: Callable[[CoworksMixin, AuthRequest], Union[bool, list, AuthResponse]] = None
     cors: CORSConfig = CORSConfig(allow_origin='')
     timeout: int = 60

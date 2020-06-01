@@ -16,7 +16,7 @@ class CwsCLIFactory(CLIFactory):
     def import_attr(module, attr, cwd='.'):
         if cwd not in sys.path:
             sys.path.insert(0, cwd)
-        app_module= importlib.import_module(module)
+        app_module = importlib.import_module(module)
         if "PYTEST_CURRENT_TEST" in os.environ:
             # needed as Chalice local server change class
             app_module = importlib.reload(app_module)
@@ -34,7 +34,7 @@ class CwsCLIFactory(CLIFactory):
         app.local_server = self.create_local_server(app_obj, config, host, port)
         app.local_server.serve_forever()
 
-    def mock_config_obj(self, app, chalice_stage_name):
+    def mock_config_obj(self, app):
         default_params = {
             'project_dir': self.project_dir,
             'api_gateway_stage': DEFAULT_APIGATEWAY_STAGE_NAME,
@@ -45,13 +45,9 @@ class CwsCLIFactory(CLIFactory):
             'version': 1,
             'app_name': 'app',
             'stages': {
-                chalice_stage_name: {
-                    'api_gateway_stage': 'test',
-                }
             }
         }
-        config = Config(chalice_stage=chalice_stage_name,
-                        user_provided_params={},
+        config = Config(user_provided_params={},
                         config_from_disk=config_from_disk,
                         default_params=default_params)
 
