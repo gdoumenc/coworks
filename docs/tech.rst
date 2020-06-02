@@ -84,7 +84,7 @@ You can also construct more complex routes from different parameters:
 	def get_content__(self, value, other):
 		return f"get content with {value} and {other}"
 
-This defines the respecting following routes::
+This defines the respective following routes::
 
 	/content
 	/content/{value}
