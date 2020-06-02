@@ -36,8 +36,9 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
             print(e)
         try:
             response = self.aws_s3_session.client.generate_presigned_url('get_object',
-                                                          Params={'Bucket': self.bucket, 'Key': file_obj.name},
-                                                          ExpiresIn=expiration)
+                                                                         Params={'Bucket': self.bucket,
+                                                                                 'Key': file_obj.name},
+                                                                         ExpiresIn=expiration)
             return response
         except Exception as e:
             print(e)
@@ -186,6 +187,19 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
             invoice_data['access_token'] = str(uuid.uuid4())
         if 'date_invoice' not in invoice_data:
             invoice_data['date_invoice'] = datetime.today().strftime('%Y-%m-%d')
+        if 'x_order_id' not in invoice_data:
+            raise BadRequestError("Order must have x_order_id field filled in")
+        x_order_id = invoice_data['x_order_id']
+        if 'x_tenant' not in invoice_data:
+            raise BadRequestError("Order must have x_tenant field filled in")
+        x_tenant = invoice_data['x_tenant']
+
+        invoice_ids = self.search_records_which_equals_to_json_data('account.invoice', {'x_order_id': x_order_id, 'x_tenant': x_tenant}, 'id')
+
+        if len(invoice_ids) != 0:
+            raise BadRequestError(
+                f"One or several invoices with x_order_id={x_order_id} and x_tenant={x_tenant} already exists, invoice_ids : {invoice_ids}")
+
         invoice_data.pop('lines')
         invoice_id = self.execute_kw('account.invoice', 'create', [[invoice_data]])[0]
 
@@ -196,7 +210,8 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
                     "All invoice lines must have their associated product_id or product_name filled in")
 
             if 'product_name' in invoice_line:
-                product_id = self.get_field('product.product', 'product_tmpl_id.name',  invoice_line['product_name'], returned_field='id')
+                product_id = self.get_field('product.product', 'product_tmpl_id.name', invoice_line['product_name'],
+                                            returned_field='id')
                 invoice_line['product_id'] = product_id
 
             if 'price_unit' not in invoice_line:
