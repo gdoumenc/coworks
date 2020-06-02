@@ -94,7 +94,7 @@ And now apply the configuration (it will create the resources)::
 
 	aws_api_gateway_rest_api.test: Creating...
 
-Validate the creation by entering ``yes``. Then after the creation of all resources::
+Validate the creation by entering ``yes``.  Then, after all the resources have been created, you should get::
 
 	Apply complete! Resources: 10 added, 0 changed, 0 destroyed.
 
@@ -104,7 +104,7 @@ Validate the creation by entering ``yes``. Then after the creation of all resour
 	  "invoke-url" = "https://123456789123.execute-api.eu-west-1.amazonaws.com/dev"
 	}
 
-That's it, your first microservice is online! Let try::
+That's it, your first microservice is online! Let's try it out::
 
 	(project) $ curl https://1aaaaa2bbb3c.execute-api.eu-west-1.amazonaws.com/dev -H "Authorization:token"
 	Simple microservice ready.
@@ -112,7 +112,7 @@ That's it, your first microservice is online! Let try::
 Deletion
 --------
 
-Now to destroy all created ressources::
+Now, to destroy all the ressources created::
 
 	(project) $ terraform destroy
 
@@ -126,7 +126,7 @@ Finally, to remove the project and its virtual environment::
 Commands
 --------
 
-To get all CoWorks commands and options::
+To view all CoWorks commands and options::
 
 	(project) $ cws --help
 	Usage: cws [OPTIONS] COMMAND [ARGS]...
