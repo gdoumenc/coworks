@@ -22,7 +22,7 @@ To create your first complete technical microservice, create a file ``app.py`` w
 
 .. literalinclude:: ../tests/example/quickstart1.py
 
-Test locally this microservice::
+Test this microservice locally::
 
 	(project) $ cws run
 	Serving on http://127.0.0.1:8000
@@ -38,10 +38,10 @@ Looks good...
 Convert the try
 ---------------
 
-First we will create the layer with the ``scons`` tool. This layer will contain all the needed python modules
+First we will create a layer with the ``scons`` tool. This layer will contain all the necessary python modules
 for a simple execution.
 
-For that purpose, create a file ``SConstruct`` with following content:
+For this purpose, create a file ``SConstruct`` with the following content:
 
 .. literalinclude:: ../tests/example/SConstruct
 
