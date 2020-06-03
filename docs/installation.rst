@@ -58,23 +58,24 @@ Terraform can also be used `online <https://www.terraform.io>`_.
 SCons
 *****
 
-In order to reduce deployment time, we use AWS Lambda
-`Layers <https://docs.aws.amazon.com/lambda/latest/dg/configuration-layers.html>`_.
+In order to reduce deployment duration, we use AWS Lambda
+`Layer <https://docs.aws.amazon.com/lambda/latest/dg/configuration-layers.html>`_.
 Thanks to layers, we can use libraries
 in our miscroserrvice without having to include them in the deployment package. We use
 `SCons <https://scons.org/>`_ to create layers.
+
+*Note*: To keep the `coworks` library as smaller as possible the `scons` package is not embeded as you can
+use any other tools for deployment.
 
 To install SCons::
 
 	(project) $ pipenv install SCons
 
+*Beware*: `scons` must not be installed with a system package tool such as `apt` as the python library is needed in our
+deployment process.
+
 Check installation with::
 
 	(project) $ scons --version
-	SCons by Steven Knight et al.:
-		script: v3.1.2.bee7caf9defd6e108fc2998a2520ddb36a967691, 2019-12-17 02:07:09, by bdeegan on octodog
-		engine: v3.1.2.bee7caf9defd6e108fc2998a2520ddb36a967691, 2019-12-17 02:07:09, by bdeegan on octodog
-		engine path: ['/home/studiogdo/.pyenv/versions/3.7.2/lib/python3.7/site-packages/scons/SCons']
-	Copyright (c) 2001 - 2019 The SCons Foundation
 
 You now have everything you need to create your first micro-service :ref:`tech_quickstart`

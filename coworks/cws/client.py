@@ -1,20 +1,16 @@
 import json
 import os
-import shutil
 import sys
 import traceback
 from tempfile import SpooledTemporaryFile
 
 import click
 from chalice import BadRequestError
-from chalice.cli import CONFIG_VERSION, DEFAULT_STAGE_NAME, DEFAULT_APIGATEWAY_STAGE_NAME
 from chalice.cli import chalice_version, get_system_info
-from chalice.local import LocalChalice
-from chalice.utils import serialize_to_json
-from coworks import TechMicroService, BizMicroService, BizFactory
+
+from coworks import BizFactory
 from coworks.cws.writer import Writer
 from coworks.version import __version__
-
 from .factory import CwsCLIFactory
 
 
@@ -141,7 +137,7 @@ def update(ctx, module, app, profile):
 def import_attr(module, app, cwd):
     try:
         return CwsCLIFactory.import_attr(module, app, cwd=cwd)
-    except AttributeError:
+    except AttributeError as e:
         sys.stderr.write(f"Module '{module}' has no microservice {app} : {str(e)}\n")
         raise CLIError()
     except ModuleNotFoundError as e:
