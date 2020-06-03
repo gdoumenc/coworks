@@ -22,11 +22,11 @@ Check CoWorks is installed. Check it with::
 
 	(project) $ cws --version
 
-If you cannot found ``cws`` in your execution path, verify you activated the virtualenv for the project.
+If you cannot find ``cws`` in your execution path, verify you activated the virtualenv for the project.
 
 CoWorks is now ready for you.
 
-*Beware*: As ``awscli`` (even ``boto3``) evolves often, be sure you have a compatible version of it in
+*Beware*: As ``awscli`` (even ``boto3``) often evolves, make sure you have a compatible version of it in
 your python virtual environment or dependencies conflicts may occur.
 
 Other tools
@@ -38,33 +38,33 @@ AWS Credentials
 *If you have previously configured your machine to run boto3 (the AWS SDK for Python) or the
 AWS CLI then you can skip this section.*
 
-Before you can deploy an application, be sure you have an
+Before you can deploy an application, make sure you have an
 `AWS account <https://aws.amazon.com/premiumsupport/knowledge-center/create-and-activate-aws-account>`_
 and configured the
-`AWS credentials <https://docs.aws.amazon.com/sdk-for-php/v3/developer-guide/guide_credentials_profiles.html>`_
+`AWS credentials <https://docs.aws.amazon.com/sdk-for-php/v3/developer-guide/guide_credentials_profiles.html>`_.
 
 Terraform
 *********
 
-For deployment ``chalice`` provide a very simple and powerfull deployment command (``deploy``) but we recommand using
+For deployment, ``chalice`` provide a very simple and powerfull deployment command (``deploy``) but we recommand using
 ``terraform`` for your projects.
 
 Follow these `instructions <https://www.terraform.io/downloads.html>`_ to install terraform. Check installation with::
 
 	(project) $ terraform --version
 
-Terraform can be also used `online <https://www.terraform.io>`_.
+Terraform can also be used `online <https://www.terraform.io>`_.
 
 SCons
 *****
 
-To reduce deployment duration, we use AWS Lambda
-`Layer <https://docs.aws.amazon.com/lambda/latest/dg/configuration-layers.html>`_.
-With layers, we can use libraries
-in our microservice without needing to include them in the deployment package. To create the layer,
-we use `SCons <https://scons.org/>`_.
+In order to reduce deployment time, we use AWS Lambda
+`Layers <https://docs.aws.amazon.com/lambda/latest/dg/configuration-layers.html>`_.
+Thanks to layers, we can use libraries
+in our miscroserrvice without having to include them in the deployment package. We use
+`SCons <https://scons.org/>`_ to create layers.
 
-To install SCons ::
+To install SCons::
 
 	(project) $ pipenv install SCons
 
@@ -77,4 +77,4 @@ Check installation with::
 		engine path: ['/home/studiogdo/.pyenv/versions/3.7.2/lib/python3.7/site-packages/scons/SCons']
 	Copyright (c) 2001 - 2019 The SCons Foundation
 
-Now you have everything to create your first microservice :ref:`tech_quickstart`
+You now have everything you need to create your first micro-service :ref:`tech_quickstart`
