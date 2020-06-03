@@ -60,7 +60,7 @@ We denote the route like this::
 
 	/content/{index}
 
-You can have several positionnal parameters (ordered from the URL path):
+You can have several positional parameters (ordered from the URL path):
 
 .. code-block:: python
 
@@ -156,7 +156,7 @@ You can also use the ``**`` notation to get any values::
 		return f"here are all the parameters: {kwargs}"
 
 **Note**: The current implementation doesn't take into account the typing of the entrypoint function parameters (forcasted).
-So all query paramerters are from type ``string``.
+So all query parameters are from type ``string``.
 If you want to pass typed or structured values, use the JSON mode.
 
 Microservice Response

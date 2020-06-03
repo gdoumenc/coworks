@@ -93,7 +93,7 @@ If only certain routes are to be allowed, the authorizer must return a list of t
 			return False
 
 
-*BEWARE* : Even if you don't use the token if the authorizatin method, you must define it in the header or the call
+*BEWARE* : Even if you don't use the token if the authorization method, you must define it in the header or the call
 will be rejected by ``API Gateway``.
 
 The `auth` function must also be defined at the bluprint level, and then it is available for all the bluprint rules.
@@ -160,7 +160,7 @@ To run the microservice in a specific workspace, add the workspace parameter:
 
 .. code-block:: python
 
-	app.run(worspace='prod')
+	app.run(workspace='prod')
 
 The complete microservice will be:
 

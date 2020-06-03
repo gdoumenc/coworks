@@ -60,7 +60,7 @@ Service oriented
   Technological service on Lambda and Functional service over Step Function.
 
 Independently deployable
-  All needed deployement information defined in the python class.
+  All needed deployment information defined in the python class.
 
 Decentralized
   Serverless components.
