@@ -120,6 +120,7 @@ Documentation
   cli
   faq
   api
+  contributing
   changelog
 
 
