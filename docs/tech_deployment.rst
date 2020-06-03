@@ -11,7 +11,7 @@ For security reasons, by default all microservices are not supporting CORS heade
 For simplicity, we can add CORS parameters only to all routes of the microservice.
 To handle CORS protocol for a specific route, the ``OPTION`` method should be defined on that route.
 
-To add CORS headers in all routes of the microservice, you can simply defined ``allow_origin`` value in configuration::
+To add CORS headers in all routes of the microservice, you can simply define ``allow_origin`` value in configuration::
 
 	config = Config(cors=CORSConfig(allow_origin='*'))
 	app = SimpleMicroService(app_name='test', config=config)
@@ -93,15 +93,15 @@ If only some routes are allowed, the authorizer must return a list of the allowe
 			return False
 
 
-*BEWARE* : Even if you don't use the token if the authorizatin method, you must define it in the header or the call
+*BEWARE* : Even if you don't use the token if the authorization method, you must define it in the header or the call
 will be rejected by ``API Gateway``.
 
-The `auth` function must be also defined at the bluprint level and then available for all the bluprint rules.
+The `auth` function must be also defined at the blueprint level and then available for all the blueprint rules.
 
 Global control
 ^^^^^^^^^^^^^^
 
-It is possible to redefined the class defined authorizer, by declaring a new authorization method in the configuration.
+It is possible to redefine the class defined authorizer, by declaring a new authorization method in the configuration.
 In this case, the authorizer is defined on all routes of the microservice.
 
 Deploy vs update
@@ -156,11 +156,11 @@ workspace configuration.
 
 	app = SimpleMicroService(app_name='app_name='test'', configs=WORKSPACES)
 
-To run the microservice in a specific workspace, add the worspace parameter:
+To run the microservice in a specific workspace, add the workspace parameter:
 
 .. code-block:: python
 
-	app.run(worspace='prod')
+	app.run(workspace='prod')
 
 The complete microservice will be:
 

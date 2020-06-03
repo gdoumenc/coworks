@@ -40,7 +40,7 @@ class CoworksMixin:
                 if subsegment:
                     subsegment.put_metadata('headers', self.current_request.headers, "CoWorks")
 
-                # Renames positionnal parameters (index added in label)
+                # Renames positional parameters (index added in label)
                 kwargs = {}
                 for kw, value in kws.items():
                     param = args[int(kw[1:])]

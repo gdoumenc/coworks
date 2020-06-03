@@ -61,7 +61,7 @@ SCons
 To reduce deployment duration, we use AWS Lambda
 `Layer <https://docs.aws.amazon.com/lambda/latest/dg/configuration-layers.html>`_.
 With layers, we can use libraries
-in our miscroserrvice without needing to include them in the deployment package. To create the layer,
+in our microservice without needing to include them in the deployment package. To create the layer,
 we use `SCons <https://scons.org/>`_.
 
 To install SCons ::

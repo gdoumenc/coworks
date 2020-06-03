@@ -60,7 +60,7 @@ We denote the route like this::
 
 	/content/{index}
 
-You can have several positionnal parameters (ordered from the URL path):
+You can have several positional parameters (ordered from the URL path):
 
 .. code-block:: python
 
@@ -107,7 +107,7 @@ This is usefull for offering a CRUD microservice:
 		return f"modifies an instance identified by {id} with {data}"
 
 *Note*: `API Gateway` accepts only numerated parameters for routes, so the uri_parameters are renamed
-for deployement as::
+for deployment as::
 
 	/content
 	/content/{_0}
@@ -137,7 +137,7 @@ Or in python code using the ``requests`` module::
 
 or by a JSON structure::
 
-	request.get("/content", json={"id": 32, "name": "test"}")
+	request.get("/content", json={"id": 32, "name": "test"})
 
 A list parameter can be defined by a multi value parameter::
 
@@ -145,7 +145,7 @@ A list parameter can be defined by a multi value parameter::
 
 Which is equivalent to the JSON call::
 
-	request.get("/content", json={"id": 32, "name": ["test", "other"]}")
+	request.get("/content", json={"id": 32, "name": ["test", "other"]})
 
 *Beware*: With `API gateway` you can only use query parameters for a GET method, and body
 parameters with a GET method will raise an error in execution.
@@ -156,7 +156,7 @@ You can also use the ``**`` notation to get any values::
 		return f"here are all the parameters: {kwargs}"
 
 **Note**: The current implementation doesn't take in account the typing of the entrypoint function parameters (forcasted).
-So all query paramerters are from type ``string``.
+So all query parameters are from type ``string``.
 If you want to pass typed or structured values, use the JSON mode.
 
 Microservice Response
@@ -292,7 +292,7 @@ The admin blueprint adds the following routes :
 
 ``/context``
 
-	Return the deploiement context of the microservice.
+	Return the deployment context of the microservice.
 
 Extensions
 ^^^^^^^^^^
