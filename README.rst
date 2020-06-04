@@ -37,9 +37,11 @@ Documentation
 Contributing
 ------------
 
-If you want to contribute to this project in any kind, your help will be very welcome.
-Don't hesitate to contact any project's member.
-
+We work hard to provide a high-quality and useful framework, and we greatly value
+feedback and contributions from our community. Whether it's a new feature,
+correction, or additional documentation, we welcome your pull requests. Please
+submit any `issues <https://github.com/aws/coworks/issues>`__
+or `pull requests <https://github.com/aws/coworks/pulls>`__ through GitHub.
 
 Related Projects
 ----------------
