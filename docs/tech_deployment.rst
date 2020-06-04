@@ -3,6 +3,41 @@
 TechMS Deployment
 =================
 
+CORS
+----
+
+For security reasons, by default microservices do not support CORS headers in response.
+
+For simplicity, we can only add CORS parameters to all routes of the microservice.
+To handle CORS protocol for a specific route, the ``OPTION`` method should be defined on that route.
+
+To add CORS headers in all routes of the microservice, you can simply define ``allow_origin`` value in configuration::
+
+	config = Config(cors=CORSConfig(allow_origin='*'))
+	app = SimpleMicroService(app_name='test', config=config)
+
+You can specify a single origin::
+
+	config = Config(cors=CORSConfig(allow_origin='www.test.fr'))
+	app = SimpleMicroService(app_name='test', config=config)
+
+Or a list::
+
+	config = Config(cors=CORSConfig(allow_origin=['www.test.com', 'www.test.fr']))
+	app = SimpleMicroService(app_name='test', config=config)
+
+You can also specify other CORS parameters::
+
+	config = Config(cors=CORSConfig(allow_origin='https://foo.example.com',
+    					allow_headers=['X-Special-Header'],
+    					max_age=600,
+    					expose_headers=['X-Special-Header'],
+    					allow_credentials=True))
+	app = SimpleMicroService(app_name='test', configs=config)
+
+As you can see, one configuration may be defined for a microservice. But we will explain below why a list of
+configurations may be also defined.
+
 Authorization
 -------------
 
@@ -36,12 +71,13 @@ The API client must include it in the header to send the authorization token to 
 		def auth(self, auth_request):
 			return auth_request.token == os.getenv('TOKEN')
 
+*Note* : To define environment variables, see below.
 
-To call this microservice, we have to put the right token in header::
+To call this microservice, we have to put the right token in headers::
 
 	curl https://zzzzzzzzz.execute-api.eu-west-1.amazonaws.com/my/route -H 'Authorization: thetokendefined'
 
-If only some routes are allowed, the authorizer must return a list of the allowed routes.
+If only certain routes are to be allowed, the authorizer must return a list of the allowed routes.
 
 .. code-block:: python
 
@@ -57,46 +93,22 @@ If only some routes are allowed, the authorizer must return a list of the allowe
 			return False
 
 
-**BEWARE** : Even if you don't use the token if the authorizatin method, you must define it in the header or the call
+*BEWARE* : Even if you don't use the token if the authorization method, you must define it in the header or the call
 will be rejected by ``API Gateway``.
 
-CORS
-----
+The `auth` function must also be defined at the bluprint level, and then it is available for all the bluprint rules.
 
-For security reasons, by default all microservices are not supporting CORS headers in response.
+Global control
+^^^^^^^^^^^^^^
 
-For simplicity, we can add CORS parameters only to all routes of the microservice.
-To handle CORS protocol for a specific route, the ``OPTION`` method should be defined on that route.
-
-To add CORS headers in all routes of the microservice, you can simply defined ``allow_origin`` value in configuration::
-
-	config = Config(cors=CORSConfig(allow_origin='*'))
-	app = SimpleMicroService(app_name='test', config=config)
-
-You can specify a single origin::
-
-	config = Config(cors=CORSConfig(allow_origin='www.test.fr'))
-	app = SimpleMicroService(app_name='test', config=config)
-
-Or a list::
-
-	config = Config(cors=CORSConfig(allow_origin=['www.test.fr', 'www.test.fr'']))
-	app = SimpleMicroService(app_name='test', config=config)
-
-You can also specific other CORS parameters::
-
-	config = Config(cors=CORSConfig(allow_origin='https://foo.example.com',
-    					allow_headers=['X-Special-Header'],
-    					max_age=600,
-    					expose_headers=['X-Special-Header'],
-    					allow_credentials=True))
-	app = SimpleMicroService(app_name='test', config=config)
+It is possible to redefine the class defined authorizer, by declaring a new authorization method in the configuration.
+In this case, the authorizer is defined on all routes of the microservice.
 
 Deploy vs update
 ----------------
 
-Deployment and updatation are two important steps for the usage of the code. But we think this are different, so made
-in different manner
+Deployment and update are two important steps for the usage of the code. But we think these are different, so they are made
+in two different ways
 
 For deployment, we prefer using ``terraform`` and to update we will use ``cws``.
 
@@ -107,111 +119,77 @@ Stages
 Staging is a very important part in the programmation development process.
 You can easily deploy different stages of a microservice with APIGateway.
 
-For that purpose, we prefer using ``terraform`` for deploying microservices than ``chalice``.
-Nevertheless, we will explain first how stagging with ``chalice``
-
-Stagging with Chalice
-^^^^^^^^^^^^^^^^^^^^^
-
-Creating a new stage
-********************
-
-By default, when the project is initialized, a stage ``dev`` is created.
-This stage is defined in the file ``.chalice/config.json``:
-
-.. code-block:: json
-
-	{
-	  "version": "2.0",
-	  "app_name": "example",
-	  "stages": {
-		"dev": {
-		  "api_gateway_stage": "dev",
-		  "environment_variables": {
-			"test": "test environment variable"
-		  }
-		}
-	  }
-	}
-
-If you want to define a new stage ``prod``, then just adds it in this file as follow:
-
-.. code-block:: json
-
-	{
-	  "version": "2.0",
-	  "app_name": "example",
-	  "stages": {
-		"dev": {
-		  "api_gateway_stage": "dev",
-		  "environment_variables": {
-			"test": "test environment variable"
-		  }
-		},
-		"prod": {
-		  "api_gateway_stage": "prod",
-		  "environment_variables": {
-			"test": "prod variable"
-		  }
-		}
-	  }
-	}
-
-As you can see we have changed the ``api_gateway_stage`` value to create a new entry point in our API.
-We also have defined a different value for the environment variable ``test``.
-
-If you want to share a same environment variable for any stage, do the following:
-
-.. code-block:: json
-
-	{
-	  "version": "2.0",
-	  "app_name": "example",
-	  "environment_variables": {
-	    "global": "same variable for any stage"
-	  },
-	  "stages": {
-		"dev": {
-		  "api_gateway_stage": "dev",
-		  "environment_variables": {
-			"test": "test environment variable"
-		  }
-		},
-		"prod": {
-		  "api_gateway_stage": "prod",
-		  "environment_variables": {
-			"test": "prod variable"
-		  }
-		}
-	  }
-	}
-
-We strongly recommand to have a stage per branch from your versionning process.
-
-
-Staging deployment
-******************
-
-The deployment informations on a stage are defined in the file ``.chalice/deployed/{stage}.json``.
-
-We can then use the same APIGateway to implement the different stages reusing the ``rest_api_id value``.
-
-	$ cws deploy --stage master --rest_api_id dev
-
-(not done for now have to change the ``rest_api_url`` directly in the ``.chalice/deployed/master.json`` file::
-
-      "name": "rest_api",
-      "resource_type": "rest_api",
-      "rest_api_id": "qmk6utp3mh",
-      "rest_api_url": "https://qmk6utp3mh.execute-api.eu-west-1.amazonaws.com/prod/"
-
-Then we can use a genric URL for calling a specific stage of this microservice::
-
-	https://qmk6utp3mh.execute-api.eu-west-1.amazonaws.com/{stage}
+In the following, we will give an example of how to use `terraform` for staging.
 
 Stagging with Terraform
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-** TO BE COMPLETED **
+We choose to implement staging with one lambda per stage and only one API for all the stages.
+Other patterns may be used such as terraform workspace.
 
+A Lambda per stage
+******************
+
+As we have seen, a configuration may be defined for a microservice. To implement several stages
+we will use several configurations, one per stage.
+
+.. code-block:: python
+
+	DEV_CONFIG = Config(
+		cors=CORSConfig(allow_origin='*'),
+		environment_variables_file="dev_vars.json"
+	)
+	PROD_CONFIG = Config(
+		workspace_name="prod",
+		auth=my_auth,
+		cors=CORSConfig(allow_origin='*'),
+		environment_variables_file="prod_vars.secret.json",
+		version="0.0"
+	)
+
+	WORKSPACES = [DEV_CONFIG, PROD_CONFIG]
+
+Then you can initialize your microservice with those configurations, creating one lambda per
+workspace configuration.
+
+.. code-block:: python
+
+	app = SimpleMicroService(app_name='app_name='test'', configs=WORKSPACES)
+
+To run the microservice in a specific workspace, add the workspace parameter:
+
+.. code-block:: python
+
+	app.run(workspace='prod')
+
+The complete microservice will be:
+
+.. literalinclude:: ../tests/example/quickstart3.py
+
+Staging deployment
+******************
+
+The terraform export can now be used to create one Lambda ressource per workspace:
+
+.. code-block:: Terraform
+
+	{% for stage in app_configs %}
+	 	data "local_file" "environment_variables_{{ stage.workspace_name }}" {
+	  		filename = "{{ project_dir }}/{{ stage.environment_variables_file }}"
+	  	}
+	  	resource "aws_lambda_function" "{{ res_id }}_{{ stage.workspace_name }}" {
+	  		filename = local.lambda.zip_filename
+			...
+		}
+	{% endfor %}
+
+And an APIGateway deployment per workspace :
+
+.. code-block:: Terraform
+
+	{% for stage in app_configs %}
+	  	resource "aws_api_gateway_deployment" "{{ res_id }}_{{ stage.workspace_name }}" {
+			...
+		}
+	{% endfor %}
 

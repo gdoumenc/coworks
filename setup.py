@@ -1,5 +1,4 @@
 import os
-import sys
 
 from setuptools import setup, find_packages
 
@@ -29,8 +28,6 @@ setup(
         'chalice',
         'jinja2',
         'pyyaml',
-        'sqlalchemy',
-        'requests_toolbelt',
     ],
     keywords='restful microservice aws chalice serverless',
     entry_points={

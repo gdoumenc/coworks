@@ -1,20 +1,16 @@
 import json
 import os
-import shutil
 import sys
 import traceback
 from tempfile import SpooledTemporaryFile
 
 import click
 from chalice import BadRequestError
-from chalice.cli import CONFIG_VERSION, DEFAULT_STAGE_NAME, DEFAULT_APIGATEWAY_STAGE_NAME
 from chalice.cli import chalice_version, get_system_info
-from chalice.local import LocalChalice
-from chalice.utils import serialize_to_json
-from coworks import TechMicroService, BizMicroService, BizFactory
+
+from coworks import BizFactory
 from coworks.cws.writer import Writer
 from coworks.version import __version__
-
 from .factory import CwsCLIFactory
 
 
@@ -34,45 +30,6 @@ def client(ctx, project_dir=None):
     elif not os.path.isabs(project_dir):
         project_dir = os.path.abspath(project_dir)
     ctx.obj['project_dir'] = project_dir
-
-
-@client.command('init')
-@click.option('--force/--no-force', default=False,
-              help='Forces project reinitialization.')
-@click.pass_context
-def init(ctx, force):
-    """Init chalice configuration file."""
-    project_name = os.path.basename(os.path.normpath(ctx.obj['project_dir']))
-
-    chalice_dir = os.path.join(ctx.obj['project_dir'], '.chalice')
-    if os.path.exists(chalice_dir):
-        if force:
-            shutil.rmtree(chalice_dir)
-            created = False
-        else:
-            sys.stderr.write(f"Project {project_name} already initialized\n")
-            return
-    else:
-        created = True
-
-    os.makedirs(chalice_dir)
-    config = os.path.join(chalice_dir, 'config.json')
-    cfg = {
-        'version': CONFIG_VERSION,
-        'app_name': project_name,
-        'stages': {
-            DEFAULT_STAGE_NAME: {
-                'api_gateway_stage': DEFAULT_APIGATEWAY_STAGE_NAME,
-            }
-        }
-    }
-    with open(config, 'w') as f:
-        f.write(serialize_to_json(cfg))
-
-    if created:
-        sys.stdout.write(f"Project {project_name} initialized\n")
-    else:
-        sys.stdout.write(f"Project {project_name} reinitialized\n")
 
 
 @client.command('info')

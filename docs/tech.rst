@@ -60,7 +60,7 @@ We denote the route like this::
 
 	/content/{index}
 
-You can have several positionnal parameters (ordered from the URL path):
+You can have several positional parameters (ordered from the URL path):
 
 .. code-block:: python
 
@@ -84,7 +84,7 @@ You can also construct more complex routes from different parameters:
 	def get_content__(self, value, other):
 		return f"get content with {value} and {other}"
 
-This defines the respecting following routes::
+This defines the respective following routes::
 
 	/content
 	/content/{value}
@@ -106,7 +106,7 @@ This is usefull for offering a CRUD microservice:
 	def put_(self, id, data):
 		return f"modifies an instance identified by {id} with {data}"
 
-**Note**: `API Gateway` accepts only numerated parameters for routes, so the uri_parameters are renamed
+*Note*: `API Gateway` only accepts numbered parameters for routes, so the uri_parameters are renamed
 for deployement as::
 
 	/content
@@ -114,7 +114,7 @@ for deployement as::
 	/content/{_0}/{_1}
 
 The actual routes are defined this way for the microservice.
-This will change nothing for code but must be known for `Step Function` calls.
+This will not change anything in code but it must be known for `Step Function` calls.
 
 Query or body parameters
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -137,7 +137,7 @@ Or in python code using the ``requests`` module::
 
 or by a JSON structure::
 
-	request.get("/content", json={"id": 32, "name": "test"}")
+	request.get("/content", json={"id": 32, "name": "test"})
 
 A list parameter can be defined by a multi value parameter::
 
@@ -145,7 +145,7 @@ A list parameter can be defined by a multi value parameter::
 
 Which is equivalent to the JSON call::
 
-	request.get("/content", json={"id": 32, "name": ["test", "other"]}")
+	request.get("/content", json={"id": 32, "name": ["test", "other"]})
 
 *Beware*: With `API gateway` you can only use query parameters for a GET method, and body
 parameters with a GET method will raise an error in execution.
@@ -155,8 +155,8 @@ You can also use the ``**`` notation to get any values::
 	def get_content(self, **kwargs):
 		return f"here are all the parameters: {kwargs}"
 
-**Note**: The current implementation doesn't take in account the typing of the entrypoint function parameters (forcasted).
-So all query paramerters are from type ``string``.
+**Note**: The current implementation doesn't take into account the typing of the entrypoint function parameters (forcasted).
+So all query parameters are from type ``string``.
 If you want to pass typed or structured values, use the JSON mode.
 
 Microservice Response
@@ -174,7 +174,7 @@ If none of that works, ``CoWorks`` will assume the return value is a valid
 Test
 ----
 
-Tests may be made in two manner:
+Tests may be made in two ways:
 
 * Online test
 * Classical test with test tools like pytest
@@ -182,22 +182,22 @@ Tests may be made in two manner:
 As a classical python application
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-As seen, you can run your microservice on local with the command::
+As seen, you can run your microservice locally with the command::
 
 	$ cws run
 
-You can also run you microservice in a classical manner of python application:
+You can also run you microservice in a classical way of python application:
 
 .. code-block:: python
 
 	if __name__ == '__main__':
 		app.run()
 
-You can add more options for testing as changing the port or the stage::
+You can add more options for testing such as changing the port or the stage::
 
 	$ cws run --port 8001
 
-Then same for python application:
+The same goes for python application:
 
 .. code-block:: python
 
@@ -224,7 +224,7 @@ Then
 		response = local_server.make_call(requests.get, '/')
 		assert response.status_code == 200
 
-If you want to debug your test and stop on breakpoint, you need to give more time to the request for timeout:
+If you want to debug your test and stop on breakpoint, you need to increase request timeout:
 
 .. code-block:: python
 
@@ -242,6 +242,7 @@ If you have an authorized access:
 		response = local_server.make_call(requests.get, '/', headers={'authorization': 'allow'})
 		assert response.status_code == 200
 
+.. _blueprint:
 
 Blueprints and Extensions
 -------------------------
@@ -255,7 +256,7 @@ Blueprints allow you to complete your microservices with transversal functionali
 Blueprint Registration
 **********************
 
-Blueprints are defined as classes as microservice.
+Blueprints are defined in the same way as microservice classes.
 
 .. code-block:: python
 
@@ -291,12 +292,12 @@ The admin blueprint adds the following routes :
 
 ``/context``
 
-	Return the deploiement context of the microservice.
+	Return the deployment context of the microservice.
 
 Extensions
 ^^^^^^^^^^
 
-Extensions are extra packages that add functionality to a CoWorks application.
+Extensions are extra packages that add functionalities to a CoWorks application.
 Extensions are inspired from `Flask <https://flask.palletsprojects.com/en/1.1.x/extensions/>`_.
 
 

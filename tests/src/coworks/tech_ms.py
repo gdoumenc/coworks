@@ -7,8 +7,8 @@ from coworks import TechMicroService
 
 
 class TechMS(TechMicroService):
-    def __init__(self):
-        super().__init__(app_name='test')
+    def __init__(self, **kwargs):
+        super().__init__(app_name='test', **kwargs)
 
 
 class S3MockTechMS(TechMicroService):

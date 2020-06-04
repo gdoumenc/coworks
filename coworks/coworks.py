@@ -1,19 +1,20 @@
 import inspect
 import json
 import logging
+import os
+from pathlib import Path
 import sys
 import traceback
 from functools import update_wrapper
 from threading import Lock
-from typing import Dict
+from typing import Dict, List, Union
 
 from aws_xray_sdk.core import xray_recorder
 from chalice import AuthResponse, BadRequestError, Rate, Cron
 from chalice import Chalice, Blueprint as ChaliceBlueprint
-
 from requests_toolbelt.multipart import MultipartEncoder
 
-from .config import Config
+from .config import Config, DEFAULT_WORKSPACE
 from .mixins import CoworksMixin, AwsSFNSession
 from .utils import begin_xray_subsegment, end_xray_subsegment
 from .utils import class_auth_methods, class_rest_methods, class_attribute, trim_underscores
@@ -22,26 +23,73 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
-class TechMicroService(CoworksMixin, Chalice):
-    """Simple tech microservice created directly from class."""
+class Blueprint(CoworksMixin, ChaliceBlueprint):
+    """ Represents a blueprint, list of routes that will be added to microservice when registered.
 
-    def __init__(self, app_name: str = None, config: Config = None, **kwargs):
+    See :ref:`Blueprint <blueprint>` for more information.
+
+    """
+
+    def __init__(self, **kwargs):
+        """Initialize a blueprint.
+
+        :param kwargs: Other Chalice parameters.
+
+        """
+        import_name = kwargs.pop('import_name', self.__class__.__name__)
+        super().__init__(import_name)
+
+    @property
+    def import_name(self):
+        return self._import_name
+
+    @property
+    def component_name(self):
+        return ''
+
+    @property
+    def current_app(self):
+        return self._current_app
+
+
+class TechMicroService(CoworksMixin, Chalice):
+    """Simple tech microservice created directly from class.
+    
+    See :ref:`tech` for more information.
+    
+    """
+
+    def __init__(self, app_name: str = None, configs: Union[Config, List[Config]] = None,
+                 workspace: str = DEFAULT_WORKSPACE, **kwargs):
         """ Initialize a technical microservice.
         :param app_name: Name used to identify the resource.
-        :param config: Deployment configuration.
+        :param configs: Deployment configuration.
+        :param workspace used for execution.
         :param kwargs: Other Chalice parameters.
         """
+
+        # Set default configuration workspace for execution
+        self.configs = configs or [Config()]
+        if type(self.configs) is not list:
+            self.configs = [configs]
+        for conf in self.configs:
+            if conf.workspace == workspace:
+                self.config = conf
+                break
+        if not self.config:
+            self.config = self.configs[0]
+
         app_name = app_name or self.__class__.__name__
-        authorizer = kwargs.pop('authorizer', None)
+        kwargs.setdefault('debug', self.config.debug)
 
         super().__init__(app_name, **kwargs)
         self.experimental_feature_flags.update([
             'BLUEPRINTS'
         ])
 
-        self.config = config or Config()
-
-        self.__auth__ = self._create_auth_proxy(self, authorizer) if authorizer else None
+        # If defined replace the class defined authorizer (on the microservice and on the blueprint)
+        auth = self.config.auth
+        self.__global_auth__ = self._create_auth_proxy(self, auth) if auth else None
 
         # Blueprints added by names.
         self.blueprints = {}
@@ -77,49 +125,69 @@ class TechMicroService(CoworksMixin, Chalice):
     def ms_type(self):
         return 'tech'
 
-    @property
-    def lambda_zip_file(self):
-        return None
+    def register_blueprint(self, blueprint: Blueprint, authorizer=None, **kwargs):
+        """ Register a :class:`Blueprint` on the microservice.
 
-    @property
-    def layer_zip_file(self):
-        return None
-
-    def register_blueprint(self, blueprint, **kwargs):
+        :param blueprint:
+        :param authorizer:
+        :param kwargs:
+        :return:
+        """
         if 'name_prefix' not in kwargs:
             kwargs['name_prefix'] = blueprint.component_name
         if 'url_prefix' not in kwargs:
             kwargs['url_prefix'] = f"/{blueprint.component_name}"
 
+        blueprint.__auth__ = self._create_auth_proxy(self, authorizer) if authorizer else None
+
         self._add_route(blueprint, url_prefix=kwargs['url_prefix'])
         super().register_blueprint(blueprint, **kwargs)
         self.blueprints[blueprint.import_name] = blueprint
 
-    def run(self, host='127.0.0.1', port=8000, project_dir='.', stage=None, debug=True):
+    def run(self, host: str = '127.0.0.1', port: int = 8000, project_dir='.', workspace=None, debug=True):
+        """ Runs the microservice in a local Lambda emulator.
+        
+        :param host: the hostname to listen on.
+        :param port: the port of the webserver.
+        :param project_dir: to be able to import the microservice module.
+        :param debug: if given, enable or disable debug mode.
+        :param workspace: the workspace used for execution. If not defined, use the first configuration found.
+        :return: None
+        """
+
         # chalice.cli and .cws packages not defined in deployment
-        from chalice.cli import DEFAULT_STAGE_NAME
         from .cws.factory import CwsCLIFactory
 
         if debug:
             logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')
 
-        stage = stage or DEFAULT_STAGE_NAME
+        workspace = workspace or self.config.workspace
+
+        if self.config.environment_variables_file:
+            var_file = Path(project_dir) / self.config.environment_variables_file
+            try:
+                with open(var_file) as f:
+                    os.environ.update(json.loads(f.read()))
+            except FileNotFoundError:
+                raise FileNotFoundError(f"Cannot find environment file {var_file} for workspace {workspace}")
+
         factory = CwsCLIFactory(self, project_dir, debug=debug)
-        config = factory.mock_config_obj(self, stage)
+        config = factory.mock_config_obj(self)
         factory.run_local_server(self, config, host, port)
 
     def _add_route(self, component=None, url_prefix=None):
         if component is None:
             component = self
 
-            # Adds class authorizer for every entries (if not already added before)
+        # External authorizer has priority (forced)
+        if self.__global_auth__:
+            auth = component.__auth__ = self.__global_auth__
+        else:
             auth = class_auth_methods(component)
             if auth and component.__auth__ is None:
                 auth = TechMicroService._create_auth_proxy(component, auth)
                 component.__auth__ = auth
-        else:
-            # Adds the current_app auth for blueprints
-            auth = self.__auth__
+            auth = component.__auth__
 
         # Adds entrypoints
         methods = class_rest_methods(component)
@@ -212,7 +280,7 @@ class TechMicroService(CoworksMixin, Chalice):
                 return self.__auth__(event, context)
 
             print(f"Undefined authorization method for {self.app_name} ")
-            raise Exception('Unauthorized')
+            return 'Unauthorized', 403
 
         # step function call
         if event.get('type') == 'CWS_SFN':
@@ -287,7 +355,8 @@ class TechMicroService(CoworksMixin, Chalice):
 
 
 class BizFactory(TechMicroService):
-    """Tech microservice to create, update and trigger biz microservices."""
+    """Tech microservice to create, update and trigger biz microservices.
+    """
 
     def __init__(self, sfn_name, **kwargs):
         super().__init__(app_name=sfn_name, **kwargs)
@@ -395,7 +464,8 @@ class BizFactory(TechMicroService):
 
 
 class BizMicroService(TechMicroService):
-    """Biz composed microservice activated by a reactor."""
+    """Biz composed microservice activated by a reactor.
+    """
 
     def __init__(self, biz_factory, data, trigger, **kwargs):
         super().__init__(**kwargs)
@@ -405,26 +475,6 @@ class BizMicroService(TechMicroService):
 
     def handler(self, event, context):
         return self.biz_factory.invoke(self.data)
-
-
-class Blueprint(CoworksMixin, ChaliceBlueprint):
-    """Chalice blueprint created directly from class."""
-
-    def __init__(self, **kwargs):
-        import_name = kwargs.pop('import_name', self.__class__.__name__)
-        super().__init__(import_name)
-
-    @property
-    def import_name(self):
-        return self._import_name
-
-    @property
-    def component_name(self):
-        return ''
-
-    @property
-    def current_app(self):
-        return self._current_app
 
 
 class Once:
