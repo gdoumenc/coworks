@@ -1,5 +1,4 @@
 import io
-import os
 import threading
 import time
 
@@ -8,15 +7,13 @@ import requests
 from coworks.cws.client import CwsCLIFactory, export_to_file
 from coworks.pytest.local_server import ThreadedLocalServer
 
-EXAMPLE_DIR = os.getenv('EXAMPLE_DIR')
-
 
 class TestClass:
 
-    def test_run_quickstart(self):
-        app = CwsCLIFactory.import_attr('quickstart1', 'app', cwd=EXAMPLE_DIR)
+    def test_run_quickstart(self, example_dir):
+        app = CwsCLIFactory.import_attr('quickstart1', 'app', cwd=example_dir)
         port = ThreadedLocalServer.unused_tcp_port()
-        server = threading.Thread(target=run_server_quickstart, args=(app, port), daemon=True)
+        server = threading.Thread(target=run_server_quickstart, args=(app, port, example_dir), daemon=True)
         server.start()
         counter = 1
         time.sleep(counter)
@@ -27,14 +24,14 @@ class TestClass:
         assert response.text == "Simple microservice ready.\n"
         app.local_server.shutdown()
 
-    def test_export_quickstart(self):
-        app = CwsCLIFactory.import_attr('quickstart1', 'app', cwd=EXAMPLE_DIR)
+    def test_export_quickstart(self, example_dir):
+        app = CwsCLIFactory.import_attr('quickstart1', 'app', cwd=example_dir)
         output = io.StringIO()
-        export_to_file('quickstart2', 'app', 'terraform', output, project_dir=EXAMPLE_DIR)
+        export_to_file('quickstart2', 'app', 'terraform', output, project_dir=example_dir)
         output.seek(0)
         print(output.read())
 
 
-def run_server_quickstart(app, port):
+def run_server_quickstart(app, port, example_dir):
     print(f"Server starting on port {port}")
-    app.run(host='localhost', port=port, project_dir=EXAMPLE_DIR)
+    app.run(host='localhost', port=port, project_dir=example_dir)

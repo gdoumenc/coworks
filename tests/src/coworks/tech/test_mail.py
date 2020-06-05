@@ -1,7 +1,7 @@
-from unittest.mock import MagicMock
+import os
+
 import pytest
 import requests
-import os
 
 from coworks.tech import MailMicroService
 

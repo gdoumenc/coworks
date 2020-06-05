@@ -1,4 +1,3 @@
-import os
 import threading
 import time
 from pathlib import Path
@@ -9,8 +8,6 @@ from coworks.config import Config
 from coworks.cws.client import CwsCLIFactory
 from coworks.pytest.local_server import ThreadedLocalServer
 from .example import TechMS
-
-EXAMPLE_DIR = os.getenv('EXAMPLE_DIR')
 
 
 class TestClass:
@@ -42,17 +39,17 @@ class TestClass:
         assert response.status_code == 200
         assert response.text == "456\n"
 
-    def test_env(self, local_server_factory):
-        config = Config(environment_variables_file=Path(EXAMPLE_DIR) / "vars_dev.json")
+    def test_env(self, local_server_factory, example_dir):
+        config = Config(environment_variables_file=Path(example_dir) / "config" / "vars_dev.json")
         local_server = local_server_factory(TechMS(configs=[config]))
         response = local_server.make_call(requests.get, '/env', timeout=500)
         assert response.status_code == 200
         assert response.text == "Simple microservice for test dev environment variable.\n"
 
-    def test_run_example(self):
-        app = CwsCLIFactory.import_attr('example', 'app', cwd=EXAMPLE_DIR)
+    def test_run_example(self, example_dir):
+        app = CwsCLIFactory.import_attr('example', 'app', cwd=example_dir)
         port = ThreadedLocalServer.unused_tcp_port()
-        server = threading.Thread(target=run_server_example, args=(app, port), daemon=True)
+        server = threading.Thread(target=run_server_example, args=(app, port, example_dir), daemon=True)
         server.start()
         counter = 1
         time.sleep(counter)
@@ -67,6 +64,6 @@ class TestClass:
         app.local_server.shutdown()
 
 
-def run_server_example(app, port):
+def run_server_example(app, port, example_dir):
     print(f"Server starting on port {port}")
-    app.run(host='localhost', port=port, project_dir=EXAMPLE_DIR)
+    app.run(host='localhost', port=port, project_dir=example_dir)
