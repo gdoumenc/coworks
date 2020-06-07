@@ -1,3 +1,3 @@
-from coworks.cws.scons import Layer
+from coworks.cws.layers import Layer
 
-Layer('layer.zip', [])
+Layer('layer.zip')

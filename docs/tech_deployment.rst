@@ -3,6 +3,11 @@
 TechMS Deployment
 =================
 
+Layers
+------
+
+For security reasons, by default microservices do not support CORS headers in response.
+
 CORS
 ----
 
@@ -171,7 +176,7 @@ Staging deployment
 
 The terraform export can now be used to create one Lambda ressource per workspace:
 
-.. code-block:: Terraform
+.. code-block::
 
 	{% for stage in app_configs %}
 	 	data "local_file" "environment_variables_{{ stage.workspace_name }}" {
@@ -185,7 +190,7 @@ The terraform export can now be used to create one Lambda ressource per workspac
 
 And an APIGateway deployment per workspace :
 
-.. code-block:: Terraform
+.. code-block::
 
 	{% for stage in app_configs %}
 	  	resource "aws_api_gateway_deployment" "{{ res_id }}_{{ stage.workspace_name }}" {

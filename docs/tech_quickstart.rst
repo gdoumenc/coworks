@@ -47,12 +47,7 @@ For this purpose, create a file ``SConstruct`` with the following content:
 
 Then do the following command::
 
-	(project) $ scons
-	scons: Reading SConscript files ...
-	scons: done reading SConscript files.
-	scons: Building targets ...
-	generate_zip_file(["layer.zip"], [])
-	scons: done building targets.
+	(project) $ scons -s
 
 A ``layer.zip`` file is then available.
 

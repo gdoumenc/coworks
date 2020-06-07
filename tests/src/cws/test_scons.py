@@ -13,19 +13,22 @@ class TestClass:
         # hack for strange installation of scons
         for path in [f"{p}/scons" for p in sys.path if 'site-package' in p]:
             monkeypatch.syspath_prepend(path)
-        from coworks.cws.layers import generate_zip_file
-        env = {
-            'SRC_DIRS': [example_dir],
-            'MODULES': ["chalice", "aws_xray_sdk"],
-            'EXCLUDE_DIRS': [os.path.join(example_dir, 'config')],
-            'EXCLUDE_FILE_PATTERN': "Pipfile",
-        }
+        from coworks.cws.layers import Layer
 
-        generate_zip_file([Target("test")], None, env=env)
+        env = {
+            'modules': ["chalice", "aws_xray_sdk"],
+            'source_dirs': [example_dir],
+            'exclude_dirs': [os.path.join(example_dir, 'config')],
+            'exclude_file_pattern': r"(Pipfile)|(.*\.tf)|(.*\.http)",
+        }
+        layer = Layer('test', **env)
+        layer.generate_zip_file([Target("test")], None)
         zipfile_mock.assert_called_with("test", mode='w')
 
         filename_args = ([c[1][1].as_posix() for c in zipfile_mock.file.write.mock_calls])
         assert 'python/chalice/app.py' in filename_args
-        assert 'python/tests/example/quickstart2.py' in filename_args
-        assert 'python/tests/example/config/vars_dev.json' not in filename_args
-        assert 'python/tests/example/Pipfile' not in filename_args
+        assert 'python/quickstart2.py' in filename_args
+        assert 'python/config/vars_dev.json' not in filename_args
+        assert 'python/Pipfile' not in filename_args
+        assert 'python/quickstart2.tf' not in filename_args
+        assert 'python/request.http' not in filename_args
