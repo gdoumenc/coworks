@@ -2,6 +2,7 @@ import inspect
 import json
 import logging
 import os
+import hashlib
 from pathlib import Path
 import sys
 import traceback
@@ -58,6 +59,10 @@ class TechMicroService(CoworksMixin, Chalice):
     See :ref:`tech` for more information.
     
     """
+
+    @property
+    def sign_md5(self):
+        return hashlib.md5(json.dumps(self.entries, sort_keys=True).encode('utf-8')).hexdigest()
 
     def __init__(self, app_name: str = None, configs: Union[Config, List[Config]] = None,
                  workspace: str = DEFAULT_WORKSPACE, **kwargs):
