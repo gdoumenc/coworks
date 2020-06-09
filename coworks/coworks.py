@@ -1,12 +1,12 @@
+import hashlib
 import inspect
 import json
 import logging
 import os
-import hashlib
-from pathlib import Path
 import sys
 import traceback
 from functools import update_wrapper
+from pathlib import Path
 from threading import Lock
 from typing import Dict, List, Union
 
@@ -59,11 +59,6 @@ class TechMicroService(CoworksMixin, Chalice):
     See :ref:`tech` for more information.
     
     """
-
-    @property
-    def sign_md5(self):
-        entries_signature = dict((route, http_method) for route, (http_method, _) in self.entries.items())
-        return hashlib.md5(json.dumps(entries_signature, sort_keys=True).encode('utf-8')).hexdigest()
 
     def __init__(self, app_name: str = None, configs: Union[Config, List[Config]] = None,
                  workspace: str = DEFAULT_WORKSPACE, **kwargs):
@@ -150,14 +145,13 @@ class TechMicroService(CoworksMixin, Chalice):
         super().register_blueprint(blueprint, **kwargs)
         self.blueprints[blueprint.import_name] = blueprint
 
-    def run(self, host: str = '127.0.0.1', port: int = 8000, project_dir='.', workspace=None, debug=True):
+    def run(self, host: str = '127.0.0.1', port: int = 8000, project_dir='.', debug=True):
         """ Runs the microservice in a local Lambda emulator.
         
         :param host: the hostname to listen on.
         :param port: the port of the webserver.
         :param project_dir: to be able to import the microservice module.
         :param debug: if given, enable or disable debug mode.
-        :param workspace: the workspace used for execution. If not defined, use the first configuration found.
         :return: None
         """
 
@@ -167,14 +161,13 @@ class TechMicroService(CoworksMixin, Chalice):
         if debug:
             logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')
 
-        workspace = workspace or self.config.workspace
-
         if self.config.environment_variables_file:
             var_file = Path(project_dir) / self.config.environment_variables_file
             try:
                 with open(var_file) as f:
                     os.environ.update(json.loads(f.read()))
             except FileNotFoundError:
+                workspace = self.config.workspace
                 raise FileNotFoundError(f"Cannot find environment file {var_file} for workspace {workspace}")
 
         factory = CwsCLIFactory(self, project_dir, debug=debug)

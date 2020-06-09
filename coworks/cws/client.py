@@ -65,15 +65,14 @@ def info(ctx, module, app, out):
               help="Coworks application in the source file.")
 @click.option('-h', '--host', default='127.0.0.1')
 @click.option('-p', '--port', default=8000, type=click.INT)
-@click.option('-s', '--stage', default='dev')
 @click.option('--debug/--no-debug', default=False,
               help='Print debug logs to stderr.')
 @click.pass_context
-def run(ctx, module, app, host, port, stage, debug):
+def run(ctx, module, app, host, port, debug):
     """Run local server."""
     try:
         handler = import_attr(module, app, cwd=ctx.obj['project_dir'])
-        handler.run(host=host, port=port, stage=stage, debug=debug, project_dir=ctx.obj['project_dir'])
+        handler.run(host=host, port=port, debug=debug, project_dir=ctx.obj['project_dir'])
     except CLIError:
         sys.exit(1)
     except Exception as e:
@@ -90,8 +89,7 @@ def run(ctx, module, app, host, port, stage, debug):
               help="BizMicroservice name.")
 @click.option('-f', '--format', default='terraform')
 @click.option('-o', '--out')
-@click.option('-v', '--variables', default=[('workspace', 'dev')], type=(str, str), multiple=True,
-              help="Aditionnal variables")
+@click.option('-v', '--variables', type=(str, str), multiple=True, help="Additionnal variables")
 @click.option('--debug/--no-debug', default=False,
               help='Print debug logs to stderr.')
 @click.pass_context
@@ -157,6 +155,7 @@ def export_to_file(module, app, _format, out, **kwargs):
     except KeyError as e:
         sys.stderr.write(f"Format '{_format}' undefined (you haven't add a {_format} writer to {app} )\n")
         raise CLIError()
+
     _writer.export(output=out, module_name=module, handler_name=app, **kwargs)
 
 

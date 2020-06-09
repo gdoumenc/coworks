@@ -10,6 +10,11 @@ class TestClass:
 
     def test_info(self, example_dir):
         with pytest.raises(SystemExit) as pytest_wrapped_e:
+            client(prog_name='cws', args=['-p', 'doesntexist', 'info'], obj={})
+        assert pytest_wrapped_e.type == SystemExit
+        assert pytest_wrapped_e.value.code == 1
+
+        with pytest.raises(SystemExit) as pytest_wrapped_e:
             client(prog_name='cws', args=['-p', example_dir, 'info'], obj={})
         assert pytest_wrapped_e.type == SystemExit
         assert pytest_wrapped_e.value.code == 1
@@ -40,6 +45,12 @@ class TestClass:
             client(prog_name='cws', args=['-p', example_dir, 'info', '-m', 'example', '-a', 'tech_app'], obj={})
         assert pytest_wrapped_e.type == SystemExit
         assert pytest_wrapped_e.value.code == 0
+
+    def test_run(self, example_dir):
+        with pytest.raises(SystemExit) as pytest_wrapped_e:
+            client(prog_name='cws', args=['-p', example_dir, 'run', '-m', 'example', '-a', 'info'], obj={})
+        assert pytest_wrapped_e.type == SystemExit
+        assert pytest_wrapped_e.value.code == 1
 
     def test_export(self, example_dir):
         with pytest.raises(SystemExit) as pytest_wrapped_e:
