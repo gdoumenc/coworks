@@ -90,7 +90,7 @@ def run(ctx, module, app, host, port, stage, debug):
               help="BizMicroservice name.")
 @click.option('-f', '--format', default='terraform')
 @click.option('-o', '--out')
-@click.option('-v', '--variables', default='workspace=dev', type=(str, str), multiple=True,
+@click.option('-v', '--variables', default=[('workspace', 'dev')], type=(str, str), multiple=True,
               help="Aditionnal variables")
 @click.option('--debug/--no-debug', default=False,
               help='Print debug logs to stderr.')

@@ -62,7 +62,8 @@ class TechMicroService(CoworksMixin, Chalice):
 
     @property
     def sign_md5(self):
-        return hashlib.md5(json.dumps(self.entries, sort_keys=True).encode('utf-8')).hexdigest()
+        entries_signature = dict((route, http_method) for route, (http_method, _) in self.entries.items())
+        return hashlib.md5(json.dumps(entries_signature, sort_keys=True).encode('utf-8')).hexdigest()
 
     def __init__(self, app_name: str = None, configs: Union[Config, List[Config]] = None,
                  workspace: str = DEFAULT_WORKSPACE, **kwargs):
