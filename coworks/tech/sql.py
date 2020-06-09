@@ -20,7 +20,7 @@ class SqlMicroService(TechMicroService):
         self.engine = None
         self.session = None
 
-        @self.before_first_request
+        @self.before_first_activation
         def check_env_vars():
             self.dialect = os.getenv('DIALECT')
             if not self.dialect:
@@ -39,7 +39,7 @@ class SqlMicroService(TechMicroService):
             if not self.password:
                 self.password = ''
 
-        @self.before_first_request
+        @self.before_first_activation
         def engine():
             if self.port is None:
                 if self.dialect == 'mysql':

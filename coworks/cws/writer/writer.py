@@ -122,6 +122,7 @@ class TemplateWriter(Writer):
             'app': self.app,
             'app_name': self.app.app_name,
             'app_configs': self.app.configs,
+            'variables': kwargs['variables']
         }
         data.update(self.data)
         try:

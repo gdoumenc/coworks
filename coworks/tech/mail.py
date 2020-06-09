@@ -2,6 +2,7 @@ import os
 import smtplib
 from email.message import EmailMessage
 
+import requests
 from aws_xray_sdk.core import xray_recorder
 from chalice import ChaliceViewError, BadRequestError
 
@@ -27,8 +28,8 @@ class MailMicroService(TechMicroService):
             if not self.smtp_passwd:
                 raise EnvironmentError('SMTP_PASSWD not defined in environment')
 
-    def post_send(self, subject="", from_addr: str = None, to_addrs: [str] = None, body="",
-                  attachments: [FileParam] = None, subtype="plain", starttls=True):
+    def post_send(self, subject="", from_addr: str = None, to_addrs: [str] = None, cc_addrs: [str] = None, bcc_addrs: [str] = None, body="",
+                  attachments: [FileParam] = None, attachment_urls: dict = None, subtype="plain", starttls=True):
         """ Send mail.
         To send attachments, add files in the body of the request as multipart/form-data. """
 
@@ -45,6 +46,10 @@ class MailMicroService(TechMicroService):
             msg['Subject'] = subject
             msg['From'] = from_addr
             msg['To'] = to_addrs if isinstance(to_addrs, str) else ', '.join(to_addrs)
+            if cc_addrs:
+                msg['Cc'] = cc_addrs if isinstance(cc_addrs, str) else ', '.join(cc_addrs)
+            if bcc_addrs:
+                msg['Bcc'] = bcc_addrs if isinstance(bcc_addrs, str) else ', '.join(bcc_addrs)
             msg.set_content(body, subtype=subtype)
 
             if attachments:
@@ -56,6 +61,17 @@ class MailMicroService(TechMicroService):
                     maintype, subtype = attachment.mime_type.split("/")
                     msg.add_attachment(attachment.file.read(), maintype=maintype, subtype=subtype,
                                        filename=attachment.file.name)
+
+            if attachment_urls:
+                for attachment_name, attachment_url in attachment_urls.items():
+                    response = requests.get(attachment_url)
+                    if response.status_code == 200:
+                        attachment = response.content
+                        maintype, subtype = response.headers['Content-Type'].split('/')
+                        msg.add_attachment(response.content, maintype=maintype, subtype=subtype,
+                                           filename=attachment_name)
+                    else:
+                        raise BadRequestError(f"Failed to download attachment, error {response.status_code}")
 
         except Exception as e:
             raise ChaliceViewError(f"Cannot create email message (Error: {str(e)}).")

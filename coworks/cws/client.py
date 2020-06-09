@@ -90,13 +90,15 @@ def run(ctx, module, app, host, port, stage, debug):
               help="BizMicroservice name.")
 @click.option('-f', '--format', default='terraform')
 @click.option('-o', '--out')
+@click.option('-v', '--variables', default=[('workspace', 'dev')], type=(str, str), multiple=True,
+              help="Aditionnal variables")
 @click.option('--debug/--no-debug', default=False,
               help='Print debug logs to stderr.')
 @click.pass_context
-def export(ctx, module, app, biz, format, out, debug):
+def export(ctx, module, app, biz, format, out, variables, debug):
     """Export microservice in other description languages."""
     try:
-        export_to_file(module, app, format, out, project_dir=ctx.obj['project_dir'], biz=biz)
+        export_to_file(module, app, format, out, project_dir=ctx.obj['project_dir'], biz=biz, variables=dict(variables))
     except CLIError:
         sys.exit(1)
     except Exception as e:
@@ -150,13 +152,11 @@ def import_attr(module, app, cwd):
 
 def export_to_file(module, app, _format, out, **kwargs):
     handler = import_attr(module, app, cwd=kwargs['project_dir'])
-
     try:
         _writer: Writer = handler.extensions['writers'][_format]
     except KeyError as e:
         sys.stderr.write(f"Format '{_format}' undefined (you haven't add a {_format} writer to {app} )\n")
         raise CLIError()
-
     _writer.export(output=out, module_name=module, handler_name=app, **kwargs)
 
 

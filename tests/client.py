@@ -13,6 +13,9 @@ if __name__ == '__main__':
         sys.argv[1:] = ['--project-dir', 'example', 'run', '-m', 'quickstart1']
     elif sys.argv[1] == "2":
         sys.argv[1:] = ['--project-dir', 'example', 'export', '-m', 'quickstart2', '-o', 'quickstart.tf']
+    elif sys.argv[1] == "3":
+        sys.argv[1:] = ['--project-dir', '~/workspace/yopp/yopp_microservices/billing/src', 'export', '-m', 'billing', '-a', 'yopp_orders', '-o', '_billing_yopp_orders.tf']
+
     # elif sys.argv[1] == "1":
     #     sys.argv[1:] = ['export', '-m', 'example.example', '-a', 'app']
     #
