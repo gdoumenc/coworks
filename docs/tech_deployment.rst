@@ -6,7 +6,8 @@ TechMS Deployment
 Layers
 ------
 
-For security reasons, by default microservices do not support CORS headers in response.
+We use AWS Layers to keep the lambda code as small as possible : coworks and additionnal python libraries are put in a same layer that can be reused by several lambda functions.
+
 
 CORS
 ----
