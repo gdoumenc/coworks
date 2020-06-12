@@ -188,15 +188,15 @@ We use scons to automate staging deployment. Create a SConstruct file containing
 	Layer('layer.zip')
 
 	src = [AllFiles('src')]
-	tms = [('module_name-test', ['dev', 'prod'])]
+	tms = [('app-test', ['dev', 'prod'])]
 
 	CwsProject(src, tms)
 
-Put source files (code of the microservice) in a src directory and then execute scons (omitting microservice=module_name-test will deploy all microservices defined in the SConstruct file) :
+Put source files (code of the microservice) in a src directory and then execute scons (omitting microservice=app-test will deploy all microservices defined in the SConstruct file) :
 
 .. code-block:: console
 
-	scons microservice=module_name-test stage=dev
+	scons microservice=app-test stage=dev
 
 It will create the layer and the terraform files to deploy the stage "dev" and taint the resources that need to be redeployed.
 
