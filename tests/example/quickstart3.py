@@ -1,6 +1,6 @@
 from coworks import TechMicroService
 from coworks.config import Config, CORSConfig
-from coworks.cws.writer import TerraformWriter
+from coworks.cws.writer import TerraformStagingWriter
 
 
 class SimpleMicroService(TechMicroService):
@@ -13,18 +13,23 @@ class SimpleMicroService(TechMicroService):
 
 
 DEV_CONFIG = Config(
+    workspace="dev",
+    version="0.0",
     cors=CORSConfig(allow_origin='*'),
-    environment_variables_file="config/vars_dev.json"
+    environment_variables_file="config/vars_dev.json",
+    layers=["layer"]
 )
 PROD_CONFIG = Config(
     workspace="prod",
+    version="0.0",
     cors=CORSConfig(allow_origin='www.mywebsite.com'),
     environment_variables_file="config/vars_prod.secret.json",
-    version="0.0"
+    layers=["layer"]
 )
 
 app = SimpleMicroService(app_name='test', configs=[DEV_CONFIG, PROD_CONFIG])
-TerraformWriter(app)
+TerraformStagingWriter(app)
+
 
 if __name__ == '__main__':
-    app.run(workspace='prod')
+    app.run()

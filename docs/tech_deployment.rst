@@ -141,15 +141,18 @@ we will use several configurations, one per stage.
 .. code-block:: python
 
 	DEV_CONFIG = Config(
+		workspace="dev",
+		version="0.0",
 		cors=CORSConfig(allow_origin='*'),
-		environment_variables_file="dev_vars.json"
+		environment_variables_file="config/vars_dev.json",
+		layers=["layer"]
 	)
 	PROD_CONFIG = Config(
-		workspace_name="prod",
-		auth=my_auth,
-		cors=CORSConfig(allow_origin='*'),
-		environment_variables_file="prod_vars.secret.json",
-		version="0.0"
+		workspace="prod",
+		version="0.0",
+		cors=CORSConfig(allow_origin='www.mywebsite.com'),
+		environment_variables_file="config/vars_prod.secret.json",
+		layers=["layer"]
 	)
 
 	WORKSPACES = [DEV_CONFIG, PROD_CONFIG]
@@ -159,7 +162,7 @@ workspace configuration.
 
 .. code-block:: python
 
-	app = SimpleMicroService(app_name='app_name='test'', configs=WORKSPACES)
+	app = SimpleMicroService(app_name='app_name'='test', configs=WORKSPACES)
 
 To run the microservice in a specific workspace, add the workspace parameter:
 
@@ -174,9 +177,30 @@ The complete microservice will be:
 Staging deployment
 ******************
 
-The terraform export can now be used to create one Lambda ressource per workspace:
+We use scons to automate staging deployment. Create a SConstruct file containing the following code :
 
-.. code-block:: terraform
+.. code-block:: python
+
+	from coworks.cws.layers import Layer
+	from coworks.cws.scons import AllFiles, CwsProject
+
+	Layer('layer.zip')
+
+	src = [AllFiles('src')]
+	tms = [('module_name-test', ['dev', 'prod'])]
+
+	CwsProject(src, tms)
+
+Then execute scons (omitting microservice=module_name-test will deploy all microservices defined in the SConstruct file) :
+.. code-block:: console
+
+	scons microservice=module_name-test stage=dev
+
+It will create the layer and the terraform files to deploy the stage "dev" and taint the resources that need to be redeployed.
+
+The terraform file created by scons using terraform export contains one lambda resource per workspace
+
+.. code-block:: jinja
 
 	{% for stage in app_configs %}
 	 	data "local_file" "environment_variables_{{ stage.workspace_name }}" {
@@ -188,9 +212,9 @@ The terraform export can now be used to create one Lambda ressource per workspac
 		}
 	{% endfor %}
 
-And an APIGateway deployment per workspace :
+And one APIGateway deployment per workspace :
 
-.. code-block:: terraform
+.. code-block:: jinja
 
 	{% for stage in app_configs %}
 	  	resource "aws_api_gateway_deployment" "{{ res_id }}_{{ stage.workspace_name }}" {
@@ -198,3 +222,7 @@ And an APIGateway deployment per workspace :
 		}
 	{% endfor %}
 
+Now you can actually deploy the resources:
+.. code-block:: console
+
+	terraform apply
