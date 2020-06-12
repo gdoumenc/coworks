@@ -16,14 +16,14 @@ DEV_CONFIG = Config(
     workspace="dev",
     version="0.0",
     cors=CORSConfig(allow_origin='*'),
-    environment_variables_file="config/vars_dev.json",
+    environment_variables_file="vars_dev.json",
     layers=["layer"]
 )
 PROD_CONFIG = Config(
     workspace="prod",
     version="0.0",
     cors=CORSConfig(allow_origin='www.mywebsite.com'),
-    environment_variables_file="config/vars_prod.secret.json",
+    environment_variables_file="vars_prod.secret.json",
     layers=["layer"]
 )
 
