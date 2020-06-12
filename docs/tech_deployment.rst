@@ -228,4 +228,5 @@ Now you can actually deploy the resources :
 
 .. code-block:: console
 
+	cd terraform
 	terraform apply
