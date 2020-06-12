@@ -192,7 +192,7 @@ We use scons to automate staging deployment. Create a SConstruct file containing
 
 	CwsProject(src, tms)
 
-Put source files (code of the microservice) in a src directory and then execute scons (omitting microservice=app-test will deploy all microservices defined in the SConstruct file) :
+Put source files (code of the microservice, files cointaining environment variables) in a src directory and then execute scons (omitting microservice=app-test will deploy all microservices defined in the SConstruct file) :
 
 .. code-block:: console
 
