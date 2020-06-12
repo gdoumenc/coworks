@@ -192,6 +192,7 @@ We use scons to automate staging deployment. Create a SConstruct file containing
 	CwsProject(src, tms)
 
 Then execute scons (omitting microservice=module_name-test will deploy all microservices defined in the SConstruct file) :
+
 .. code-block:: console
 
 	scons microservice=module_name-test stage=dev
@@ -222,7 +223,8 @@ And one APIGateway deployment per workspace :
 		}
 	{% endfor %}
 
-Now you can actually deploy the resources:
+Now you can actually deploy the resources :
+
 .. code-block:: console
 
 	terraform apply
