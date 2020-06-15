@@ -185,7 +185,7 @@ We use scons to automate staging deployment. Create a SConstruct file containing
 	from coworks.cws.layers import Layer
 	from coworks.cws.scons import AllFiles, CwsProject
 
-	Layer('layer.zip')
+	Layer(['./terraform/layer.zip'])
 
 	src = [AllFiles('src')]
 	tms = [('app-test', ['dev', 'prod'])]
