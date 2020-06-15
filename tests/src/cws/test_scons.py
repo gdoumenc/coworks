@@ -3,8 +3,17 @@ import sys
 from dataclasses import dataclass
 
 
+class Dir:
+    def __init__(self, dir):
+        self.dir = dir
+
+    def get_abspath(self):
+        return os.path.join(os.getcwd(), self.dir)
+
+
 @dataclass
 class Target:
+    dir: Dir
     name: str
 
 
@@ -22,8 +31,8 @@ class TestClass:
             'exclude_file_pattern': r"(Pipfile)|(.*\.tf)|(.*\.http)",
         }
         layer = Layer('test', **env)
-        layer.generate_zip_file([Target("test")], None)
-        zipfile_mock.assert_called_with("test", mode='w')
+        layer.generate_zip_file([Target(Dir('test'), 'test')], None)
+        zipfile_mock.assert_called_with(os.path.join(os.getcwd(), 'test', 'test'), mode='w')
 
         filename_args = ([c[1][1].as_posix() for c in zipfile_mock.file.write.mock_calls])
         assert 'python/chalice/app.py' in filename_args
