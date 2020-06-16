@@ -37,13 +37,13 @@ def Deploy(target, source, env=None):
     src_dir = env['SRC_DIR']
     terraform_dir = env['TERRAFORM_DIR']
     stage = ARGUMENTS.get('stage', 'dev')
-    app = ARGUMENTS.get('module', 'app')
+    module = ARGUMENTS.get('module', 'app')
     service = ARGUMENTS.get('service')
-    microservice = f"{app}-{service}" if service else None
+    microservice = f"{module}-{service}" if service else None
     for t in target:
-        mod, app, _ = t.name.split(MODULE_APP_SEP)
-        print(f"Create terraform files for {mod}{MODULE_APP_SEP}{app}")
-        cmd = f"{cws} -p {src_dir} info -m {mod} -a {app}"
+        mod, service, _ = t.name.split(MODULE_APP_SEP)
+        print(f"Create terraform files for {mod}{MODULE_APP_SEP}{service}")
+        cmd = f"{cws} -p {src_dir} info -m {mod} -a {service}"
         if debug:
             print(cmd)
         info = subprocess.check_output(cmd.split(' ')).decode('utf-8')
@@ -51,7 +51,7 @@ def Deploy(target, source, env=None):
             print(f"info: {info[:-1]}")
         name = json.loads(info[:-1])['name']
 
-        cmd = f"{cws} -p {src_dir} export -f terraform-staging -m {mod} -a {app} -v workspace {stage}"
+        cmd = f"{cws} -p {src_dir} export -f terraform-staging -m {mod} -a {service} -v workspace {stage}"
         if debug:
             print(cmd)
         content = subprocess.check_output(cmd.split(' ')).decode('utf-8')
@@ -63,7 +63,7 @@ def Deploy(target, source, env=None):
         if microservice:
             ressource_name = f'{microservice}_{stage}'
         else:
-            ressource_name = f'{mod}-{app}_{stage}'
+            ressource_name = f'{mod}-{service}_{stage}'
 
         try:
             if debug:
