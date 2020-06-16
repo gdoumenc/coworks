@@ -35,14 +35,14 @@ def client(ctx, project_dir=None):
 @client.command('info')
 @click.option('-m', '--module', default='app',
               help="Filename of your microservice python source file.")
-@click.option('-a', '--app', default='app',
+@click.option('-s', '--service', default='app',
               help="Coworks application in the source file.")
 @click.option('-o', '--out')
 @click.pass_context
-def info(ctx, module, app, out):
+def info(ctx, module, service, out):
     """Information on a microservice."""
     try:
-        handler = import_attr(module, app, cwd=ctx.obj['project_dir'])
+        handler = import_attr(module, service, cwd=ctx.obj['project_dir'])
         if out is not None:
             soutput = open(out, 'w+') if type(out) is str else out
         else:
@@ -61,17 +61,17 @@ def info(ctx, module, app, out):
 @client.command('run')
 @click.option('-m', '--module', default='app',
               help="Filename of your microservice python source file.")
-@click.option('-a', '--app', default='app',
+@click.option('-s', '--service', default='app',
               help="Coworks application in the source file.")
 @click.option('-h', '--host', default='127.0.0.1')
 @click.option('-p', '--port', default=8000, type=click.INT)
 @click.option('--debug/--no-debug', default=False,
               help='Print debug logs to stderr.')
 @click.pass_context
-def run(ctx, module, app, host, port, debug):
+def run(ctx, module, service, host, port, debug):
     """Run local server."""
     try:
-        handler = import_attr(module, app, cwd=ctx.obj['project_dir'])
+        handler = import_attr(module, service, cwd=ctx.obj['project_dir'])
         handler.run(host=host, port=port, debug=debug, project_dir=ctx.obj['project_dir'])
     except CLIError:
         sys.exit(1)
@@ -83,7 +83,7 @@ def run(ctx, module, app, host, port, debug):
 @client.command('export')
 @click.option('-m', '--module', default='app',
               help="Filename of your microservice python source file.")
-@click.option('-a', '--app', default='app',
+@click.option('-s', '--service', default='app',
               help="Coworks application in the source file.")
 @click.option('-b', '--biz', default=None,
               help="BizMicroservice name.")
@@ -93,10 +93,10 @@ def run(ctx, module, app, host, port, debug):
 @click.option('--debug/--no-debug', default=False,
               help='Print debug logs to stderr.')
 @click.pass_context
-def export(ctx, module, app, biz, format, out, variables, debug):
+def export(ctx, module, service, biz, format, out, variables, debug):
     """Export microservice in other description languages."""
     try:
-        export_to_file(module, app, format, out, project_dir=ctx.obj['project_dir'], biz=biz, variables=dict(variables))
+        export_to_file(module, service, format, out, project_dir=ctx.obj['project_dir'], biz=biz, variables=dict(variables))
     except CLIError:
         sys.exit(1)
     except Exception as e:
@@ -109,14 +109,14 @@ def export(ctx, module, app, biz, format, out, variables, debug):
 @client.command('update')
 @click.option('-m', '--module', default='app',
               help="Filename of your microservice python source file.")
-@click.option('-a', '--app', default='app',
+@click.option('-s', '--service', default='app',
               help="Coworks application in the source file.")
 @click.option('-p', '--profile', default=None)
 @click.pass_context
-def update(ctx, module, app, profile):
+def update(ctx, module, service, profile):
     """Update biz microservice."""
     out = SpooledTemporaryFile(mode='w+')
-    handler = export_to_file(module, app, 'sfn', out, project_dir=ctx.obj['project_dir'])
+    handler = export_to_file(module, service, 'sfn', out, project_dir=ctx.obj['project_dir'])
     if handler is None:
         sys.exit(1)
     handler.aws_profile = profile
@@ -134,11 +134,11 @@ def update(ctx, module, app, profile):
         sys.exit(1)
 
 
-def import_attr(module, app, cwd):
+def import_attr(module, service, cwd):
     try:
-        return CwsCLIFactory.import_attr(module, app, cwd=cwd)
+        return CwsCLIFactory.import_attr(module, service, cwd=cwd)
     except AttributeError as e:
-        sys.stderr.write(f"Module '{module}' has no microservice {app} : {str(e)}\n")
+        sys.stderr.write(f"Module '{module}' has no microservice {service} : {str(e)}\n")
         raise CLIError()
     except ModuleNotFoundError as e:
         sys.stderr.write(f"They module '{module}' is not defined in {cwd} : {str(e)}\n")
@@ -148,15 +148,15 @@ def import_attr(module, app, cwd):
         raise CLIError()
 
 
-def export_to_file(module, app, _format, out, **kwargs):
-    handler = import_attr(module, app, cwd=kwargs['project_dir'])
+def export_to_file(module, service, _format, out, **kwargs):
+    handler = import_attr(module, service, cwd=kwargs['project_dir'])
     try:
         _writer: Writer = handler.extensions['writers'][_format]
     except KeyError as e:
-        sys.stderr.write(f"Format '{_format}' undefined (you haven't add a {_format} writer to {app} )\n")
+        sys.stderr.write(f"Format '{_format}' undefined (you haven't add a {_format} writer to {service} )\n")
         raise CLIError()
 
-    _writer.export(output=out, module_name=module, handler_name=app, **kwargs)
+    _writer.export(output=out, module_name=module, handler_name=service, **kwargs)
 
 
 def update_sfn(handler, src):
