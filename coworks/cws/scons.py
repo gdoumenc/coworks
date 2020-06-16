@@ -43,7 +43,7 @@ def Deploy(target, source, env=None):
     for t in target:
         mod, service, _ = t.name.split(MODULE_APP_SEP)
         print(f"Create terraform files for {mod}{MODULE_APP_SEP}{service}")
-        cmd = f"{cws} -p {src_dir} info -m {mod} -a {service}"
+        cmd = f"{cws} -p {src_dir} info -m {mod} -s {service}"
         if debug:
             print(cmd)
         info = subprocess.check_output(cmd.split(' ')).decode('utf-8')
@@ -51,7 +51,7 @@ def Deploy(target, source, env=None):
             print(f"info: {info[:-1]}")
         name = json.loads(info[:-1])['name']
 
-        cmd = f"{cws} -p {src_dir} export -f terraform-staging -m {mod} -a {service} -v workspace {stage}"
+        cmd = f"{cws} -p {src_dir} export -f terraform-staging -m {mod} -s {service} -v workspace {stage}"
         if debug:
             print(cmd)
         content = subprocess.check_output(cmd.split(' ')).decode('utf-8')
