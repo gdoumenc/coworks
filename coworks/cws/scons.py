@@ -19,9 +19,9 @@ Help(f"""
        """)
 
 
-def AllFiles(node='.', pattern='*', exclude=r'.*\.pyc$'):
-    result = [AllFiles(dir, pattern, exclude) for dir in Glob(str(node) + '/*') if dir.isdir()]
-    result += [source for source in Glob(str(node) + '/' + pattern) if
+def AllFiles(src_dir='.', pattern='*', exclude=r'.*\.pyc$'):
+    result = [AllFiles(dir, pattern, exclude) for dir in Glob(str(src_dir) + '/*') if dir.isdir()]
+    result += [source for source in Glob(str(src_dir) + '/' + pattern) if
                source.isfile() and (exclude is None or re.match(exclude, source.name) is None)]
     return result
 
