@@ -111,4 +111,4 @@ def write_data_on_worksheet(key: str, worksheet_title: str, column_names: list, 
     worksheet.update_values('A2', data)
 
 
-app = GoogleSheetsMicroservice(app_name="google-sheets")
+app = GoogleSheetsMicroservice(ms_name="google-sheets")

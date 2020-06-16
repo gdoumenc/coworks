@@ -10,7 +10,7 @@ from coworks.cws.writer.sfn import TechState
 
 class TechMS(TechMicroService):
     def __init__(self):
-        super().__init__(app_name='test')
+        super().__init__(ms_name='test')
 
     def post_params(self, text=None, context=None, files=None):
         if files:

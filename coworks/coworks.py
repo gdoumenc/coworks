@@ -60,10 +60,10 @@ class TechMicroService(CoworksMixin, Chalice):
     
     """
 
-    def __init__(self, app_name: str = None, configs: Union[Config, List[Config]] = None,
+    def __init__(self, ms_name: str = None, configs: Union[Config, List[Config]] = None,
                  workspace: str = DEFAULT_WORKSPACE, **kwargs):
         """ Initialize a technical microservice.
-        :param app_name: Name used to identify the resource.
+        :param ms_name: Name used to identify the resource.
         :param configs: Deployment configuration.
         :param workspace used for execution.
         :param kwargs: Other Chalice parameters.
@@ -80,10 +80,10 @@ class TechMicroService(CoworksMixin, Chalice):
         if not self.config:
             self.config = self.configs[0]
 
-        app_name = app_name or self.__class__.__name__
+        ms_name = ms_name or self.__class__.__name__
         kwargs.setdefault('debug', self.config.debug)
 
-        super().__init__(app_name, **kwargs)
+        super().__init__(ms_name, **kwargs)
         self.experimental_feature_flags.update([
             'BLUEPRINTS'
         ])
@@ -273,18 +273,18 @@ class TechMicroService(CoworksMixin, Chalice):
         # authorization call
         if event.get('type') == 'TOKEN':
             if self.debug:
-                print(f"Calling {self.app_name} for authorization")
+                print(f"Calling {self.ms_name} for authorization")
 
             if self.__auth__:
                 return self.__auth__(event, context)
 
-            print(f"Undefined authorization method for {self.app_name} ")
+            print(f"Undefined authorization method for {self.ms_name} ")
             return 'Unauthorized', 403
 
         # step function call
         if event.get('type') == 'CWS_SFN':
             if self.debug:
-                print(f"Calling {self.app_name} by step function")
+                print(f"Calling {self.ms_name} by step function")
 
             self.sfn_call = True
             content_type = event['headers']['Content-Type']
@@ -300,7 +300,7 @@ class TechMicroService(CoworksMixin, Chalice):
                 raise BadRequestError(f"Undefined content type {content_type} for Step Function call")
         else:
             if self.debug:
-                print(f"Calling {self.app_name} with event {event}")
+                print(f"Calling {self.ms_name} with event {event}")
 
         res = super().__call__(event, context)
 
@@ -313,7 +313,7 @@ class TechMicroService(CoworksMixin, Chalice):
                 pass
 
         if self.debug:
-            print(f"Call {self.app_name} returns {res}")
+            print(f"Call {self.ms_name} returns {res}")
 
         return res
 
@@ -358,7 +358,7 @@ class BizFactory(TechMicroService):
     """
 
     def __init__(self, sfn_name, **kwargs):
-        super().__init__(app_name=sfn_name, **kwargs)
+        super().__init__(ms_name=sfn_name, **kwargs)
 
         self.aws_profile = self.__sfn_client__ = self.__sfn_arn__ = None
         self.sfn_name = sfn_name
@@ -437,7 +437,7 @@ class BizFactory(TechMicroService):
         if biz_name in self.biz:
             raise BadRequestError(f"Biz microservice {biz_name} already defined for {self.sfn_name}")
 
-        self.biz[biz_name] = BizMicroService(self, data, trigger, app_name=biz_name, **kwargs)
+        self.biz[biz_name] = BizMicroService(self, data, trigger, ms_name=biz_name, **kwargs)
         return self.biz[biz_name]
 
     def invoke(self, data):

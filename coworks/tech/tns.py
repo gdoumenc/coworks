@@ -6,7 +6,7 @@ import boto3
 import requests
 from chalice import Chalice, BadRequestError
 
-app = Chalice(app_name="app")
+app = Chalice(ms_name="app")
 
 
 @app.lambda_function(name="call")

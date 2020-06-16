@@ -43,7 +43,7 @@ class CwsCLIFactory(CLIFactory):
         }
         config_from_disk = {
             'version': 1,
-            'app_name': 'app',
+            'ms_name': 'app',
             'stages': {
             }
         }

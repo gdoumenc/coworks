@@ -27,7 +27,7 @@ PROD_CONFIG = Config(
     layers=["layer"]
 )
 
-app = SimpleMicroService(app_name='test', configs=[DEV_CONFIG, PROD_CONFIG])
+app = SimpleMicroService(ms_name='test', configs=[DEV_CONFIG, PROD_CONFIG])
 TerraformStagingWriter(app)
 
 

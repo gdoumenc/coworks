@@ -48,7 +48,7 @@ def info(ctx, module, service, out):
         else:
             out = sys.stdout
         print(json.dumps({
-            'name': handler.app_name,
+            'name': handler.ms_name,
             'type': handler.ms_type
         }), file=out)
     except CLIError:
