@@ -163,7 +163,7 @@ workspace configuration.
 
 .. code-block:: python
 
-	app = SimpleMicroService(app_name='app_name'='test', configs=WORKSPACES)
+	app = SimpleMicroService(app_name='test', configs=WORKSPACES)
 
 To run the microservice in a specific workspace, add the workspace parameter:
 

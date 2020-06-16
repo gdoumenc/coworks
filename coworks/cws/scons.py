@@ -37,7 +37,9 @@ def Deploy(target, source, env=None):
     src_dir = env['SRC_DIR']
     terraform_dir = env['TERRAFORM_DIR']
     stage = ARGUMENTS.get('stage', 'dev')
-    microservice = ARGUMENTS.get('microservice')
+    app = ARGUMENTS.get('module', 'app')
+    service = ARGUMENTS.get('service')
+    microservice = f"{app}-{service}" if service else None
     for t in target:
         mod, app, _ = t.name.split(MODULE_APP_SEP)
         print(f"Create terraform files for {mod}{MODULE_APP_SEP}{app}")
