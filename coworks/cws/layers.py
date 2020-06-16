@@ -49,8 +49,9 @@ class Layer:
         for module in self.__modules:
             spec = importlib.util.find_spec(module)
             if spec:
-                for location in spec.submodule_search_locations:
-                    self.walk(add_dep, location)
+                if spec.submodule_search_locations:
+                    for location in spec.submodule_search_locations:
+                        self.walk(add_dep, location)
         env.Layer(layer_zipfilename, [file.as_posix() for file in dependencies])
 
     @property
@@ -75,8 +76,9 @@ class Layer:
                 for module in self.__modules:
                     spec = importlib.util.find_spec(module)
                     if spec:
-                        for location in spec.submodule_search_locations:
-                            self.walk(partial(add_zip, zip_prefix=Path('python') / module), location)
+                        if spec.submodule_search_locations:
+                            for location in spec.submodule_search_locations:
+                                self.walk(partial(add_zip, zip_prefix=Path('python') / module), location)
 
     def walk(self, fun, root):
         for parent, dirs, files in os.walk(root):

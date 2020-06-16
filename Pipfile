@@ -4,11 +4,12 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [packages]
-coworks = {editable = true,path = "."}
+coworks = {path = ".",editable = true}
 sqlalchemy = "*"
 psycopg2 = "*"
 mysqlclient = "*"
 requests-toolbelt = "*"
+scons = "*"
 
 [dev-packages]
 codecov = "*"
@@ -23,7 +24,6 @@ websocket = "*"
 sphinx = "*"
 ipdb = "*"
 pytest-env = "*"
-scons = "*"
 
 [requires]
 python_version = "3.7"
