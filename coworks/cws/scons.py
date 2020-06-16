@@ -14,7 +14,7 @@ cws = f"{venv[:-1]}/bin/cws"
 
 Help(f"""
        Type: 'scons stage={{stage}} to build the complete module,
-       Type: 'scons microservice={{module}}{MODULE_APP_SEP}{{app}} stage={{stage}} to build the microservice,
+       Type: 'scons module={{module}} service={{service}} stage={{stage}} to build a given microservice,
        Omitting stage will build the stage 'dev'
        """)
 
