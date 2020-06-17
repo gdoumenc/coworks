@@ -1,32 +1,32 @@
 import io
 import json
-import os
-import tempfile
-from pathlib import Path
 
 import pytest
 
 from coworks.cws.client import client
 
-EXAMPLE_DIR = os.getenv('EXAMPLE_DIR')
-
 
 class TestClass:
 
-    def test_info(self):
+    def test_info(self, example_dir):
         with pytest.raises(SystemExit) as pytest_wrapped_e:
-            client(prog_name='cws', args=['-p', EXAMPLE_DIR, 'info'], obj={})
+            client(prog_name='cws', args=['-p', 'doesntexist', 'info'], obj={})
         assert pytest_wrapped_e.type == SystemExit
         assert pytest_wrapped_e.value.code == 1
 
         with pytest.raises(SystemExit) as pytest_wrapped_e:
-            client(prog_name='cws', args=['-p', EXAMPLE_DIR, 'info', '-m', 'quickstart2'], obj={})
+            client(prog_name='cws', args=['-p', example_dir, 'info'], obj={})
+        assert pytest_wrapped_e.type == SystemExit
+        assert pytest_wrapped_e.value.code == 1
+
+        with pytest.raises(SystemExit) as pytest_wrapped_e:
+            client(prog_name='cws', args=['-p', example_dir, 'info', '-m', 'quickstart2'], obj={})
         assert pytest_wrapped_e.type == SystemExit
         assert pytest_wrapped_e.value.code == 0
 
         with pytest.raises(SystemExit) as pytest_wrapped_e:
             output = io.StringIO()
-            client(prog_name='cws', args=['-p', EXAMPLE_DIR, 'info', '-m', 'quickstart2', '-o', output], obj={})
+            client(prog_name='cws', args=['-p', example_dir, 'info', '-m', 'quickstart2', '-o', output], obj={})
         assert pytest_wrapped_e.type == SystemExit
         assert pytest_wrapped_e.value.code == 0
         output.seek(0)
@@ -37,17 +37,23 @@ class TestClass:
         assert out['type'] == "tech"
 
         with pytest.raises(SystemExit) as pytest_wrapped_e:
-            client(prog_name='cws', args=['-p', EXAMPLE_DIR, 'info', '-m', 'example', '-a', 'test'], obj={})
+            client(prog_name='cws', args=['-p', example_dir, 'info', '-m', 'example', '-a', 'test'], obj={})
         assert pytest_wrapped_e.type == SystemExit
         assert pytest_wrapped_e.value.code == 1
 
         with pytest.raises(SystemExit) as pytest_wrapped_e:
-            client(prog_name='cws', args=['-p', EXAMPLE_DIR, 'info', '-m', 'example', '-a', 'tech_app'], obj={})
+            client(prog_name='cws', args=['-p', example_dir, 'info', '-m', 'example', '-a', 'tech_app'], obj={})
         assert pytest_wrapped_e.type == SystemExit
         assert pytest_wrapped_e.value.code == 0
 
-    def test_export(self):
+    def test_run(self, example_dir):
         with pytest.raises(SystemExit) as pytest_wrapped_e:
-            client(prog_name='cws', args=['-p', EXAMPLE_DIR, 'export', '-m', 'example', '-a', 'tech_app'], obj={})
+            client(prog_name='cws', args=['-p', example_dir, 'run', '-m', 'example', '-a', 'info'], obj={})
+        assert pytest_wrapped_e.type == SystemExit
+        assert pytest_wrapped_e.value.code == 1
+
+    def test_export(self, example_dir):
+        with pytest.raises(SystemExit) as pytest_wrapped_e:
+            client(prog_name='cws', args=['-p', example_dir, 'export', '-m', 'example', '-a', 'tech_app'], obj={})
         assert pytest_wrapped_e.type == SystemExit
         assert pytest_wrapped_e.value.code == 0

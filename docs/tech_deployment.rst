@@ -3,12 +3,17 @@
 TechMS Deployment
 =================
 
+Layers
+------
+
+For security reasons, by default microservices do not support CORS headers in response.
+
 CORS
 ----
 
-For security reasons, by default all microservices are not supporting CORS headers in response.
+For security reasons, by default microservices do not support CORS headers in response.
 
-For simplicity, we can add CORS parameters only to all routes of the microservice.
+For simplicity, we can only add CORS parameters to all routes of the microservice.
 To handle CORS protocol for a specific route, the ``OPTION`` method should be defined on that route.
 
 To add CORS headers in all routes of the microservice, you can simply define ``allow_origin`` value in configuration::
@@ -26,7 +31,7 @@ Or a list::
 	config = Config(cors=CORSConfig(allow_origin=['www.test.com', 'www.test.fr']))
 	app = SimpleMicroService(app_name='test', config=config)
 
-You can also specific other CORS parameters::
+You can also specify other CORS parameters::
 
 	config = Config(cors=CORSConfig(allow_origin='https://foo.example.com',
     					allow_headers=['X-Special-Header'],
@@ -35,7 +40,7 @@ You can also specific other CORS parameters::
     					allow_credentials=True))
 	app = SimpleMicroService(app_name='test', configs=config)
 
-As you can see, a configuration may be defined to a microservice. But we will explain below why a list of
+As you can see, one configuration may be defined for a microservice. But we will explain below why a list of
 configurations may be also defined.
 
 Authorization
@@ -71,13 +76,13 @@ The API client must include it in the header to send the authorization token to 
 		def auth(self, auth_request):
 			return auth_request.token == os.getenv('TOKEN')
 
-*Note* : To defined environment variable, see below.
+*Note* : To define environment variables, see below.
 
-To call this microservice, we have to put the right token in header::
+To call this microservice, we have to put the right token in headers::
 
 	curl https://zzzzzzzzz.execute-api.eu-west-1.amazonaws.com/my/route -H 'Authorization: thetokendefined'
 
-If only some routes are allowed, the authorizer must return a list of the allowed routes.
+If only certain routes are to be allowed, the authorizer must return a list of the allowed routes.
 
 .. code-block:: python
 
@@ -96,7 +101,7 @@ If only some routes are allowed, the authorizer must return a list of the allowe
 *BEWARE* : Even if you don't use the token if the authorization method, you must define it in the header or the call
 will be rejected by ``API Gateway``.
 
-The `auth` function must be also defined at the blueprint level and then available for all the blueprint rules.
+The `auth` function must also be defined at the bluprint level, and then it is available for all the bluprint rules.
 
 Global control
 ^^^^^^^^^^^^^^
@@ -107,8 +112,8 @@ In this case, the authorizer is defined on all routes of the microservice.
 Deploy vs update
 ----------------
 
-Deployment and updatation are two important steps for the usage of the code. But we think these are different, so made
-in different manner
+Deployment and update are two important steps for the usage of the code. But we think these are different, so they are made
+in two different ways
 
 For deployment, we prefer using ``terraform`` and to update we will use ``cws``.
 
@@ -169,9 +174,9 @@ The complete microservice will be:
 Staging deployment
 ******************
 
-The terraform export can now be used to create one Lambda ressource per workspace :
+The terraform export can now be used to create one Lambda ressource per workspace:
 
-.. code-block::
+.. code-block:: jinja
 
 	{% for stage in app_configs %}
 	 	data "local_file" "environment_variables_{{ stage.workspace_name }}" {
@@ -185,7 +190,7 @@ The terraform export can now be used to create one Lambda ressource per workspac
 
 And an APIGateway deployment per workspace :
 
-.. code-block::
+.. code-block:: jinja
 
 	{% for stage in app_configs %}
 	  	resource "aws_api_gateway_deployment" "{{ res_id }}_{{ stage.workspace_name }}" {

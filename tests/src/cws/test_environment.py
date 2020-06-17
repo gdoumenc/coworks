@@ -19,14 +19,14 @@ class WithEnvMS(SimpleMS):
 class TestClass:
 
     def test_dev_stage(self, local_server_factory):
-        config = Config(environment_variables_file=Path(EXAMPLE_DIR) / "vars_dev.json")
+        config = Config(environment_variables_file=Path(EXAMPLE_DIR) / "config" / "vars_dev.json")
         local_server = local_server_factory(WithEnvMS(configs=config))
         response = local_server.make_call(requests.get, '/')
         assert response.status_code == 200
         assert response.text == 'test dev environment variable'
 
     def test_prod_stage(self, local_server_factory):
-        config = Config(environment_variables_file=Path(EXAMPLE_DIR) / "vars_prod.secret.json")
+        config = Config(environment_variables_file=Path(EXAMPLE_DIR) / "config" / "vars_prod.secret.json")
         local_server = local_server_factory(WithEnvMS(configs=config))
         response = local_server.make_call(requests.get, '/')
         assert response.status_code == 200

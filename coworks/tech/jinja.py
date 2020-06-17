@@ -1,5 +1,8 @@
 import urllib.parse
 
+import json
+from json import JSONDecodeError
+
 import jinja2
 from chalice import NotFoundError
 
@@ -29,16 +32,32 @@ class JinjaRenderMicroService(TechMicroService):
         """ render the template named template_to_render_name using templates sources given in templates
             pass templates as files of a multipart/form-data body
             pass context as a json file """
+        if self.debug:
+            print("template_to_render_name", template_to_render_name)
+            print("templates :", templates)
+            print("context :", context)
+
         if templates is None:
             raise NotFoundError("At least one template is expected")
 
         templates = [templates] if not isinstance(templates, list) else templates
         context = context if context is not None else {}
-        templates_dict = {template.file.name: template.file.read().decode('utf-8') for template in templates}
+        templates_dict = {template.file.name: template.file.read().decode('utf-8-sig') for template in templates}
+
+        if self.debug:
+            print("templates_dict", templates_dict)
+
         env = self.create_environment(loader=jinja2.DictLoader(templates_dict))
         template_to_render = env.get_template(template_to_render_name)
         render = template_to_render.render(**context)
-        return {"render": render}
+
+        try:
+            json_render = json.loads(render)
+            return json_render
+        except JSONDecodeError as e:
+            if self.debug:
+                print(e)
+            return {"render": render}
 
     def get_render_(self, template):
         """ render template which content is given in url

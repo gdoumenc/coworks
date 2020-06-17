@@ -6,12 +6,12 @@
 Introduction
 ============
 
-CoWorks is unified serverless microservices framework on AWS technologies.
+CoWorks is a unified serverless microservices framework based on AWS technologies.
 
-Each atomic microservice (``class TechMicroService``) is a simple python class deployed as serverless Lambda AWS and
-composition of microservices (``class BizMicroService``) is performed over the Step Function AWS product.
+Each atomic microservice (``class TechMicroService``) is a simple python class deployed as a serverless AWS Lambda, and
+composition of microservices (``class BizMicroService``) is performed over the AWS Step Function product.
 
-Other AWS technologies are used for logging, administrate, ...
+Other AWS technologies are used for logging, administration, ...
 
 Documentation
 -------------
@@ -30,7 +30,7 @@ Other tools used:
 * `SCons <https://github.com/SCons/scons>`_ -  A software construction tool.
 
 
-What does microservice means in CoWorks?
+What does microservice mean in CoWorks?
 ****************************************
 
 In short, the microservice architectural style is an approach to developing a single application as a suite of small services,
@@ -75,7 +75,7 @@ In ``CoWorks`` microservices are divided in two categories :
 
 **Small technical microservice**
 
-  Implemented as a simple AWS Lambda function, this kind of microservice a dedicated to technical
+  Implemented as a simple AWS Lambda function, this kind of microservice is dedicated to technical
   operations over a specific service.
 
   Here are some examples of technical services in CoWorks :
@@ -96,10 +96,10 @@ In ``CoWorks`` microservices are divided in two categories :
 
 Distinction between TechMicroservice and BizMicroservice is based not only on granularity size but also:
 
-* TechMicroservice should be use only as receivers of orders coming from BizMicroservices.
+* TechMicroservice should only be used as receivers of orders coming from BizMicroservices.
 * A BizMicroservice represents a logical workflow of actions while a MicroService represents a simple concrete action.
-* A ThechMicroservice is an independant microservice while a BizMicroservice is connected to event handler (cron, notification, event, ..).
-* A ThecMicroservice is more a handler pattern and BizMicroservice a reactor pattern.
+* A ThechMicroservice is an independant microservice while a BizMicroservice is connected to event handlers (cron, notification, event, ...).
+* A ThechMicroservice is more a handler pattern and BizMicroservice a reactor pattern.
 
 
 
@@ -120,6 +120,7 @@ Documentation
   cli
   faq
   api
+  contributing
   changelog
 
 

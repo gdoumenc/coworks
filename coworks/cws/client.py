@@ -1,20 +1,16 @@
 import json
 import os
-import shutil
 import sys
 import traceback
 from tempfile import SpooledTemporaryFile
 
 import click
 from chalice import BadRequestError
-from chalice.cli import CONFIG_VERSION, DEFAULT_STAGE_NAME, DEFAULT_APIGATEWAY_STAGE_NAME
 from chalice.cli import chalice_version, get_system_info
-from chalice.local import LocalChalice
-from chalice.utils import serialize_to_json
-from coworks import TechMicroService, BizMicroService, BizFactory
+
+from coworks import BizFactory
 from coworks.cws.writer import Writer
 from coworks.version import __version__
-
 from .factory import CwsCLIFactory
 
 
@@ -69,15 +65,14 @@ def info(ctx, module, app, out):
               help="Coworks application in the source file.")
 @click.option('-h', '--host', default='127.0.0.1')
 @click.option('-p', '--port', default=8000, type=click.INT)
-@click.option('-s', '--stage', default='dev')
 @click.option('--debug/--no-debug', default=False,
               help='Print debug logs to stderr.')
 @click.pass_context
-def run(ctx, module, app, host, port, stage, debug):
+def run(ctx, module, app, host, port, debug):
     """Run local server."""
     try:
         handler = import_attr(module, app, cwd=ctx.obj['project_dir'])
-        handler.run(host=host, port=port, stage=stage, debug=debug, project_dir=ctx.obj['project_dir'])
+        handler.run(host=host, port=port, debug=debug, project_dir=ctx.obj['project_dir'])
     except CLIError:
         sys.exit(1)
     except Exception as e:
@@ -94,13 +89,14 @@ def run(ctx, module, app, host, port, stage, debug):
               help="BizMicroservice name.")
 @click.option('-f', '--format', default='terraform')
 @click.option('-o', '--out')
+@click.option('-v', '--variables', type=(str, str), multiple=True, help="Additionnal variables")
 @click.option('--debug/--no-debug', default=False,
               help='Print debug logs to stderr.')
 @click.pass_context
-def export(ctx, module, app, biz, format, out, debug):
+def export(ctx, module, app, biz, format, out, variables, debug):
     """Export microservice in other description languages."""
     try:
-        export_to_file(module, app, format, out, project_dir=ctx.obj['project_dir'], biz=biz)
+        export_to_file(module, app, format, out, project_dir=ctx.obj['project_dir'], biz=biz, variables=dict(variables))
     except CLIError:
         sys.exit(1)
     except Exception as e:
@@ -141,7 +137,7 @@ def update(ctx, module, app, profile):
 def import_attr(module, app, cwd):
     try:
         return CwsCLIFactory.import_attr(module, app, cwd=cwd)
-    except AttributeError:
+    except AttributeError as e:
         sys.stderr.write(f"Module '{module}' has no microservice {app} : {str(e)}\n")
         raise CLIError()
     except ModuleNotFoundError as e:
@@ -154,7 +150,6 @@ def import_attr(module, app, cwd):
 
 def export_to_file(module, app, _format, out, **kwargs):
     handler = import_attr(module, app, cwd=kwargs['project_dir'])
-
     try:
         _writer: Writer = handler.extensions['writers'][_format]
     except KeyError as e:

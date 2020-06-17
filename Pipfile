@@ -4,19 +4,14 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [packages]
-aws-xray-sdk = "*"
-boto3 = "*"
-chalice = "*"
-jinja2 = "*"
-pyyaml = "*"
-codecov = "*"
+coworks = {editable = true,path = "."}
 sqlalchemy = "*"
 psycopg2 = "*"
 mysqlclient = "*"
 requests-toolbelt = "*"
-coworks = {editable = true,path = "."}
 
 [dev-packages]
+codecov = "*"
 wheel = "*"
 pytest = "*"
 requests = "*"
@@ -28,6 +23,7 @@ websocket = "*"
 sphinx = "*"
 ipdb = "*"
 pytest-env = "*"
+scons = "*"
 
 [requires]
 python_version = "3.7"

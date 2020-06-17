@@ -14,12 +14,12 @@ class SimpleMicroService(TechMicroService):
 
 DEV_CONFIG = Config(
     cors=CORSConfig(allow_origin='*'),
-    environment_variables_file="vars_dev.json"
+    environment_variables_file="config/vars_dev.json"
 )
 PROD_CONFIG = Config(
     workspace="prod",
     cors=CORSConfig(allow_origin='www.mywebsite.com'),
-    environment_variables_file="vars_prod.secret.json",
+    environment_variables_file="config/vars_prod.secret.json",
     version="0.0"
 )
 

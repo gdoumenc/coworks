@@ -1,5 +1,5 @@
-from dataclasses import dataclass
-from typing import Callable, Union
+from dataclasses import dataclass, field
+from typing import Callable, Union, List
 
 from chalice import CORSConfig as ChaliceCORSConfig
 from chalice.app import AuthRequest, AuthResponse
@@ -30,6 +30,7 @@ class Config:
 
     #: Variables defined for the Lambda
     environment_variables_file: str = None
+    layers: List[str] = field(default_factory=list)
 
     #: Variable defined in the staged API
     api_variables_file: str = None

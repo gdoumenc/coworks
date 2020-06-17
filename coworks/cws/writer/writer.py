@@ -30,10 +30,11 @@ class Writer(ABC):
             app.extensions['writers'] = {}
         app.extensions['writers'][self.name] = self
 
-    def export(self, output=None, error=None, **kwargs):
+    def export(self, output=None, error=None, variables=None, **kwargs):
         """ Called when the export command of the Coworks CLI is called.
         :param output: output stream.
         :param error: error stream.
+        :param variables: user defined variables.
         :param kwargs: environment parameters for export.
         :return: None
         """
@@ -42,14 +43,17 @@ class Writer(ABC):
         if error is not None:
             self.error = open(error, 'w+') if type(error) is str else error
 
-        for func in self.before_funcs:
-            func()
+        variables = variables or {}
+        variables.setdefault('workspace', 'dev')
 
-        self._export_header(**kwargs)
-        self._export_content(**kwargs)
+        for func in self.before_funcs:
+            func(variables=variables, **kwargs)
+
+        self._export_header(variables=variables, **kwargs)
+        self._export_content(variables=variables, **kwargs)
 
         for func in self.after_funcs:
-            func()
+            func(variables=variables, **kwargs)
 
     def before_export(self, f):
         """Registers a function to be run before the export command.
@@ -109,7 +113,7 @@ class TemplateWriter(Writer):
     def default_template_filenames(self):
         ...
 
-    def _export_content(self, module_name='app', handler_name='app', project_dir='.', **kwargs):
+    def _export_content(self, module_name='app', handler_name='app', project_dir='.', variables=None, **kwargs):
         module_path = module_name.split('.')
         data = {
             'writer': self,
@@ -122,6 +126,7 @@ class TemplateWriter(Writer):
             'app': self.app,
             'app_name': self.app.app_name,
             'app_configs': self.app.configs,
+            'variables': variables,
         }
         data.update(self.data)
         try:

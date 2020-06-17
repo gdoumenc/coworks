@@ -1,11 +1,12 @@
+import hashlib
 import inspect
 import json
 import logging
 import os
-from pathlib import Path
 import sys
 import traceback
 from functools import update_wrapper
+from pathlib import Path
 from threading import Lock
 from typing import Dict, List, Union
 
@@ -144,14 +145,13 @@ class TechMicroService(CoworksMixin, Chalice):
         super().register_blueprint(blueprint, **kwargs)
         self.blueprints[blueprint.import_name] = blueprint
 
-    def run(self, host: str = '127.0.0.1', port: int = 8000, project_dir='.', workspace=None, debug=True):
+    def run(self, host: str = '127.0.0.1', port: int = 8000, project_dir='.', debug=True):
         """ Runs the microservice in a local Lambda emulator.
         
         :param host: the hostname to listen on.
         :param port: the port of the webserver.
         :param project_dir: to be able to import the microservice module.
         :param debug: if given, enable or disable debug mode.
-        :param workspace: the workspace used for execution. If not defined, use the first configuration found.
         :return: None
         """
 
@@ -161,14 +161,13 @@ class TechMicroService(CoworksMixin, Chalice):
         if debug:
             logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')
 
-        workspace = workspace or self.config.workspace
-
         if self.config.environment_variables_file:
             var_file = Path(project_dir) / self.config.environment_variables_file
             try:
                 with open(var_file) as f:
                     os.environ.update(json.loads(f.read()))
             except FileNotFoundError:
+                workspace = self.config.workspace
                 raise FileNotFoundError(f"Cannot find environment file {var_file} for workspace {workspace}")
 
         factory = CwsCLIFactory(self, project_dir, debug=debug)
@@ -425,6 +424,7 @@ class BizFactory(TechMicroService):
 
         data = data or {}
         try:
+            self.biz[biz_name].data.update(data)
             return self.biz[biz_name](data, {})
         except KeyError:
             if self.debug:
