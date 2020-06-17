@@ -46,7 +46,7 @@ And define a biz microservice  which will be triggered with a reactor :
 			resp = requests.get(url)
 			return resp.status_code
 
-	check = CheckMicroService(app_name='check')
+	check = CheckMicroService(ms_name='check')
 
 	fact = BizFactory('check-server')
 	fact.create('check', Once(), data={'url': 'http://www.google.com'})

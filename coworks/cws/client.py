@@ -141,7 +141,7 @@ def import_attr(module, service, cwd):
         sys.stderr.write(f"Module '{module}' has no microservice {service} : {str(e)}\n")
         raise CLIError()
     except ModuleNotFoundError as e:
-        sys.stderr.write(f"They module '{module}' is not defined in {cwd} : {str(e)}\n")
+        sys.stderr.write(f"The module '{module}' is not defined in {cwd} : {str(e)}\n")
         raise CLIError()
     except Exception as e:
         sys.stderr.write(f"Error {e} when loading module '{module}'\n")

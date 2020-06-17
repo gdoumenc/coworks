@@ -45,7 +45,6 @@ class TestClass:
             client(prog_name='cws', args=['-p', example_dir, 'info', '-m', 'example', '-s', 'tech_app'], obj={})
         assert pytest_wrapped_e.type == SystemExit
         assert pytest_wrapped_e.value.code == 0
-
     def test_run(self, example_dir):
         with pytest.raises(SystemExit) as pytest_wrapped_e:
             client(prog_name='cws', args=['-p', example_dir, 'run', '-m', 'example', '-s', 'info'], obj={})

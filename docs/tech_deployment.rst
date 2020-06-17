@@ -20,17 +20,17 @@ To handle CORS protocol for a specific route, the ``OPTION`` method should be de
 To add CORS headers in all routes of the microservice, you can simply define ``allow_origin`` value in configuration::
 
 	config = Config(cors=CORSConfig(allow_origin='*'))
-	app = SimpleMicroService(app_name='test', config=config)
+	app = SimpleMicroService(ms_name='test', config=config)
 
 You can specify a single origin::
 
 	config = Config(cors=CORSConfig(allow_origin='www.test.fr'))
-	app = SimpleMicroService(app_name='test', config=config)
+	app = SimpleMicroService(ms_name='test', config=config)
 
 Or a list::
 
 	config = Config(cors=CORSConfig(allow_origin=['www.test.com', 'www.test.fr']))
-	app = SimpleMicroService(app_name='test', config=config)
+	app = SimpleMicroService(ms_name='test', config=config)
 
 You can also specify other CORS parameters::
 
@@ -39,7 +39,7 @@ You can also specify other CORS parameters::
     					max_age=600,
     					expose_headers=['X-Special-Header'],
     					allow_credentials=True))
-	app = SimpleMicroService(app_name='test', configs=config)
+	app = SimpleMicroService(ms_name='test', configs=config)
 
 As you can see, one configuration may be defined for a microservice. But we will explain below why a list of
 configurations may be also defined.
@@ -163,7 +163,7 @@ workspace configuration.
 
 .. code-block:: python
 
-	app = SimpleMicroService(app_name='test', configs=WORKSPACES)
+	app = SimpleMicroService(ms_name='test', configs=WORKSPACES)
 
 To run the microservice in a specific workspace, add the workspace parameter:
 

@@ -83,7 +83,7 @@ class TechMicroService(CoworksMixin, Chalice):
         ms_name = ms_name or self.__class__.__name__
         kwargs.setdefault('debug', self.config.debug)
 
-        super().__init__(ms_name, **kwargs)
+        super().__init__(app_name=ms_name, **kwargs)
         self.experimental_feature_flags.update([
             'BLUEPRINTS'
         ])
@@ -121,6 +121,10 @@ class TechMicroService(CoworksMixin, Chalice):
     @property
     def component_name(self):
         return class_attribute(self, 'url_prefix', '')
+
+    @property
+    def ms_name(self):
+        return self.app_name
 
     @property
     def ms_type(self):
