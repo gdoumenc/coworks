@@ -28,6 +28,7 @@ setup(
         'chalice==1.14.1',
         'jinja2==3.0.0a1',
         'pyyaml==5.3.1',
+        'requests_toolbelt',
     ],
     keywords='python3 serverless microservice aws-lambda aws step-functions',
     entry_points={

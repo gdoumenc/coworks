@@ -42,6 +42,7 @@ class Entry:
 class TerraformWriter(TemplateWriter):
 
     def __init__(self, app=None, name='terraform', data=None, **kwargs):
+
         data = data or {
             'layer_zip_file': 'layer.zip',
         }
@@ -86,6 +87,12 @@ class TerraformWriter(TemplateWriter):
             add_entry(previous_uid, last_path, methods.keys())
 
         return all_pathes_id
+
+
+class TerraformStagingWriter(TerraformWriter):
+    def __init__(self, app=None, name='terraform-staging', data=None, template_filenames=None, **kwargs):
+        template_filenames = template_filenames or ['terraform_staging.j2']
+        super().__init__(app, name=name, template_filenames=template_filenames, data=data, **kwargs)
 
 
 class TerraformPlanWriter(TerraformWriter):

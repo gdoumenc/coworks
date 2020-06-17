@@ -10,12 +10,12 @@
   }
 {% endif -%}
 
-resource "aws_lambda_function" "{{ app_name }}" {
+resource "aws_lambda_function" "{{ ms_name }}" {
 filename ={%- if lambda_zip_file %}{{ lambda_zip_file }}
 {% else %}data.archive_file.{{ module_file }}.output_path
 {% endif -%}
-function_name = "{{ app_name }}"
-role = aws_iam_role.{{ app_name }}.arn
+function_name = "{{ ms_name }}"
+role = aws_iam_role.{{ ms_name }}.arn
 handler = "{{ module_file }}.{{ handler }}"
 runtime = "python3.7"
 description = "This is my first coworks microservice"
@@ -29,18 +29,18 @@ Creator: "coworks"
 }
 }
 
-resource "aws_lambda_permission" "{{ app_name }}" {
+resource "aws_lambda_permission" "{{ ms_name }}" {
 statement_id = "AllowExecutionFromAPIGateway"
 action = "lambda:InvokeFunction"
-function_name = aws_lambda_function.{{ app_name }}.function_name
+function_name = aws_lambda_function.{{ ms_name }}.function_name
 principal = "apigateway.amazonaws.com"
 }
 
-resource "aws_iam_role" "{{ app_name }}" {
-name = "{{ app_name }}"
-assume_role_policy = data.aws_iam_policy_document.{{ app_name }}.json
+resource "aws_iam_role" "{{ ms_name }}" {
+name = "{{ ms_name }}"
+assume_role_policy = data.aws_iam_policy_document.{{ ms_name }}.json
 }
-data "aws_iam_policy_document" "{{ app_name }}" {
+data "aws_iam_policy_document" "{{ ms_name }}" {
 statement {
 effect = "Allow"
 principals {
@@ -53,8 +53,8 @@ type = "Service"
 actions = ["sts:AssumeRole"]
 }
 }
-resource "aws_iam_role_policy_attachment" "{{ app_name }}" {
-role = aws_iam_role.{{ app_name }}.name
+resource "aws_iam_role_policy_attachment" "{{ ms_name }}" {
+role = aws_iam_role.{{ ms_name }}.name
 policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
 }
 
@@ -69,97 +69,97 @@ compatible_runtimes = ["python3.7"]
 # APIGATEWAY
 # ---------------------------------------------------------------------------------------------------------------------
 
-resource "aws_api_gateway_rest_api" "{{ app_name }}" {
-name = "{{ app_name }}"
+resource "aws_api_gateway_rest_api" "{{ ms_name }}" {
+name = "{{ ms_name }}"
 description = "This is my API for my first coworks microservice"
 }
 
 locals {
-{{ app_name }} = {
-api_id: aws_api_gateway_rest_api.{{ app_name }}.id
-root_id: aws_api_gateway_rest_api.{{ app_name }}.root_resource_id
+{{ ms_name }} = {
+api_id: aws_api_gateway_rest_api.{{ ms_name }}.id
+root_id: aws_api_gateway_rest_api.{{ ms_name }}.root_resource_id
 }
 }
 
-resource "aws_api_gateway_authorizer" "{{ app_name }}" {
-name = "{{ module_file }}-{{ app_name }}-auth"
-rest_api_id = local.{{ app_name }}.api_id
-authorizer_uri = aws_lambda_function.{{ app_name }}.invoke_arn
+resource "aws_api_gateway_authorizer" "{{ ms_name }}" {
+name = "{{ module_file }}-{{ ms_name }}-auth"
+rest_api_id = local.{{ ms_name }}.api_id
+authorizer_uri = aws_lambda_function.{{ ms_name }}.invoke_arn
 }
 
 {% for res, entry in writer.entries.items() %}
   {%- if entry.path %}
-    resource "aws_api_gateway_resource" "{{ app_name }}_{{ res }}" {
-    rest_api_id = local.{{ app_name }}.api_id
+    resource "aws_api_gateway_resource" "{{ ms_name }}_{{ res }}" {
+    rest_api_id = local.{{ ms_name }}.api_id
     {% if entry.parent_is_root %}
-      parent_id = local.{{ app_name }}.root_id
+      parent_id = local.{{ ms_name }}.root_id
     {% else %}
-      parent_id = aws_api_gateway_resource.{{ app_name }}_{{ entry.parent_uid }}.id
+      parent_id = aws_api_gateway_resource.{{ ms_name }}_{{ entry.parent_uid }}.id
     {% endif %}
     path_part = "{{ entry.path }}"
     }
   {% endif -%}
   {%- if entry.methods %}
     {% for method in entry.methods %}
-      resource "aws_api_gateway_method" "{{ app_name }}_{{ res }}_{{ method }}" {
-      rest_api_id = local.{{ app_name }}.api_id
+      resource "aws_api_gateway_method" "{{ ms_name }}_{{ res }}_{{ method }}" {
+      rest_api_id = local.{{ ms_name }}.api_id
       {%- if entry.is_root %}
-        resource_id = local.{{ app_name }}.root_id
+        resource_id = local.{{ ms_name }}.root_id
       {% else %}
-        resource_id = aws_api_gateway_resource.{{ app_name }}_{{ res }}.id
+        resource_id = aws_api_gateway_resource.{{ ms_name }}_{{ res }}.id
       {% endif -%}
       http_method = "{{ method }}"
       authorization = "CUSTOM"
-      authorizer_id = aws_api_gateway_authorizer.{{ app_name }}.id
+      authorizer_id = aws_api_gateway_authorizer.{{ ms_name }}.id
       }
 
-      resource "aws_api_gateway_integration" "{{ app_name }}_{{ res }}_{{ method }}" {
-      rest_api_id = local.{{ app_name }}.api_id
+      resource "aws_api_gateway_integration" "{{ ms_name }}_{{ res }}_{{ method }}" {
+      rest_api_id = local.{{ ms_name }}.api_id
       {%- if entry.is_root %}
-        resource_id = local.{{ app_name }}.root_id
+        resource_id = local.{{ ms_name }}.root_id
       {% else %}
-        resource_id = aws_api_gateway_resource.{{ app_name }}_{{ res }}.id
+        resource_id = aws_api_gateway_resource.{{ ms_name }}_{{ res }}.id
       {% endif -%}
-      http_method = aws_api_gateway_method.{{ app_name }}_{{ res }}_{{ method }}.http_method
+      http_method = aws_api_gateway_method.{{ ms_name }}_{{ res }}_{{ method }}.http_method
       integration_http_method = "POST"
       type = "AWS_PROXY"
-      uri = aws_lambda_function.{{ app_name }}.invoke_arn
+      uri = aws_lambda_function.{{ ms_name }}.invoke_arn
       }
     {% endfor %}
 
     {%- if entry.cors %}
-      resource "aws_api_gateway_method" "{{ app_name }}_{{ res }}_OPTIONS" {
-      rest_api_id = local.{{ app_name }}.api_id
+      resource "aws_api_gateway_method" "{{ ms_name }}_{{ res }}_OPTIONS" {
+      rest_api_id = local.{{ ms_name }}.api_id
       {%- if entry.is_root %}
-        resource_id = local.{{ app_name }}.root_id
+        resource_id = local.{{ ms_name }}.root_id
       {% else %}
-        resource_id = aws_api_gateway_resource.{{ app_name }}_{{ res }}.id
+        resource_id = aws_api_gateway_resource.{{ ms_name }}_{{ res }}.id
       {% endif -%}
       http_method = "OPTIONS"
       authorization = "NONE"
       }
 
-      resource "aws_api_gateway_integration" "{{ app_name }}_{{ res }}_OPTIONS" {
-      rest_api_id = local.{{ app_name }}.api_id
+      resource "aws_api_gateway_integration" "{{ ms_name }}_{{ res }}_OPTIONS" {
+      rest_api_id = local.{{ ms_name }}.api_id
       {%- if entry.is_root %}
-        resource_id = local.{{ app_name }}.root_id
+        resource_id = local.{{ ms_name }}.root_id
       {% else %}
-        resource_id = aws_api_gateway_resource.{{ app_name }}_{{ res }}.id
+        resource_id = aws_api_gateway_resource.{{ ms_name }}_{{ res }}.id
       {% endif -%}
-      http_method = aws_api_gateway_method.{{ app_name }}_{{ res }}_OPTIONS.http_method
+      http_method = aws_api_gateway_method.{{ ms_name }}_{{ res }}_OPTIONS.http_method
       type = "MOCK"
       request_templates = {
       "application/json" = "{ \"statusCode\": 200 }"
       }
       }
-      resource "aws_api_gateway_integration_response" "{{ app_name }}_{{ res }}_OPTIONS" {
-      rest_api_id = local.{{ app_name }}.api_id
+      resource "aws_api_gateway_integration_response" "{{ ms_name }}_{{ res }}_OPTIONS" {
+      rest_api_id = local.{{ ms_name }}.api_id
       {%- if entry.is_root %}
-        resource_id = local.{{ app_name }}.root_id
+        resource_id = local.{{ ms_name }}.root_id
       {% else %}
-        resource_id = aws_api_gateway_resource.{{ app_name }}_{{ res }}.id
+        resource_id = aws_api_gateway_resource.{{ ms_name }}_{{ res }}.id
       {% endif -%}
-      http_method = aws_api_gateway_method.{{ app_name }}_{{ res }}_OPTIONS.http_method
+      http_method = aws_api_gateway_method.{{ ms_name }}_{{ res }}_OPTIONS.http_method
       response_parameters = {
       {%- for k,v in entry.cors.get_access_control_headers().items() %}
         "method.response.header.{{ k }}" = "'{{ v }}'",
@@ -167,18 +167,18 @@ authorizer_uri = aws_lambda_function.{{ app_name }}.invoke_arn
       }
       status_code = 200
       depends_on = [
-      aws_api_gateway_integration.{{ app_name }}_{{ res }}_OPTIONS,
-      aws_api_gateway_method_response.{{ app_name }}_{{ res }}_OPTIONS,
+      aws_api_gateway_integration.{{ ms_name }}_{{ res }}_OPTIONS,
+      aws_api_gateway_method_response.{{ ms_name }}_{{ res }}_OPTIONS,
       ]
       }
-      resource "aws_api_gateway_method_response" "{{ app_name }}_{{ res }}_OPTIONS" {
-      rest_api_id = local.{{ app_name }}.api_id
+      resource "aws_api_gateway_method_response" "{{ ms_name }}_{{ res }}_OPTIONS" {
+      rest_api_id = local.{{ ms_name }}.api_id
       {%- if entry.is_root %}
-        resource_id = local.{{ app_name }}.root_id
+        resource_id = local.{{ ms_name }}.root_id
       {% else %}
-        resource_id = aws_api_gateway_resource.{{ app_name }}_{{ res }}.id
+        resource_id = aws_api_gateway_resource.{{ ms_name }}_{{ res }}.id
       {% endif -%}
-      http_method = aws_api_gateway_method.{{ app_name }}_{{ res }}_OPTIONS.http_method
+      http_method = aws_api_gateway_method.{{ ms_name }}_{{ res }}_OPTIONS.http_method
       status_code = 200
       response_models = {
       "application/json" = "Empty"
@@ -190,7 +190,7 @@ authorizer_uri = aws_lambda_function.{{ app_name }}.invoke_arn
       }
 
       depends_on = [
-      aws_api_gateway_method.{{ app_name }}_{{ res }}_OPTIONS,
+      aws_api_gateway_method.{{ ms_name }}_{{ res }}_OPTIONS,
       ]
       }
     {% endif -%}
@@ -198,13 +198,13 @@ authorizer_uri = aws_lambda_function.{{ app_name }}.invoke_arn
 {% endfor %}
 
 
-resource "aws_api_gateway_deployment" "{{ app_name }}" {
+resource "aws_api_gateway_deployment" "{{ ms_name }}" {
 depends_on = [
 {%- for res, entry in writer.entries.items() %}{%- if entry.methods %}{% for method in entry.methods %}
-  aws_api_gateway_integration.{{ app_name }}_{{ res }}_{{ method }},
+  aws_api_gateway_integration.{{ ms_name }}_{{ res }}_{{ method }},
 {% endfor %}{% endif %}{% endfor -%}
 ]
-rest_api_id = local.{{ app_name }}.api_id
+rest_api_id = local.{{ ms_name }}.api_id
 stage_name = "dev"
 stage_description = md5(file("{{ module_file }}.tf"))
 }
@@ -214,8 +214,8 @@ stage_description = md5(file("{{ module_file }}.tf"))
 # OUTPUT
 #
 
-output "{{ app_name }}" {
+output "{{ ms_name }}" {
 value = {
-invoke-url = aws_api_gateway_deployment.{{ app_name }}.invoke_url
+invoke-url = aws_api_gateway_deployment.{{ ms_name }}.invoke_url
 }
 }

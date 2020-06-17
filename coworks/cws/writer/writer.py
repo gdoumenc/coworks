@@ -124,7 +124,7 @@ class TemplateWriter(Writer):
             'module_file': module_path[-1],
             'handler': handler_name,
             'app': self.app,
-            'app_name': self.app.app_name,
+            'ms_name': self.app.ms_name,
             'app_configs': self.app.configs,
             'variables': variables,
         }

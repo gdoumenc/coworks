@@ -8,12 +8,12 @@ from coworks import TechMicroService
 
 class TechMS(TechMicroService):
     def __init__(self, **kwargs):
-        super().__init__(app_name='test', **kwargs)
+        super().__init__(ms_name='test', **kwargs)
 
 
 class S3MockTechMS(TechMicroService):
     def __init__(self):
-        super().__init__(app_name='test')
+        super().__init__(ms_name='test')
         session = MagicMock()
         session.client = MagicMock()
         s3_object = {'Body': io.BytesIO(b'test'), 'ContentType': 'text/plain'}

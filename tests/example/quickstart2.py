@@ -11,5 +11,5 @@ class SimpleMicroService(TechMicroService):
         return auth_request.token == "token"
 
 
-app = SimpleMicroService(app_name='test')
+app = SimpleMicroService(ms_name='test')
 TerraformWriter(app)

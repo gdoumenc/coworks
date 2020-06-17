@@ -6,7 +6,8 @@ TechMS Deployment
 Layers
 ------
 
-For security reasons, by default microservices do not support CORS headers in response.
+We use AWS Layers to keep the lambda code as small as possible : coworks and additionnal python libraries are put in a same layer that can be reused by several lambda functions.
+
 
 CORS
 ----
@@ -19,17 +20,17 @@ To handle CORS protocol for a specific route, the ``OPTION`` method should be de
 To add CORS headers in all routes of the microservice, you can simply define ``allow_origin`` value in configuration::
 
 	config = Config(cors=CORSConfig(allow_origin='*'))
-	app = SimpleMicroService(app_name='test', config=config)
+	app = SimpleMicroService(ms_name='test', config=config)
 
 You can specify a single origin::
 
 	config = Config(cors=CORSConfig(allow_origin='www.test.fr'))
-	app = SimpleMicroService(app_name='test', config=config)
+	app = SimpleMicroService(ms_name='test', config=config)
 
 Or a list::
 
 	config = Config(cors=CORSConfig(allow_origin=['www.test.com', 'www.test.fr']))
-	app = SimpleMicroService(app_name='test', config=config)
+	app = SimpleMicroService(ms_name='test', config=config)
 
 You can also specify other CORS parameters::
 
@@ -38,7 +39,7 @@ You can also specify other CORS parameters::
     					max_age=600,
     					expose_headers=['X-Special-Header'],
     					allow_credentials=True))
-	app = SimpleMicroService(app_name='test', configs=config)
+	app = SimpleMicroService(ms_name='test', configs=config)
 
 As you can see, one configuration may be defined for a microservice. But we will explain below why a list of
 configurations may be also defined.
@@ -141,15 +142,18 @@ we will use several configurations, one per stage.
 .. code-block:: python
 
 	DEV_CONFIG = Config(
+		workspace="dev",
+		version="0.0",
 		cors=CORSConfig(allow_origin='*'),
-		environment_variables_file="dev_vars.json"
+		environment_variables_file="vars_dev.json",
+		layers=["layer"]
 	)
 	PROD_CONFIG = Config(
-		workspace_name="prod",
-		auth=my_auth,
-		cors=CORSConfig(allow_origin='*'),
-		environment_variables_file="prod_vars.secret.json",
-		version="0.0"
+		workspace="prod",
+		version="0.0",
+		cors=CORSConfig(allow_origin='www.mywebsite.com'),
+		environment_variables_file="vars_prod.secret.json",
+		layers=["layer"]
 	)
 
 	WORKSPACES = [DEV_CONFIG, PROD_CONFIG]
@@ -159,7 +163,7 @@ workspace configuration.
 
 .. code-block:: python
 
-	app = SimpleMicroService(app_name='test', configs=WORKSPACES)
+	app = SimpleMicroService(ms_name='test', configs=WORKSPACES)
 
 To run the microservice in a specific workspace, add the workspace parameter:
 
@@ -174,7 +178,29 @@ The complete microservice will be:
 Staging deployment
 ******************
 
-The terraform export can now be used to create one Lambda ressource per workspace:
+We use scons to automate staging deployment. Create a SConstruct file containing the following code :
+
+.. code-block:: python
+
+	from coworks.cws.layers import Layer
+	from coworks.cws.scons import AllFiles, CwsProject
+
+	Layer(['./terraform/layer.zip'])
+
+	src = [AllFiles('src')]
+	tms = [('app-test', ['dev', 'prod'])]
+
+	CwsProject(src, tms)
+
+Put source files (code of the microservice, files cointaining environment variables) in a src directory and then execute scons (omitting microservice=app-test will deploy all microservices defined in the SConstruct file) :
+
+.. code-block:: console
+
+	scons microservice=app-test stage=dev
+
+It will create the layer and the terraform files to deploy the stage "dev" and taint the resources that need to be redeployed.
+
+The terraform file created by scons using terraform export contains one lambda resource per workspace
 
 .. code-block:: jinja
 
@@ -188,7 +214,7 @@ The terraform export can now be used to create one Lambda ressource per workspac
 		}
 	{% endfor %}
 
-And an APIGateway deployment per workspace :
+And one APIGateway deployment per workspace :
 
 .. code-block:: jinja
 
@@ -198,3 +224,9 @@ And an APIGateway deployment per workspace :
 		}
 	{% endfor %}
 
+Now you can actually deploy the resources :
+
+.. code-block:: console
+
+	cd terraform
+	terraform apply

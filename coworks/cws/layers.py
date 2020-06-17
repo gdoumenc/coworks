@@ -49,8 +49,9 @@ class Layer:
         for module in self.__modules:
             spec = importlib.util.find_spec(module)
             if spec:
-                for location in spec.submodule_search_locations:
-                    self.walk(add_dep, location)
+                if spec.submodule_search_locations:
+                    for location in spec.submodule_search_locations:
+                        self.walk(add_dep, location)
         env.Layer(layer_zipfilename, [file.as_posix() for file in dependencies])
 
     @property
@@ -63,18 +64,21 @@ class Layer:
         return self.__exclude_regexp
 
     def generate_zip_file(self, target, source, env=None):
-        with ZipFile(target[0].name, mode='w') as layer_zip:
-            def add_zip(root, parent, file, zip_prefix=None):
-                dirs = Path(parent).relative_to(root)
-                layer_zip.write(Path(parent) / file, zip_prefix / dirs / file)
+        for t in target:
+            zip_path = os.path.join(t.dir.get_abspath(), t.name)
+            with ZipFile(zip_path, mode='w') as layer_zip:
+                def add_zip(root, parent, file, zip_prefix=None):
+                    dirs = Path(parent).relative_to(root)
+                    layer_zip.write(Path(parent) / file, zip_prefix / dirs / file)
 
-            for source_dir in self.__source_dirs:
-                self.walk(partial(add_zip, zip_prefix=Path('python')), source_dir)
-            for module in self.__modules:
-                spec = importlib.util.find_spec(module)
-                if spec:
-                    for location in spec.submodule_search_locations:
-                        self.walk(partial(add_zip, zip_prefix=Path('python') / module), location)
+                for source_dir in self.__source_dirs:
+                    self.walk(partial(add_zip, zip_prefix=Path('python')), source_dir)
+                for module in self.__modules:
+                    spec = importlib.util.find_spec(module)
+                    if spec:
+                        if spec.submodule_search_locations:
+                            for location in spec.submodule_search_locations:
+                                self.walk(partial(add_zip, zip_prefix=Path('python') / module), location)
 
     def walk(self, fun, root):
         for parent, dirs, files in os.walk(root):

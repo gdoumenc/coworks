@@ -14,17 +14,17 @@ if __name__ == '__main__':
     elif sys.argv[1] == "2":
         sys.argv[1:] = ['--project-dir', 'example', 'export', '-m', 'quickstart2', '-o', 'quickstart.tf']
     elif sys.argv[1] == "3":
-        sys.argv[1:] = ['--project-dir', '~/workspace/yopp/yopp_microservices/billing/src', 'export', '-m', 'billing', '-a', 'yopp_orders', '-o', '_billing_yopp_orders.tf']
+        sys.argv[1:] = ['--project-dir', '~/workspace/yopp/yopp_microservices/billing/src', 'export', '-m', 'billing', '-s', 'yopp_orders', '-o', '_billing_yopp_orders.tf']
 
     # elif sys.argv[1] == "1":
-    #     sys.argv[1:] = ['export', '-m', 'example.example', '-a', 'app']
+    #     sys.argv[1:] = ['export', '-m', 'example.example', '-s', 'app']
     #
     # elif sys.argv[1] == "2":
-    #     sys.argv[1:] = ['export', '-m', 'biz.example', '-a', 'biz', '--format', 'sfn']
+    #     sys.argv[1:] = ['export', '-m', 'biz.example', '-s', 'biz', '--format', 'sfn']
     # elif sys.argv[1] == "3":
-    #     sys.argv[1:] = ['export', '-m', 'biz.example', '-a', 'biz', '--format', 'sfn', '-b', 'small']
+    #     sys.argv[1:] = ['export', '-m', 'biz.example', '-s', 'biz', '--format', 'sfn', '-b', 'small']
     # elif sys.argv[1] == "4":
-    #     sys.argv[1:] = ['--project-dir', 'biz', 'update', '-m', 'example', '-a', 'biz', '-b', 'complete',
+    #     sys.argv[1:] = ['--project-dir', 'biz', 'update', '-m', 'example', '-s', 'biz', '-b', 'complete',
     #                     '--profile', 'fpr-customer']
 
     else:

@@ -1,6 +1,6 @@
 info:
   description: {{ app.__doc__ }}
-  title: {{ app_name }}
+  title: {{ ms_name }}
 openapi: 3.0.0
 paths:
 {% for entry, (method, func) in app.entries.items() %}
