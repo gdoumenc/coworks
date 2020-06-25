@@ -42,7 +42,17 @@ def check_handler(ctx):
 
     # Adds commands from handler
     for name, cmd in handler.commands.items():
-        f = click.pass_context(partial(execute, name))
+        def execute(ctx, **kwargs):
+            try:
+                command = ctx.obj['handler'].commands[name]
+                command.execute(**ctx.obj, **kwargs)
+            except CLIError:
+                sys.exit(1)
+            except Exception as e:
+                sys.stderr.write(str(e))
+                sys.exit(1)
+
+        f = click.pass_context(execute)
         for opt in cmd.options:
             f = opt(f)
         client.command(name)(f)
@@ -56,20 +66,8 @@ def check_handler(ctx):
 @click.option('-m', '--module', default='app', help="Filename of your microservice python source file.")
 @click.option('-s', '--service', default='app', help="Coworks application in the source file.")
 @click.pass_context
-def client(ctx, *args, **kwargs):
+def client(*args, **kwargs):
     ...
-
-
-def execute(cmd, ctx, **kwargs):
-    """Run local server."""
-    try:
-        command = ctx.obj['handler'].commands[cmd]
-        command.execute(**kwargs)
-    except CLIError:
-        sys.exit(1)
-    except Exception as e:
-        sys.stderr.write(str(e))
-        sys.exit(1)
 
 
 def invoke(initial, ctx):

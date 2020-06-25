@@ -26,7 +26,7 @@ class CwsCommand(ABC):
     def options(self):
         return ()
 
-    def execute(self, output=None, error=None, **kwargs):
+    def execute(self, *, output=None, error=None, **kwargs):
         """ Called when the command is called.
         :param output: output stream.
         :param error: error stream.

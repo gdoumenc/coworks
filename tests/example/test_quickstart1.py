@@ -2,10 +2,11 @@ import io
 import threading
 import time
 
+import pytest
 import requests
 
-from coworks.utils import import_attr
 from coworks.pytest.local_server import ThreadedLocalServer
+from coworks.utils import import_attr
 
 
 class TestClass:
@@ -27,7 +28,7 @@ class TestClass:
     def test_export_quickstart(self, example_dir):
         app = import_attr('quickstart1', 'app', cwd=example_dir)
         output = io.StringIO()
-        app.commands['export'].execute('terraform', output, project_dir=example_dir)
+        app.commands['export'].execute(module='quickstart1', service='app', output=output, project_dir=example_dir)
         output.seek(0)
         print(output.read())
 

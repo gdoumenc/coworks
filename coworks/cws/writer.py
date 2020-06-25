@@ -16,7 +16,7 @@ class WriterError(Exception):
 
 class CwsWriter(CwsCommand):
 
-    def __init__(self, app=None, *, name='export'):
+    def __init__(self, app=None, *, name):
         super().__init__(app, name=name)
 
     def _execute(self, **kwargs):
@@ -55,16 +55,16 @@ class CwsTemplateWriter(CwsWriter):
     def default_template_filenames(self):
         ...
 
-    def _export_content(self, module_name='app', handler_name='app', project_dir='.', variables=None, **kwargs):
-        module_path = module_name.split('.')
+    def _export_content(self, *, module, service, project_dir, variables=None, **kwargs):
+        module_path = module.split('.')
         data = {
             'writer': self,
             'project_dir': project_dir,
-            'module': module_name,
+            'module': module,
             'module_path': pathlib.PurePath(*module_path),
             'module_dir': pathlib.PurePath(*module_path[:-1]),
             'module_file': module_path[-1],
-            'handler': handler_name,
+            'handler': module,
             'app': self.app,
             'ms_name': self.app.ms_name,
             'app_configs': self.app.configs,

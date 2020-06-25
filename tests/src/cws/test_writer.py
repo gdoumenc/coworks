@@ -1,21 +1,25 @@
 import io
 import re
 
+import pytest
+
 from coworks.cws import CwsTerraformWriter
 from tests.src.coworks.tech_ms import SimpleMS
 
 
 class TestClass:
+
+    @pytest.mark.wip
     def test_export_terraform(self):
         simple = SimpleMS()
         writer = CwsTerraformWriter(simple)
-        simple.commands['terraform'].execute(output='/dev/null')
+        simple.commands['terraform'].execute(module="", service="", output='/dev/null', project_dir='.')
         output = io.StringIO()
-        writer.execute(output=output)
+        writer.execute(module="", service="", output=output, project_dir='.')
         output.seek(0)
         print(output.read())
         output.seek(0)
-        assert len(re.sub(r"\s", "", output.read())) == 18226
+        assert len(re.sub(r"\s", "", output.read())) == 18196
         print(writer.entries)
         assert len(writer.entries) == 8
 
