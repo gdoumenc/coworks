@@ -5,8 +5,8 @@ from pathlib import Path
 import requests
 
 from coworks.config import Config
-from coworks.cws.client import CwsCLIFactory
 from coworks.pytest.local_server import ThreadedLocalServer
+from coworks.utils import import_attr
 from .example import TechMS
 
 
@@ -47,7 +47,7 @@ class TestClass:
         assert response.text == "Simple microservice for test dev environment variable.\n"
 
     def test_run_example(self, example_dir):
-        app = CwsCLIFactory.import_attr('example', 'app', cwd=example_dir)
+        app = import_attr('example', 'app', cwd=example_dir)
         port = ThreadedLocalServer.unused_tcp_port()
         server = threading.Thread(target=run_server_example, args=(app, port, example_dir), daemon=True)
         server.start()
@@ -66,4 +66,4 @@ class TestClass:
 
 def run_server_example(app, port, example_dir):
     print(f"Server starting on port {port}")
-    app.run(host='localhost', port=port, project_dir=example_dir)
+    app.commands['run'].execute(host='localhost', port=port, project_dir=example_dir)

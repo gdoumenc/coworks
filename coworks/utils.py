@@ -1,6 +1,19 @@
+import importlib
 import inspect
+import os
+import sys
 
 from aws_xray_sdk.core import xray_recorder
+
+
+def import_attr(module, attr, cwd='.'):
+    if cwd not in sys.path:
+        sys.path.insert(0, cwd)
+    app_module = importlib.import_module(module)
+    if "PYTEST_CURRENT_TEST" in os.environ:
+        # needed as Chalice local server change class
+        app_module = importlib.reload(app_module)
+    return getattr(app_module, attr)
 
 
 def class_auth_methods(obj):

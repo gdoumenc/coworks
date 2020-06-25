@@ -1,8 +1,21 @@
 import os
 from collections import defaultdict
 
+import click
+
 from coworks import TechMicroService
-from coworks.cws import TerraformWriter
+from coworks.cws import CwsProject
+from coworks.cws.command import CwsCommand
+
+
+class CwsInfo(CwsCommand):
+
+    def _execute(self, **kwargs):
+        pass
+
+    @property
+    def options(self):
+        return (click.option('-h'),)
 
 
 class TechMS(TechMicroService):
@@ -28,9 +41,8 @@ class TechMS(TechMicroService):
 
 # usefull for test info (don't remove)
 tech_app = TechMS()
-TerraformWriter(tech_app)
+CwsProject(tech_app)
+CwsInfo(tech_app, name='info')
 
 app = TechMS()
-
-if __name__ == '__main__':
-    app.run()
+CwsProject(app)

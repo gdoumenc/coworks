@@ -5,16 +5,16 @@ from abc import ABC, abstractmethod
 
 import yaml
 
-from .writer import Writer, WriterError
+from coworks.cws.writer import CwsWriter, WriterError
 
 INITIAL_STATE_NAME = "Init"
 LAMBDA_ERROR_FALLBACK = "MicroServiceErrorFallback"
 
 
-class StepFunctionWriter(Writer):
+class StepFunctionWriter(CwsWriter):
 
     def __init__(self, app=None, name='sfn', extension='yml'):
-        super().__init__(app, name)
+        super().__init__(app, name=name)
         self.extension = extension
 
     def _export_content(self, module_name='app', handler_name='biz', project_dir='.', **kwargs):

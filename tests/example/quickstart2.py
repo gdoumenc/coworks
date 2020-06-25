@@ -1,5 +1,5 @@
 from coworks import TechMicroService
-from coworks.cws.writer import TerraformWriter
+from coworks.cws import CwsRunner, CwsProject
 
 
 class SimpleMicroService(TechMicroService):
@@ -12,4 +12,4 @@ class SimpleMicroService(TechMicroService):
 
 
 app = SimpleMicroService(ms_name='test')
-TerraformWriter(app)
+CwsProject(app)

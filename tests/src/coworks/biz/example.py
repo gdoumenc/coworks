@@ -1,5 +1,5 @@
 from coworks import BizFactory, Every
-from coworks.cws.writer.sfn import StepFunctionWriter
+from coworks.cws.sfn import StepFunctionWriter
 
 biz = BizFactory(ms_name='biz')
 reactor1 = biz.create('small', 'often', Every(1, Every.DAYS))

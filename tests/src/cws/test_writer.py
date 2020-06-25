@@ -1,49 +1,17 @@
-import functools
 import io
 import re
 
-import yaml
-
-from coworks.cws import TerraformWriter
-from coworks.cws.writer.writer import ListWriter, OpenApiWriter
+from coworks.cws import CwsTerraformWriter
 from tests.src.coworks.tech_ms import SimpleMS
 
 
 class TestClass:
-    def test_export_list(self):
-        simple = SimpleMS()
-        writer = ListWriter(simple)
-        simple.extensions['writers']['list'].export(output='/dev/null')
-        output = io.StringIO()
-        writer.export(output=output)
-        output.seek(0)
-        assert len(output.read()) == 83
-
-    def test_export_open_api(self):
-        simple = SimpleMS()
-        writer = OpenApiWriter(simple)
-        simple.extensions['writers']['openapi'].export(output='/dev/null')
-        output = io.StringIO()
-        writer.export(output=output)
-        output.seek(0)
-        print(output.read())
-        output.seek(0)
-        data = yaml.load(output)
-        assert {'info', 'openapi', 'paths', 'version'} == set(data.keys())
-        assert {'/', '/content', '/content/{_0}', '/content/{_0}/{_1}', '/extended/content', '/kwparam1',
-                '/kwparam2'} == set(data['paths'].keys())
-        print(writer.pathes)
-        assert len(writer.pathes) == 7
-        sum = lambda x, y: x + y
-        print([e.keys() for e in writer.pathes.values()])
-        assert functools.reduce(sum, [len(e.keys()) for e in writer.pathes.values()], 0) == 9
-
     def test_export_terraform(self):
         simple = SimpleMS()
-        writer = TerraformWriter(simple)
-        simple.extensions['writers']['terraform'].export(output='/dev/null')
+        writer = CwsTerraformWriter(simple)
+        simple.commands['terraform'].execute(output='/dev/null')
         output = io.StringIO()
-        writer.export(output=output)
+        writer.execute(output=output)
         output.seek(0)
         print(output.read())
         output.seek(0)

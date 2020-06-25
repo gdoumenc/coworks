@@ -1,12 +1,9 @@
-import hashlib
 import inspect
 import json
 import logging
-import os
 import sys
 import traceback
 from functools import update_wrapper
-from pathlib import Path
 from threading import Lock
 from typing import Dict, List, Union
 
@@ -95,8 +92,8 @@ class TechMicroService(CoworksMixin, Chalice):
         # Blueprints added by names.
         self.blueprints = {}
 
-        # Extensions defined by type's name (xriters, ..)
-        self.extensions = {}
+        # Extended commands added
+        self.commands = {}
 
         # A list of functions that will be called at the first activation.
         # To register a function, use the :meth:`before_first_request` decorator.
@@ -148,35 +145,6 @@ class TechMicroService(CoworksMixin, Chalice):
         self._add_route(blueprint, url_prefix=kwargs['url_prefix'])
         super().register_blueprint(blueprint, **kwargs)
         self.blueprints[blueprint.import_name] = blueprint
-
-    def run(self, host: str = '127.0.0.1', port: int = 8000, project_dir='.', debug=True):
-        """ Runs the microservice in a local Lambda emulator.
-        
-        :param host: the hostname to listen on.
-        :param port: the port of the webserver.
-        :param project_dir: to be able to import the microservice module.
-        :param debug: if given, enable or disable debug mode.
-        :return: None
-        """
-
-        # chalice.cli and .cws packages not defined in deployment
-        from .cws.factory import CwsCLIFactory
-
-        if debug:
-            logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')
-
-        if self.config.environment_variables_file:
-            var_file = Path(project_dir) / self.config.environment_variables_file
-            try:
-                with open(var_file) as f:
-                    os.environ.update(json.loads(f.read()))
-            except FileNotFoundError:
-                workspace = self.config.workspace
-                raise FileNotFoundError(f"Cannot find environment file {var_file} for workspace {workspace}")
-
-        factory = CwsCLIFactory(self, project_dir, debug=debug)
-        config = factory.mock_config_obj(self)
-        factory.run_local_server(self, config, host, port)
 
     def _add_route(self, component=None, url_prefix=None):
         if component is None:

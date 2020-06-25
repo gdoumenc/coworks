@@ -1,6 +1,6 @@
 from coworks import TechMicroService
 from coworks.config import Config, CORSConfig
-from coworks.cws.writer import TerraformStagingWriter
+from coworks.cws import CwsProject
 
 
 class SimpleMicroService(TechMicroService):
@@ -28,7 +28,7 @@ PROD_CONFIG = Config(
 )
 
 app = SimpleMicroService(ms_name='test', configs=[DEV_CONFIG, PROD_CONFIG])
-TerraformStagingWriter(app)
+CwsProject(app)
 
 
 if __name__ == '__main__':

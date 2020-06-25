@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 import requests
 
 from coworks import TechMicroService
-from coworks.cws.writer.sfn import TechState
+from coworks.cws.sfn import TechState
 
 
 class TechMS(TechMicroService):
