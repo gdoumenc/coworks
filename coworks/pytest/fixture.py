@@ -20,6 +20,8 @@ def local_server_factory():
                 os.environ.update(json.loads(f.read()))
 
         threaded_server.configure(app, **kwargs)
+        if app.entries is None:
+            app.deferred_init()
         threaded_server.start()
         return threaded_server
 

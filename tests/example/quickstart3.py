@@ -29,7 +29,3 @@ PROD_CONFIG = Config(
 
 app = SimpleMicroService(ms_name='test', configs=[DEV_CONFIG, PROD_CONFIG])
 CwsProject(app)
-
-
-if __name__ == '__main__':
-    app.run()

@@ -90,7 +90,7 @@ class TechMicroService(CoworksMixin, Chalice):
         self.__global_auth__ = self._create_auth_proxy(self, auth) if auth else None
 
         # Blueprints added by names.
-        self.blueprints = {}
+        self.blueprint_deferred_inits = []
 
         # Extended commands added
         self.commands = {}
@@ -108,8 +108,7 @@ class TechMicroService(CoworksMixin, Chalice):
         self._got_first_activation = False
         self._before_activation_lock = Lock()
 
-        self.entries = {}
-        self._add_route()
+        self.entries = None
         self.sfn_call = False
 
         if "pytest" in sys.modules:
@@ -127,6 +126,11 @@ class TechMicroService(CoworksMixin, Chalice):
     def ms_type(self):
         return 'tech'
 
+    def deferred_init(self):
+        self.init_routes()
+        for deferred_init in self.blueprint_deferred_inits:
+            deferred_init()
+
     def register_blueprint(self, blueprint: Blueprint, authorizer=None, **kwargs):
         """ Register a :class:`Blueprint` on the microservice.
 
@@ -142,11 +146,13 @@ class TechMicroService(CoworksMixin, Chalice):
 
         blueprint.__auth__ = self._create_auth_proxy(self, authorizer) if authorizer else None
 
-        self._add_route(blueprint, url_prefix=kwargs['url_prefix'])
-        super().register_blueprint(blueprint, **kwargs)
-        self.blueprints[blueprint.import_name] = blueprint
+        def deferred():
+            self.init_routes(blueprint, url_prefix=kwargs['url_prefix'])
+            Chalice.register_blueprint(self, blueprint, **kwargs)
 
-    def _add_route(self, component=None, url_prefix=None):
+        self.blueprint_deferred_inits.append(deferred)
+
+    def init_routes(self, component=None, url_prefix=None):
         if component is None:
             component = self
 
@@ -161,6 +167,8 @@ class TechMicroService(CoworksMixin, Chalice):
             auth = component.__auth__
 
         # Adds entrypoints
+        if self.entries is None:
+            self.entries = {}
         methods = class_rest_methods(component)
         for method, func in methods:
             if func.__name__ == method:
@@ -225,6 +233,9 @@ class TechMicroService(CoworksMixin, Chalice):
 
     def __call__(self, event, context):
         with self._before_activation_lock:
+            if self.entries is None:
+                self.deferred_init()
+
             if not self._got_first_activation:
                 for func in self.before_first_activation_funcs:
                     func()

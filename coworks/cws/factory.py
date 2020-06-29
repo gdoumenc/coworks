@@ -18,6 +18,9 @@ class CwsFactory(CLIFactory):
         return self.app
 
     def run_local_server(self, app, config, host, port):
+        if app.entries is None:
+            app.deferred_init()
+
         app_obj = config.chalice_app
         app.local_server = self.create_local_server(app_obj, config, host, port)
         app.local_server.serve_forever()

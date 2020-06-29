@@ -38,6 +38,9 @@ class CwsCommand(ABC):
         if error is not None:
             self.error = open(error, 'w+') if type(error) is str else error
 
+        if self.app.entries is None:
+            self.app.deferred_init()
+
         for func in self.before_funcs:
             func(**kwargs)
 

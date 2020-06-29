@@ -20,13 +20,14 @@ class DoumentedMS(TechMS):
         """Add content."""
         return f"post_content {value}{other}"
 
+
 class TestClass:
 
     def test_documentation(self, local_server_factory):
         ms = DoumentedMS()
         ms.register_blueprint(Admin(), url_prefix="/admin")
         local_server = local_server_factory(ms)
-        response = local_server.make_call(requests.get, '/admin/routes')
+        response = local_server.make_call(requests.get, '/admin/routes', timeout=500)
         assert response.status_code == 200
         assert json.loads(response.text)["/"] == {
             "GET": {
