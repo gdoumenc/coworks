@@ -42,6 +42,9 @@ def check_handler(ctx):
 
     # Adds commands from handler
     for name, cmd in handler.commands.items():
+        if name not in ctx.protected_args:
+            continue
+
         def execute(ctx, **kwargs):
             try:
                 command = ctx.obj['handler'].commands[name]
@@ -55,7 +58,7 @@ def check_handler(ctx):
         f = click.pass_context(execute)
         for opt in cmd.options:
             f = opt(f)
-        client.command(name)(f)
+        return client.command(name)(f)
 
 
 @click.group()

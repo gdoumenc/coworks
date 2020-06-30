@@ -1,6 +1,6 @@
 import pytest
 
-from coworks.cws.client import client, CLIError
+from coworks.cws.client import client
 
 
 class TestClass:
