@@ -1,15 +1,12 @@
 import io
 import re
 
-import pytest
-
 from coworks.cws import CwsTerraformWriter
 from tests.src.coworks.tech_ms import SimpleMS
 
 
 class TestClass:
 
-    @pytest.mark.wip
     def test_export_terraform(self):
         simple = SimpleMS()
         writer = CwsTerraformWriter(simple)

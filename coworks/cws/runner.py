@@ -21,7 +21,7 @@ class CwsRunner(CwsCommand):
             click.option('--debug/--no-debug', default=False, help='Print debug logs to stderr.')
         )
 
-    def _execute(self, host: str = '127.0.0.1', port: int = 8000, project_dir='.', debug=True):
+    def _execute(self, host: str = '127.0.0.1', port: int = 8000, project_dir='.', debug=True, **kwargs):
         """ Runs the microservice in a local Lambda emulator.
 
         :param host: the hostname to listen on.
