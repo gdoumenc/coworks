@@ -77,7 +77,7 @@ class CwsTemplateWriter(CwsWriter):
             'ms_name': self.app.ms_name,
             'app_configs': self.app.configs,
             'variables': variables,
-            'deploy_services': kwargs['deploy_service']
+            'deploy_services': list(kwargs['deploy_service'])
         }
         data.update(self.data)
         try:
