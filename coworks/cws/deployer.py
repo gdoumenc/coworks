@@ -1,5 +1,4 @@
 import os
-from python_terraform import Terraform
 
 import click
 
@@ -22,6 +21,7 @@ class CwsDeployer(CwsCommand):
         print("deploy")
 
     def _local_deploy(self, deploy_config, workspace, debug):
+        from python_terraform import Terraform
         print("deploy")
 
         if debug:

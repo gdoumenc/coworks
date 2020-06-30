@@ -172,3 +172,12 @@ class CwsTerraformWriter(CwsTemplateWriter):
             add_entry(previous_uid, last_path, methods.keys())
 
         return all_pathes_id
+
+
+class CwsTerraformStagingWriter(CwsTerraformWriter):
+    def __init__(self, app=None, *, name='terraform-staging', data=None, **kwargs):
+        super().__init__(app, name=name, data=data, **kwargs)
+
+    @property
+    def default_template_filenames(self):
+        return ['terraform_staging.j2']
