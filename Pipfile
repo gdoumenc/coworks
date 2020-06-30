@@ -10,6 +10,7 @@ psycopg2 = "*"
 mysqlclient = "*"
 requests-toolbelt = "*"
 scons = "*"
+python-terraform = "*"
 
 [dev-packages]
 codecov = "*"
