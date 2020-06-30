@@ -1,4 +1,5 @@
 import pathlib
+import click
 from abc import abstractmethod
 from dataclasses import dataclass
 from typing import List
@@ -18,6 +19,13 @@ class CwsWriter(CwsCommand):
 
     def __init__(self, app=None, *, name):
         super().__init__(app, name=name)
+
+    @property
+    def options(self):
+        return (
+            click.option('--deploy-service', multiple=True, default=[]),
+            click.option('--debug/--no-debug', default=False, help='Print debug logs to stderr.')
+        )
 
     def _execute(self, **kwargs):
         self._export_header(**kwargs)
@@ -69,6 +77,7 @@ class CwsTemplateWriter(CwsWriter):
             'ms_name': self.app.ms_name,
             'app_configs': self.app.configs,
             'variables': variables,
+            'deploy_services': kwargs['deploy_service']
         }
         data.update(self.data)
         try:
