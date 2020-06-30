@@ -72,7 +72,7 @@ class CwsTemplateWriter(CwsWriter):
             'module_path': pathlib.PurePath(*module_path),
             'module_dir': pathlib.PurePath(*module_path[:-1]),
             'module_file': module_path[-1],
-            'handler': module,
+            'handler': service,
             'app': self.app,
             'ms_name': self.app.ms_name,
             'app_configs': self.app.configs,
