@@ -1,3 +1,4 @@
+import sys
 import pytest
 
 from coworks.cws.client import client
@@ -5,7 +6,8 @@ from coworks.cws.client import client
 
 class TestClass:
 
-    def test_info(self, example_dir):
+    @pytest.mark.wip
+    def test_info(self, example_dir, capsys):
         with pytest.raises(SystemExit) as pytest_wrapped_e:
             client(prog_name='cws', args=['-p', 'doesntexist', 'info'], obj={})
         assert pytest_wrapped_e.type == SystemExit
@@ -30,6 +32,8 @@ class TestClass:
             client(prog_name='cws', args=['-p', example_dir, '-m', 'example', '-s', 'tech_app', 'info'], obj={})
         assert pytest_wrapped_e.type == SystemExit
         assert pytest_wrapped_e.value.code == 0
+        captured = capsys.readouterr()
+        assert captured.out == "info passed"
 
         with pytest.raises(SystemExit) as pytest_wrapped_e:
             client(prog_name='cws', args=['-p', example_dir, '-m', 'example', '-s', 'tech_app', 'info', '-t', 'wrong'],
