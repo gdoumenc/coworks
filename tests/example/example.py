@@ -10,12 +10,12 @@ from coworks.cws.command import CwsCommand
 
 class CwsInfo(CwsCommand):
 
-    def _execute(self, **kwargs):
-        pass
-
     @property
     def options(self):
         return (click.option('-h'),)
+
+    def _execute(self, **kwargs):
+        self.output.write('info passed')
 
 
 class TechMS(TechMicroService):
