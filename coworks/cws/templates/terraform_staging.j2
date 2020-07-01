@@ -59,7 +59,7 @@ resource "aws_lambda_function" "{{ resource_id }}" {
   {% if resource_id in deploy_services %}
   source_code_hash =  filebase64sha256(data.archive_file.{{ resource_id }}[0].output_path)
   {% endif %}
-  role = aws_iam_role.{{ resource_id }}.arn
+  role = aws_iam_role.{{ resource_id }}[0].arn
   handler = "{{ module_file }}.{{ handler }}"
   layers = concat([for layer in aws_lambda_layer_version.{{ resource_id }}: layer.arn], [for layer in data.aws_lambda_layer_version.{{ resource_id }}: layer.arn])
   runtime = "python3.7"
