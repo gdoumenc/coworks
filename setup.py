@@ -23,6 +23,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
+        'anyconfig==0.9.11',
         'aws_xray_sdk==2.5.0',
         'boto3==1.13.15',
         'chalice==1.14.1',

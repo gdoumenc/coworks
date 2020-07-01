@@ -1,0 +1,42 @@
+version: ">=11"
+services:
+  - module: example
+    service: project1
+  - module: example
+    service: project2
+commands:
+  test:
+    default:
+      class: example.CwsInfo
+      h: test info
+    services:
+      - module: example
+        service: project2
+        h: project2
+      - module: example
+        service: autre
+        h: autre
+  run:
+    default:
+      class: coworks.cws.CwsRunner
+      worskpace: dev
+      port: 8000
+    services:
+      - module: app2
+        service: app2
+        class: coworks.cws.CwsMyRunner
+        port: 8001
+  deploy:
+    default:
+      class: coworks.cws.CwsDeployer
+    services:
+      - module: app2
+        config:
+          - common-layers: ["fpr"]
+            binary-media-types: []
+          - workspace: dev
+            environment_variables_file: "../src/dev_vars_app.json"
+            custom-layers: ["layer_dev"]
+          - workspace: prod
+            environment_variables_file: "../src/prod_vars_app.json"
+            custom-layers: ["layer_prod"]

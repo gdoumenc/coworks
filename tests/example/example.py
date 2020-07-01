@@ -12,10 +12,13 @@ class CwsInfo(CwsCommand):
 
     @property
     def options(self):
-        return (click.option('-h'),)
+        return (click.option('-h'), click.option('-a'),)
 
     def _execute(self, **kwargs):
-        self.output.write('info passed')
+        if kwargs['h']:
+            self.output.write(f"info passed on {kwargs['h']}")
+        else:
+            self.output.write(f"info passed on {self.app.ms_name}")
 
 
 class TechMS(TechMicroService):
@@ -46,3 +49,7 @@ CwsInfo(tech_app, name='info')
 
 app = TechMS()
 CwsProject(app)
+CwsInfo(tech_app, name='info')
+
+project1 = TechMS()
+project2 = TechMS()

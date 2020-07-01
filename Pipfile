@@ -11,6 +11,7 @@ mysqlclient = "*"
 requests-toolbelt = "*"
 scons = "*"
 python-terraform = "*"
+anyconfig = "*"
 
 [dev-packages]
 codecov = "*"

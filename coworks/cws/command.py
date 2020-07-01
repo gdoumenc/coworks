@@ -1,10 +1,12 @@
 import sys
 from abc import ABC, abstractmethod
 
+from coworks import TechMicroService
+
 
 class CwsCommand(ABC):
 
-    def __init__(self, app=None, *, name):
+    def __init__(self, app: TechMicroService = None, *, name):
         self.name = name
 
         # Trace interfaces.
