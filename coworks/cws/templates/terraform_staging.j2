@@ -192,6 +192,9 @@ resource "aws_api_gateway_rest_api" "{{ resource_id }}" {
   count = terraform.workspace == "default" ? 1 : 0
   name = "{{ resource_name }}"
   description = "A prendre de la class"
+  {% if binary_media_types %}
+  binary_media_types = {{ binary_media_types }}
+  {% endif %}
   tags = {
     Product: "microservice"
     Creator: "coworks"

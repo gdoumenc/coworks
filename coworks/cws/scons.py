@@ -12,7 +12,7 @@ venv = subprocess.check_output(['pipenv', '--venv']).decode('utf-8')
 cws = f"{venv[:-1]}/bin/cws"
 
 Help(f"""
-       Usage : scons deploy-service=module-service1 deploy-service=module-service2
+       Usage : scons deploy-services=module-service1 deploy-services=module-service2
        """)
 
 
@@ -31,13 +31,13 @@ def Deploy(target, source, env=None):
         mod, service = t.name.split(MODULE_APP_SEP)
         print(f"Create terraform files for {mod}{MODULE_APP_SEP}{service}")
 
-        deploy_service_option = ""
+        deploy_services_option = ""
         for arg in ARGLIST:
             key, value = arg
-            if key == 'deploy_service':
-                deploy_service_option = f"{deploy_service_option} --deploy-service={value}"
+            if key == 'deploy_services':
+                deploy_services_option = f"{deploy_services_option} --deploy-services={value}"
 
-        cmd = f"{cws} -p {src_dir} -m {mod} -s {service} terraform-staging{deploy_service_option}"
+        cmd = f"{cws} -p {src_dir} -m {mod} -s {service} terraform-staging{deploy_services_option}"
 
         if debug:
             print(cmd)

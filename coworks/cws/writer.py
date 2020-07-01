@@ -23,7 +23,8 @@ class CwsWriter(CwsCommand):
     @property
     def options(self):
         return (
-            click.option('--deploy-service', multiple=True, default=[]),
+            click.option('--deploy-services', multiple=True, default=[]),
+            click.option('--binary-media-types', multiple=True, default=[]),
             click.option('--debug/--no-debug', default=False, help='Print debug logs to stderr.')
         )
 
@@ -77,7 +78,8 @@ class CwsTemplateWriter(CwsWriter):
             'ms_name': self.app.ms_name,
             'app_configs': self.app.configs,
             'variables': variables,
-            'deploy_services': list(kwargs.get('deploy_service', []))
+            'deploy_services': list(kwargs.get('deploy_services', [])),
+            'binary_media_types': list(kwargs.get('binary_media_types', []))
         }
         data.update(self.data)
         try:
