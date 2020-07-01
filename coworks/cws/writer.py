@@ -1,4 +1,5 @@
 import pathlib
+import click
 from abc import abstractmethod
 from dataclasses import dataclass
 from typing import List
@@ -18,6 +19,14 @@ class CwsWriter(CwsCommand):
 
     def __init__(self, app=None, *, name):
         super().__init__(app, name=name)
+
+    @property
+    def options(self):
+        return (
+            click.option('--deploy-services', multiple=True, default=[]),
+            click.option('--binary-media-types', multiple=True, default=[]),
+            click.option('--debug/--no-debug', default=False, help='Print debug logs to stderr.')
+        )
 
     def _execute(self, **kwargs):
         self._export_header(**kwargs)
@@ -64,11 +73,13 @@ class CwsTemplateWriter(CwsWriter):
             'module_path': pathlib.PurePath(*module_path),
             'module_dir': pathlib.PurePath(*module_path[:-1]),
             'module_file': module_path[-1],
-            'handler': module,
+            'handler': service,
             'app': self.app,
             'ms_name': self.app.ms_name,
             'app_configs': self.app.configs,
             'variables': variables,
+            'deploy_services': list(kwargs.get('deploy_services', [])),
+            'binary_media_types': list(kwargs.get('binary_media_types', []))
         }
         data.update(self.data)
         try:
@@ -163,3 +174,12 @@ class CwsTerraformWriter(CwsTemplateWriter):
             add_entry(previous_uid, last_path, methods.keys())
 
         return all_pathes_id
+
+
+class CwsTerraformStagingWriter(CwsTerraformWriter):
+    def __init__(self, app=None, *, name='terraform-staging', data=None, **kwargs):
+        super().__init__(app, name=name, data=data, **kwargs)
+
+    @property
+    def default_template_filenames(self):
+        return ['terraform_staging.j2']

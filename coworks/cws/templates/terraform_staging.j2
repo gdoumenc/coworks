@@ -1,249 +1,347 @@
+{% set resource_id = "{}-{}".format(module_file, ms_name) %}
+{% set resource_name = "{}-{}".format(module_file, ms_name) %}
+
+variable "{{ resource_id }}-stage" {
+  type = string
+}
+
+variable "{{ resource_id }}-environment_variables_file" {
+  type = string
+}
+
+variable "{{ resource_id }}-custom-layers" {
+  type = list(string)
+}
+
+variable "{{ resource_id }}-common-layers" {
+  type = list(string)
+}
+
 # ---------------------------------------------------------------------------------------------------------------------
 # LAMBDA
 # ---------------------------------------------------------------------------------------------------------------------
 
-{% for stage in app_configs %}
-  data "local_file" "environment_variables_{{ module_file }}-{{ ms_name }}_{{ stage.workspace }}" {
-  filename = "{{ project_dir }}/{{ stage.environment_variables_file }}"
-  }
+data "local_file" "environment_variables_{{ resource_id }}" {
+  filename = "{{ project_dir }}/${var.{{ resource_id }}-environment_variables_file}"
+}
 
-  {% for layer_name in stage.layers %}
-    resource "aws_lambda_layer_version" "{{ layer_name }}_{{ stage.workspace }}" {
-    layer_name = "{{ layer_name }}"
-    filename   = "{{ layer_name }}.zip"
-    compatible_runtimes = ["python3.7"]
-    }
-  {% endfor %}
+resource "aws_lambda_layer_version" "{{ resource_id }}" {
+  for_each = {for layer_name in local.custom-layers-{{ resource_id }} :  layer_name => "${layer_name}.zip"}
+  layer_name = "{{ resource_id }}-${each.key}"
+  filename   = each.value
+  source_code_hash = filebase64sha256(each.value)
+  compatible_runtimes = ["python3.7"]
+}
 
-  resource "aws_lambda_function" "{{ module_file }}-{{ ms_name }}_{{ stage.workspace }}" {
-  filename = "tmp/{{ module_file }}-{{ ms_name }}-{{ stage.workspace }}.zip"
-  function_name = "{{ module_file }}-{{ ms_name }}-{{ stage.workspace }}"
-  role = aws_iam_role.{{ module_file }}-{{ ms_name }}.arn
+data "aws_lambda_layer_version" "{{ resource_id }}" {
+  for_each = {for layer_name in local.common-layers-{{ resource_id }}: layer_name => layer_name}
+  layer_name = each.value
+}
+
+{%- if not lambda_zip_file %}
+data "archive_file" "{{ resource_id }}" {
+  count = terraform.workspace != "default" ? 1 : 0
+  source_file = "{{ project_dir }}/{{ module_dir }}/{{ module_file }}.py"
+  output_path = "{{ module_file }}.zip"
+  type = "zip"
+}
+{% endif -%}
+
+locals{
+    custom-layers-{{ resource_id }} = terraform.workspace == "default" ? [] : var.{{ resource_id }}-custom-layers
+    common-layers-{{ resource_id }} = terraform.workspace == "default" ? [] : var.{{ resource_id }}-common-layers
+}
+
+resource "aws_lambda_function" "{{ resource_id }}" {
+  count = terraform.workspace != "default" ? 1 : 0
+  filename = "tmp/{{ resource_id }}.zip"
+  function_name = "{{ resource_id }}-${terraform.workspace}"
+  {% if resource_id in deploy_services %}
+  source_code_hash =  filebase64sha256(data.archive_file.{{ resource_id }}[0].output_path)
+  {% endif %}
+  role = aws_iam_role.{{ resource_id }}[0].arn
   handler = "{{ module_file }}.{{ handler }}"
-  layers = [
-  {% for layer_name in stage.layers %}
-    aws_lambda_layer_version.{{ layer_name }}_{{ stage.workspace }}.arn,
-  {% endfor %}
-  ]
-
+  layers = concat([for layer in aws_lambda_layer_version.{{ resource_id }}: layer.arn], [for layer in data.aws_lambda_layer_version.{{ resource_id }}: layer.arn])
   runtime = "python3.7"
   timeout = 10
   environment {
-  variables = jsondecode(data.local_file.environment_variables_{{ module_file }}-{{ ms_name }}_{{ stage.workspace }}.content)
+    variables = jsondecode(data.local_file.environment_variables_{{ resource_id }}.content)
   }
-
   tags = {
-  Product: "microservice"
-  Target: "{{ module_file }}"
-  Creator: "coworks"
-  Stage = "{{ stage.workspace }}"
-  Debug = "{{ stage.debug }}"
+    Product: "microservice"
+    Target: "{{ module_file }}"
+    Creator: "coworks"
+    Stage = terraform.workspace
   }
-  }
+}
 
-  resource "aws_lambda_permission" "{{ module_file }}-{{ ms_name }}_{{ stage.workspace }}" {
+data "aws_lambda_function" "{{ resource_id }}" {
+  count = terraform.workspace == "default" && var.{{ resource_id }}-stage != "" ? 1 : 0
+  function_name = "{{ resource_id }}-${var.{{ resource_id }}-stage}"
+}
+
+resource "aws_lambda_permission" "{{ resource_id }}" {
+  count = terraform.workspace != "default" ? 1 : 0
   statement_id = "AllowExecutionFromAPIGateway"
   action = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.{{ module_file }}-{{ ms_name }}_{{ stage.workspace }}.function_name
+  function_name = join("", local.{{ resource_id }}.lambda_function.*.function_name)
   principal = "apigateway.amazonaws.com"
-  source_arn = "${aws_api_gateway_rest_api.{{ module_file }}-{{ ms_name }}.execution_arn}/*/*"
-  depends_on = [aws_lambda_function.{{ module_file }}-{{ ms_name }}_{{ stage.workspace }}]
-  }
+  source_arn = "${join("", data.aws_api_gateway_rest_api.{{ resource_id }}.*.execution_arn)}/*/*"
+  depends_on = [aws_lambda_function.{{ resource_id }}]
+}
+
+
+
+{% for s in app.trigger_source %}
+  {% if s.source in ['every','at'] %}
+    resource "aws_cloudwatch_event_rule" "{{ module_file }}_{{ s.name }}" {
+      count = terraform.workspace != "default" ? 1 : 0
+      name = "{{ module_file }}-{{ s.name }}"
+      schedule_expression = "{{ s.value }}"
+      tags = {
+        Product: "microservice"
+        Target: "{{ module_file }}"
+        Creator: "coworks"
+        Stage = var.{{ resource_id }}-stage
+        Customer = local.customer_name
+      }
+    }
+    resource "aws_cloudwatch_event_target" "{{ module_file }}_{{ s.name }}" {
+      count = terraform.workspace != "default" ? 1 : 0
+      target_id = "{{ module_file }}_{{ s.name }}"
+      rule = aws_cloudwatch_event_rule.{{ s.name }}.name
+      arn = local.lambda_function.{{ resource_id }}.arn
+    }
+    resource "aws_lambda_permission" "{{ s.name }}" {
+      count = terraform.workspace != "default" ? 1 : 0
+      statement_id  = "AllowExecutionFromCloudWatchEvent"
+      action = "lambda:InvokeFunction"
+      function_name = local.lambda_function.{{ resource_id }}.function_name
+      principal = "events.amazonaws.com"
+      source_arn = aws_cloudwatch_event_rule.{{ module_file }}_{{ s.name }}.arn
+    }
+  {% endif %}
 {% endfor %}
 
 # ---------------------------------------------------------------------------------------------------------------------
 # IAM ROLE
 # ---------------------------------------------------------------------------------------------------------------------
 
-resource "aws_iam_role" "{{ module_file }}-{{ ms_name }}" {
-name = "{{ module_file }}-{{ ms_name }}"
-assume_role_policy = data.aws_iam_policy_document.{{ module_file }}-{{ ms_name }}.json
-}
-data "aws_iam_policy_document" "{{ module_file }}-{{ ms_name }}" {
-statement {
-effect = "Allow"
-principals {
-identifiers = [
-"apigateway.amazonaws.com",
-"lambda.amazonaws.com",
-]
-type = "Service"
-}
-actions = ["sts:AssumeRole"]
-}
-}
-resource "aws_iam_role_policy_attachment" "{{ module_file }}-{{ ms_name }}" {
-role = aws_iam_role.{{ module_file }}-{{ ms_name }}.name
-policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+resource "aws_iam_role" "{{ resource_id }}" {
+  count = terraform.workspace != "default" ? 1 : 0
+  name = "{{ resource_id }}-${terraform.workspace}"
+  assume_role_policy = data.aws_iam_policy_document.{{ resource_id }}[0].json
+  }
+
+data "aws_iam_policy_document" "{{ resource_id }}" {
+  count = terraform.workspace != "default" ? 1 : 0
+  statement {
+    effect = "Allow"
+    principals {
+      identifiers = [
+        "apigateway.amazonaws.com",
+        "lambda.amazonaws.com",
+      ]
+      type = "Service"
+    }
+    actions = ["sts:AssumeRole"]
+  }
 }
 
+resource "aws_iam_role_policy_attachment" "{{ resource_id }}" {
+  count = terraform.workspace != "default" ? 1 : 0
+  role = aws_iam_role.{{ resource_id }}[0].name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+}
 
 {% for s in app.trigger_source %}
   {% if s.source in ['every','at'] %}
     resource "aws_cloudwatch_event_rule" "{{ module_file }}_{{ s.name }}" {
-    name = "{{ module_file }}-{{ s.name }}"
-    schedule_expression = "{{ s.value }}"
-    tags = {
-    Product: "microservice"
-    Target: "{{ module_file }}"
-    Creator: "coworks"
-    Stage = "{{ stage }}"
-    }
+      count = terraform.workspace != "default" ? 1 : 0
+      name = "{{ module_file }}-{{ s.name }}"
+      schedule_expression = "{{ s.value }}"
+      tags = {
+        Product: "microservice"
+        Target: "{{ module_file }}"
+        Creator: "coworks"
+        Stage = var.stage
+      }
     }
     resource "aws_cloudwatch_event_target" "{{ module_file }}_{{ s.name }}" {
-    target_id = "{{ module_file }}_{{ s.name }}"
-    rule = aws_cloudwatch_event_rule.{{ s.name }}.name
-    arn = aws_lambda_function.{{ module_file }}.arn
+      count = terraform.workspace != "default" ? 1 : 0
+      target_id = "{{ module_file }}_{{ s.name }}"
+      rule = aws_cloudwatch_event_rule.{{ s.name }}.name
+      arn = aws_lambda_function.{{ module_file }}.arn
     }
     resource "aws_lambda_permission" "{{ s.name }}" {
-    statement_id  = "AllowExecutionFromCloudWatchEvent"
-    action = "lambda:InvokeFunction"
-    function_name = aws_lambda_function.{{ module_file }}.function_name
-    principal = "events.amazonaws.com"
-    source_arn = aws_cloudwatch_event_rule.{{ module_file }}_{{ s.name }}.arn
+      count = terraform.workspace != "default" ? 1 : 0
+      statement_id  = "AllowExecutionFromCloudWatchEvent"
+      action = "lambda:InvokeFunction"
+      function_name = aws_lambda_function.{{ module_file }}.function_name
+      principal = "events.amazonaws.com"
+      source_arn = aws_cloudwatch_event_rule.{{ module_file }}_{{ s.name }}.arn
     }
   {% endif %}
 {% endfor %}
-
 
 # ---------------------------------------------------------------------------------------------------------------------
 # APIGATEWAY
 # ---------------------------------------------------------------------------------------------------------------------
 
-resource "aws_api_gateway_rest_api" "{{ module_file }}-{{ ms_name }}" {
-name = "{{ module_file }}-{{ ms_name }}"
-description = "A prendre de la class"
-tags = {
-Product: "microservice"
-Creator: "coworks"
+resource "aws_api_gateway_rest_api" "{{ resource_id }}" {
+  count = terraform.workspace == "default" ? 1 : 0
+  name = "{{ resource_name }}"
+  description = "A prendre de la class"
+  {% if binary_media_types %}
+  binary_media_types = {{ binary_media_types }}
+  {% endif %}
+  tags = {
+    Product: "microservice"
+    Creator: "coworks"
+  }
 }
+
+data "aws_api_gateway_rest_api" "{{ resource_id }}" {
+  count = (terraform.workspace != "default") ? 1 : 0
+  name = "{{ resource_name }}"
 }
 
 locals {
-{{ module_file }}-{{ ms_name }} = {
-api_id: aws_api_gateway_rest_api.{{ module_file }}-{{ ms_name }}.id
-root_id: aws_api_gateway_rest_api.{{ module_file }}-{{ ms_name }}.root_resource_id
-authorizer_uri = aws_lambda_function.{{ module_file }}-{{ ms_name }}_{{ variables.workspace }}.invoke_arn
-lambda_uri = aws_lambda_function.{{ module_file }}-{{ ms_name }}_{{ variables.workspace }}.invoke_arn
-}
+  {{ resource_id }} = {
+    api_id: terraform.workspace == "default" ? join("", aws_api_gateway_rest_api.{{ resource_id }}.*.id) : join("", data.aws_api_gateway_rest_api.{{ resource_id }}.*.id)
+    api_root_id: terraform.workspace == "default" ? join("", aws_api_gateway_rest_api.{{ resource_id }}.*.root_resource_id) : join("", data.aws_api_gateway_rest_api.{{ resource_id }}.*.root_resource_id)
+    authorizer_uri = join("", data.aws_lambda_function.{{ resource_id }}.*.invoke_arn)
+    lambda_uri = join("", data.aws_lambda_function.{{ resource_id }}.*.invoke_arn)
+    lambda_function = terraform.workspace != "default" ? aws_lambda_function.{{ resource_id }} : data.aws_lambda_function.{{ resource_id }}
+  }
 }
 
-resource "aws_api_gateway_authorizer" "{{ module_file }}-{{ ms_name }}" {
-name = "{{ module_file }}-{{ ms_name }}-auth"
-rest_api_id = local.{{ module_file }}-{{ ms_name }}.api_id
-authorizer_uri = local.{{ module_file }}-{{ ms_name }}.authorizer_uri
+resource "aws_api_gateway_authorizer" "{{ resource_id }}" {
+  count = (terraform.workspace == "default") && (var.{{ resource_id }}-stage != "") ? 1 : 0
+  name = "{{ resource_name }}-auth"
+  rest_api_id = local.{{ resource_id }}.api_id
+  authorizer_uri = local.{{ resource_id }}.authorizer_uri
 }
 
 {% for res, entry in writer.entries.items() %}
   {%- if entry.path %}
-    resource "aws_api_gateway_resource" "{{ module_file }}-{{ ms_name }}_{{ res }}" {
-    rest_api_id = local.{{ module_file }}-{{ ms_name }}.api_id
-    {% if entry.parent_is_root %}
-      parent_id = local.{{ module_file }}-{{ ms_name }}.root_id
-    {% else %}
-      parent_id = aws_api_gateway_resource.{{ module_file }}-{{ ms_name }}_{{ entry.parent_uid }}.id
-    {% endif %}
-    path_part = "{{ entry.path }}"
+    resource "aws_api_gateway_resource" "{{ resource_id }}_{{ res }}" {
+      count = terraform.workspace == "default" && var.{{ resource_id }}-stage != "" ? 1 : 0
+      rest_api_id = local.{{ resource_id }}.api_id
+      {% if entry.parent_is_root %}
+        parent_id = local.{{ resource_id }}.api_root_id
+      {% else %}
+        parent_id = aws_api_gateway_resource.{{ resource_id }}_{{ entry.parent_uid }}[0].id
+      {% endif %}
+      path_part = "{{ entry.path }}"
     }
   {% endif -%}
   {%- if entry.methods %}
     {% for method in entry.methods %}
-      resource "aws_api_gateway_method" "{{ module_file }}-{{ ms_name }}_{{ res }}_{{ method }}" {
-      rest_api_id = local.{{ module_file }}-{{ ms_name }}.api_id
-      {%- if entry.is_root %}
-        resource_id = local.{{ module_file }}-{{ ms_name }}.root_id
-      {% else %}
-        resource_id = aws_api_gateway_resource.{{ module_file }}-{{ ms_name }}_{{ res }}.id
-      {% endif -%}
-      http_method = "{{ method }}"
-      authorization = "CUSTOM"
-      authorizer_id = aws_api_gateway_authorizer.{{ module_file }}-{{ ms_name }}.id
+      resource "aws_api_gateway_method" "{{ resource_id }}_{{ res }}_{{ method }}" {
+        count = terraform.workspace == "default" && var.{{ resource_id }}-stage != "" ? 1 : 0
+        rest_api_id = local.{{ resource_id }}.api_id
+        {%- if entry.is_root %}
+          resource_id = local.{{ resource_id }}.api_root_id
+        {% else %}
+          resource_id = aws_api_gateway_resource.{{ resource_id }}_{{ res }}[0].id
+        {% endif -%}
+        http_method = "{{ method }}"
+        authorization = "CUSTOM"
+        authorizer_id = aws_api_gateway_authorizer.{{ resource_id }}[0].id
       }
 
-      resource "aws_api_gateway_integration" "{{ module_file }}-{{ ms_name }}_{{ res }}_{{ method }}" {
-      rest_api_id = local.{{ module_file }}-{{ ms_name }}.api_id
-      {%- if entry.is_root %}
-        resource_id = local.{{ module_file }}-{{ ms_name }}.root_id
-      {% else %}
-        resource_id = aws_api_gateway_resource.{{ module_file }}-{{ ms_name }}_{{ res }}.id
-      {% endif -%}
-      http_method = aws_api_gateway_method.{{ module_file }}-{{ ms_name }}_{{ res }}_{{ method }}.http_method
-      integration_http_method = "POST"
-      type = "AWS_PROXY"
-      uri = aws_lambda_function.{{ module_file }}-{{ ms_name }}_{{ variables.workspace }}.invoke_arn
+      resource "aws_api_gateway_integration" "{{ resource_id }}_{{ res }}_{{ method }}" {
+        count = terraform.workspace == "default" && var.{{ resource_id }}-stage != "" ? 1 : 0
+        rest_api_id = local.{{ resource_id }}.api_id
+        {%- if entry.is_root %}
+          resource_id = local.{{ resource_id }}.api_root_id
+        {% else %}
+          resource_id = aws_api_gateway_resource.{{ resource_id }}_{{ res }}[0].id
+        {% endif -%}
+        http_method = join("", aws_api_gateway_method.{{ resource_id }}_{{ res }}_{{ method }}.*.http_method)
+        integration_http_method = "POST"
+        type = "AWS_PROXY"
+        uri = local.{{ resource_id }}.lambda_uri
       }
     {% endfor %}
 
     {# Preflighted requests in CORS #}
 
     {%- if entry.cors %}
-      resource "aws_api_gateway_method" "{{ module_file }}-{{ ms_name }}_{{ res }}_OPTIONS" {
-      rest_api_id = local.{{ module_file }}-{{ ms_name }}.api_id
-      {%- if entry.is_root %}
-        resource_id = local.{{ module_file }}-{{ ms_name }}.root_id
-      {% else %}
-        resource_id = aws_api_gateway_resource.{{ module_file }}-{{ ms_name }}_{{ res }}.id
-      {% endif -%}
-      http_method = "OPTIONS"
-      authorization = "NONE"
+      resource "aws_api_gateway_method" "{{ resource_id }}_{{ res }}_OPTIONS" {
+        count = terraform.workspace == "default" && var.{{ resource_id }}-stage != "" ? 1 : 0
+        rest_api_id = local.{{ resource_id }}.api_id
+        {%- if entry.is_root %}
+          resource_id = local.{{ resource_id }}.api_root_id
+        {% else %}
+          resource_id = aws_api_gateway_resource.{{ resource_id }}_{{ res }}[0].id
+        {% endif -%}
+        http_method = "OPTIONS"
+        authorization = "NONE"
       }
 
-      resource "aws_api_gateway_integration" "{{ module_file }}-{{ ms_name }}_{{ res }}_OPTIONS" {
-      rest_api_id = local.{{ module_file }}-{{ ms_name }}.api_id
-      {%- if entry.is_root %}
-        resource_id = local.{{ module_file }}-{{ ms_name }}.root_id
-      {% else %}
-        resource_id = aws_api_gateway_resource.{{ module_file }}-{{ ms_name }}_{{ res }}.id
-      {% endif -%}
-      http_method = aws_api_gateway_method.{{ module_file }}-{{ ms_name }}_{{ res }}_OPTIONS.http_method
-      type = "MOCK"
-      request_templates = {
-      "application/json" = "{ \"statusCode\": 200 }"
-      }
-      }
-      resource "aws_api_gateway_integration_response" "{{ module_file }}-{{ ms_name }}_{{ res }}_OPTIONS" {
-      rest_api_id = local.{{ module_file }}-{{ ms_name }}.api_id
-      {%- if entry.is_root %}
-        resource_id = local.{{ module_file }}-{{ ms_name }}.root_id
-      {% else %}
-        resource_id = aws_api_gateway_resource.{{ module_file }}-{{ ms_name }}_{{ res }}.id
-      {% endif -%}
-      http_method = aws_api_gateway_method.{{ module_file }}-{{ ms_name }}_{{ res }}_OPTIONS.http_method
-      response_parameters = {
-      {%- for k,v in entry.cors.get_access_control_headers().items() %}
-        "method.response.header.{{ k }}" = "'{{ v }}'",
-      {% endfor -%}
-      }
-      status_code = 200
-      response_templates = {
-      "application/json": "{}"
-      }
-      depends_on = [
-      aws_api_gateway_integration.{{ module_file }}-{{ ms_name }}_{{ res }}_OPTIONS,
-      aws_api_gateway_method_response.{{ module_file }}-{{ ms_name }}_{{ res }}_OPTIONS,
-      ]
-      }
-      resource "aws_api_gateway_method_response" "{{ module_file }}-{{ ms_name }}_{{ res }}_OPTIONS" {
-      rest_api_id = local.{{ module_file }}-{{ ms_name }}.api_id
-      {%- if entry.is_root %}
-        resource_id = local.{{ module_file }}-{{ ms_name }}.root_id
-      {% else %}
-        resource_id = aws_api_gateway_resource.{{ module_file }}-{{ ms_name }}_{{ res }}.id
-      {% endif -%}
-      http_method = aws_api_gateway_method.{{ module_file }}-{{ ms_name }}_{{ res }}_OPTIONS.http_method
-      status_code = 200
-      response_models = {
-      "application/json" = "Empty"
-      }
-      response_parameters = {
-      "method.response.header.Access-Control-Allow-Headers" = true,
-      "method.response.header.Access-Control-Allow-Methods" = true,
-      "method.response.header.Access-Control-Allow-Origin" = true
+      resource "aws_api_gateway_integration" "{{ resource_id }}_{{ res }}_OPTIONS" {
+        count = terraform.workspace == "default" && var.{{ resource_id }}-stage != "" ? 1 : 0
+        rest_api_id = local.{{ resource_id }}.api_id
+        {%- if entry.is_root %}
+          resource_id = local.{{ resource_id }}.api_root_id
+        {% else %}
+          resource_id = aws_api_gateway_resource.{{ resource_id }}_{{ res }}[0].id
+        {% endif -%}
+        http_method = join("", aws_api_gateway_method.{{ resource_id }}_{{ res }}_OPTIONS.*.http_method)
+        type = "MOCK"
+        request_templates = {
+          "application/json" = "{ \"statusCode\": 200 }"
+        }
       }
 
-      depends_on = [
-      aws_api_gateway_method.{{ module_file }}-{{ ms_name }}_{{ res }}_OPTIONS,
-      ]
+      resource "aws_api_gateway_integration_response" "{{ resource_id }}_{{ res }}_OPTIONS" {
+        count = terraform.workspace == "default" && var.{{ resource_id }}-stage != "" ? 1 : 0
+        rest_api_id = local.{{ resource_id }}.api_id
+        {%- if entry.is_root %}
+          resource_id = local.{{ resource_id }}.api_root_id
+        {% else %}
+          resource_id = aws_api_gateway_resource.{{ resource_id }}_{{ res }}[0].id
+        {% endif -%}
+        http_method =  join("", aws_api_gateway_method.{{ resource_id }}_{{ res }}_OPTIONS.*.http_method)
+        response_parameters = {
+        {%- for k,v in entry.cors.get_access_control_headers().items() %}
+          "method.response.header.{{ k }}" = "'{{ v }}'",
+        {% endfor -%}
+        }
+        status_code = 200
+        response_templates = {
+        "application/json": "{}"
+        }
+        depends_on = [
+        aws_api_gateway_integration.{{ resource_id }}_{{ res }}_OPTIONS,
+        aws_api_gateway_method_response.{{ resource_id }}_{{ res }}_OPTIONS,
+        ]
+      }
+
+      resource "aws_api_gateway_method_response" "{{ resource_id }}_{{ res }}_OPTIONS" {
+        count = terraform.workspace == "default" && var.{{ resource_id }}-stage != "" ? 1 : 0
+        rest_api_id = local.{{ resource_id }}.api_id
+        {%- if entry.is_root %}
+          resource_id = local.{{ resource_id }}.api_root_id
+        {% else %}
+          resource_id = aws_api_gateway_resource.{{ resource_id }}_{{ res }}[0].id
+        {% endif -%}
+        http_method = join("", aws_api_gateway_method.{{ resource_id }}_{{ res }}_OPTIONS.*.http_method)
+        status_code = 200
+        response_models = {
+          "application/json" = "Empty"
+        }
+        response_parameters = {
+          "method.response.header.Access-Control-Allow-Headers" = true,
+          "method.response.header.Access-Control-Allow-Methods" = true,
+          "method.response.header.Access-Control-Allow-Origin" = true
+        }
+
+        depends_on = [
+          aws_api_gateway_method.{{ resource_id }}_{{ res }}_OPTIONS,
+        ]
       }
     {% endif -%}
   {% endif -%}
@@ -251,31 +349,18 @@ authorizer_uri = local.{{ module_file }}-{{ ms_name }}.authorizer_uri
 
 {# API Deployments #}
 
-{% for stage in app_configs %}
-  {% if stage.version %}
-    resource "aws_api_gateway_deployment" "{{ module_file }}-{{ ms_name }}_{{ stage.workspace }}" {
-    depends_on = [
-    {%- for res, entry in writer.entries.items() %}{%- if entry.methods %}{% for method in entry.methods %}
-      aws_api_gateway_integration.{{ module_file }}-{{ ms_name }}_{{ res }}_{{ method }},
-    {% endfor %}{% endif %}{% endfor -%}
-    {% if loop.previtem and loop.previtem.version %}
-      aws_api_gateway_deployment.{{ module_file }}-{{ ms_name }}_{{ res }}{{ loop.previtem.workspace }},
-    {% endif %}
-
-    ]
-    rest_api_id = local.{{ module_file }}-{{ ms_name }}.api_id
-    stage_name = "{{ stage.workspace }}"
-    }
-  {% endif %}
-{% endfor %}
+resource "aws_api_gateway_deployment" "{{ resource_id }}" {
+  count = (terraform.workspace != "default") && (var.{{ resource_id }}-stage != "") ? 1 : 0
+  rest_api_id = local.{{ resource_id }}.api_id
+  stage_name = terraform.workspace
+}
 
 # ---------------------------------------------------------------------------------------------------------------------
 # OUTPUT
 # ---------------------------------------------------------------------------------------------------------------------
 
-output "{{ module_file }}-{{ ms_name }}" {
+output "{{ resource_id }}" {
 value = {
-
-invoke-url-{{ variables.workspace }} = aws_api_gateway_deployment.{{ module_file }}-{{ ms_name }}_{{ variables.workspace }}.invoke_url
-}
+    "invoke-url-${var.{{ resource_id }}-stage}" = terraform.workspace != "default" && var.{{ resource_id }}-stage != "" ? join("", aws_api_gateway_deployment.{{ resource_id }}.*.invoke_url) : null
+  }
 }

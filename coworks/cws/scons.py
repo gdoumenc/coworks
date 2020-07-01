@@ -1,10 +1,9 @@
-import json
 import re
 import subprocess
 
 from SCons import Environment
 from SCons.Builder import Builder
-from SCons.Script import Glob, Help, ARGUMENTS
+from SCons.Script import Glob, Help, ARGUMENTS, ARGLIST
 
 debug = int(ARGUMENTS.get('debug', 0))
 
@@ -13,9 +12,7 @@ venv = subprocess.check_output(['pipenv', '--venv']).decode('utf-8')
 cws = f"{venv[:-1]}/bin/cws"
 
 Help(f"""
-       Type: 'scons stage={{stage}} to build the complete module,
-       Type: 'scons module={{module}} service={{service}} stage={{stage}} to build a given microservice,
-       Omitting stage will build the stage 'dev'
+       Usage : scons deploy-services=module-service1 deploy-services=module-service2
        """)
 
 
@@ -26,60 +23,35 @@ def AllFiles(src_dir='.', pattern='*', exclude=r'.*\.pyc$'):
     return result
 
 
-def Taint(ressource, terraform_dir):
-    if debug:
-        print("tainting ", ressource)
-    return subprocess.check_output(f'terraform taint {ressource} > /dev/null 2>&1',
-                                   shell=True, cwd=terraform_dir).decode('utf-8')
-
-
 def Deploy(target, source, env=None):
     src_dir = env['SRC_DIR']
     terraform_dir = env['TERRAFORM_DIR']
-    stage = ARGUMENTS.get('stage', 'dev')
-    module = ARGUMENTS.get('module', 'app')
-    service = ARGUMENTS.get('service')
-    microservice = f"{module}-{service}" if service else None
-    for t in target:
-        mod, service, _ = t.name.split(MODULE_APP_SEP)
-        print(f"Create terraform files for {mod}{MODULE_APP_SEP}{service}")
-        cmd = f"{cws} -p {src_dir} info -m {mod} -s {service}"
-        if debug:
-            print(cmd)
-        info = subprocess.check_output(cmd.split(' ')).decode('utf-8')
-        if debug:
-            print(f"info: {info[:-1]}")
-        name = json.loads(info[:-1])['name']
 
-        cmd = f"{cws} -p {src_dir} export -f terraform-staging -m {mod} -s {service} -v workspace {stage}"
+    for t in target:
+        mod, service = t.name.split(MODULE_APP_SEP)
+        print(f"Create terraform files for {mod}{MODULE_APP_SEP}{service}")
+
+        deploy_services_option = ""
+        for arg in ARGLIST:
+            key, value = arg
+            if key == 'deploy_services':
+                deploy_services_option = f"{deploy_services_option} --deploy-services={value}"
+
+        cmd = f"{cws} -p {src_dir} -m {mod} -s {service} terraform-staging{deploy_services_option}"
+
         if debug:
             print(cmd)
         content = subprocess.check_output(cmd.split(' ')).decode('utf-8')
+        subprocess.check_output(f'rm -f _{t}*.tf', cwd=terraform_dir, shell=True)
 
-        subprocess.check_output(f'rm -f _{mod}_{name}*.tf', cwd=terraform_dir, shell=True)
-        with open(f"{terraform_dir}/_{mod}_{name}-{stage}.tf", 'w') as tgt:
+        with open(f"{terraform_dir}/_{t}.tf", 'w') as tgt:
             tgt.write(content)
-
-        if microservice:
-            ressource_name = f'{microservice}_{stage}'
-        else:
-            ressource_name = f'{mod}-{service}_{stage}'
-
-        try:
-            if debug:
-                print(f"tainting : {ressource_name}")
-            Taint(f'aws_lambda_function.{ressource_name}', terraform_dir)
-            Taint(f'aws_lambda_permission.{ressource_name}', terraform_dir)
-            Taint(f'aws_api_gateway_deployment.{ressource_name}', terraform_dir)
-        except subprocess.CalledProcessError:
-            pass
 
 
 def CwsProject(src, microservices, src_dir='src', terraform_dir='terraform'):
     env = Environment.Base(BUILDERS={'Deploy': Builder(action=Deploy)}, SRC_DIR=src_dir, TERRAFORM_DIR=terraform_dir)
 
     for microservice in microservices:
-        for workspace in microservice[1]:
-            target = f'{microservice[0]}-{workspace}'
-            env.Zip(f'{terraform_dir}/tmp/{target}', src, ZIPROOT=src_dir)
-            env.Deploy(target, [f'{terraform_dir}/tmp/{target}.zip'])
+        target = f'{microservice}'
+        env.Zip(f'{terraform_dir}/tmp/{target}', src, ZIPROOT=src_dir)
+        env.Deploy(target, [f'{terraform_dir}/tmp/{target}.zip'])
