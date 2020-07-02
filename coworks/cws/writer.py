@@ -24,7 +24,8 @@ class CwsWriter(CwsCommand):
     def options(self):
         return (
             click.option('--deploy-services', multiple=True, default=[]),
-            click.option('--binary-media-types', multiple=True, default=[]),
+            click.option('--workspace', default=''),
+            click.option('--stage', default=''),
             click.option('--debug/--no-debug', default=False, help='Print debug logs to stderr.')
         )
 
@@ -64,8 +65,18 @@ class CwsTemplateWriter(CwsWriter):
     def default_template_filenames(self):
         ...
 
-    def _export_content(self, *, module, service, project_dir, variables=None, **kwargs):
+    def _export_content(self, *, module, service, project_dir, workspace, stage, variables=None, **kwargs):
+
         module_path = module.split('.')
+
+        export_config = kwargs['config']
+        common_export_config = next((config for config in export_config if config.get("workspace") is None))
+        for c in export_config:
+            if c.get('workspace') is not None:
+                for key, value in common_export_config.items():
+                    if key not in c:
+                        c[key] = value
+
         data = {
             'writer': self,
             'project_dir': project_dir,
@@ -76,11 +87,13 @@ class CwsTemplateWriter(CwsWriter):
             'handler': service,
             'app': self.app,
             'ms_name': self.app.ms_name,
-            'app_configs': self.app.configs,
             'variables': variables,
             'deploy_services': list(kwargs.get('deploy_services', [])),
-            'binary_media_types': list(kwargs.get('binary_media_types', []))
+            'stage': stage,
+            'app_config': next((app_config for app_config in self.app.configs if app_config.workspace == workspace)),
+            'export_config': next((config for config in export_config if config.get("workspace") == workspace)),
         }
+
         data.update(self.data)
         try:
             for template_filename in self.template_filenames:
