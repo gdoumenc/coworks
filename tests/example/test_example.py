@@ -2,6 +2,7 @@ import threading
 import time
 from pathlib import Path
 
+import pytest
 import requests
 
 from coworks.config import Config
@@ -45,6 +46,14 @@ class TestClass:
         response = local_server.make_call(requests.get, '/env', timeout=500)
         assert response.status_code == 200
         assert response.text == "Simple microservice for test dev environment variable.\n"
+
+    @pytest.mark.wip
+    def test_init(self, local_server_factory, example_dir):
+        config = Config(environment_variables_file=Path(example_dir) / "config" / "vars_dev.json")
+        local_server = local_server_factory(TechMS(configs=[config]))
+        response = local_server.make_call(requests.get, '/init', timeout=500)
+        assert response.status_code == 200
+        assert response.text == "Initial value is test.\n"
 
     def test_run_example(self, example_dir):
         app = import_attr('example', 'app', cwd=example_dir)

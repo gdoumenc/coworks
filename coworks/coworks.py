@@ -76,7 +76,8 @@ class TechMicroService(CoworksMixin, Chalice):
             'BLUEPRINTS'
         ])
 
-        # Blueprints added by names.
+        # App and blueprints init deferered functions.
+        self.deferred_inits = []
         self.blueprint_deferred_inits = []
 
         # Extended commands added
@@ -118,6 +119,8 @@ class TechMicroService(CoworksMixin, Chalice):
     def deferred_init(self, **kwargs):
         if self.entries is None:
             self._init_routes(workspace=kwargs['workspace'])
+            for deferred_init in self.deferred_inits:
+                deferred_init()
             for deferred_init in self.blueprint_deferred_inits:
                 deferred_init()
 
@@ -304,6 +307,17 @@ class TechMicroService(CoworksMixin, Chalice):
             print(f"Call {self.ms_name} returns {res}")
 
         return res
+
+    def deferred(self, f):
+        """Registers a function to be run once the microservice will be initialized.
+
+        May be used as a decorator.
+
+        The function will be called without any arguments and its return value is ignored.
+        """
+
+        self.deferred_inits.append(f)
+        return f
 
     def before_first_activation(self, f):
         """Registers a function to be run before the first activation of the microservice.

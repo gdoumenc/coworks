@@ -26,10 +26,14 @@ class TechMS(TechMicroService):
     """Technical microservice for the CoWorks tutorial example."""
     version = "1.2"
     values = defaultdict(int)
+    init_value = None
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # print(f"Test value is {os.getenv('test')} for {self.ms_name}")
+
+        @self.deferred
+        def init():
+            self.init_value = 'test'
 
     def get(self, usage="test"):
         """Entrypoint for testing named parameter."""
@@ -42,6 +46,9 @@ class TechMS(TechMicroService):
     def put_value(self, index, value=0):
         self.values[index] = value
         return value
+
+    def get_init(self):
+        return f"Initial value is {self.init_value}.\n"
 
     def get_env(self):
         return f"Simple microservice for {os.getenv('test')}.\n"
