@@ -11,7 +11,7 @@ CoWorks supports only AWS Lambda python version >= 3.7 versions.
 Install CoWorks
 ---------------
 
-Use a virtual environment to install CoWorks. We recommend using pipenv::
+Use a virtual environment to install CoWorks. We recommend using ``pipenv``::
 
 	$ mkdir project
 	$ cd project
@@ -28,6 +28,8 @@ CoWorks is now ready for you.
 
 *Beware*: As ``awscli`` (even ``boto3``) often evolves, make sure you have a compatible version of it in
 your python virtual environment or dependencies conflicts may occur.
+
+If you want to try now without deploying, you skip to :ref:`tech_quickstart`.
 
 Other tools
 -----------

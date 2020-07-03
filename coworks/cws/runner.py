@@ -37,15 +37,6 @@ class CwsRunner(CwsCommand):
         if debug:
             logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')
 
-        if self.app.config.environment_variables_file:
-            var_file = Path(project_dir) / self.app.config.environment_variables_file
-            try:
-                with open(var_file) as f:
-                    os.environ.update(json.loads(f.read()))
-            except FileNotFoundError:
-                workspace = self.app.config.workspace
-                raise FileNotFoundError(f"Cannot find environment file {var_file} for workspace {workspace}")
-
         factory = CwsFactory(self.app, project_dir, debug=debug)
         config = factory.mock_config_obj(self.app)
         factory.run_local_server(self.app, config, host, port)

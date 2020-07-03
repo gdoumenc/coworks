@@ -4,6 +4,7 @@ from collections import defaultdict
 import click
 
 from coworks import TechMicroService
+from coworks.config import Config
 from coworks.cws import CwsProject
 from coworks.cws.command import CwsCommand
 
@@ -12,7 +13,7 @@ class CwsInfo(CwsCommand):
 
     @property
     def options(self):
-        return (click.option('-h'), click.option('-a'),)
+        return click.option('-h'), click.option('-a')
 
     def _execute(self, **kwargs):
         if kwargs['h']:
@@ -25,6 +26,10 @@ class TechMS(TechMicroService):
     """Technical microservice for the CoWorks tutorial example."""
     version = "1.2"
     values = defaultdict(int)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # print(f"Test value is {os.getenv('test')} for {self.ms_name}")
 
     def get(self, usage="test"):
         """Entrypoint for testing named parameter."""
@@ -47,7 +52,7 @@ tech_app = TechMS()
 CwsProject(tech_app)
 CwsInfo(tech_app, name='info')
 
-app = TechMS()
+app = TechMS(configs=Config(environment_variables_file="config/vars_dev.json"))
 CwsProject(app)
 CwsInfo(tech_app, name='info')
 

@@ -11,6 +11,10 @@ EXAMPLE_DIR = os.getenv('EXAMPLE_DIR')
 
 class WithEnvMS(SimpleMS):
 
+    def __init__(selfself, **kwargs):
+        assert os.getenv("test") is not None
+        super().__init__(**kwargs)
+
     def get(self):
         """Root access."""
         return os.getenv("test")

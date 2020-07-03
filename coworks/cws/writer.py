@@ -10,6 +10,8 @@ from coworks import TechMicroService
 from coworks.config import CORSConfig
 from coworks.cws.command import CwsCommand
 
+DEFAULT_STEP = 'update'
+
 
 class WriterError(Exception):
     ...
@@ -24,8 +26,7 @@ class CwsWriter(CwsCommand):
     def options(self):
         return (
             click.option('--output', default=None),
-            click.option('--workspace', default=None),
-            click.option('--step', default=None),
+            click.option('--step', default=DEFAULT_STEP),
             click.option('--config', default=None),
             click.option('--debug/--no-debug', default=False, help='Print debug logs to stderr.')
         )
@@ -66,8 +67,7 @@ class CwsTemplateWriter(CwsWriter):
     def default_template_filenames(self):
         ...
 
-    def _export_content(self, *, module, service, project_dir, workspace, step, variables=None, **kwargs):
-
+    def _export_content(self, *, project_dir, module, service, workspace, step, variables=None, **kwargs):
         module_path = module.split('.')
 
         export_config = kwargs['config']
@@ -78,7 +78,6 @@ class CwsTemplateWriter(CwsWriter):
                     for key, value in common_export_config.items():
                         if key not in c:
                             c[key] = value
-            export_config = next((config for config in export_config if config.get("workspace") == workspace))
 
         data = {
             'writer': self,

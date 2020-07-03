@@ -13,7 +13,6 @@ class CwsDeployer(CwsCommand):
     @property
     def options(self):
         return (
-            click.option('-w', '--workspace', default='dev'),
             click.option('--debug/--no-debug', default=False, help='Print debug logs to stderr.')
         )
 

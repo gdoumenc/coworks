@@ -17,14 +17,12 @@ DEV_CONFIG = Config(
     version="0.0",
     cors=CORSConfig(allow_origin='*'),
     environment_variables_file="config/vars_dev.json",
-    layers=["layer"]
 )
 PROD_CONFIG = Config(
     workspace="prod",
     version="0.0",
     cors=CORSConfig(allow_origin='www.mywebsite.com'),
     environment_variables_file="config/vars_prod.secret.json",
-    layers=["layer"]
 )
 
 app = SimpleMicroService(ms_name='test', configs=[DEV_CONFIG, PROD_CONFIG])

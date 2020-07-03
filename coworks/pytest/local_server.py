@@ -21,7 +21,7 @@ class ThreadedLocalServer(Thread):
     def wait_for_server_ready(self):
         self._server_ready.wait()
 
-    def configure(self, app_object, config=None):
+    def configure(self, app_object, config=None, **kwargs):
         self._app_object = app_object
         self._config = config if config else Config()
 

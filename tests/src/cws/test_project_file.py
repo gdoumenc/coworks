@@ -11,7 +11,6 @@ class TestClass:
         assert pytest_wrapped_e.type == SystemExit
         assert pytest_wrapped_e.value.code == 1
 
-    @pytest.mark.wip
     def test_project_file_no_param(self, example_dir, capsys):
         with pytest.raises(SystemExit) as pytest_wrapped_e:
             client(prog_name='cws', args=['-p', 'tests/example', 'test'], obj={})

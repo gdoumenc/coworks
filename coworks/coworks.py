@@ -57,37 +57,24 @@ class TechMicroService(CoworksMixin, Chalice):
     
     """
 
-    def __init__(self, ms_name: str = None, configs: Union[Config, List[Config]] = None,
-                 workspace: str = DEFAULT_WORKSPACE, **kwargs):
+    def __init__(self, ms_name: str = None, configs: Union[Config, List[Config]] = None, **kwargs):
         """ Initialize a technical microservice.
         :param ms_name: Name used to identify the resource.
         :param configs: Deployment configuration.
         :param workspace used for execution.
         :param kwargs: Other Chalice parameters.
         """
+        ms_name = ms_name or self.__class__.__name__
 
-        # Set default configuration workspace for execution
         self.configs = configs or [Config()]
         if type(self.configs) is not list:
             self.configs = [configs]
-        for conf in self.configs:
-            if conf.workspace == workspace:
-                self.config = conf
-                break
-        if not self.config:
-            self.config = self.configs[0]
-
-        ms_name = ms_name or self.__class__.__name__
-        kwargs.setdefault('debug', self.config.debug)
+        self.config = None
 
         super().__init__(app_name=ms_name, **kwargs)
         self.experimental_feature_flags.update([
             'BLUEPRINTS'
         ])
-
-        # If defined replace the class defined authorizer (on the microservice and on the blueprint)
-        auth = self.config.auth
-        self.__global_auth__ = self._create_auth_proxy(self, auth) if auth else None
 
         # Blueprints added by names.
         self.blueprint_deferred_inits = []
@@ -114,6 +101,8 @@ class TechMicroService(CoworksMixin, Chalice):
         if "pytest" in sys.modules:
             xray_recorder.configure(context_missing="LOG_ERROR")
 
+        self.__global_auth__ = None
+
     @property
     def component_name(self):
         return class_attribute(self, 'url_prefix', '')
@@ -126,10 +115,11 @@ class TechMicroService(CoworksMixin, Chalice):
     def ms_type(self):
         return 'tech'
 
-    def deferred_init(self):
-        self.init_routes()
-        for deferred_init in self.blueprint_deferred_inits:
-            deferred_init()
+    def deferred_init(self, **kwargs):
+        if self.entries is None:
+            self._init_routes(workspace=kwargs['workspace'])
+            for deferred_init in self.blueprint_deferred_inits:
+                deferred_init()
 
     def register_blueprint(self, blueprint: Blueprint, authorizer=None, **kwargs):
         """ Register a :class:`Blueprint` on the microservice.
@@ -147,17 +137,30 @@ class TechMicroService(CoworksMixin, Chalice):
         blueprint.__auth__ = self._create_auth_proxy(self, authorizer) if authorizer else None
 
         def deferred():
-            self.init_routes(blueprint, url_prefix=kwargs['url_prefix'])
+            self._init_routes(workspace=kwargs.get('workspace'), component=blueprint, url_prefix=kwargs['url_prefix'])
             Chalice.register_blueprint(self, blueprint, **kwargs)
 
         self.blueprint_deferred_inits.append(deferred)
 
-    def init_routes(self, component=None, url_prefix=None):
+    def execute(self, command, **kwargs):
+        self.commands[command].execute(**kwargs)
+
+    def _init_routes(self, *, workspace=DEFAULT_WORKSPACE, component=None, url_prefix=None):
+        if self.config is None:
+            for conf in self.configs:
+                if conf.workspace == workspace:
+                    self.config = conf
+                    break
+            if self.config is None:
+                self.config = self.configs[0]
+
         if component is None:
             component = self
 
         # External authorizer has priority (forced)
-        if self.__global_auth__:
+        if self.config.auth:
+            if self.__global_auth__ is None:
+                self.__global_auth__ = self._create_auth_proxy(self, self.config.auth)
             auth = component.__auth__ = self.__global_auth__
         else:
             auth = class_auth_methods(component)
@@ -232,9 +235,11 @@ class TechMicroService(CoworksMixin, Chalice):
         return component.authorizer(name='auth')(proxy)
 
     def __call__(self, event, context):
+        # workspace = self._called_workspace(event, context)
+        workspace = 'dev'
+
         with self._before_activation_lock:
-            if self.entries is None:
-                self.deferred_init()
+            self.deferred_init(workspace=workspace)
 
             if not self._got_first_activation:
                 for func in self.before_first_activation_funcs:

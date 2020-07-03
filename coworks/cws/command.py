@@ -35,13 +35,14 @@ class CwsCommand(ABC):
         :param kwargs: environment parameters for the command.
         :return: None
         """
+        self.app.deferred_init(**kwargs)
+
         if output is not None:
             self.output = open(output, 'w+') if type(output) is str else output
         if error is not None:
             self.error = open(error, 'w+') if type(error) is str else error
 
-        if self.app.entries is None:
-            self.app.deferred_init()
+        kwargs.setdefault('config', {})
 
         for func in self.before_funcs:
             func(**kwargs)
@@ -61,7 +62,7 @@ class CwsCommand(ABC):
         The function will be called without any arguments and its return value is ignored.
         """
 
-        self.after_funcs.append(f)
+        self.before_funcs.append(f)
         return f
 
     def after_execute(self, f):

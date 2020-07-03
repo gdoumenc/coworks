@@ -11,7 +11,7 @@ from coworks.utils import import_attr
 
 class TestClass:
 
-    def test_run_quickstart(self, example_dir):
+    def test_run_quickstart1(self, example_dir):
         app = import_attr('quickstart1', 'app', cwd=example_dir)
         port = ThreadedLocalServer.unused_tcp_port()
         server = threading.Thread(target=run_server_quickstart, args=(app, port, example_dir), daemon=True)
@@ -28,12 +28,12 @@ class TestClass:
     def test_export_quickstart(self, example_dir):
         app = import_attr('quickstart1', 'app', cwd=example_dir)
         output = io.StringIO()
-        app.commands['export'].execute(module='quickstart1', service='app', output=output, project_dir=example_dir,
-                                       workspace='dev', step='update', config=None)
+        app.execute('export', project_dir=example_dir, module='quickstart1', service='app',
+                    workspace='dev', step='update', output=output)
         output.seek(0)
         print(output.read())
 
 
 def run_server_quickstart(app, port, example_dir):
     print(f"Server starting on port {port}")
-    app.commands['run'].execute(host='localhost', port=port, project_dir=example_dir)
+    app.execute('run', host='localhost', port=port, project_dir=example_dir, workspace='dev')

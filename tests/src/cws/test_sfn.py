@@ -6,8 +6,8 @@ import pytest
 import yaml
 
 from coworks import BizFactory
-from coworks.cws.writer import WriterError
 from coworks.cws.sfn import StepFunctionWriter, StepFunction, TechState
+from coworks.cws.writer import WriterError
 from tests.src.coworks.tech_ms import S3MockTechMS
 
 
@@ -95,7 +95,7 @@ class TestClass:
         writer = StepFunctionWriter(biz)
         output = io.StringIO()
         with pytest.raises(WriterError):
-            writer.execute(output=output, error=output)
+            writer.execute(workspace='dev', output=output, error=output)
         output.seek(0)
         res = output.read()
         assert res == "Error in tests/src/coworks/biz/empty: The content of the tests/src/coworks/biz/empty microservice " \
@@ -107,7 +107,7 @@ class TestClass:
         fact.create('test')
         writer = StepFunctionWriter(fact)
         output = io.StringIO()
-        writer.execute(output=output, error=output)
+        writer.execute(workspace='dev', output=output, error=output)
         output.seek(0)
         source = json.loads(output.read())
         assert source['Version'] == "1.0"
