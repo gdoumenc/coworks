@@ -60,8 +60,8 @@ resource "aws_lambda_function" "{{ resource_id }}" {
 }
 
 data "aws_lambda_function" "{{ resource_id }}" {
-  count = terraform.workspace == "default" && "{{ stage }}" != "" ? 1 : 0
-  function_name = "{{ resource_id }}-${"{{ stage }}"}"
+  count = terraform.workspace == "default" && "{{ step }}" == "update" ? 1 : 0
+  function_name = "{{ resource_id }}-{{ export_config["workspace"] }}"
 }
 
 resource "aws_lambda_permission" "{{ resource_id }}" {
@@ -86,7 +86,7 @@ resource "aws_lambda_permission" "{{ resource_id }}" {
         Product: "microservice"
         Target: "{{ module_file }}"
         Creator: "coworks"
-        Stage = "{{ stage }}"
+        Stage = "{{ export_config["workspace"] }}"
         Customer = local.customer_name
       }
     }
@@ -148,7 +148,7 @@ resource "aws_iam_role_policy_attachment" "{{ resource_id }}" {
         Product: "microservice"
         Target: "{{ module_file }}"
         Creator: "coworks"
-        Stage = "{{ stage }}"
+        Stage = "{{ export_config["workspace"] }}"
       }
     }
     resource "aws_cloudwatch_event_target" "{{ module_file }}_{{ s.name }}" {
@@ -201,7 +201,7 @@ locals {
 }
 
 resource "aws_api_gateway_authorizer" "{{ resource_id }}" {
-  count = (terraform.workspace == "default") && ("{{ stage }}" != "") ? 1 : 0
+  count = (terraform.workspace == "default") && ("{{ step }}" == "update") ? 1 : 0
   name = "{{ resource_name }}-auth"
   rest_api_id = local.{{ resource_id }}.api_id
   authorizer_uri = local.{{ resource_id }}.authorizer_uri
@@ -210,7 +210,7 @@ resource "aws_api_gateway_authorizer" "{{ resource_id }}" {
 {% for res, entry in writer.entries.items() %}
   {%- if entry.path %}
     resource "aws_api_gateway_resource" "{{ resource_id }}_{{ res }}" {
-      count = terraform.workspace == "default" && "{{ stage }}" != "" ? 1 : 0
+      count = terraform.workspace == "default" && "{{ step }}" == "update" ? 1 : 0
       rest_api_id = local.{{ resource_id }}.api_id
       {% if entry.parent_is_root %}
         parent_id = local.{{ resource_id }}.api_root_id
@@ -223,7 +223,7 @@ resource "aws_api_gateway_authorizer" "{{ resource_id }}" {
   {%- if entry.methods %}
     {% for method in entry.methods %}
       resource "aws_api_gateway_method" "{{ resource_id }}_{{ res }}_{{ method }}" {
-        count = terraform.workspace == "default" && "{{ stage }}" != "" ? 1 : 0
+        count = terraform.workspace == "default" && "{{ step }}" == "update" ? 1 : 0
         rest_api_id = local.{{ resource_id }}.api_id
         {%- if entry.is_root %}
           resource_id = local.{{ resource_id }}.api_root_id
@@ -236,7 +236,7 @@ resource "aws_api_gateway_authorizer" "{{ resource_id }}" {
       }
 
       resource "aws_api_gateway_integration" "{{ resource_id }}_{{ res }}_{{ method }}" {
-        count = terraform.workspace == "default" && "{{ stage }}" != "" ? 1 : 0
+        count = terraform.workspace == "default" && "{{ step }}" == "update" ? 1 : 0
         rest_api_id = local.{{ resource_id }}.api_id
         {%- if entry.is_root %}
           resource_id = local.{{ resource_id }}.api_root_id
@@ -254,7 +254,7 @@ resource "aws_api_gateway_authorizer" "{{ resource_id }}" {
 
     {%- if entry.cors %}
       resource "aws_api_gateway_method" "{{ resource_id }}_{{ res }}_OPTIONS" {
-        count = terraform.workspace == "default" && "{{ stage }}" != "" ? 1 : 0
+        count = terraform.workspace == "default" && "{{ step }}" == "update" ? 1 : 0
         rest_api_id = local.{{ resource_id }}.api_id
         {%- if entry.is_root %}
           resource_id = local.{{ resource_id }}.api_root_id
@@ -266,7 +266,7 @@ resource "aws_api_gateway_authorizer" "{{ resource_id }}" {
       }
 
       resource "aws_api_gateway_integration" "{{ resource_id }}_{{ res }}_OPTIONS" {
-        count = terraform.workspace == "default" && "{{ stage }}" != "" ? 1 : 0
+        count = terraform.workspace == "default" && "{{ step }}" == "update" ? 1 : 0
         rest_api_id = local.{{ resource_id }}.api_id
         {%- if entry.is_root %}
           resource_id = local.{{ resource_id }}.api_root_id
@@ -281,7 +281,7 @@ resource "aws_api_gateway_authorizer" "{{ resource_id }}" {
       }
 
       resource "aws_api_gateway_integration_response" "{{ resource_id }}_{{ res }}_OPTIONS" {
-        count = terraform.workspace == "default" && "{{ stage }}" != "" ? 1 : 0
+        count = terraform.workspace == "default" && "{{ step }}" == "update" ? 1 : 0
         rest_api_id = local.{{ resource_id }}.api_id
         {%- if entry.is_root %}
           resource_id = local.{{ resource_id }}.api_root_id
@@ -305,7 +305,7 @@ resource "aws_api_gateway_authorizer" "{{ resource_id }}" {
       }
 
       resource "aws_api_gateway_method_response" "{{ resource_id }}_{{ res }}_OPTIONS" {
-        count = terraform.workspace == "default" && "{{ stage }}" != "" ? 1 : 0
+        count = terraform.workspace == "default" && "{{ step }}" == "update" ? 1 : 0
         rest_api_id = local.{{ resource_id }}.api_id
         {%- if entry.is_root %}
           resource_id = local.{{ resource_id }}.api_root_id
@@ -334,7 +334,7 @@ resource "aws_api_gateway_authorizer" "{{ resource_id }}" {
 {# API Deployments #}
 
 resource "aws_api_gateway_deployment" "{{ resource_id }}" {
-  count = (terraform.workspace != "default") && ("{{ stage }}" != "") ? 1 : 0
+  count = (terraform.workspace != "default") && ("{{ step }}" == "update") ? 1 : 0
   rest_api_id = local.{{ resource_id }}.api_id
   stage_name = terraform.workspace
 }
@@ -345,6 +345,6 @@ resource "aws_api_gateway_deployment" "{{ resource_id }}" {
 
 output "{{ resource_id }}" {
 value = {
-    "invoke-url-${"{{ stage }}"}" = terraform.workspace != "default" && "{{ stage }}" != "" ? join("", aws_api_gateway_deployment.{{ resource_id }}.*.invoke_url) : null
+    "invoke-url-{{ step }}" = terraform.workspace != "default" && "{{ step }}" == "update" ? join("", aws_api_gateway_deployment.{{ resource_id }}.*.invoke_url) : null
   }
 }

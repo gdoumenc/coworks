@@ -25,7 +25,7 @@ class CwsWriter(CwsCommand):
         return (
             click.option('--deploy-services', multiple=True, default=[]),
             click.option('--workspace', default=''),
-            click.option('--stage', default=''),
+            click.option('--step', default=''),
             click.option('--debug/--no-debug', default=False, help='Print debug logs to stderr.')
         )
 
@@ -65,7 +65,7 @@ class CwsTemplateWriter(CwsWriter):
     def default_template_filenames(self):
         ...
 
-    def _export_content(self, *, module, service, project_dir, workspace, stage, variables=None, **kwargs):
+    def _export_content(self, *, module, service, project_dir, workspace, step, variables=None, **kwargs):
 
         module_path = module.split('.')
 
@@ -89,7 +89,7 @@ class CwsTemplateWriter(CwsWriter):
             'ms_name': self.app.ms_name,
             'variables': variables,
             'deploy_services': list(kwargs.get('deploy_services', [])),
-            'stage': stage,
+            'step': step,
             'app_config': next((app_config for app_config in self.app.configs if app_config.workspace == workspace)),
             'export_config': next((config for config in export_config if config.get("workspace") == workspace)),
         }
