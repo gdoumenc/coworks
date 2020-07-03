@@ -13,7 +13,7 @@ class CwsDeployer(CwsCommand):
     @property
     def options(self):
         return (
-            click.option('--debug/--no-debug', default=False, help='Print debug logs to stderr.')
+            click.option('--debug/--no-debug', default=False, help='Print debug logs to stderr.'),
         )
 
     def _execute(self, *, workspace, project_dir='.', debug=True, **kwargs):
@@ -32,8 +32,8 @@ class CwsDeployer(CwsCommand):
     def _terraform_export_and_apply_local(terraform, project_dir, module, service, workspace, step, debug):
         try:
             client(prog_name='cws',
-                   args=['-p', project_dir, '-m', module, '-s', service, 'terraform-staging', '--step',
-                         step, '--workspace', workspace, '--output',
+                   args=['-p', project_dir, '-m', module, '-s', service, '--workspace', workspace, 'terraform-staging',
+                         '--step', step, '--output',
                          os.path.join(".", "terraform", f"_{module}-{service}.tf")], obj={})
         except SystemExit:
             pass  # ignoring system exit after calling client
