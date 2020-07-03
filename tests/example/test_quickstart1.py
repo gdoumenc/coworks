@@ -28,7 +28,8 @@ class TestClass:
     def test_export_quickstart(self, example_dir):
         app = import_attr('quickstart1', 'app', cwd=example_dir)
         output = io.StringIO()
-        app.commands['export'].execute(module='quickstart1', service='app', output=output, project_dir=example_dir)
+        app.commands['export'].execute(module='quickstart1', service='app', output=output, project_dir=example_dir,
+                                       workspace='dev', step='update', config=None)
         output.seek(0)
         print(output.read())
 

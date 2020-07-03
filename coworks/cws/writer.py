@@ -23,9 +23,10 @@ class CwsWriter(CwsCommand):
     @property
     def options(self):
         return (
-            click.option('--output', default=''),
-            click.option('--workspace', default=''),
-            click.option('--step', default=''),
+            click.option('--output', default=None),
+            click.option('--workspace', default=None),
+            click.option('--step', default=None),
+            click.option('--config', default=None),
             click.option('--debug/--no-debug', default=False, help='Print debug logs to stderr.')
         )
 

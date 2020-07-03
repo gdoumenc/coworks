@@ -10,9 +10,11 @@ class TestClass:
     def test_export_terraform(self):
         simple = SimpleMS()
         writer = CwsTerraformWriter(simple)
-        simple.commands['terraform'].execute(module="", service="", output='/dev/null', project_dir='.')
+        simple.commands['terraform'].execute(module="", service="", output='/dev/null', project_dir='.',
+                                             workspace='dev', step='update', config=None)
         output = io.StringIO()
-        writer.execute(module="", service="", output=output, project_dir='.')
+        writer.execute(module="", service="", output=output, project_dir='.', workspace='dev', step='update',
+                       config=None)
         output.seek(0)
         print(output.read())
         output.seek(0)

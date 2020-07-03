@@ -55,6 +55,7 @@ class TestClass:
 
     def test_export(self, example_dir):
         with pytest.raises(SystemExit) as pytest_wrapped_e:
-            client(prog_name='cws', args=['-p', example_dir, '-m', 'example', '-s', 'tech_app', 'export'], obj={})
+            client(prog_name='cws', args=['-p', example_dir, '-m', 'example', '-s', 'tech_app', 'export', '--config', None], obj={})
         assert pytest_wrapped_e.type == SystemExit
+        print(pytest_wrapped_e.traceback)
         assert pytest_wrapped_e.value.code == 0
