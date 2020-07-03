@@ -146,7 +146,10 @@ class TechMicroService(CoworksMixin, Chalice):
         self.blueprint_deferred_inits.append(deferred)
 
     def execute(self, command, **kwargs):
-        self.commands[command].execute(**kwargs)
+        try:
+            self.commands[command].execute(**kwargs)
+        except KeyError:
+            raise Exception(f"The command {command} was not added to the microservice {self.ms_name}")
 
     def _init_routes(self, *, workspace=DEFAULT_WORKSPACE, component=None, url_prefix=None):
         if self.config is None:

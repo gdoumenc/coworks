@@ -23,7 +23,6 @@ class TestClass:
             counter += 1
         response = requests.get(f'http://localhost:{port}/', headers={'Authorization': "token"})
         assert response.text == "Simple microservice ready.\n"
-        app.local_server.shutdown()
 
     def test_export_quickstart(self, example_dir):
         app = import_attr('quickstart1', 'app', cwd=example_dir)

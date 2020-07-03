@@ -1,8 +1,5 @@
-import json
 import logging
-import os
 import sys
-from pathlib import Path
 
 import click
 
@@ -21,7 +18,7 @@ class CwsRunner(CwsCommand):
             click.option('--debug/--no-debug', default=False, help='Print debug logs to stderr.')
         )
 
-    def _execute(self, host: str = '127.0.0.1', port: int = 8000, project_dir='.', debug=True, **kwargs):
+    def _execute(self, host: str = '127.0.0.1', port: int = 8000, debug=True, **kwargs):
         """ Runs the microservice in a local Lambda emulator.
 
         :param host: the hostname to listen on.
@@ -31,8 +28,11 @@ class CwsRunner(CwsCommand):
         :return: None
         """
 
-        # chalice.cli and .cws packages not defined in deployment
+        # chalice.cli package is not defined in deployment
         from .factory import CwsFactory
+
+        project_dir = kwargs['project_dir']
+        self.app.config.load_environment_variables(project_dir)
 
         if debug:
             logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')

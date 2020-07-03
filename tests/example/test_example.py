@@ -47,7 +47,6 @@ class TestClass:
         assert response.status_code == 200
         assert response.text == "Simple microservice for test dev environment variable.\n"
 
-    @pytest.mark.wip
     def test_init(self, local_server_factory, example_dir):
         config = Config(environment_variables_file=Path(example_dir) / "config" / "vars_dev.json")
         local_server = local_server_factory(TechMS(configs=[config]))
@@ -70,8 +69,6 @@ class TestClass:
         response = requests.get(f'http://localhost:{port}/', params={"usage": "demo"})
         assert response.status_code == 200
         assert response.text == "Simple microservice for demo.\n"
-        app.local_server.shutdown()
-
 
 def run_server_example(app, port, example_dir):
     print(f"Server starting on port {port}")

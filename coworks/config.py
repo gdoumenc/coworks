@@ -1,4 +1,7 @@
+import json
+import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable, Union
 
 from chalice import CORSConfig as ChaliceCORSConfig
@@ -27,6 +30,19 @@ class Config:
     environment_variables_file: str = None
     auth: Callable[[CoworksMixin, AuthRequest], Union[bool, list, AuthResponse]] = None
     cors: CORSConfig = CORSConfig(allow_origin='')
+
+    def load_environment_variables(self, project_dir):
+        if self.environment_variables_file:
+            var_file = Path(project_dir) / self.environment_variables_file
+            try:
+                with open(var_file) as f:
+                    os.environ.update(json.loads(f.read()))
+            except FileNotFoundError:
+                workspace = self.workspace
+                raise FileNotFoundError(f"Cannot find environment file {var_file} for workspace {workspace}.")
+            except Exception:
+                raise FileNotFoundError(f"No wrokspace defined in config.")
+
 
     def setdefault(self, key, value):
         """Same as for dict."""

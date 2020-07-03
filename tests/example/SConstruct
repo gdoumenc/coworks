@@ -1,3 +1,0 @@
-from coworks.cws.layers import Layer
-
-Layer('layer.zip')

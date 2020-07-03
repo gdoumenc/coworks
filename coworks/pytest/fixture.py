@@ -1,7 +1,3 @@
-import json
-import os
-from pathlib import Path
-
 import pytest
 
 from .local_server import ThreadedLocalServer
@@ -19,17 +15,7 @@ def local_server_factory():
         app.deferred_init(**kwargs)
 
         # if config_path defined, use it to update environment from conf json file
-        if app.config.environment_variables_file:
-            var_file = Path(kwargs['project_dir']) / app.config.environment_variables_file
-            try:
-                with open(var_file) as f:
-                    os.environ.update(json.loads(f.read()))
-            except FileNotFoundError:
-                workspace = app.config.workspace
-                raise FileNotFoundError(f"Cannot find environment file {var_file} for workspace {workspace}.")
-            except Exception:
-                raise FileNotFoundError(f"No wrokspace defined in config.")
-
+        app.config.load_environment_variables(kwargs['project_dir'])
         threaded_server.configure(app, **kwargs)
         threaded_server.start()
         return threaded_server
