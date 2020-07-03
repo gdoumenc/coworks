@@ -49,7 +49,7 @@ resource "aws_lambda_function" "{{ resource_id }}" {
   runtime = "python3.7"
   timeout = 10
   environment {
-    variables = jsondecode(data.local_file.environment_variables_{{ resource_id }}.content)
+    variables = merge(jsondecode(data.local_file.environment_variables_{{ resource_id }}.content), {"WORKSPACE"="{{ export_config["workspace"] }}"})
   }
   tags = {
     Product: "microservice"

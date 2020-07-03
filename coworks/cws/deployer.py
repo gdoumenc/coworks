@@ -2,6 +2,7 @@ import click
 import os
 import subprocess
 
+from coworks.cws.client import client
 from .command import CwsCommand
 
 
@@ -23,16 +24,21 @@ class CwsDeployer(CwsCommand):
     def _local_deploy(workspace, debug, project_dir, module=None, service=None, **kwargs):
         from python_terraform import Terraform
         terraform = Terraform(working_dir=os.path.join('.', 'terraform'))
-        CwsDeployer._terraform_export_and_apply_local(terraform, project_dir, module, service, workspace, 'create', debug)
-        CwsDeployer._terraform_export_and_apply_local(terraform, project_dir, module, service, workspace, 'update', debug)
+        CwsDeployer._terraform_export_and_apply_local(terraform, project_dir, module, service, workspace, 'create',
+                                                      debug)
+        CwsDeployer._terraform_export_and_apply_local(terraform, project_dir, module, service, workspace, 'update',
+                                                      debug)
 
     @staticmethod
     def _terraform_export_and_apply_local(terraform, project_dir, module, service, workspace, step, debug):
-        tf_file_content = subprocess.check_output(
-            f"cws -p {project_dir} -m {module} -s {service} terraform-staging --step={step} --workspace={workspace}",
-            shell=True).decode('utf-8')
-        with open(os.path.join(".", "terraform", f"_{module}-{service}.tf"), 'w') as tf_file:
-            tf_file.write(tf_file_content)
+        try:
+            client(prog_name='cws',
+                   args=['-p', project_dir, '-m', module, '-s', service, 'terraform-staging', '--step',
+                         step, '--workspace', workspace, '--output',
+                         os.path.join(".", "terraform", f"_{module}-{service}.tf")], obj={})
+        except SystemExit:
+            pass  # ignoring system exit after calling client
+
         CwsDeployer._terraform_apply_local(terraform, "default", debug)
         CwsDeployer._terraform_apply_local(terraform, workspace, debug)
 

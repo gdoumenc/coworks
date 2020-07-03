@@ -23,7 +23,7 @@ class CwsWriter(CwsCommand):
     @property
     def options(self):
         return (
-            click.option('--deploy-services', multiple=True, default=[]),
+            click.option('--output', default=''),
             click.option('--workspace', default=''),
             click.option('--step', default=''),
             click.option('--debug/--no-debug', default=False, help='Print debug logs to stderr.')
@@ -70,12 +70,14 @@ class CwsTemplateWriter(CwsWriter):
         module_path = module.split('.')
 
         export_config = kwargs['config']
-        common_export_config = next((config for config in export_config if config.get("workspace") is None))
-        for c in export_config:
-            if c.get('workspace') is not None:
-                for key, value in common_export_config.items():
-                    if key not in c:
-                        c[key] = value
+        if export_config:
+            common_export_config = next((config for config in export_config if config.get("workspace") is None))
+            for c in export_config:
+                if c.get('workspace') is not None:
+                    for key, value in common_export_config.items():
+                        if key not in c:
+                            c[key] = value
+            export_config = next((config for config in export_config if config.get("workspace") == workspace))
 
         data = {
             'writer': self,
@@ -91,7 +93,7 @@ class CwsTemplateWriter(CwsWriter):
             'deploy_services': list(kwargs.get('deploy_services', [])),
             'step': step,
             'app_config': next((app_config for app_config in self.app.configs if app_config.workspace == workspace)),
-            'export_config': next((config for config in export_config if config.get("workspace") == workspace)),
+            'export_config': export_config,
         }
 
         data.update(self.data)
