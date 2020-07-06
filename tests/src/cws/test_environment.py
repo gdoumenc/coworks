@@ -60,4 +60,4 @@ class TestClass:
 
 def run_server_example(app, port):
     print(f"Server starting on port {port}")
-    app.execute('run', host='localhost', port=port, project_dir='.', workspace='dev')
+    app.execute('run', host='localhost', port=port, project_dir='.', module='example', workspace='dev')
