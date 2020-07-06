@@ -1,16 +1,19 @@
-from chalice import Response
-from coworks import TechMicroService
 import json
 import os
-import pygsheets
-from pygsheets.exceptions import WorksheetNotFound
 from urllib.parse import unquote_plus
+
+import pygsheets
+from chalice import Response
+from pygsheets.exceptions import WorksheetNotFound
+
+from coworks import TechMicroService
 
 
 class GoogleSheetsMicroservice(TechMicroService):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.google_client = None
 
         @self.before_first_activation
         def load_crendentials():

@@ -1,6 +1,7 @@
 import json
 import os
 from dataclasses import dataclass
+from json import JSONDecodeError
 from pathlib import Path
 from typing import Callable, Union
 
@@ -39,10 +40,12 @@ class Config:
                     os.environ.update(json.loads(f.read()))
             except FileNotFoundError:
                 workspace = self.workspace
-                raise FileNotFoundError(f"Cannot find environment file {var_file} for workspace {workspace}.")
-            except Exception:
-                raise FileNotFoundError(f"No wrokspace defined in config.")
-
+                raise FileNotFoundError(f"Cannot find environment file {var_file} for workspace {workspace}.\n")
+            except JSONDecodeError as e:
+                raise FileNotFoundError(f"Syntax error when in e{var_file}: {str(e)}.\n")
+            except Exception as e:
+                print(type(e))
+                raise FileNotFoundError(f"Error when loading environment variables files {str(e)}.\n")
 
     def setdefault(self, key, value):
         """Same as for dict."""

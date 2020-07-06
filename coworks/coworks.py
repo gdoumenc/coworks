@@ -116,9 +116,9 @@ class TechMicroService(CoworksMixin, Chalice):
     def ms_type(self):
         return 'tech'
 
-    def deferred_init(self, **kwargs):
+    def deferred_init(self, *, workspace, **kwargs):
         if self.entries is None:
-            self._init_routes(workspace=kwargs['workspace'])
+            self._init_routes(workspace=workspace)
             for deferred_init in self.deferred_inits:
                 deferred_init()
             for deferred_init in self.blueprint_deferred_inits:
@@ -145,11 +145,12 @@ class TechMicroService(CoworksMixin, Chalice):
 
         self.blueprint_deferred_inits.append(deferred)
 
-    def execute(self, command, **kwargs):
+    def execute(self, command, *, project_dir, workspace, **kwargs):
         try:
-            self.commands[command].execute(**kwargs)
+            cmd = self.commands[command]
         except KeyError:
             raise Exception(f"The command {command} was not added to the microservice {self.ms_name}")
+        cmd.execute(project_dir=project_dir, workspace=workspace, **kwargs)
 
     def _init_routes(self, *, workspace=DEFAULT_WORKSPACE, component=None, url_prefix=None):
         if self.config is None:
@@ -180,6 +181,10 @@ class TechMicroService(CoworksMixin, Chalice):
             self.entries = {}
         methods = class_rest_methods(component)
         for method, func in methods:
+            if getattr(func, '__cws_hidden', False):
+                continue
+
+            # Get function's route
             if func.__name__ == method:
                 route = f"{component.component_name}"
             else:
@@ -187,6 +192,8 @@ class TechMicroService(CoworksMixin, Chalice):
                 name = trim_underscores(name)  # to allow several functions with same route but different args
                 name = name.replace('_', '/')
                 route = f"{component.component_name}/{name}" if component.component_name else f"{name}"
+
+            # Get parameters
             args = inspect.getfullargspec(func).args[1:]
             defaults = inspect.getfullargspec(func).defaults
             varkw = inspect.getfullargspec(func).varkw
@@ -479,6 +486,18 @@ class BizMicroService(TechMicroService):
 
     def handler(self, event, context):
         return self.biz_factory.invoke(self.data)
+
+
+def hide_entry(f):
+    """Hide a route of the microservice.
+
+     May be used as a decorator.
+
+     Usefull when creating inherited microservice.
+     """
+
+    setattr(f, '__cws_hidden', True)
+    return f
 
 
 class Once:

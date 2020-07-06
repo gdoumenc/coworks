@@ -17,14 +17,6 @@ class CwsFactory(CLIFactory):
                 os.environ[key] = val
         return self.app
 
-    def run_local_server(self, app, config, host, port):
-        if app.entries is None:
-            app.deferred_init()
-
-        app_obj = config.chalice_app
-        app.local_server = self.create_local_server(app_obj, config, host, port)
-        app.local_server.serve_forever()
-
     def mock_config_obj(self, app):
         default_params = {
             'project_dir': self.project_dir,
@@ -44,3 +36,5 @@ class CwsFactory(CLIFactory):
 
         config._chalice_app = app
         return config
+
+
