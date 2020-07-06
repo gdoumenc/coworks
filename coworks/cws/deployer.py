@@ -1,14 +1,14 @@
-import click
 import os
-import subprocess
+
+import click
 
 from coworks.cws.client import client
 from .command import CwsCommand
 
 
 class CwsDeployer(CwsCommand):
-    def __init__(self, app=None):
-        super().__init__(app, name='deploy')
+    def __init__(self, app=None, name='deploy'):
+        super().__init__(app, name=name)
 
     @property
     def options(self):

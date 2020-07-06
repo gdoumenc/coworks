@@ -10,8 +10,8 @@ from .. import TechMicroService
 
 
 class CwsRunner(CwsCommand):
-    def __init__(self, app=None):
-        super().__init__(app, name='run')
+    def __init__(self, app=None, name='run'):
+        super().__init__(app, name=name)
 
     @property
     def options(self):
