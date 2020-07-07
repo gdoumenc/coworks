@@ -34,6 +34,7 @@ class CwsWriter(CwsCommand):
     def _execute(self, **kwargs):
         self._export_header(**kwargs)
         self._export_content(**kwargs)
+        print('', file=self.output, flush=True)
 
     def _export_header(self, **kwargs):
         ...
