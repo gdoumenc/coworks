@@ -82,6 +82,9 @@ def execute_command(cmd, module, service, workspace, project_config):
         except Exception as err:
             raise CLIError(str(err))
 
+    if not cmd:
+        raise CLIError(f"Undefined command {cmd}.\n")
+
     f = call_execute
     for opt in cmd.options:
         f = opt(f)

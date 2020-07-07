@@ -16,9 +16,13 @@ EXAMPLE_DIR = os.getenv('EXAMPLE_DIR')
 
 class WithEnvMS(SimpleMS):
 
-    def __init__(selfself, **kwargs):
-        # assert os.getenv("test") is not None
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+        @self.before_first_activation
+        def init():
+            assert os.getenv("test") is not None
+
 
     def get(self):
         """Root access."""
@@ -34,7 +38,6 @@ class TestClass:
         assert response.status_code == 200
         assert response.text == 'test dev environment variable'
 
-    @pytest.mark.wip
     def test_run_dev_stage(self, example_dir):
         config = Config(environment_variables_file=Path(EXAMPLE_DIR) / "config" / "vars_dev.json")
         app = WithEnvMS(configs=config)
@@ -50,8 +53,9 @@ class TestClass:
         response = requests.get(f'http://localhost:{port}/', headers={'Authorization': "token"})
         assert response.text == "test dev environment variable"
 
+    @pytest.mark.wip
     def test_prod_stage(self, local_server_factory):
-        config = Config(environment_variables_file=Path(EXAMPLE_DIR) / "config" / "vars_prod.secret.json")
+        config = Config(environment_variables_file=Path(EXAMPLE_DIR) / "config" / "vars_prod.json")
         local_server = local_server_factory(WithEnvMS(configs=config))
         response = local_server.make_call(requests.get, '/')
         assert response.status_code == 200

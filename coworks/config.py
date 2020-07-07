@@ -34,18 +34,27 @@ class Config:
 
     def load_environment_variables(self, project_dir):
         if self.environment_variables_file:
-            var_file = Path(project_dir) / self.environment_variables_file
-            try:
-                with open(var_file) as f:
-                    os.environ.update(json.loads(f.read()))
-            except FileNotFoundError:
-                workspace = self.workspace
-                raise FileNotFoundError(f"Cannot find environment file {var_file} for workspace {workspace}.\n")
-            except JSONDecodeError as e:
-                raise FileNotFoundError(f"Syntax error when in e{var_file}: {str(e)}.\n")
-            except Exception as e:
-                print(type(e))
-                raise FileNotFoundError(f"Error when loading environment variables files {str(e)}.\n")
+            parent = Path(project_dir)
+            var_file = Path(self.environment_variables_file)
+
+            if var_file.suffix != '.json':
+                raise FileNotFoundError(f"Environment variables file has not a JSON extension: {var_file}.\n")
+
+            self._load_file(parent/ var_file.with_suffix('.json'), must_exist=True)
+            self._load_file(parent/ var_file.with_suffix('.secret.json'), must_exist=False)
+
+    def _load_file(self, var_file, *, must_exist):
+        try:
+            with open(var_file) as f:
+                os.environ.update(json.loads(f.read()))
+        except FileNotFoundError:
+            if must_exist:
+                raise FileNotFoundError(f"Cannot find environment file {var_file} for workspace {self.workspace}.\n")
+        except JSONDecodeError as e:
+            raise FileNotFoundError(f"Syntax error when in e{var_file}: {str(e)}.\n")
+        except Exception as e:
+            print(type(e))
+            raise FileNotFoundError(f"Error when loading environment variables files {str(e)}.\n")
 
     def setdefault(self, key, value):
         """Same as for dict."""
