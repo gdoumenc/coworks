@@ -1,13 +1,14 @@
 import pathlib
-import click
 from abc import abstractmethod
 from dataclasses import dataclass
 from typing import List
 
+import click
 from jinja2 import Environment, PackageLoader, select_autoescape, TemplateNotFound
 
 from coworks import TechMicroService
 from coworks.config import CORSConfig
+from coworks.cws.client import CwsError
 from coworks.cws.command import CwsCommand
 
 DEFAULT_STEP = 'update'
@@ -68,18 +69,32 @@ class CwsTemplateWriter(CwsWriter):
     def default_template_filenames(self):
         ...
 
-    def _export_content(self, *, project_dir, module, service, workspace, step, variables=None, **kwargs):
+    def _export_content(self, *, project_dir, module, service, workspace, step, variables=None, project_config,
+                        **kwargs):
         module_path = module.split('.')
 
-        export_config = kwargs['config']
-        if export_config:
-            common_export_config = next((config for config in export_config if config.get("workspace") is None))
-            for c in export_config:
-                if c.get('workspace') is not None:
-                    for key, value in common_export_config.items():
-                        if key not in c:
-                            c[key] = value
-            export_config = next((config for config in export_config if config.get("workspace") == workspace))
+        # Get parameters for execution
+        try:
+            app_config = next((app_config for app_config in self.app.configs if app_config.workspace == workspace))
+        except:
+            raise CwsError("A workspace is mandatory for deploying.\n")
+
+        # Get parameters for export
+        export_config = {'workspace': workspace}
+        if project_config is not None:
+            if project_config:
+                common_export_config = next((config for config in project_config if config.get("workspace") is None))
+                specific_export_config = next(
+                    (config for config in project_config if config.get("workspace") == workspace))
+            else:
+                common_export_config = specific_export_config = {}
+            for k in ["custom-layers", "common-layers", "binary_media_types"]:
+                if k in specific_export_config:
+                    export_config[k] = specific_export_config[k]
+                elif k in common_export_config:
+                    export_config[k] = common_export_config[k]
+                else:
+                    export_config[k] = []
 
         data = {
             'writer': self,

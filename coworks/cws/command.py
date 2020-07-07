@@ -42,7 +42,7 @@ class CwsCommand(ABC):
         if error is not None:
             self.error = open(error, 'w+') if type(error) is str else error
 
-        kwargs.setdefault('config', {})
+        kwargs.setdefault('project_config', {})
 
         for func in self.before_funcs:
             func(**kwargs)

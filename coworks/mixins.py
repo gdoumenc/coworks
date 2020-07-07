@@ -232,11 +232,15 @@ class CoworksMixin:
 
 def _convert_response(resp):
     if type(resp) is tuple:
-        status_code = resp[1]
         if len(resp) == 2:
-            return Response(body=resp[0], status_code=status_code)
+            if type(resp[1]) is int:
+                return Response(body=resp[0], status_code=resp[1])
+            elif type(resp[1]) is dict:
+                return Response(body=resp[0], status_code=200, headers=resp[1])
+            else:
+                raise BadRequestError("Internal error (wrong result type)")
         else:
-            return Response(body=resp[0], status_code=status_code, headers=resp[2])
+            return Response(body=resp[0], status_code=resp[1], headers=resp[2])
 
     elif not isinstance(resp, Response):
         return Response(body=resp)

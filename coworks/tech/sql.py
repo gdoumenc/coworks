@@ -62,7 +62,7 @@ class SqlMicroService(TechMicroService):
 
     def get_version(self):
         """Returns SQLAlchemy version."""
-        return sqlalchemy.__version__
+        return sqlalchemy.__version__, {'content-type': 'text/plain'}
 
     def get_fetch(self, query: str = None, **kwargs):
         conn = self.engine.connect()

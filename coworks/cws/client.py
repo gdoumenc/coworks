@@ -11,7 +11,7 @@ from coworks.utils import import_attr
 from coworks.version import __version__
 
 
-class CLIError(Exception):
+class CwsError(Exception):
     def __init__(self, message):
         self.msg = message
 
@@ -52,14 +52,14 @@ def invoke(initial, ctx):
             handler = get_handler(project_dir, module, service)
             cmd = project_config.get_command(handler)
             if not cmd:
-                raise CLIError(f"Undefined command {cmd}.\n")
+                raise CwsError(f"Undefined command {cmd}.\n")
 
             # Defines the proxy command with all user options
             def call_execute(**command_options):
                 try:
                     cmd.execute(**cmd_project_config.get_options(command_options, module, service, workspace))
                 except Exception as err:
-                    raise CLIError(str(err))
+                    raise CwsError(str(err))
 
             for opt in cmd.options:
                 call_execute = opt(call_execute)
@@ -67,7 +67,7 @@ def invoke(initial, ctx):
 
             # Call the command from click
             initial(ctx)
-    except CLIError as client_err:
+    except CwsError as client_err:
         sys.stderr.write(client_err.msg)
         sys.exit(1)
     except Exception as e:
@@ -87,11 +87,11 @@ def get_handler(project_dir, module, service):
     try:
         return import_attr(module, service, cwd=project_dir)
     except AttributeError as e:
-        raise CLIError(f"Module '{module}' has no microservice {service} : {str(e)}\n")
+        raise CwsError(f"Module '{module}' has no microservice {service} : {str(e)}\n")
     except ModuleNotFoundError as e:
-        raise CLIError(f"The module '{module}' is not defined in {project_dir} : {str(e)}\n")
+        raise CwsError(f"The module '{module}' is not defined in {project_dir} : {str(e)}\n")
     except Exception as e:
-        raise CLIError(f"Error {e} when loading module '{module}'\n")
+        raise CwsError(f"Error {e} when loading module '{module}'\n")
 
 
 class ProjectConfig:
@@ -143,7 +143,7 @@ class ProjectConfig:
         if self.service is None:
             services = self.params.get('services') if self.module is None else None
             if not services:
-                raise CLIError("No service defined in project file\n")
+                raise CwsError("No service defined in project file\n")
             return [(s['module'], s['service']) for s in services]
         return [(self.module, self.service)]
 

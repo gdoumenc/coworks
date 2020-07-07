@@ -10,13 +10,13 @@ from coworks.mixins import Boto3Mixin, AwsS3Session
 
 
 class CwsZipArchiver(CwsCommand, Boto3Mixin):
-    def __init__(self, app=None):
-        super().__init__(app, name='zip')
+    def __init__(self, app=None, name='zip'):
+        super().__init__(app, name=name)
 
     @property
     def options(self):
         return (
-            click.option('--bucket', help='Bucket to upload zip to'),
+            click.option('--bucket', '-b', help='Bucket to upload zip to'),
             click.option('--debug/--no-debug', default=False, help='Print debug logs to stderr.')
         )
 

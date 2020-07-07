@@ -28,6 +28,15 @@ session.client.get_object = MagicMock(return_value=s3_object)
 
 class TestClass:
 
+    def test_text_dummy(self, local_server_factory):
+        """normal API call."""
+        tech = TechMS()
+        local_server = local_server_factory(tech)
+        data = json.dumps({'text': 'value'})
+        headers = {'Content-type': 'text/zzz'}
+        response = local_server.make_call(requests.post, '/params', data=data, timeout=500, headers=headers)
+        assert response.status_code == 415
+
     def test_text_plain(self, local_server_factory):
         """normal API call."""
         tech = TechMS()
@@ -35,7 +44,7 @@ class TestClass:
         data = json.dumps({'text': 'value'})
         headers = {'Content-type': 'text/plain'}
         response = local_server.make_call(requests.post, '/params', data=data, timeout=500, headers=headers)
-        assert response.status_code == 415
+        assert response.status_code == 200
 
     def test_form_data(self, local_server_factory):
         """normal API call."""
