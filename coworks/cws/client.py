@@ -30,6 +30,7 @@ def client(*args, **kwargs):
 
 
 def invoke(initial, ctx):
+    """Invokes the command over the service or the declared services in project configuration file."""
     try:
         cmd_name = ctx.protected_args[0] if ctx.protected_args else None
         args = ctx.args
@@ -41,13 +42,31 @@ def invoke(initial, ctx):
         workspace = ctx.params.get('workspace')
         project_config = ProjectConfig(cmd_name, project_dir, module, service, workspace)
 
-        for project_dir, module, service, workspace in project_config.services:
-            handler = get_handler(project_dir, module, service)
-            cmd = project_config.get_command(handler)
-            execute_command(cmd, module, service, workspace, project_config)
-            initial(ctx)
+        # Iterates over the declared services in project configuration file
+        for module, service in project_config.services:
             ctx.args = args
             ctx.protected_args = protected_args
+
+            # Get command from the microservice
+            cmd_project_config = ProjectConfig(cmd_name, project_dir, module, service, workspace)
+            handler = get_handler(project_dir, module, service)
+            cmd = project_config.get_command(handler)
+            if not cmd:
+                raise CLIError(f"Undefined command {cmd}.\n")
+
+            # Defines the proxy command with all user options
+            def call_execute(**command_options):
+                try:
+                    cmd.execute(**cmd_project_config.get_options(command_options, module, service, workspace))
+                except Exception as err:
+                    raise CLIError(str(err))
+
+            for opt in cmd.options:
+                call_execute = opt(call_execute)
+            client.command(cmd_name)(call_execute)
+
+            # Call the command from click
+            initial(ctx)
     except CLIError as client_err:
         sys.stderr.write(client_err.msg)
         sys.exit(1)
@@ -64,7 +83,7 @@ def main():
 
 
 def get_handler(project_dir, module, service):
-    # Load handler
+    # Load microservice handler
     try:
         return import_attr(module, service, cwd=project_dir)
     except AttributeError as e:
@@ -73,22 +92,6 @@ def get_handler(project_dir, module, service):
         raise CLIError(f"The module '{module}' is not defined in {project_dir} : {str(e)}\n")
     except Exception as e:
         raise CLIError(f"Error {e} when loading module '{module}'\n")
-
-
-def execute_command(cmd, module, service, workspace, project_config):
-    def call_execute(**command_options):
-        try:
-            cmd.execute(**project_config.get_options(command_options, module, service, workspace))
-        except Exception as err:
-            raise CLIError(str(err))
-
-    if not cmd:
-        raise CLIError(f"Undefined command {cmd}.\n")
-
-    f = call_execute
-    for opt in cmd.options:
-        f = opt(f)
-    return client.command(project_config.cmd_name)(f)
 
 
 class ProjectConfig:
@@ -106,17 +109,18 @@ class ProjectConfig:
             with project_file.open('r') as file:
                 self.params = anyconfig.load(file)
 
-    def get_command(self, app):
-        # Get command in handler
-        for name in app.commands:
-            if name == self.cmd_name:
-                return app.commands[name]
+    def get_command(self, ms):
+        """Get the command associated to this microservice."""
 
-        # Creates it from project class parameter if doesn't exist
-        if self.cmd_name not in app.commands:
-            cmd_class = self.__command_class()
-            if cmd_class:
-                return cmd_class(app, name=self.cmd_name)
+        # Get command in handler
+        for name in ms.commands:
+            if name == self.cmd_name:
+                return ms.commands[name]
+
+        # Creates it from project class parameter if not already defined
+        cmd_class = self.__command_class()
+        if cmd_class:
+            return cmd_class(ms, name=self.cmd_name)
 
     def get_options(self, command_options, module, service, workspace):
         """Adds project options to the command options."""
@@ -140,8 +144,8 @@ class ProjectConfig:
             services = self.params.get('services') if self.module is None else None
             if not services:
                 raise CLIError("No service defined in project file\n")
-            return [(self.project_dir, s['module'], s['service'], self.workspace) for s in services]
-        return [(self.project_dir, self.module, self.service, self.workspace)]
+            return [(s['module'], s['service']) for s in services]
+        return [(self.module, self.service)]
 
     def _get_option(self, module, service, workspace, key):
         default_options = self._default_options
@@ -150,12 +154,6 @@ class ProjectConfig:
             return service_options[key]
         elif key in default_options:
             return default_options[key]
-
-    def __command_class(self):
-        cmd_class_name = self._get_option(self.module, self.service, self.workspace, 'class')
-        if cmd_class_name:
-            splitted = cmd_class_name.split('.')
-            return import_attr('.'.join(splitted[:-1]), splitted[-1], cwd=self.project_dir)
 
     @property
     def _all_options(self):
@@ -179,6 +177,12 @@ class ProjectConfig:
 
     def _all_options_keys(self, module, service):
         return self._default_options.keys() | self._service_options(module, service).keys()
+
+    def __command_class(self):
+        cmd_class_name = self._get_option(self.module, self.service, self.workspace, 'class')
+        if cmd_class_name:
+            splitted = cmd_class_name.split('.')
+            return import_attr('.'.join(splitted[:-1]), splitted[-1], cwd=self.project_dir)
 
 
 if __name__ == "__main__":

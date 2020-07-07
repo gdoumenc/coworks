@@ -13,6 +13,9 @@ from .mixins import CoworksMixin
 DEFAULT_PROJECT_DIR = '.'
 DEFAULT_WORKSPACE = 'dev'
 
+ENV_FILE_SUFFIX = '.json'
+SECRET_ENV_FILE_SUFFIX = '.secret.json'
+
 
 class CORSConfig(ChaliceCORSConfig):
 
@@ -40,8 +43,8 @@ class Config:
             if var_file.suffix != '.json':
                 raise FileNotFoundError(f"Environment variables file has not a JSON extension: {var_file}.\n")
 
-            self._load_file(parent/ var_file.with_suffix('.json'), must_exist=True)
-            self._load_file(parent/ var_file.with_suffix('.secret.json'), must_exist=False)
+            self._load_file(parent / var_file.with_suffix(ENV_FILE_SUFFIX), must_exist=True)
+            self._load_file(parent / var_file.with_suffix(SECRET_ENV_FILE_SUFFIX), must_exist=False)
 
     def _load_file(self, var_file, *, must_exist):
         try:
