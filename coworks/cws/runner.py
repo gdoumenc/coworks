@@ -6,7 +6,6 @@ import click
 from chalice.local import LocalDevServer
 
 from .command import CwsCommand
-from .. import TechMicroService
 
 
 class CwsRunner(CwsCommand):
@@ -46,11 +45,11 @@ class CwsRunner(CwsCommand):
         factory = CwsFactory(ms, project_dir, debug=debug)
         config = factory.mock_config_obj(ms)
         ms.local_server = LocalDevServer(ms, config, host, port)
-        ms.__class__ = LocalMicroService
+        ms.__class__ = type('LocalMicroService', (ms.__class__, ThreadedMixin), {})
         ms.local_server.serve_forever()
 
 
-class LocalMicroService(TechMicroService):
+class ThreadedMixin:
     _THREAD_LOCAL = threading.local()
 
     @property

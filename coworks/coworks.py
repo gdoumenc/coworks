@@ -146,12 +146,13 @@ class TechMicroService(CoworksMixin, Chalice):
         self.blueprint_deferred_inits.append(deferred)
 
     def execute(self, command, *, project_dir, module, workspace, **kwargs):
+        """Executes a client command."""
         from coworks.cws.client import ProjectConfig
         service = kwargs.get('service', self.ms_name)
         project_config = ProjectConfig(command, project_dir, module, service, workspace)
         cmd = project_config.get_command(self)
         if not cmd:
-            raise Exception(f"The command {command} was not added to the microservice {self.ms_name}")
+            raise Exception(f"The command {command} was not added to the microservice {self.ms_name}.\n")
         cmd.execute(**project_config.get_options(kwargs, module, service, workspace))
 
     def _init_routes(self, *, workspace=DEFAULT_WORKSPACE, component=None, url_prefix=None):

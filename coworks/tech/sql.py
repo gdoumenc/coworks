@@ -2,6 +2,7 @@ import os
 
 import sqlalchemy
 from sqlalchemy import create_engine, text, MetaData, Table
+from sqlalchemy.orm import sessionmaker
 
 from ..coworks import TechMicroService
 
@@ -16,9 +17,11 @@ class SqlMicroService(TechMicroService):
         self.dbname = dbname
         self.user = user
         self.password = None
+        self.session = None
+
         self.__engine = None
 
-        @self.before_activation
+        @self.before_first_activation
         def check_env_vars():
             if self.dialect is None:
                 self.dialect = os.getenv('DIALECT')
@@ -45,13 +48,16 @@ class SqlMicroService(TechMicroService):
                     raise EnvironmentError('USER not defined in environment')
             self.password = os.getenv('PASSWD', '')
 
+        @self.before_activation
+        def set_session():
+            self.session = sessionmaker(bind=self.engine)()
+
     @property
     def engine(self):
         if not self.__engine:
             self.__engine = create_engine(
-                f'{self.dialect}://{self.user}:{self.password}@{self.host}:{self.port}/{self.dbname}',
-                echo=False)
-
+                f'{self.dialect}://{self.user}:{self.password}@{self.host}:{self.port}/{self.dbname}', echo=False
+            )
         return self.__engine
 
     def get_version(self):
