@@ -19,12 +19,13 @@ class CwsZipArchiver(CwsCommand, Boto3Mixin):
     def options(self):
         return (
             click.option('--customer', '-c'),
+            click.option('--profile_name', '-p'),
             click.option('--bucket', '-b', help='Bucket to upload zip to'),
             click.option('--debug/--no-debug', default=False, help='Print debug logs to stderr.')
         )
 
     def _execute(self, options):
-        aws_s3_session = AwsS3Session(profile_name='fpr-customer')
+        aws_s3_session = AwsS3Session(profile_name=options['profile_name'])
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
