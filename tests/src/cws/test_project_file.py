@@ -18,3 +18,27 @@ class TestClass:
         assert pytest_wrapped_e.value.code == 0
         captured = capsys.readouterr()
         assert captured.out == "info passed on test infoinfo passed on project2"
+
+    def test_project_file_no_param_workspace_dev(self, example_dir, capsys):
+        with pytest.raises(SystemExit) as pytest_wrapped_e:
+            client(prog_name='cws', args=['-p', 'tests/example', '-w', 'dev', 'test'], obj={})
+        assert pytest_wrapped_e.type == SystemExit
+        assert pytest_wrapped_e.value.code == 0
+        captured = capsys.readouterr()
+        assert captured.out == "info passed on test infoinfo passed on project2"
+
+    def test_project_file_no_param_workspace_prod(self, example_dir, capsys):
+        with pytest.raises(SystemExit) as pytest_wrapped_e:
+            client(prog_name='cws', args=['-p', 'tests/example', '-w', 'prod', 'test'], obj={})
+        assert pytest_wrapped_e.type == SystemExit
+        assert pytest_wrapped_e.value.code == 0
+        captured = capsys.readouterr()
+        assert captured.out == "info passed on test infoinfo passed on prod2"
+
+    def test_project_file_param(self, example_dir, capsys):
+        with pytest.raises(SystemExit) as pytest_wrapped_e:
+            client(prog_name='cws', args=['-p', 'tests/example', 'test', '-h', 'param'], obj={})
+        assert pytest_wrapped_e.type == SystemExit
+        assert pytest_wrapped_e.value.code == 0
+        captured = capsys.readouterr()
+        assert captured.out == "info passed on paraminfo passed on param"

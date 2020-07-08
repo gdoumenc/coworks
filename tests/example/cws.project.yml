@@ -12,6 +12,10 @@ commands:
     services:
       - module: example
         service: project2
+        workspace: prod
+        h: prod2
+      - module: example
+        service: project2
         h: project2
       - module: example
         service: autre
@@ -19,11 +23,11 @@ commands:
   run:
     default:
       class: coworks.cws.CwsRunner
-      worskpace: dev
       port: 8000
     services:
       - module: app2
         service: app2
+        worskpace: dev
         class: coworks.cws.CwsMyRunner
         port: 8001
   deploy:

@@ -14,7 +14,7 @@ def local_server_factory():
         kwargs.setdefault('workspace', DEFAULT_WORKSPACE)
 
         # if config_path defined, use it to update environment from conf json file
-        app.deferred_init(**kwargs)
+        app.deferred_init(kwargs['workspace'])
         app.config.load_environment_variables(kwargs['project_dir'])
 
         threaded_server.configure(app, **kwargs)

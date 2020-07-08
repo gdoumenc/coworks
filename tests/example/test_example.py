@@ -2,7 +2,6 @@ import threading
 import time
 from pathlib import Path
 
-import pytest
 import requests
 
 from coworks.config import Config
@@ -72,4 +71,4 @@ class TestClass:
 
 def run_server_example(app, port, example_dir):
     print(f"Server starting on port {port}")
-    app.execute('run', host='localhost', port=port, project_dir=example_dir, module='example', workspace='dev')
+    app.execute('run', project_dir=example_dir, module='example', workspace='dev', host='localhost', port=port, )

@@ -15,9 +15,9 @@ class CwsInfo(CwsCommand):
     def options(self):
         return click.option('-h'), click.option('-a')
 
-    def _execute(self, **kwargs):
-        if kwargs['h']:
-            self.output.write(f"info passed on {kwargs['h']}")
+    def _execute(self, options):
+        if options['h']:
+            self.output.write(f"info passed on {options['h']}")
         else:
             self.output.write(f"info passed on {self.app.ms_name}")
 

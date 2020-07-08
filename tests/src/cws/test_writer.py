@@ -2,6 +2,7 @@ import io
 import re
 
 from coworks.cws import CwsTerraformWriter
+from coworks.cws.command import CwsCommandOptions
 from tests.src.coworks.tech_ms import SimpleMS
 
 
@@ -13,7 +14,8 @@ class TestClass:
         simple.execute('terraform', project_dir='.', module="", service="", workspace='dev', step='update',
                        output='/dev/null')
         output = io.StringIO()
-        writer.execute(project_dir='.', module="", service="", workspace='dev', step='update', output=output)
+        options = CwsCommandOptions(writer, project_dir='.', module="", service="", workspace='dev', step='update')
+        writer.execute(options=options,output=output)
         output.seek(0)
         print(output.read())
         output.seek(0)

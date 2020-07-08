@@ -20,7 +20,7 @@ class CwsRunner(CwsCommand):
             click.option('--debug/--no-debug', default=False, help='Print debug logs to stderr.')
         )
 
-    def _execute(self, host: str = '127.0.0.1', port: int = 8000, debug=True, *, project_dir, workspace, **kwargs):
+    def _execute(self, options):
         """ Runs the microservice in a local Chalice emulator.
 
         :param host: the hostname to listen on.
@@ -35,16 +35,16 @@ class CwsRunner(CwsCommand):
         from .factory import CwsFactory
 
         ms = self.app
-        ms.config.load_environment_variables(project_dir)
+        ms.config.load_environment_variables(options.project_dir)
         if ms.entries is None:
-            ms.deferred_init(project_dir=project_dir, workspace=workspace)
+            ms.deferred_init(options.workspace)
 
-        if debug:
+        if options['debug']:
             logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')
 
-        factory = CwsFactory(ms, project_dir, debug=debug)
+        factory = CwsFactory(ms, options.project_dir, debug=options['debug'])
         config = factory.mock_config_obj(ms)
-        ms.local_server = LocalDevServer(ms, config, host, port)
+        ms.local_server = LocalDevServer(ms, config, options['host'], options['port'])
         ms.__class__ = type('LocalMicroService', (ms.__class__, ThreadedMixin), {})
         ms.local_server.serve_forever()
 

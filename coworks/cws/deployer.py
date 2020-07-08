@@ -1,6 +1,7 @@
 import os
 
 import click
+from python_terraform import Terraform
 
 from .command import CwsCommand
 
@@ -12,31 +13,41 @@ class CwsDeployer(CwsCommand):
     @property
     def options(self):
         return (
-            click.option('--debug/--no-debug', default=False, help='Print debug logs to stderr.'),
+            click.option('--dry', is_flag=True, help="Doesn't perform terraform commands."),
+            click.option('--remote', '-r', is_flag=True, help="Deploy on fpr-coworks.io."),
+            click.option('--debug/--no-debug', default=False, help="Print debug logs to stderr."),
         )
 
-    def _execute(self, *, workspace, project_dir='.', debug=True, **kwargs):
-        self._local_deploy(workspace, debug, project_dir, **kwargs)
+    def _execute(self, options):
+        if options['remote']:
+            self._remote_deploy(options)
+        else:
+            self._local_deploy(options)
 
-    def _local_deploy(self, workspace, debug, project_dir, module=None, service=None, **kwargs):
-        from python_terraform import Terraform
+    def _remote_deploy(self, options):
+        pass
+
+    def _local_deploy(self, options):
         terraform = Terraform(working_dir=os.path.join('.', 'terraform'))
-        self._terraform_export_and_apply_local(terraform, project_dir, module, service, workspace, 'create', debug)
-        self._terraform_export_and_apply_local(terraform, project_dir, module, service, workspace, 'update', debug)
+        self._terraform_export_and_apply_local(terraform, options)
+        self._terraform_export_and_apply_local(terraform, options)
 
-    def _terraform_export_and_apply_local(self, terraform, project_dir, module, service, workspace, step, debug):
-        self.app.execute('terraform-staging', project_dir=project_dir, module=module, service=service,
-                         workspace=workspace, step=step, debug=debug,
-                         output=os.path.join(".", "terraform", f"_{module}-{service}.tf"))
-        self._terraform_apply_local(terraform, "default", debug)
-        self._terraform_apply_local(terraform, workspace, debug)
+    def _terraform_export_and_apply_local(self, terraform, options):
+        output_file = os.path.join(".", "terraform", f"_{options.module}-{options.service}.tf")
+        self.app.execute('terraform-staging', output=output_file, **options.to_dict())
 
-    def _terraform_apply_local(self, terraform, workspace, debug):
-        return_code, stdout, stderr = terraform.workspace('select', workspace)
-        if workspace != 'default' and return_code != 0:
-            terraform.workspace('new', workspace)
-        terraform.init(input=False)
-        return_code, stdout, stderr = terraform.apply(skip_plan=True, input=False)
-        # return_code, stdout, stderr = terraform.plan(input=False)
-        if debug:
-            print(return_code, stdout, stderr)
+        if not options['dry']:
+            debug = options['debug']
+            terraform_apply_local(terraform, "default", debug)
+            terraform_apply_local(terraform, options.workspace, debug)
+
+
+def terraform_apply_local(terraform, workspace, debug):
+    return_code, stdout, stderr = terraform.workspace('select', workspace)
+    if workspace != 'default' and return_code != 0:
+        terraform.workspace('new', workspace)
+    terraform.init(input=False)
+    return_code, stdout, stderr = terraform.apply(skip_plan=True, input=False)
+    # return_code, stdout, stderr = terraform.plan(input=False)
+    if debug:
+        print(return_code, stdout, stderr)

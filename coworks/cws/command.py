@@ -4,6 +4,54 @@ from abc import ABC, abstractmethod
 from coworks import TechMicroService
 
 
+class CwsCommandOptions:
+
+    def __init__(self, cmd, **kwargs):
+        self.__cmd = cmd
+        self.__options = kwargs
+
+        assert 'project_dir' in kwargs
+        assert 'module' in kwargs
+        assert 'workspace' in kwargs
+
+        if 'service' not in kwargs:
+            self.__options['service'] = cmd.app
+
+    @property
+    def project_dir(self):
+        return self.__options['project_dir']
+
+    @property
+    def module(self):
+        return self.__options['module']
+
+    @property
+    def service(self):
+        return self.__options['service']
+
+    @property
+    def workspace(self):
+        return self.__options['workspace']
+
+    def __getitem__(self, key):
+        return self.__options.get(key)
+
+    def __setitem__(self, key, value):
+        self.__options[key] = value
+
+    def __contains__(self, key):
+        return key in self.__options
+
+    def keys(self):
+        return self.__options.keys()
+
+    def to_dict(self):
+        return self.__options
+
+    def __repr__(self):
+        return str(self.__options)
+
+
 class CwsCommand(ABC):
 
     def __init__(self, app: TechMicroService = None, *, name):
@@ -28,29 +76,27 @@ class CwsCommand(ABC):
     def options(self):
         return ()
 
-    def execute(self, *, output=None, error=None, **kwargs):
+    def execute(self, *, options:CwsCommandOptions, output=None, error=None):
         """ Called when the command is called.
         :param output: output stream.
         :param error: error stream.
-        :param kwargs: environment parameters for the command.
+        :param options: command options.
         :return: None
         """
-        self.app.deferred_init(**kwargs)
+        self.app.deferred_init(options.workspace)
 
         if output is not None:
             self.output = open(output, 'w+') if type(output) is str else output
         if error is not None:
             self.error = open(error, 'w+') if type(error) is str else error
 
-        kwargs.setdefault('project_config', {})
-
         for func in self.before_funcs:
-            func(**kwargs)
+            func(options)
 
-        self._execute(**kwargs)
+        self._execute(options)
 
         for func in self.after_funcs:
-            func(**kwargs)
+            func(options)
 
     def before_execute(self, f):
         """Registers a function to be run before the command execution.
@@ -78,13 +124,10 @@ class CwsCommand(ABC):
         self.after_funcs.append(f)
         return f
 
-    def _export_header(self, **kwargs):
-        ...
-
     @abstractmethod
-    def _execute(self, **kwargs):
+    def _execute(self, options):
         """ Main command function.
-        :param kwargs: Environment parameters for export.
+        :param options: Command options.
         :return: None.
 
         Abstract method which must be redefined in any subclass. The content should be written in self.output.

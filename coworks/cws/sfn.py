@@ -17,12 +17,12 @@ class StepFunctionWriter(CwsWriter):
         super().__init__(app, name=name)
         self.extension = extension
 
-    def _export_content(self, module_name='app', handler_name='biz', project_dir='.', **kwargs):
-        module_path = module_name.split('.')
+    def _export_content(self, options):
+        module_path = options.module.split('.')
         step_functions = {}
         errors = {}
         sfn_name = self.app.sfn_name
-        filename = pathlib.Path(project_dir, *module_path[:-1]) / f"{sfn_name}.{self.extension}"
+        filename = pathlib.Path(options.project_dir, *module_path[:-1]) / f"{sfn_name}.{self.extension}"
         try:
             sfn = StepFunction(sfn_name, filename)
             step_functions[sfn_name] = sfn.generate()

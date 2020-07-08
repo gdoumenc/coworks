@@ -7,6 +7,7 @@ import click
 from chalice.cli import chalice_version, get_system_info
 
 from coworks.config import DEFAULT_PROJECT_DIR, DEFAULT_WORKSPACE
+from coworks.cws.command import CwsCommandOptions
 from coworks.utils import import_attr
 from coworks.version import __version__
 
@@ -40,24 +41,32 @@ def invoke(initial, ctx):
         module = ctx.params.get('module')
         service = ctx.params.get('service')
         workspace = ctx.params.get('workspace')
-        project_config = ProjectConfig(cmd_name, project_dir, module, service, workspace)
+
+        project_config = ProjectConfig(cmd_name, project_dir)
+        if service:
+            services = [(module, service)]
+        else:
+            services = project_config.services
 
         # Iterates over the declared services in project configuration file
-        for module, service in project_config.services:
+        for module, service in services:
             ctx.args = args
             ctx.protected_args = protected_args
 
             # Get command from the microservice
-            cmd_project_config = ProjectConfig(cmd_name, project_dir, module, service, workspace)
+            cmd_project_config = ProjectConfig(cmd_name, project_dir)
             handler = get_handler(project_dir, module, service)
-            cmd = project_config.get_command(handler)
+            cmd = project_config.get_command(handler, module, service, workspace)
             if not cmd:
                 raise CwsError(f"Undefined command {cmd}.\n")
 
             # Defines the proxy command with all user options
             def call_execute(**command_options):
                 try:
-                    cmd.execute(**cmd_project_config.get_options(command_options, module, service, workspace))
+                    options = CwsCommandOptions(cmd, project_dir=project_dir, module=module, service=service,
+                                                workspace=workspace, **command_options)
+                    cmd_project_config.complete_options(options)
+                    cmd.execute(options=options)
                 except Exception as err:
                     raise CwsError(str(err))
 
@@ -95,21 +104,20 @@ def get_handler(project_dir, module, service):
 
 
 class ProjectConfig:
-    def __init__(self, cmd_name, project_dir, module, service, workspace, project_file="cws.project.yml"):
+    """Class for the project configuration file for commands."""
+
+    def __init__(self, cmd_name, project_dir, project_file="cws.project.yml"):
         self.cmd_name = cmd_name
         self.project_dir = project_dir
-        self.module = module
-        self.service = service
-        self.workspace = workspace
         self.params = {}
-        self.__all_options = self.__default_options = None
+        self.__all_command_options = self.__all_default_options = None
 
         project_file = Path(self.project_dir) / project_file
         if project_file.is_file():
             with project_file.open('r') as file:
                 self.params = anyconfig.load(file)
 
-    def get_command(self, ms):
+    def get_command(self, ms, module, service, workspace):
         """Get the command associated to this microservice."""
 
         # Get command in handler
@@ -118,68 +126,69 @@ class ProjectConfig:
                 return ms.commands[name]
 
         # Creates it from project class parameter if not already defined
-        cmd_class = self.__command_class()
+        cmd_class = self.__command_class(module, service, workspace)
         if cmd_class:
             return cmd_class(ms, name=self.cmd_name)
 
-    def get_options(self, command_options, module, service, workspace):
+    def complete_options(self, options):
         """Adds project options to the command options."""
-        options = {
-            'project_dir': self.project_dir,
-            'module': self.module,
-            'service': self.service,
-            'workspace': self.workspace,
-        }
-        for key in self._all_options_keys(module, service) | command_options.keys():
-            if key in command_options and command_options[key] is not None:
-                options[key] = command_options[key]
-            else:
-                options[key] = self._get_option(module, service, workspace, key)
+        for key in self._all_options_keys(options.module, options.service, options.workspace):
+            if key not in options or options[key] is None:
+                options[key] = self._get_option(options.module, options.service, options.workspace, key)
         return options
 
     @property
     def services(self):
         """ Returns the list of microservices on which the command will be executed."""
-        if self.service is None:
-            services = self.params.get('services') if self.module is None else None
-            if not services:
-                raise CwsError("No service defined in project file\n")
-            return [(s['module'], s['service']) for s in services]
-        return [(self.module, self.service)]
+        services = self.params.get('services')
+        if not services:
+            raise CwsError("No service defined in project file\n")
+        return [(s['module'], s['service']) for s in services]
 
     def _get_option(self, module, service, workspace, key):
-        default_options = self._default_options
-        service_options = self._service_options(module, service)
+        default_options = self.all_default_options
+        service_options = self._service_options(module, service, workspace)
         if key in service_options:
             return service_options[key]
         elif key in default_options:
             return default_options[key]
 
     @property
-    def _all_options(self):
-        if self.__all_options is None:
-            self.__all_options = self.params.get('commands', {}).get(self.cmd_name, {})
-        return self.__all_options
+    def all_command_options(self):
+        if self.__all_command_options is None:
+            self.__all_command_options = self.params.get('commands', {}).get(self.cmd_name, {})
+        return self.__all_command_options
 
     @property
-    def _default_options(self):
-        if self.__default_options is None:
-            self.__default_options = self._all_options.get('default', {})
-        return self.__default_options
+    def all_default_options(self):
+        """Default descriptioin in project file."""
+        if self.__all_default_options is None:
+            self.__all_default_options = self.all_command_options.get('default', {})
+        return self.__all_default_options
 
-    def _service_options(self, module, service):
-        services = [s for s in self._all_options.get('services', []) if
+    def _service_options(self, module, service, workspace):
+        services = [s for s in self.all_command_options.get('services', []) if
                     s.get('module') == module and s.get('service') == service]
-        options = {**services[0]} if services else {}
+
+        workspace_defined_services = [s for s in services if s.get('workspace') == workspace]
+        workspace_undefined_services = [s for s in services if 'workspace' not in s]
+
+        if workspace_defined_services:
+            options = {**workspace_defined_services[0]}
+        elif workspace_undefined_services:
+            options = {**workspace_undefined_services[0]}
+        else:
+            options = {}
         options.pop('module', None)
         options.pop('service', None)
+        options.pop('workspace', None)
         return options
 
-    def _all_options_keys(self, module, service):
-        return self._default_options.keys() | self._service_options(module, service).keys()
+    def _all_options_keys(self, module, service, workspace):
+        return self.all_default_options.keys() | self._service_options(module, service, workspace).keys()
 
-    def __command_class(self):
-        cmd_class_name = self._get_option(self.module, self.service, self.workspace, 'class')
+    def __command_class(self, module, service, workspace):
+        cmd_class_name = self._get_option(module, service, workspace, 'class')
         if cmd_class_name:
             splitted = cmd_class_name.split('.')
             return import_attr('.'.join(splitted[:-1]), splitted[-1], cwd=self.project_dir)

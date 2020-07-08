@@ -53,7 +53,6 @@ class TestClass:
         response = requests.get(f'http://localhost:{port}/', headers={'Authorization': "token"})
         assert response.text == "test dev environment variable"
 
-    @pytest.mark.wip
     def test_prod_stage(self, local_server_factory):
         config = Config(environment_variables_file=Path(EXAMPLE_DIR) / "config" / "vars_prod.json")
         local_server = local_server_factory(WithEnvMS(configs=config))

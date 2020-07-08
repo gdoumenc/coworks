@@ -33,8 +33,8 @@ data "aws_s3_bucket_object" "{{ resource_id }}-b64sha256" {
 }
 
 locals {
-    custom-layers-{{ resource_id }} = terraform.workspace == "default" ? [] : {{ export_config["custom-layers"] | tojson}}
-    common-layers-{{ resource_id }} = terraform.workspace == "default" ? [] : {{ export_config["common-layers"] | tojson }}
+    custom-layers-{{ resource_id }} = terraform.workspace == "default" ? [] : {{ custom_layers | tojson}}
+    common-layers-{{ resource_id }} = terraform.workspace == "default" ? [] : {{ common_layers | tojson }}
 }
 
 resource "aws_lambda_function" "{{ resource_id }}" {
@@ -49,7 +49,7 @@ resource "aws_lambda_function" "{{ resource_id }}" {
   runtime = "python3.7"
   timeout = 10
   environment {
-    variables = merge(jsondecode(data.local_file.environment_variables_{{ resource_id }}.content), {"WORKSPACE"="{{ export_config["workspace"] }}"})
+    variables = merge(jsondecode(data.local_file.environment_variables_{{ resource_id }}.content), {"WORKSPACE"="{{ workspace }}"})
   }
   tags = {
     Product: "microservice"
@@ -61,7 +61,7 @@ resource "aws_lambda_function" "{{ resource_id }}" {
 
 data "aws_lambda_function" "{{ resource_id }}" {
   count = terraform.workspace == "default" && "{{ step }}" == "update" ? 1 : 0
-  function_name = "{{ resource_id }}-{{ export_config["workspace"] }}"
+  function_name = "{{ resource_id }}-{{ workspace }}"
 }
 
 resource "aws_lambda_permission" "{{ resource_id }}" {
@@ -86,7 +86,7 @@ resource "aws_lambda_permission" "{{ resource_id }}" {
         Product: "microservice"
         Target: "{{ module_file }}"
         Creator: "coworks"
-        Stage = "{{ export_config["workspace"] }}"
+        Stage = "{{ workspace }}"
         Customer = local.customer_name
       }
     }
@@ -148,7 +148,7 @@ resource "aws_iam_role_policy_attachment" "{{ resource_id }}" {
         Product: "microservice"
         Target: "{{ module_file }}"
         Creator: "coworks"
-        Stage = "{{ export_config["workspace"] }}"
+        Stage = "{{ workspace }}"
       }
     }
     resource "aws_cloudwatch_event_target" "{{ module_file }}_{{ s.name }}" {
@@ -176,8 +176,8 @@ resource "aws_api_gateway_rest_api" "{{ resource_id }}" {
   count = terraform.workspace == "default" ? 1 : 0
   name = "{{ resource_name }}"
   description = "A prendre de la class"
-  {% if export_config["binary_media_types"] %}
-  binary_media_types = {{ export_config["binary_media_types"] | tojson }}
+  {% if binary_media_types %}
+  binary_media_types = {{ binary_media_types | tojson }}
   {% endif %}
   tags = {
     Product: "microservice"
