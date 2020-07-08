@@ -84,7 +84,8 @@ class CwsDeployer(CwsCommand):
             Step 3. Update API integrations
             Step 4. Update API deployment
         """
-
+        print("Uploading zip of the microservice to S3")
+        self.app.execute('zip', **options.to_dict())
         print("Creating lambda and api resources ...")
         self._terraform_export_and_apply_local('create', options)
         print("Updating api integrations and deploying api ...")
@@ -92,8 +93,8 @@ class CwsDeployer(CwsCommand):
         print("Microservice deployed.")
 
     def _terraform_export_and_apply_local(self, step, options):
-        output_file = os.path.join(".", "terraform", f"_{options.module}-{options.service}.tf")
-        self.app.execute('terraform-staging', output=output_file, step=step, **options.to_dict())
+        output_path = str(Path('.') / 'terraform' / f"_{options.module}-{options.service}.tf")
+        self.app.execute('terraform-staging', output=output_path, step=step, **options.to_dict())
 
         if not options['dry']:
             terraform = CwsTerraform(Path('.') / 'terraform', options['debug'])
