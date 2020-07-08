@@ -209,6 +209,14 @@ class CwsTerraformStagingWriter(CwsTerraformWriter):
     def default_template_filenames(self):
         return ['terraform_staging.j2']
 
+    @property
+    def options(self):
+        return (
+            click.option('--custom_layers', default=[]),
+            click.option('--common_layers', default=[]),
+            click.option('--binary_media_types', default=[]),
+        )
+
     def _validate_context(self, options):
         # options.setdefault('custom_layers', [])
         # options.setdefault('common_layers', [])
