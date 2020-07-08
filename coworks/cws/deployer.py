@@ -28,13 +28,22 @@ class CwsDeployer(CwsCommand):
         pass
 
     def _local_deploy(self, options):
+        """
+        Step 1. Create API
+        2. Create Lambda
+        3. API integration
+        4. Deploy API
+        :param options:
+        :return:
+        """
         terraform = Terraform(working_dir=os.path.join('.', 'terraform'))
-        self._terraform_export_and_apply_local(terraform, options)
-        self._terraform_export_and_apply_local(terraform, options)
 
-    def _terraform_export_and_apply_local(self, terraform, options):
+        self._terraform_export_and_apply_local(terraform, 'create', options)
+        self._terraform_export_and_apply_local(terraform, 'update', options)
+
+    def _terraform_export_and_apply_local(self, terraform, step, options):
         output_file = os.path.join(".", "terraform", f"_{options.module}-{options.service}.tf")
-        self.app.execute('terraform-staging', output=output_file, **options.to_dict())
+        self.app.execute('terraform-staging', output=output_file, step=step, **options.to_dict())
 
         if not options['dry']:
             debug = options['debug']

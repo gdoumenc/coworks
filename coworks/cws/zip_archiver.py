@@ -1,12 +1,13 @@
-import shutil
-import click
-import tempfile
-import os
 import base64
 import hashlib
+import os
+import shutil
+import tempfile
 
-from .command import CwsCommand
+import click
+
 from coworks.mixins import Boto3Mixin, AwsS3Session
+from .command import CwsCommand
 
 
 class CwsZipArchiver(CwsCommand, Boto3Mixin):
@@ -16,16 +17,17 @@ class CwsZipArchiver(CwsCommand, Boto3Mixin):
     @property
     def options(self):
         return (
+            click.option('--customer', '-c'),
             click.option('--bucket', '-b', help='Bucket to upload zip to'),
             click.option('--debug/--no-debug', default=False, help='Print debug logs to stderr.')
         )
 
-    def _execute(self, *, module, service, project_dir, bucket, debug=True, **kwargs):
+    def _execute(self, options):
         aws_s3_session = AwsS3Session(profile_name='fpr-customer')
 
         with tempfile.TemporaryDirectory() as temp_dir:
             tmp_archive = os.path.join(temp_dir, 'archive')
-            tmp_archive = shutil.make_archive(tmp_archive, 'zip', project_dir)
+            tmp_archive = shutil.make_archive(tmp_archive, 'zip', options.project_dir)
             tmp_archive = open(tmp_archive, 'rb')
 
             b64sha256 = base64.b64encode(hashlib.sha256(tmp_archive.read()).digest())
@@ -37,14 +39,13 @@ class CwsZipArchiver(CwsCommand, Boto3Mixin):
             b64sha256_file.close()
             b64sha256_file = open(os.path.join(temp_dir, 'b64sha256_file'), 'rb')
 
-            archive_name = f"source_archives/{module}-{service}/archive.zip"
+            archive_name = f"source_archives/{options.module}-{options.service}-{options['customer']}/archive.zip"
             try:
-                aws_s3_session.client.upload_fileobj(tmp_archive, bucket, archive_name)
-                aws_s3_session.client.upload_fileobj(b64sha256_file, bucket, f"{archive_name}.b64sha256",
+                aws_s3_session.client.upload_fileobj(tmp_archive, options['bucket'], archive_name)
+                aws_s3_session.client.upload_fileobj(b64sha256_file, options['bucket'], f"{archive_name}.b64sha256",
                                                      ExtraArgs={'ContentType': 'text/plain'})
             except Exception as e:
                 print(e)
             finally:
                 tmp_archive.close()
                 b64sha256_file.close()
-
