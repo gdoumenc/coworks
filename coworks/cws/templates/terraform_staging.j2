@@ -9,6 +9,10 @@ data "local_file" "environment_variables_{{ resource_id }}" {
   filename = "../{{ project_dir }}/{{ app_config["environment_variables_file"]}}"
 }
 
+data "local_file" "environment_variables_secret_{{ resource_id }}" {
+  filename = "../{{ project_dir }}/{{ app_config["environment_variables_file_secret"]}}"
+}
+
 resource "aws_lambda_layer_version" "{{ resource_id }}" {
   for_each = {for layer_name in local.custom-layers-{{ resource_id }} :  layer_name => "${layer_name}.zip"}
   layer_name = "{{ resource_id }}-${each.key}"
@@ -49,7 +53,7 @@ resource "aws_lambda_function" "{{ resource_id }}" {
   runtime = "python3.7"
   timeout = 10
   environment {
-    variables = merge(jsondecode(data.local_file.environment_variables_{{ resource_id }}.content), {"WORKSPACE"="{{ workspace }}"})
+    variables = merge(jsondecode(data.local_file.environment_variables_{{ resource_id }}.content), jsondecode(data.local_file.environment_variables_secret_{{ resource_id }}.content), {"WORKSPACE"="{{ workspace }}"})
   }
   tags = {
     Product: "microservice"
