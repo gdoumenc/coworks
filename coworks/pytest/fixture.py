@@ -1,5 +1,7 @@
 import pytest
 
+import os
+
 from .local_server import ThreadedLocalServer
 from .. import TechMicroService
 from ..config import DEFAULT_PROJECT_DIR, DEFAULT_WORKSPACE
@@ -14,6 +16,7 @@ def local_server_factory():
         kwargs.setdefault('workspace', DEFAULT_WORKSPACE)
 
         # if config_path defined, use it to update environment from conf json file
+        os.environ['WORKSPACE'] = kwargs['workspace']
         app.deferred_init(kwargs['workspace'])
         app.config.load_environment_variables(kwargs['project_dir'])
 

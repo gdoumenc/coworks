@@ -69,6 +69,7 @@ class TestClass:
         assert response.status_code == 200
         assert response.text == "Simple microservice for demo.\n"
 
+
 def run_server_example(app, port, example_dir):
     print(f"Server starting on port {port}")
     app.execute('run', project_dir=example_dir, module='example', workspace='dev', host='localhost', port=port, )

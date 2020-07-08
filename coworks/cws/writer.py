@@ -100,8 +100,6 @@ class CwsTemplateWriter(CwsWriter):
             'handler': options.service,
             'app': self.app,
             'ms_name': self.app.ms_name,
-            'variables': options['variables'],
-            'step': options['step'],
             'app_config': app_config,
             **options.to_dict()
         }
