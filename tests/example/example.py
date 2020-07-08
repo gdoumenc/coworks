@@ -32,7 +32,7 @@ class TechMS(TechMicroService):
         super().__init__(**kwargs)
 
         @self.deferred
-        def init():
+        def init(workspace):
             self.init_value = 'test'
 
     def get(self, usage="test"):

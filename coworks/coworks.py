@@ -1,6 +1,7 @@
 import inspect
 import json
 import logging
+import os
 import sys
 import traceback
 from functools import update_wrapper
@@ -120,9 +121,9 @@ class TechMicroService(CoworksMixin, Chalice):
         if self.entries is None:
             self._init_routes(workspace=workspace)
             for deferred_init in self.deferred_inits:
-                deferred_init()
+                deferred_init(workspace)
             for deferred_init in self.blueprint_deferred_inits:
-                deferred_init()
+                deferred_init(workspace)
 
     def register_blueprint(self, blueprint: Blueprint, authorizer=None, **kwargs):
         """ Register a :class:`Blueprint` on the microservice.
@@ -139,8 +140,8 @@ class TechMicroService(CoworksMixin, Chalice):
 
         blueprint.__auth__ = self._create_auth_proxy(self, authorizer) if authorizer else None
 
-        def deferred():
-            self._init_routes(workspace=kwargs.get('workspace'), component=blueprint, url_prefix=kwargs['url_prefix'])
+        def deferred(workspace):
+            self._init_routes(workspace=workspace, component=blueprint, url_prefix=kwargs['url_prefix'])
             Chalice.register_blueprint(self, blueprint, **kwargs)
 
         self.blueprint_deferred_inits.append(deferred)
@@ -257,9 +258,9 @@ class TechMicroService(CoworksMixin, Chalice):
 
     def __call__(self, event, context):
         # workspace = self._called_workspace(event, context)
-        workspace = 'dev'
 
         with self._before_activation_lock:
+            workspace =  os.environ['WORKSPACE']
             self.deferred_init(workspace=workspace)
 
             if not self._got_first_activation:

@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 import threading
 
@@ -35,6 +36,7 @@ class CwsRunner(CwsCommand):
         from .factory import CwsFactory
 
         ms = self.app
+        os.environ['WORKSPACE'] = options.workspace
         ms.config.load_environment_variables(options.project_dir)
         if ms.entries is None:
             ms.deferred_init(options.workspace)
