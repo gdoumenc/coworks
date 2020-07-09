@@ -85,7 +85,8 @@ class CwsDeployer(CwsCommand):
             Step 4. Update API deployment
         """
         print("Uploading zip of the microservice to S3")
-        self.app.execute('zip', **options.to_dict())
+        if not options['dry']:
+            self.app.execute('zip', **options.to_dict())
         print("Creating lambda and api resources ...")
         self._terraform_export_and_apply_local('create', options)
         print("Updating api integrations and deploying api ...")
@@ -95,7 +96,6 @@ class CwsDeployer(CwsCommand):
     def _terraform_export_and_apply_local(self, step, options):
         output_path = str(Path('.') / 'terraform' / f"_{options.module}-{options.service}.tf")
         self.app.execute('terraform-staging', output=output_path, step=step, **options.to_dict())
-
         if not options['dry']:
             terraform = CwsTerraform(Path('.') / 'terraform', options['debug'])
             terraform.apply_local("default")
@@ -128,14 +128,24 @@ class CwsDestroyer(CwsCommand):
         output_path = str(Path('.') / 'terraform' / f"_{options.module}-{options.service}.tf")
         self.app.execute('terraform-staging', output=output_path, step='create', **options.to_dict())
         terraform = CwsTerraform(Path('.') / 'terraform', options['debug'])
+
         print("Destroying api deployment ...")
-        terraform.apply_local(options.workspace)
+        if not options['dry']:
+            terraform.apply_local(options.workspace)
+
         print("Destroying api integrations ...")
-        terraform.apply_local('default')
+        if not options['dry']:
+            terraform.apply_local('default')
+
         print("Destroying lambdas ...")
-        terraform.destroy_local(options.workspace)
+        if not options['dry']:
+            terraform.destroy_local(options.workspace)
+
         print("Destroying api resource ...")
-        terraform.destroy_local('default')
+        if not options['dry']:
+            terraform.destroy_local('default')
+
         print("Destroy completed")
+
 
 
