@@ -101,6 +101,7 @@ class CwsTemplateWriter(CwsWriter):
             'app': self.app,
             'ms_name': self.app.ms_name,
             'app_config': app_config,
+            'environment_variable_files': app_config.existing_environment_variables_files(options.project_dir),
             **options.to_dict()
         }
 
@@ -216,7 +217,7 @@ class CwsTerraformStagingWriter(CwsTerraformWriter):
         )
 
     def _validate_context(self, options):
-        # options.setdefault('custom_layers', [])
-        # options.setdefault('common_layers', [])
-        # options.setdefault('binary_media_types', [])
+        options.setdefault('custom_layers', [])
+        options.setdefault('common_layers', [])
+        options.setdefault('binary_media_types', [])
         return options

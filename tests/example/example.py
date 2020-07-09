@@ -5,8 +5,8 @@ import click
 
 from coworks import TechMicroService
 from coworks.config import Config
-from coworks.cws import CwsProject
 from coworks.cws.command import CwsCommand
+from coworks.cws.writer import CwsTerraformWriter
 
 
 class CwsInfo(CwsCommand):
@@ -56,11 +56,10 @@ class TechMS(TechMicroService):
 
 # usefull for test info (don't remove)
 tech_app = TechMS()
-CwsProject(tech_app)
 CwsInfo(tech_app, name='info')
+CwsTerraformWriter(tech_app)
 
 app = TechMS(configs=Config(environment_variables_file="config/vars_dev.json"))
-CwsProject(app)
 CwsInfo(tech_app, name='info')
 
 project1 = TechMS()

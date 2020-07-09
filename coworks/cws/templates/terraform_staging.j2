@@ -5,13 +5,12 @@
 # LAMBDA
 # ---------------------------------------------------------------------------------------------------------------------
 
-data "local_file" "environment_variables_{{ resource_id }}" {
-  filename = "../{{ project_dir }}/{{ app_config["environment_variables_file"]}}"
+  {% if environment_variable_files != [] %}
+data "local_file" "environment_variables_files_{{ resource_id }}" {
+  for_each = {for envar_file in {{ environment_variable_files | tojson }}: envar_file => "../${envar_file}"}
+  filename = each.value
 }
-
-data "local_file" "environment_variables_secret_{{ resource_id }}" {
-  filename = "../{{ project_dir }}/{{ app_config["environment_variables_file_secret"]}}"
-}
+  {% endif %}
 
 resource "aws_lambda_layer_version" "{{ resource_id }}" {
   for_each = {for layer_name in local.custom-layers-{{ resource_id }} :  layer_name => "${layer_name}.zip"}
@@ -39,6 +38,9 @@ data "aws_s3_bucket_object" "{{ resource_id }}-b64sha256" {
 locals {
     custom-layers-{{ resource_id }} = terraform.workspace == "default" ? [] : {{ custom_layers | tojson}}
     common-layers-{{ resource_id }} = terraform.workspace == "default" ? [] : {{ common_layers | tojson }}
+    {% if environment_variable_files != [] %}
+    environment_variables = [for envars_string in data.local_file.environment_variables_files_{{ resource_id }}: jsondecode(envars_string.content)]
+    {% endif %}
 }
 
 resource "aws_lambda_function" "{{ resource_id }}" {
@@ -52,9 +54,11 @@ resource "aws_lambda_function" "{{ resource_id }}" {
   layers = concat([for layer in aws_lambda_layer_version.{{ resource_id }}: layer.arn], [for layer in data.aws_lambda_layer_version.{{ resource_id }}: layer.arn])
   runtime = "python3.7"
   timeout = 10
+  {% if environment_variable_files != [] %}
   environment {
-    variables = merge(jsondecode(data.local_file.environment_variables_{{ resource_id }}.content), jsondecode(data.local_file.environment_variables_secret_{{ resource_id }}.content), {"WORKSPACE"="{{ workspace }}"})
+    variables = [for item in local.environment_variables: merge(item,local.environment_variables...)][0]
   }
+  {% endif %}
   tags = {
     Product: "microservice"
     Target: "{{ module_file }}"

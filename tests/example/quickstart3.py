@@ -1,6 +1,8 @@
 from coworks import TechMicroService
 from coworks.config import Config, CORSConfig
-from coworks.cws import CwsProject
+from coworks.cws.writer import CwsTerraformStagingWriter
+from coworks.cws.deployer import CwsDeployer
+from coworks.cws.runner import CwsRunner
 
 
 class SimpleMicroService(TechMicroService):
@@ -26,4 +28,6 @@ PROD_CONFIG = Config(
 )
 
 app = SimpleMicroService(ms_name='test', configs=[DEV_CONFIG, PROD_CONFIG])
-CwsProject(app)
+CwsRunner(app)
+CwsTerraformStagingWriter(app)
+CwsDeployer(app)

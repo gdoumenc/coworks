@@ -22,13 +22,13 @@ commands:
         h: autre
   run:
     default:
-      class: coworks.cws.CwsRunner
+      class: coworks.cws.runner.CwsRunner
       port: 8000
     services:
       - module: app2
         service: app2
         worskpace: dev
-        class: coworks.cws.CwsMyRunner
+        class: coworks.cws.runner.CwsMyRunner
         port: 8001
   deploy:
     default:

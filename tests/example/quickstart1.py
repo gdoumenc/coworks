@@ -1,5 +1,5 @@
 from coworks import TechMicroService
-from coworks.cws import CwsProject
+from coworks.cws.runner import CwsRunner
 
 
 class SimpleMicroService(TechMicroService):
@@ -9,4 +9,4 @@ class SimpleMicroService(TechMicroService):
 
 
 app = SimpleMicroService()
-CwsProject(app)
+CwsRunner(app)

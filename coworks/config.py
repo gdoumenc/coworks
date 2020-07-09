@@ -35,9 +35,18 @@ class Config:
     auth: Callable[[CoworksMixin, AuthRequest], Union[bool, list, AuthResponse]] = None
     cors: CORSConfig = CORSConfig(allow_origin='')
 
-    @property
-    def environment_variables_file_secret(self):
-        return str(Path(self.environment_variables_file).with_suffix(SECRET_ENV_FILE_SUFFIX))
+    def existing_environment_variables_files(self, project_dir):
+        """ :return: list containing the paths to environment variables files that acually exist """
+        if self.environment_variables_file is None:
+            return []
+        else:
+            parent = Path(project_dir)
+            existing_environment_variables_files = []
+            if (parent / self.environment_variables_file).is_file():
+                existing_environment_variables_files.append(str((parent / self.environment_variables_file)))
+            if (parent / self.environment_variables_file).with_suffix(SECRET_ENV_FILE_SUFFIX).is_file():
+                existing_environment_variables_files.append(str((parent / self.environment_variables_file).with_suffix(SECRET_ENV_FILE_SUFFIX)))
+            return existing_environment_variables_files
 
     def load_environment_variables(self, project_dir):
         if self.environment_variables_file:

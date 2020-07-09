@@ -1,7 +1,7 @@
 import io
 import re
 
-from coworks.cws import CwsTerraformWriter
+from coworks.cws.writer import CwsTerraformWriter
 from coworks.cws.command import CwsCommandOptions
 from tests.src.coworks.tech_ms import SimpleMS
 

@@ -24,14 +24,6 @@ class TestClass:
         response = requests.get(f'http://localhost:{port}/', headers={'Authorization': "token"})
         assert response.text == "Simple microservice ready.\n"
 
-    def test_export_quickstart(self, example_dir):
-        app = import_attr('quickstart1', 'app', cwd=example_dir)
-        output = io.StringIO()
-        app.execute('export', project_dir=example_dir, module='quickstart1', service='app',
-                    workspace='dev', step='update', output=output)
-        output.seek(0)
-        print(output.read())
-
 
 def run_server_quickstart(app, port, example_dir):
     print(f"Server starting on port {port}")

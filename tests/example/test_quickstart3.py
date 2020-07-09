@@ -36,7 +36,7 @@ class TestClass:
     def test_export_quickstart3(self, example_dir):
         app = import_attr('quickstart3', 'app', cwd=example_dir)
         output = io.StringIO()
-        app.execute('export', project_dir=example_dir, module='quickstart3', service='app', workspace='dev',
+        app.execute('terraform-staging', project_dir=example_dir, module='quickstart3', service='app', workspace='dev',
                     step='update', output=output, )
         output.seek(0)
         print(output.read())

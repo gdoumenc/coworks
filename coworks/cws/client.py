@@ -1,7 +1,6 @@
 import sys
 from functools import partial
 from pathlib import Path
-
 import anyconfig
 import click
 from chalice.cli import chalice_version, get_system_info

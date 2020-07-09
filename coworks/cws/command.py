@@ -51,6 +51,9 @@ class CwsCommandOptions:
     def __repr__(self):
         return str(self.__options)
 
+    def setdefault(self, key, value):
+        if self.__options.get(key) is None:
+            self.__options[key] = value
 
 class CwsCommand(ABC):
 
