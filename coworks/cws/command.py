@@ -4,9 +4,10 @@ from abc import ABC, abstractmethod
 from coworks import TechMicroService
 
 
-class CwsCommandOptions:
+class CwsCommandOptions(dict):
 
     def __init__(self, cmd, **kwargs):
+        super().__init__()
         self.__cmd = cmd
         self.__options = kwargs
 

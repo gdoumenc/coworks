@@ -11,7 +11,7 @@ from .command import CwsCommand
 class CwsTerraform(Terraform):
 
     def __init__(self, working_dir, debug):
-        super().__init__(working_dir=working_dir, terraform_bin_path='/usr/local/bin/terraform')
+        super().__init__(working_dir=working_dir, terraform_bin_path='terraform')
         self.debug = debug
         self.__initialized = False
 
