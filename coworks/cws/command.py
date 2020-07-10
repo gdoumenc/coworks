@@ -4,7 +4,8 @@ from abc import ABC, abstractmethod
 from coworks import TechMicroService
 
 
-class CwsCommandOptions(dict):
+class CwsCommandOptions():
+    """ Dictionnary wrapper over options to be able to get default options for command """
 
     def __init__(self, cmd, **kwargs):
         super().__init__()

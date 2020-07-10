@@ -16,4 +16,4 @@ class TestClass:
         actual = zip.execute.call_args[1]["options"]
         expected = {'project_dir': '.', 'module': 'test', 'workspace': 'workspace', 'service': 'test', 'profile_name': 'profile_name'}
 
-        assert len(set(actual.items()) - set(expected.items())) == 0
+        assert len(set(actual.to_dict().items()) - set(expected.items())) == 0
