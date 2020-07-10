@@ -53,7 +53,7 @@ resource "aws_lambda_function" "{{ resource_id }}" {
   handler = "{{ module_file }}.{{ handler }}"
   layers = concat([for layer in aws_lambda_layer_version.{{ resource_id }}: layer.arn], [for layer in data.aws_lambda_layer_version.{{ resource_id }}: layer.arn])
   runtime = "python3.7"
-  timeout = 10
+  timeout = 30
   {% if environment_variable_files != [] %}
   environment {
     variables = [for item in local.environment_variables: merge(item,local.environment_variables...)][0]
