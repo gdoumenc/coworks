@@ -1,9 +1,11 @@
-import os
 import sys
-from pathlib import Path
+from time import sleep
 
 import click
+
+from pathlib import Path
 from python_terraform import Terraform
+from threading import Thread
 
 from .command import CwsCommand
 
@@ -89,10 +91,18 @@ class CwsDeployer(CwsCommand):
             self.app.execute('zip', **options.to_dict())
         print("Creating lambda and api resources ...")
         (Path('.') / 'terraform').mkdir(exist_ok=True)
-        self._terraform_export_and_apply_local('create', options)
+
+        terraform_thread = Thread(target=self._terraform_export_and_apply_local, args=('create', options))
+        terraform_thread.start()
         print("Updating api integrations and deploying api ...")
-        self._terraform_export_and_apply_local('update', options)
+        CwsDeployer.display_spinning_cursor(terraform_thread)
+        terraform_thread.join()
+
+        terraform_thread = Thread(target=self._terraform_export_and_apply_local, args=('update', options))
+        terraform_thread.start()
         print("Microservice deployed.")
+        CwsDeployer.display_spinning_cursor(terraform_thread)
+        terraform_thread.join()
 
     def _terraform_export_and_apply_local(self, step, options):
         output_path = str(Path('.') / 'terraform' / f"_{options.module}-{options.service}.tf")
@@ -101,6 +111,21 @@ class CwsDeployer(CwsCommand):
             terraform = CwsTerraform(Path('.') / 'terraform', options['debug'])
             terraform.apply_local("default")
             terraform.apply_local(options.workspace)
+
+    @staticmethod
+    def spinning_cursor():
+        while True:
+            for cursor in '|/-\\':
+                yield cursor
+
+    @staticmethod
+    def display_spinning_cursor(thread):
+        spinner = CwsDeployer.spinning_cursor()
+        while thread.is_alive():
+            sys.stdout.write(next(spinner))
+            sys.stdout.flush()
+            sleep(0.1)
+            sys.stdout.write('\b')
 
 
 class CwsDestroyer(CwsCommand):
