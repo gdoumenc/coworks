@@ -88,6 +88,7 @@ class CwsDeployer(CwsCommand):
         if not options['dry']:
             self.app.execute('zip', **options.to_dict())
         print("Creating lambda and api resources ...")
+        (Path('.') / 'terraform').mkdir(exist_ok=True)
         self._terraform_export_and_apply_local('create', options)
         print("Updating api integrations and deploying api ...")
         self._terraform_export_and_apply_local('update', options)
@@ -125,6 +126,7 @@ class CwsDestroyer(CwsCommand):
         pass
 
     def _local_destroy(self, options):
+        (Path('.') / 'terraform').mkdir(exist_ok=True)
         output_path = str(Path('.') / 'terraform' / f"_{options.module}-{options.service}.tf")
         self.app.execute('terraform-staging', output=output_path, step='create', **options.to_dict())
         terraform = CwsTerraform(Path('.') / 'terraform', options['debug'])
