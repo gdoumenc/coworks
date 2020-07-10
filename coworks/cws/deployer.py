@@ -6,6 +6,7 @@ import click
 from pathlib import Path
 from python_terraform import Terraform
 from threading import Thread
+from pprint import PrettyPrinter
 
 from .command import CwsCommand
 
@@ -50,6 +51,11 @@ class CwsTerraform(Terraform):
         return_code, out, err = super().destroy(input=False, raise_on_error=True)
         self._print(out, err)
 
+    def output(self, *args, **kwargs):
+        out = super().output(raise_on_error=True)
+        pp = PrettyPrinter(compact=True)
+        pp.pprint(out)
+
     def _print(self, out, err):
         if self.debug:
             print(out, file=sys.stdout)
@@ -91,18 +97,18 @@ class CwsDeployer(CwsCommand):
             self.app.execute('zip', **options.to_dict())
         print("Creating lambda and api resources ...")
         (Path('.') / 'terraform').mkdir(exist_ok=True)
-
         terraform_thread = Thread(target=self._terraform_export_and_apply_local, args=('create', options))
         terraform_thread.start()
-        print("Updating api integrations and deploying api ...")
         CwsDeployer.display_spinning_cursor(terraform_thread)
         terraform_thread.join()
+        print("Updating api integrations and deploying api ...")
 
         terraform_thread = Thread(target=self._terraform_export_and_apply_local, args=('update', options))
         terraform_thread.start()
-        print("Microservice deployed.")
         CwsDeployer.display_spinning_cursor(terraform_thread)
         terraform_thread.join()
+        print("Microservice deployed.")
+
 
     def _terraform_export_and_apply_local(self, step, options):
         output_path = str(Path('.') / 'terraform' / f"_{options.module}-{options.service}.tf")
@@ -111,6 +117,8 @@ class CwsDeployer(CwsCommand):
             terraform = CwsTerraform(Path('.') / 'terraform', options['debug'])
             terraform.apply_local("default")
             terraform.apply_local(options.workspace)
+            if step == 'update':
+                terraform.output()
 
     @staticmethod
     def spinning_cursor():
