@@ -1,11 +1,10 @@
 import base64
 import hashlib
-import os
 import shutil
 import tempfile
-import click
-
 from pathlib import Path
+
+import click
 
 from coworks.cws.error import CwsCommandError
 from coworks.mixins import Boto3Mixin, AwsS3Session
@@ -18,12 +17,13 @@ class CwsZipArchiver(CwsCommand, Boto3Mixin):
 
     @property
     def options(self):
-        return (
+        return [
+            *super().options,
             click.option('--customer', '-c'),
             click.option('--profile_name', '-p'),
             click.option('--bucket', '-b', help='Bucket to upload zip to'),
             click.option('--debug/--no-debug', default=False, help='Print debug logs to stderr.')
-        )
+        ]
 
     def _execute(self, options):
         aws_s3_session = AwsS3Session(profile_name=options['profile_name'])
@@ -50,7 +50,8 @@ class CwsZipArchiver(CwsCommand, Boto3Mixin):
                 try:
                     aws_s3_session.client.upload_fileobj(b64sha256_file, options['bucket'], f"{archive_name}.b64sha256",
                                                          ExtraArgs={'ContentType': 'text/plain'})
-                    print(f"Successfully uploaded archive hash as {archive_name}.b64sha256, value of the hash : {b64sha256} ")
+                    print(
+                        f"Successfully uploaded archive hash as {archive_name}.b64sha256, value of the hash : {b64sha256} ")
                 except Exception as e:
                     print(f"Failed to upload archive hash on S3 : {e}")
                     raise CwsCommandError(str(e))

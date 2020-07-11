@@ -48,8 +48,13 @@ class CwsCommandOptions():
     def keys(self):
         return self.__options.keys()
 
-    def to_dict(self):
-        return self.__options
+    def to_dict(self, pop=None):
+        if type(pop) is not list:
+            pop = [pop]
+        options = self.__options
+        for p in pop:
+            options.pop(p, None)
+        return options
 
     def __repr__(self):
         return str(self.__options)
@@ -80,8 +85,15 @@ class CwsCommand(ABC):
         app.commands[self.name] = self
 
     @property
+    def needed_commands(self):
+        return []
+
+    @property
     def options(self):
-        return ()
+        opt = []
+        for cmd in self.needed_commands:
+            opt.extend(self.app.commands[cmd].options)
+        return opt
 
     def execute(self, *, options: CwsCommandOptions, output=None, error=None):
         """ Called when the command is called.

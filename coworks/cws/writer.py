@@ -25,12 +25,13 @@ class CwsWriter(CwsCommand):
 
     @property
     def options(self):
-        return (
+        return [
+            *super().options,
             click.option('--output', default=None),
             click.option('--step', default=DEFAULT_STEP),
             click.option('--config', default=None),
             click.option('--debug/--no-debug', default=False, help='Print debug logs to stderr.')
-        )
+        ]
 
     def _execute(self, options):
         self._export_header(options)
@@ -211,11 +212,12 @@ class CwsTerraformStagingWriter(CwsTerraformWriter):
 
     @property
     def options(self):
-        return (
+        return [
+            *super().options,
             click.option('--custom_layers', default=[]),
             click.option('--common_layers', default=[]),
             click.option('--binary_media_types', default=[]),
-        )
+        ]
 
     def _validate_context(self, options):
         options.setdefault('custom_layers', [])

@@ -2,12 +2,12 @@ import inspect
 import json
 import logging
 import os
-import sys
 import traceback
 from functools import update_wrapper
 from threading import Lock
 from typing import Dict, List, Union
 
+import sys
 from aws_xray_sdk.core import xray_recorder
 from chalice import AuthResponse, BadRequestError, Rate, Cron
 from chalice import Chalice, Blueprint as ChaliceBlueprint
