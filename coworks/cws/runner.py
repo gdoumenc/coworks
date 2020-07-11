@@ -2,9 +2,11 @@ import logging
 import os
 import sys
 import threading
+import urllib.parse
 
+import chalice.local
 import click
-from chalice.local import LocalDevServer
+from chalice.local import LocalDevServer, ChaliceRequestHandler, LocalGateway
 
 from .command import CwsCommand
 
@@ -46,9 +48,32 @@ class CwsRunner(CwsCommand):
 
         factory = CwsFactory(ms, options.project_dir, debug=options['debug'])
         config = factory.mock_config_obj(ms)
-        ms.local_server = LocalDevServer(ms, config, options['host'], options['port'])
+        ms.local_server = LocalDevServer(ms, config, options['host'], options['port'],
+                                         handler_cls=CwsRequestHandler)
         ms.__class__ = type('LocalMicroService', (ms.__class__, ThreadedMixin), {})
         ms.local_server.serve_forever()
+
+
+class CwsRequestHandler(ChaliceRequestHandler):
+    """Request handler redefined to quote query parameters."""
+
+    def __init__(self, request, client_address, server, app_object, config):
+        chalice.local.LocalGateway = CwsLocalGateway
+        super().__init__(request, client_address, server, app_object, config)
+        chalice.local.LocalGateway = LocalGateway
+
+    def parse_request(self):
+        request = super().parse_request()
+        self.path = urllib.parse.quote(self.path)
+        return request
+
+
+class CwsLocalGateway(LocalGateway):
+    """Local gateway redefined to unquote query parameters."""
+
+    def _generate_lambda_event(self, method, path, headers, body):
+        path = urllib.parse.unquote(path)
+        return super()._generate_lambda_event(method, path, headers, body)
 
 
 class ThreadedMixin:
