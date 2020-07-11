@@ -8,7 +8,7 @@ import yaml
 from coworks import BizFactory
 from coworks.cws.command import CwsCommandOptions
 from coworks.cws.sfn import StepFunctionWriter, StepFunction, TechState
-from coworks.cws.writer import WriterError
+from coworks.cws.writer import CwsWriterError
 from tests.src.coworks.tech_ms import S3MockTechMS
 
 
@@ -94,14 +94,11 @@ class TestClass:
         biz = BizFactory('tests/src/coworks/biz/empty')
         biz.create('test')
         writer = StepFunctionWriter(biz)
-        output = io.StringIO()
-        with pytest.raises(WriterError):
+        self.io = io.StringIO()
+        output = self.io
+        with pytest.raises(CwsWriterError):
             options = CwsCommandOptions(writer, project_dir='.', module='', service='', workspace='dev')
             writer.execute(options=options, output=output, error=output)
-        output.seek(0)
-        res = output.read()
-        assert res == "Error in tests/src/coworks/biz/empty: The content of the tests/src/coworks/biz/empty microservice " \
-                      "seems to be empty.\n"
 
     def test_biz_complete(self):
         """Tests the doc example."""
@@ -159,9 +156,9 @@ class TestClass:
             }
         }]}
         sfn = TestStepFunction(yaml.dump(data))
-        with pytest.raises(WriterError) as pytest_wrapped_e:
+        with pytest.raises(CwsWriterError) as pytest_wrapped_e:
             sfn.generate()
-        assert pytest_wrapped_e.type == WriterError
+        assert pytest_wrapped_e.type == CwsWriterError
         assert pytest_wrapped_e.value.args[0] == "No route defined for {'name': 'action', 'tech': {'service': 'tech'}}"
 
         data = {'states': [{
@@ -171,9 +168,9 @@ class TestClass:
             }
         }]}
         sfn = TestStepFunction(yaml.dump(data))
-        with pytest.raises(WriterError) as pytest_wrapped_e:
+        with pytest.raises(CwsWriterError) as pytest_wrapped_e:
             sfn.generate()
-        assert pytest_wrapped_e.type == WriterError
+        assert pytest_wrapped_e.type == CwsWriterError
         assert pytest_wrapped_e.value.args[0] == "The key service is missing for {'get': '/'}"
 
         data = {'states': [{
@@ -185,9 +182,9 @@ class TestClass:
             }
         }]}
         sfn = TestStepFunction(yaml.dump(data))
-        with pytest.raises(WriterError) as pytest_wrapped_e:
+        with pytest.raises(CwsWriterError) as pytest_wrapped_e:
             sfn.generate()
-        assert pytest_wrapped_e.type == WriterError
+        assert pytest_wrapped_e.type == CwsWriterError
         assert pytest_wrapped_e.value.args[0].startswith("Too many methods defined for ")
 
     def test_catch_all(self):
@@ -243,7 +240,7 @@ class TestClass:
             'choices': None
         }]}
         sfn = TestStepFunction(yaml.dump(data))
-        with pytest.raises(WriterError):
+        with pytest.raises(CwsWriterError):
             sfn.generate()
 
         data = {'states': [{

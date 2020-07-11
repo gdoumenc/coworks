@@ -7,6 +7,7 @@ import click
 
 from pathlib import Path
 
+from coworks.cws.error import CwsCommandError
 from coworks.mixins import Boto3Mixin, AwsS3Session
 from .command import CwsCommand
 
@@ -40,6 +41,7 @@ class CwsZipArchiver(CwsCommand, Boto3Mixin):
                     print(f"Successfully uploaded archive as {archive_name} ")
                 except Exception as e:
                     print(f"Failed to upload module archive on S3 : {e}")
+                    raise CwsCommandError(str(e))
 
             with tmp_path.with_name('b64sha256_file').open('wb') as b64sha256_file:
                 b64sha256_file.write(b64sha256)
@@ -51,3 +53,4 @@ class CwsZipArchiver(CwsCommand, Boto3Mixin):
                     print(f"Successfully uploaded archive hash as {archive_name}.b64sha256, value of the hash : {b64sha256} ")
                 except Exception as e:
                     print(f"Failed to upload archive hash on S3 : {e}")
+                    raise CwsCommandError(str(e))

@@ -8,13 +8,13 @@ from jinja2 import Environment, PackageLoader, select_autoescape, TemplateNotFou
 
 from coworks import TechMicroService
 from coworks.config import CORSConfig
-from coworks.cws.client import CwsError
 from coworks.cws.command import CwsCommand, CwsCommandOptions
+from coworks.cws.error import CwsCommandError
 
 DEFAULT_STEP = 'update'
 
 
-class WriterError(Exception):
+class CwsWriterError(CwsCommandError):
     ...
 
 
@@ -43,7 +43,7 @@ class CwsWriter(CwsCommand):
     @abstractmethod
     def _export_content(self, options):
         """ Main export function.
-        :param kwargs: Environment parameters for export.
+        :param options: Command optons.
         :return: None.
 
         Abstract method which must be redefined in any subclass. The content should be written in self.output.
@@ -84,12 +84,14 @@ class CwsTemplateWriter(CwsWriter):
 
         # Get parameters for execution
         try:
-            app_config = next(
+            config = next(
                 (app_config for app_config in self.app.configs if app_config.workspace == options.workspace)
             )
-        except:
-            raise CwsError("A workspace is mandatory in the python configuration for deploying.\n")
+        except StopIteration:
+            raise CwsCommandError("A workspace is mandatory in the python configuration for deploying.\n")
 
+        environment_variable_files = [p.as_posix() for p in
+                                      config.existing_environment_variables_files(options.project_dir)]
         data = {
             'writer': self,
             'project_dir': options.project_dir,
@@ -100,20 +102,19 @@ class CwsTemplateWriter(CwsWriter):
             'handler': options.service,
             'app': self.app,
             'ms_name': self.app.ms_name,
-            'app_config': app_config,
-            'environment_variable_files': app_config.existing_environment_variables_files(options.project_dir),
+            'app_config': config,
+            'environment_variable_files': environment_variable_files,
             **options.to_dict()
         }
-
         data.update(self.data)
         try:
             for template_filename in self.template_filenames:
                 template = self.env.get_template(template_filename)
                 print(self._format(template.render(**data)), file=self.output)
         except TemplateNotFound as e:
-            raise WriterError(f"Cannot find template {str(e)}")
+            raise CwsWriterError(f"Cannot find template {str(e)}")
         except Exception as e:
-            raise WriterError(e)
+            raise CwsWriterError(e)
 
 
 UID_SEP = '_'

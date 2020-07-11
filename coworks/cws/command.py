@@ -1,7 +1,8 @@
-import sys
 from abc import ABC, abstractmethod
 
+import sys
 from coworks import TechMicroService
+from coworks.cws.error import CwsCommandError
 
 
 class CwsCommandOptions():
@@ -57,6 +58,7 @@ class CwsCommandOptions():
         if self.__options.get(key) is None:
             self.__options[key] = value
 
+
 class CwsCommand(ABC):
 
     def __init__(self, app: TechMicroService = None, *, name):
@@ -81,7 +83,7 @@ class CwsCommand(ABC):
     def options(self):
         return ()
 
-    def execute(self, *, options:CwsCommandOptions, output=None, error=None):
+    def execute(self, *, options: CwsCommandOptions, output=None, error=None):
         """ Called when the command is called.
         :param output: output stream.
         :param error: error stream.
@@ -95,13 +97,18 @@ class CwsCommand(ABC):
         if error is not None:
             self.error = open(error, 'w+') if type(error) is str else error
 
-        for func in self.before_funcs:
-            func(options)
+        try:
+            for func in self.before_funcs:
+                func(options)
 
-        self._execute(options)
+            self._execute(options)
 
-        for func in self.after_funcs:
-            func(options)
+            for func in self.after_funcs:
+                func(options)
+        except CwsCommandError:
+            raise
+        except Exception as e:
+            raise CwsCommandError(str(e))
 
     def before_execute(self, f):
         """Registers a function to be run before the command execution.

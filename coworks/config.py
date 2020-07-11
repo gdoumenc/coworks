@@ -36,43 +36,37 @@ class Config:
     cors: CORSConfig = CORSConfig(allow_origin='')
 
     def existing_environment_variables_files(self, project_dir):
-        """ :return: list containing the paths to environment variables files that acually exist """
+        """Returns a list containing the paths to environment variables files that acually exist """
         if self.environment_variables_file is None:
             return []
         else:
             parent = Path(project_dir)
-            existing_environment_variables_files = []
-            if (parent / self.environment_variables_file).is_file():
-                existing_environment_variables_files.append(str((parent / self.environment_variables_file)))
-            if (parent / self.environment_variables_file).with_suffix(SECRET_ENV_FILE_SUFFIX).is_file():
-                existing_environment_variables_files.append(str((parent / self.environment_variables_file).with_suffix(SECRET_ENV_FILE_SUFFIX)))
-            return existing_environment_variables_files
+            var_file = parent / self.environment_variables_file
+            var_secret_file = var_file.with_suffix(SECRET_ENV_FILE_SUFFIX)
+            files = []
+            if var_file.is_file():
+                files.append(var_file)
+            if var_secret_file.is_file():
+                files.append(var_secret_file)
+            return files
 
     def load_environment_variables(self, project_dir):
-        if self.environment_variables_file:
-            parent = Path(project_dir)
-            var_file = Path(self.environment_variables_file)
-
-            if var_file.suffix != '.json':
-                raise FileNotFoundError(f"Environment variables file has not a JSON extension: {var_file}.\n")
-
-            self._load_file(parent / var_file.with_suffix(ENV_FILE_SUFFIX), must_exist=True)
-            self._load_file(parent / var_file.with_suffix(SECRET_ENV_FILE_SUFFIX), must_exist=False)
-
-    def _load_file(self, var_file, *, must_exist):
-        try:
-            with open(var_file) as f:
-                os.environ.update(json.loads(f.read()))
-        except FileNotFoundError:
-            if must_exist:
-                raise FileNotFoundError(f"Cannot find environment file {var_file} for workspace {self.workspace}.\n")
-        except JSONDecodeError as e:
-            raise FileNotFoundError(f"Syntax error when in e{var_file}: {str(e)}.\n")
-        except Exception as e:
-            print(type(e))
-            raise FileNotFoundError(f"Error when loading environment variables files {str(e)}.\n")
+        """Uploads environment variables from the environment variables files."""
+        for file in self.existing_environment_variables_files(project_dir):
+            self._load_file(file)
 
     def setdefault(self, key, value):
         """Same as for dict."""
         if not hasattr(self, key):
             setattr(self, key, value)
+
+    @staticmethod
+    def _load_file(var_file):
+        try:
+            with var_file.open() as f:
+                os.environ.update(json.loads(f.read()))
+        except JSONDecodeError as e:
+            raise FileNotFoundError(f"Syntax error when in e{var_file}: {str(e)}.\n")
+        except Exception as e:
+            print(type(e))
+            raise FileNotFoundError(f"Error when loading environment variables files {str(e)}.\n")

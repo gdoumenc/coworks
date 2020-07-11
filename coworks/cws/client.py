@@ -1,19 +1,15 @@
 import sys
 from functools import partial
-from pathlib import Path
+
 import anyconfig
 import click
 from chalice.cli import chalice_version, get_system_info
 
 from coworks.config import DEFAULT_PROJECT_DIR, DEFAULT_WORKSPACE
 from coworks.cws.command import CwsCommandOptions
+from coworks.cws.error import CwsClientError
 from coworks.utils import import_attr
 from coworks.version import __version__
-
-
-class CwsError(Exception):
-    def __init__(self, message):
-        self.msg = message
 
 
 @click.group()
@@ -57,7 +53,7 @@ def invoke(initial, ctx):
             handler = get_handler(project_dir, module, service)
             cmd = project_config.get_command(handler, module, service, workspace)
             if not cmd:
-                raise CwsError(f"Undefined command {cmd}.\n")
+                raise CwsClientError(f"Undefined command {cmd}.\n")
 
             # Defines the proxy command with all user options
             def call_execute(**command_options):
@@ -67,7 +63,7 @@ def invoke(initial, ctx):
                     cmd_project_config.complete_options(options)
                     cmd.execute(options=options)
                 except Exception as err:
-                    raise CwsError(str(err))
+                    raise CwsClientError(str(err))
 
             for opt in cmd.options:
                 call_execute = opt(call_execute)
@@ -75,7 +71,7 @@ def invoke(initial, ctx):
 
             # Call the command from click
             initial(ctx)
-    except CwsError as client_err:
+    except CwsClientError as client_err:
         sys.stderr.write(client_err.msg)
         sys.exit(1)
     except Exception as e:
@@ -95,26 +91,26 @@ def get_handler(project_dir, module, service):
     try:
         return import_attr(module, service, cwd=project_dir)
     except AttributeError as e:
-        raise CwsError(f"Module '{module}' has no microservice {service} : {str(e)}\n")
+        raise CwsClientError(f"Module '{module}' has no microservice {service} : {str(e)}\n")
     except ModuleNotFoundError as e:
-        raise CwsError(f"The module '{module}' is not defined in {project_dir} : {str(e)}\n")
+        raise CwsClientError(f"The module '{module}' is not defined in {project_dir} : {str(e)}\n")
     except Exception as e:
-        raise CwsError(f"Error {e} when loading module '{module}'\n")
+        raise CwsClientError(f"Error {e} when loading module '{module}'\n")
 
 
 class ProjectConfig:
     """Class for the project configuration file for commands."""
 
-    def __init__(self, cmd_name, project_dir, project_file="cws.project.yml"):
+    def __init__(self, cmd_name, project_dir):
+        from pathlib import Path
         self.cmd_name = cmd_name
         self.project_dir = project_dir
         self.params = {}
         self.__all_command_options = self.__all_default_options = None
 
-        project_file = Path(self.project_dir) / project_file
-        if project_file.is_file():
-            with project_file.open('r') as file:
-                self.params = anyconfig.load(file)
+        project_file = Path(self.project_dir) / "cws.project.yml"
+        project_secret_file = Path(self.project_dir) / "cws.project.secret.yml"
+        self.params = anyconfig.multi_load([project_file, project_secret_file], ac_ignore_missing=True)
 
     def get_command(self, ms, module, service, workspace):
         """Get the command associated to this microservice."""
@@ -141,7 +137,7 @@ class ProjectConfig:
         """ Returns the list of microservices on which the command will be executed."""
         services = self.params.get('services')
         if not services:
-            raise CwsError("No service defined in project file\n")
+            raise CwsClientError("No service defined in project file\n")
         return [(s['module'], s['service']) for s in services]
 
     def _get_option(self, module, service, workspace, key):

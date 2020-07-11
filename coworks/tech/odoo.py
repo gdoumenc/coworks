@@ -6,8 +6,6 @@ from http.client import BadStatusLine
 from xmlrpc import client
 
 import requests
-from aws_xray_sdk.core import xray_recorder
-from chalice import ChaliceViewError, NotFoundError, BadRequestError, Response
 from pyexpat import ExpatError
 from datetime import datetime
 
@@ -20,13 +18,13 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.url = self.db = self.username = self.password = self.models_url = self.api_uid = self.logger = None
-        self.aws_s3_session = AwsS3Session()
+        # self.aws_s3_session = AwsS3Session()
 
-        @self.before_first_activation
-        def check_env_vars():
-            self.bucket = os.getenv('BUCKET')
-            if not self.bucket:
-                raise EnvironmentError('BUCKET not defined in environment')
+        # @self.before_first_activation
+        # def check_env_vars():
+        #     self.bucket = os.getenv('BUCKET')
+        #     if not self.bucket:
+        #         raise EnvironmentError('BUCKET not defined in environment')
 
     def uplod_to_s3(self, file_obj, expiration=3600):
         """ Upload a file to s3 and return a presigned url to download it """
@@ -107,23 +105,14 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
             if dry:
                 return
 
-            try:
-                subsegment = xray_recorder.begin_subsegment(f"Quering ODOO")
-                with client.ServerProxy(self.models_url, allow_none=True) as models:
-                    if subsegment:
-                        subsegment.put_metadata('model', model)
-                        subsegment.put_metadata('method', method)
-                        for index, arg in enumerate(args):
-                            subsegment.put_metadata(f'arg{index}', arg)
-                    return models.execute_kw(self.db, self.api_uid, self.password, model, method, *args)
-            finally:
-                xray_recorder.end_subsegment()
+            with client.ServerProxy(self.models_url, allow_none=True) as models:
+                return models.execute_kw(self.db, self.api_uid, self.password, model, method, *args)
         except (BadStatusLine, ExpatError):
             self.logger.debug(f'Retry execute_kw : {model} {method} {args}')
             with client.ServerProxy(self.models_url) as models:
                 return models.execute_kw(self.db, self.api_uid, self.password, model, method, *args)
         except Exception as e:
-            raise ChaliceViewError(str(e))
+            raise
 
     def search(self, model, filters: list, fields=None, offset=None, limit=None, order=None) -> list:
         options = {}
@@ -344,8 +333,6 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
         self.logger = logging.getLogger('odoo')
 
         try:
-            xray_recorder.begin_subsegment(f"Connecting ODOO")
-
             # initialize xml connection to odoo
             common = client.ServerProxy(f'{self.url}/xmlrpc/2/common')
             self.api_uid = common.authenticate(self.db, self.username, self.password, {})
@@ -354,8 +341,6 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
             self.models_url = f'{self.url}/xmlrpc/2/object'
         except Exception:
             raise Exception(f'Odoo interface variables wrongly defined.')
-        finally:
-            xray_recorder.end_subsegment()
 
     @staticmethod
     def _ensure_one(results) -> dict:
