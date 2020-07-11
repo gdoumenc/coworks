@@ -1,12 +1,11 @@
 import sys
+from pathlib import Path
+from pprint import PrettyPrinter
+from threading import Thread
 from time import sleep
 
 import click
-
-from pathlib import Path
 from python_terraform import Terraform
-from threading import Thread
-from pprint import PrettyPrinter
 
 from .command import CwsCommand
 
@@ -67,8 +66,13 @@ class CwsDeployer(CwsCommand):
         super().__init__(app, name=name)
 
     @property
+    def needed_commands(self):
+        return 'zip', 'terraform-staging'
+
+    @property
     def options(self):
         return (
+            *super().options,
             click.option('--dry', is_flag=True, help="Doesn't perform terraform commands."),
             click.option('--remote', '-r', is_flag=True, help="Deploy on fpr-coworks.io."),
             click.option('--debug/--no-debug', default=False, help="Print debug logs to stderr."),
@@ -109,7 +113,6 @@ class CwsDeployer(CwsCommand):
         terraform_thread.join()
         print("Microservice deployed.")
 
-
     def _terraform_export_and_apply_local(self, step, options):
         output_path = str(Path('.') / 'terraform' / f"_{options.module}-{options.service}.tf")
         self.app.execute('terraform-staging', output=output_path, step=step, **options.to_dict())
@@ -142,8 +145,13 @@ class CwsDestroyer(CwsCommand):
         super().__init__(app, name=name)
 
     @property
+    def needed_commands(self):
+        return 'terraform-staging',
+
+    @property
     def options(self):
         return (
+            *super().options,
             click.option('--dry', is_flag=True, help="Doesn't perform terraform commands."),
             click.option('--remote', '-r', is_flag=True, help="Deploy on fpr-coworks.io."),
             click.option('--debug/--no-debug', default=False, help="Print debug logs to stderr."),
@@ -181,6 +189,3 @@ class CwsDestroyer(CwsCommand):
             terraform.destroy_local('default')
 
         print("Destroy completed")
-
-
-

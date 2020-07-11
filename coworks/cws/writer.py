@@ -26,6 +26,7 @@ class CwsWriter(CwsCommand):
     @property
     def options(self):
         return (
+            *super().options,
             click.option('--output', default=None),
             click.option('--step', default=DEFAULT_STEP),
             click.option('--config', default=None),
@@ -212,6 +213,7 @@ class CwsTerraformStagingWriter(CwsTerraformWriter):
     @property
     def options(self):
         return (
+            *super().options,
             click.option('--custom_layers', default=[]),
             click.option('--common_layers', default=[]),
             click.option('--binary_media_types', default=[]),

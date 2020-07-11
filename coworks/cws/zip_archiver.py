@@ -19,6 +19,7 @@ class CwsZipArchiver(CwsCommand, Boto3Mixin):
     @property
     def options(self):
         return (
+            *super().options,
             click.option('--customer', '-c'),
             click.option('--profile_name', '-p'),
             click.option('--bucket', '-b', help='Bucket to upload zip to'),

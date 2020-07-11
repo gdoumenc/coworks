@@ -80,8 +80,12 @@ class CwsCommand(ABC):
         app.commands[self.name] = self
 
     @property
-    def options(self):
+    def needed_commands(self):
         return ()
+
+    @property
+    def options(self):
+        return (self.app.commands[cmd].options for cmd in self.needed_commands)
 
     def execute(self, *, options: CwsCommandOptions, output=None, error=None):
         """ Called when the command is called.

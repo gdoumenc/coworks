@@ -18,6 +18,7 @@ class CwsRunner(CwsCommand):
     @property
     def options(self):
         return (
+            *super().options,
             click.option('-h', '--host', default='127.0.0.1'),
             click.option('-p', '--port', default=8000, type=click.INT),
             click.option('--debug/--no-debug', default=False, help='Print debug logs to stderr.')

@@ -123,7 +123,14 @@ class ProjectConfig:
         # Creates it from project class parameter if not already defined
         cmd_class = self.__command_class(module, service, workspace)
         if cmd_class:
-            return cmd_class(ms, name=self.cmd_name)
+            cmd = cmd_class(ms, name=self.cmd_name)
+
+            # Installs needed commands
+            for needed in cmd.needed_commands:
+                proj = ProjectConfig(needed, self.project_dir)
+                proj.get_command(ms, module, service, workspace)
+
+            return cmd
 
     def complete_options(self, options):
         """Adds project options to the command options."""
