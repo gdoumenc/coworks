@@ -1,3 +1,5 @@
+import itertools
+
 import sys
 from pathlib import Path
 from pprint import PrettyPrinter
@@ -67,16 +69,16 @@ class CwsDeployer(CwsCommand):
 
     @property
     def needed_commands(self):
-        return 'zip', 'terraform-staging'
+        return ['zip', 'terraform-staging']
 
     @property
     def options(self):
-        return (
+        return [
             *super().options,
             click.option('--dry', is_flag=True, help="Doesn't perform terraform commands."),
             click.option('--remote', '-r', is_flag=True, help="Deploy on fpr-coworks.io."),
             click.option('--debug/--no-debug', default=False, help="Print debug logs to stderr."),
-        )
+        ]
 
     def _execute(self, options):
         if options['remote']:
@@ -146,16 +148,16 @@ class CwsDestroyer(CwsCommand):
 
     @property
     def needed_commands(self):
-        return 'terraform-staging',
+        return ['terraform-staging']
 
     @property
     def options(self):
-        return (
+        return [
             *super().options,
             click.option('--dry', is_flag=True, help="Doesn't perform terraform commands."),
             click.option('--remote', '-r', is_flag=True, help="Deploy on fpr-coworks.io."),
             click.option('--debug/--no-debug', default=False, help="Print debug logs to stderr."),
-        )
+        ]
 
     def _execute(self, options):
         if options['remote']:

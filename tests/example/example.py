@@ -13,11 +13,11 @@ class CwsInfo(CwsCommand):
 
     @property
     def options(self):
-        return (
+        return [
             *super().options,
             click.option('-h'),
             click.option('-a')
-        )
+        ]
 
     def _execute(self, options):
         if options['h']:
