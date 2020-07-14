@@ -98,6 +98,7 @@ class CwsDeployer(CwsCommand):
             Step 3. Update API integrations
             Step 4. Update API deployment
         """
+        options.pop('step')
         print("Uploading zip of the microservice to S3")
         if not options['dry']:
             self.app.execute('zip', **options.to_dict())

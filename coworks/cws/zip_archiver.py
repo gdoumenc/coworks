@@ -5,9 +5,9 @@ import tempfile
 from pathlib import Path
 
 import click
-
 from coworks.cws.error import CwsCommandError
 from coworks.mixins import Boto3Mixin, AwsS3Session
+
 from .command import CwsCommand
 
 
@@ -26,6 +26,8 @@ class CwsZipArchiver(CwsCommand, Boto3Mixin):
         ]
 
     def _execute(self, options):
+        if options['bucket'] is None:
+            raise CwsCommandError("Undefined bucket (option -b must be defined).\n")
         aws_s3_session = AwsS3Session(profile_name=options['profile_name'])
 
         with tempfile.TemporaryDirectory() as tmp_dir:

@@ -1,6 +1,6 @@
+import sys
 from abc import ABC, abstractmethod
 
-import sys
 from coworks import TechMicroService
 from coworks.cws.error import CwsCommandError
 
@@ -62,6 +62,9 @@ class CwsCommandOptions():
     def setdefault(self, key, value):
         if self.__options.get(key) is None:
             self.__options[key] = value
+
+    def pop(self, key, value=None):
+        return self.__options.pop(key, value)
 
 
 class CwsCommand(ABC):
