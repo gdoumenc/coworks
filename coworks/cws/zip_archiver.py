@@ -1,8 +1,8 @@
 import base64
 import hashlib
-import shutil
 import tempfile
 from pathlib import Path
+from shutil import copytree, ignore_patterns, make_archive
 
 import click
 from coworks.cws.error import CwsCommandError
@@ -33,7 +33,10 @@ class CwsZipArchiver(CwsCommand, Boto3Mixin):
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
 
-            module_archive = shutil.make_archive(str(tmp_path.with_name('archive')), 'zip', options.project_dir)
+            copytree(options.project_dir, str(tmp_path.with_name('filtered_dir')),
+                     ignore=ignore_patterns('__pycache__*'))
+            module_archive = make_archive(str(tmp_path.with_name('archive')), 'zip',
+                                          str(tmp_path.with_name('filtered_dir')))
             with open(module_archive, 'rb') as module_archive:
                 b64sha256 = base64.b64encode(hashlib.sha256(module_archive.read()).digest())
                 module_archive.seek(0)
