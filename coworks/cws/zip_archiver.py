@@ -34,7 +34,7 @@ class CwsZipArchiver(CwsCommand, Boto3Mixin):
             tmp_path = Path(tmp_dir)
 
             copytree(options.project_dir, str(tmp_path.joinpath('filtered_dir')),
-                     ignore=ignore_patterns('__pycache__*'))
+                     ignore=ignore_patterns('__pycache__*', '*cws.project.yml'))
             module_archive = make_archive(str(tmp_path.joinpath('archive')), 'zip',
                                           str(tmp_path.joinpath('filtered_dir')))
             with open(module_archive, 'rb') as module_archive:
