@@ -128,7 +128,10 @@ class CwsDeployer(CwsCommand):
         print("Stepfunction deployment :")
 
         # Step 1.
-        self.local_techms_deploy(options)
+        for biz_name, biz in self.app.biz.items():
+            self.app = biz
+            options.__setitem__('service', biz_name)
+            self.local_techms_deploy(options)
 
         # Step 2.1
         (Path('.') / 'terraform').mkdir(exist_ok=True)
