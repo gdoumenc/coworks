@@ -9,6 +9,7 @@ from threading import Thread
 from pprint import PrettyPrinter
 
 from .command import CwsCommand
+from coworks import BizFactory
 
 
 class CwsTerraform(Terraform):
@@ -84,14 +85,20 @@ class CwsDeployer(CwsCommand):
         pass
 
     def _local_deploy(self, options):
+        if isinstance(self.app, BizFactory):
+            self.local_sfn_deploy(options)
+        else:
+            self.local_techms_deploy(options)
+
+    def local_techms_deploy(self, options):
         """ Deploiement in 4 steps:
-        create
-            Step 1. Create API (destroys API integrations made in previous deployment)
-            Step 2. Create Lambda (destroys API deployment made in previous deployment)
-        update
-            Step 3. Update API integrations
-            Step 4. Update API deployment
-        """
+            create
+                Step 1. Create API (destroys API integrations made in previous deployment)
+                Step 2. Create Lambda (destroys API deployment made in previous deployment)
+            update
+                Step 3. Update API integrations
+                Step 4. Update API deployment
+            """
         print("Uploading zip of the microservice to S3")
         if not options['dry']:
             self.app.execute('zip', **options.to_dict())
@@ -109,6 +116,37 @@ class CwsDeployer(CwsCommand):
         terraform_thread.join()
         print("Microservice deployed.")
 
+    def local_sfn_deploy(self, options):
+        """ Deployment of step function in two steps :
+        Step 1. Deploy API and lambda (that will be used to invoke the stepfunction) using the same deploy as for tech microservices
+        Step 2. Deploy stepfunction :
+            - 2.1. Translate stepfunction from yaml to json
+            - 2.2 Export terraform for step function deployment
+            - 2.3 Apply terraform
+        """
+
+        print("Stepfunction deployment :")
+
+        # Step 1.
+        self.local_techms_deploy(options)
+
+        # Step 2.1
+        (Path('.') / 'terraform').mkdir(exist_ok=True)
+        output_path = str(Path('.') / 'terraform' / f"_{options.module}-{options.service}.json")
+        self.app.execute('translate-sfn', output=output_path, **options.to_dict())
+
+        # Step 2.2
+        output_path = str(Path('.') / 'terraform' / f"_{options.module}-{options.service}-sfn.tf")
+        self.app.execute('export-sfn', output=output_path, **options.to_dict())
+
+        # Step 2.3
+        terraform = CwsTerraform(Path('.') / 'terraform', options['debug'])
+        terraform_thread = Thread(target=terraform.apply_local, args=(options['workspace'], ))
+        terraform_thread.start()
+        print("Creating step function resource ...")
+        CwsDeployer.display_spinning_cursor(terraform_thread)
+        terraform_thread.join()
+        terraform.output()
 
     def _terraform_export_and_apply_local(self, step, options):
         output_path = str(Path('.') / 'terraform' / f"_{options.module}-{options.service}.tf")
@@ -181,6 +219,3 @@ class CwsDestroyer(CwsCommand):
             terraform.destroy_local('default')
 
         print("Destroy completed")
-
-
-

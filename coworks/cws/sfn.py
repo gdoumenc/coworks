@@ -1,21 +1,29 @@
 import json
 import os
 import pathlib
+import click
 from abc import ABC, abstractmethod
 
 import yaml
 
-from coworks.cws.writer import CwsWriter, WriterError
+from coworks.cws.writer import CwsWriter, WriterError, CwsTerraformWriter
 
 INITIAL_STATE_NAME = "Init"
 LAMBDA_ERROR_FALLBACK = "MicroServiceErrorFallback"
 
 
-class StepFunctionWriter(CwsWriter):
+class CwsSFNTranslater(CwsWriter):
 
-    def __init__(self, app=None, name='sfn', extension='yml'):
+    def __init__(self, app=None, name='translate-sfn', extension='yml'):
         super().__init__(app, name=name)
         self.extension = extension
+
+    @property
+    def options(self):
+        return (
+            click.option('--output', default=None),
+            click.option('--account_number', default=None),
+        )
 
     def _export_content(self, options):
         module_path = options.module.split('.')
@@ -24,7 +32,7 @@ class StepFunctionWriter(CwsWriter):
         sfn_name = self.app.sfn_name
         filename = pathlib.Path(options.project_dir, *module_path[:-1]) / f"{sfn_name}.{self.extension}"
         try:
-            sfn = StepFunction(sfn_name, filename)
+            sfn = StepFunction(sfn_name, filename, options)
             step_functions[sfn_name] = sfn.generate()
         except WriterError as e:
             errors[sfn_name] = str(e)
@@ -40,10 +48,34 @@ class StepFunctionWriter(CwsWriter):
                 print(json.dumps(sfn, indent=2), file=self.output)
 
 
+class CwsSFNWriter(CwsTerraformWriter):
+    def __init__(self, app=None, *, name='export-sfn', data=None, **kwargs):
+        super().__init__(app, name=name, data=data, **kwargs)
+
+    @property
+    def default_template_filenames(self):
+        return ['sfn.j2']
+
+    @property
+    def options(self):
+        return (
+            click.option('--custom_layers', default=[]),
+            click.option('--common_layers', default=[]),
+            click.option('--binary_media_types', default=[]),
+        )
+
+    def _validate_context(self, options):
+        options.setdefault('custom_layers', [])
+        options.setdefault('common_layers', [])
+        options.setdefault('binary_media_types', [])
+        return options
+
+
 class StepFunction:
 
-    def __init__(self, sfn_name, filepath):
+    def __init__(self, sfn_name, filepath, options):
         self.name = sfn_name
+        self.options = options
         self.all_states = []
         try:
             with filepath.open() as file:
@@ -115,7 +147,7 @@ class StepFunction:
         elif 'success' in action:
             state = SuccessState(self, action)
         elif 'tech' in action:
-            state = TechState(self, action, no_catch=no_catch)
+            state = TechState(self, action, self.options, no_catch=no_catch)
         elif 'wait' in action:
             state = WaitState(self, action)
         else:
@@ -270,7 +302,7 @@ class WaitState(PassState):
 
 
 class TechState(PassState):
-    def __init__(self, sfn, action, **kwargs):
+    def __init__(self, sfn, action, options, **kwargs):
         self.no_catch = kwargs.pop('no_catch', False)
         super().__init__(sfn, action, Type="Task", **kwargs)
 
@@ -280,7 +312,7 @@ class TechState(PassState):
 
         try:
             res = self.get_or_raise(tech_data, 'service')
-            self.state['Resource'] = f"arn:aws:lambda:eu-west-1:935392763270:function:{res}"
+            self.state['Resource'] = f"arn:aws:lambda:eu-west-1:{options['account_number']}:function:{res}-{options.workspace}"
             self.state["InputPath"] = f"$"
             result_path = tech_data.get('result_path')
             self.state["ResultPath"] = result_path if result_path else f"$.{self.slug}.result"

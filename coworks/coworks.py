@@ -260,7 +260,7 @@ class TechMicroService(CoworksMixin, Chalice):
         # workspace = self._called_workspace(event, context)
 
         with self._before_activation_lock:
-            workspace =  os.environ['WORKSPACE']
+            workspace = os.environ['WORKSPACE']
             self.deferred_init(workspace=workspace)
 
             if not self._got_first_activation:
