@@ -214,9 +214,9 @@ class CwsTerraformStagingWriter(CwsTerraformWriter):
     def options(self):
         return [
             *super().options,
-            click.option('--custom_layers', default=[]),
-            click.option('--common_layers', default=[]),
-            click.option('--binary_media_types', default=[]),
+            click.option('--custom_layers'),
+            click.option('--common_layers'),
+            click.option('--binary_media_types'),
         ]
 
     def _validate_context(self, options):
