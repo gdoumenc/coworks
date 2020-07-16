@@ -33,10 +33,10 @@ class CwsZipArchiver(CwsCommand, Boto3Mixin):
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
 
-            copytree(options.project_dir, str(tmp_path.with_name('filtered_dir')),
-                     ignore=ignore_patterns('__pycache__*'))
-            module_archive = make_archive(str(tmp_path.with_name('archive')), 'zip',
-                                          str(tmp_path.with_name('filtered_dir')))
+            copytree(options.project_dir, str(tmp_path.joinpath('filtered_dir')),
+                     ignore=ignore_patterns('__pycache__*', '*cws.project.yml'))
+            module_archive = make_archive(str(tmp_path.joinpath('archive')), 'zip',
+                                          str(tmp_path.joinpath('filtered_dir')))
             with open(module_archive, 'rb') as module_archive:
                 b64sha256 = base64.b64encode(hashlib.sha256(module_archive.read()).digest())
                 module_archive.seek(0)
