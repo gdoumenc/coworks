@@ -6,7 +6,7 @@ TechMS Quickstart
 This page gives a quick and partial introduction to CoWorks technical microservices.
 Follow :doc:`installation` to set up a project and install CoWorks first.
 
-A tech microservice is simply defined by a python class which looks like this:
+A tech microservice is simply defined by a single python class which looks like this:
 
 .. code-block:: python
 
@@ -18,13 +18,15 @@ A tech microservice is simply defined by a python class which looks like this:
 First try
 ---------
 
-To create your first complete technical microservice, create a file ``app.py`` with the following content:
+To create your first complete technical microservice, create a file ``first.py`` with the following content:
 
 .. literalinclude:: ../tests/example/quickstart1.py
 
+This first example defines a very simple microservice ``app`` and adds it a local run command.
+
 Test this microservice locally::
 
-	(project) $ cws run
+	(project) $ cws -m first -s app run
 	Serving on http://127.0.0.1:8000
 
 
@@ -35,10 +37,10 @@ On another terminal enter::
 
 Looks good...
 
-Convert the try
----------------
+Deploy the try
+--------------
 
-First we will create a layer with the ``scons`` tool. This layer will contain all the necessary python modules
+First we will create an AWS lambda layer with the ``scons`` tool. This layer will contain all the necessary python modules
 for a simple execution.
 
 For this purpose, create a file ``SConstruct`` with the following content:

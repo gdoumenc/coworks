@@ -5,13 +5,6 @@ verify_ssl = true
 
 [packages]
 coworks = {path = ".",editable = true}
-sqlalchemy = "*"
-psycopg2 = "*"
-mysqlclient = "*"
-requests-toolbelt = "*"
-scons = "*"
-python-terraform = "*"
-anyconfig = "*"
 
 [dev-packages]
 codecov = "*"
@@ -26,6 +19,10 @@ websocket = "*"
 sphinx = "*"
 ipdb = "*"
 pytest-env = "*"
+sqlalchemy = "*"
+psycopg2 = "*"
+mysqlclient = "*"
+python-terraform = "*"
 
 [requires]
 python_version = "3.7"

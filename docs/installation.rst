@@ -29,7 +29,7 @@ CoWorks is now ready for you.
 *Beware*: As ``awscli`` (even ``boto3``) often evolves, make sure you have a compatible version of it in
 your python virtual environment or dependencies conflicts may occur.
 
-If you want to try now without deploying, you skip to :ref:`tech_quickstart`.
+If you want to try now without deploying, you may skip directly to :ref:`tech_quickstart`.
 
 Other tools
 -----------
@@ -48,8 +48,8 @@ and configured the
 Terraform
 *********
 
-For deployment, ``chalice`` provide a very simple and powerfull deployment command (``deploy``) but we recommand using
-``terraform`` for your projects.
+For deployment, ``chalice`` provide a very simple and powerfull deployment command (``deploy``) but we prefer using
+``terraform`` as it allows more controls on the architecture.
 
 Follow these `instructions <https://www.terraform.io/downloads.html>`_ to install terraform. Check installation with::
 
@@ -57,27 +57,21 @@ Follow these `instructions <https://www.terraform.io/downloads.html>`_ to instal
 
 Terraform can also be used `online <https://www.terraform.io>`_.
 
-SCons
-*****
-
-In order to reduce deployment duration, we use AWS Lambda
-`Layer <https://docs.aws.amazon.com/lambda/latest/dg/configuration-layers.html>`_.
-Thanks to layers, we can use libraries
-in our miscroserrvice without having to include them in the deployment package. We use
-`SCons <https://scons.org/>`_ to create layers.
-
-*Note*: To keep the `coworks` library as smaller as possible the `scons` package is not embeded as you can
-use any other tools for deployment.
-
-To install SCons::
-
-	(project) $ pipenv install SCons
-
-*Beware*: `scons` must not be installed with a system package tool such as `apt` as the python library is needed in our
-deployment process.
-
-Check installation with::
-
-	(project) $ scons --version
-
 You now have everything you need to create your first micro-service :ref:`tech_quickstart`
+
+PostgreSQL and MariaDB
+**********************
+
+If you want to use the predefined CoWorks SQL microservices, then on Debian/Ubuntu:
+
+postgreSQL::
+
+sudo apt-get install libpq-dev
+
+mariaDB::
+
+sudo apt-get install libmariadbclient-dev
+
+
+
+

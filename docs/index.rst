@@ -8,8 +8,8 @@ Introduction
 
 CoWorks is a unified serverless microservices framework based on AWS technologies.
 
-Each atomic microservice (``class TechMicroService``) is a simple python class deployed as a serverless AWS Lambda, and
-composition of microservices (``class BizMicroService``) is performed over the AWS Step Function product.
+Each atomic microservice (defined as ``class TechMicroService``) is a simple python class deployed as a serverless AWS Lambda, and
+composition of microservices (defined as ``class BizMicroService``) is performed over the AWS Step Function product.
 
 Other AWS technologies are used for logging, administration, ...
 
@@ -27,7 +27,6 @@ Using and derived from `Chalice <https://github.com/aws/chalice>`_ and some idea
 Other tools used:
 
 * `Terraform <https://github.com/hashicorp/terraform>`_ - Infrastructure configuration management tool.
-* `SCons <https://github.com/SCons/scons>`_ -  A software construction tool.
 
 
 What does microservice mean in CoWorks?
