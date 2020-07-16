@@ -96,16 +96,17 @@ class CwsDeployer(CwsCommand):
             Step 3. Update API integrations
             Step 4. Update API deployment
         """
+        print(f"Start deploying microservice {options.module}-{options.service}")
         options.pop('step')
         (Path('.') / 'terraform').mkdir(exist_ok=True)
         output_path = str(Path('.') / 'terraform' / f"_{options.module}-{options.service}.tf")
 
         if not options['dry']:
-            print("Uploading zip of the microservice to S3")
+            print(f"Uploading zip of the microservice {options.module}-{options.service} to S3")
             self.app.execute('zip', **options.to_dict())
 
         if not options['dry']:
-            print("Creating lambda and api resources ...")
+            print(f"Creating lambda and api resources for {options.module}-{options.service}...")
             terraform_thread = Thread(target=self._terraform_export_and_apply_local,
                                       args=('create', output_path, options))
             terraform_thread.start()
@@ -113,14 +114,14 @@ class CwsDeployer(CwsCommand):
             terraform_thread.join()
 
         if not options['dry']:
-            print("Updating api integrations and deploying api ...")
+            print(f"Updating api integrations and deploying api for {options.module}-{options.service}...")
         terraform_thread = Thread(target=self._terraform_export_and_apply_local, args=('update', output_path, options))
         terraform_thread.start()
         CwsDeployer.display_spinning_cursor(terraform_thread)
         terraform_thread.join()
 
         if not options['dry']:
-            print("Microservice deployed.")
+            print(f"Microservice {options.module}-{options.service} deployed in stage {options.workspace}.")
         else:
             print(f"Terraform {output_path} file created (dry mode).")
 
@@ -168,6 +169,7 @@ class CwsDestroyer(CwsCommand):
         ]
 
     def _execute(self, options):
+        print(f"Start destroying microservice {options.module}-{options.service}")
         if options['remote']:
             self._remote_destroy(options)
         else:
@@ -182,20 +184,21 @@ class CwsDestroyer(CwsCommand):
         self.app.execute('terraform-staging', output=output_path, step='create', **options.to_dict())
         terraform = CwsTerraform(Path('.') / 'terraform', options['debug'])
 
-        print("Destroying api deployment ...")
         if not options['dry']:
+            if options['debug']:
+                print("Destroying api deployment ...")
             terraform.apply_local(options.workspace)
 
-        print("Destroying api integrations ...")
-        if not options['dry']:
+            if options['debug']:
+                print("Destroying api integrations ...")
             terraform.apply_local('default')
 
-        print("Destroying lambdas ...")
-        if not options['dry']:
+            if options['debug']:
+                print("Destroying lambdas ...")
             terraform.destroy_local(options.workspace)
 
-        print("Destroying api resource ...")
-        if not options['dry']:
+            if options['debug']:
+                print("Destroying api resource ...")
             terraform.destroy_local('default')
 
-        print("Destroy completed")
+        print(f"Destroy microservice {options.module}-{options.service} completed")
