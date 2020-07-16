@@ -158,7 +158,14 @@ class ProjectConfig:
     @property
     def all_command_options(self):
         if self.__all_command_options is None:
-            self.__all_command_options = self.params.get('commands', {}).get(self.cmd_name, {})
+            cmd_name = self.cmd_name
+            self.__all_command_options = self.params.get('commands', {}).get(cmd_name, {})
+
+            # verify configuration structure
+            for s in self.__all_command_options.get('services', []):
+                if 'module' not in s:
+                    raise CwsClientError(f"The command {cmd_name} has options defined without module declaration\n")
+
         return self.__all_command_options
 
     @property
@@ -170,7 +177,8 @@ class ProjectConfig:
 
     def _service_options(self, module, service, workspace):
         services = [s for s in self.all_command_options.get('services', []) if
-                    s.get('module') == module and s.get('service') == service]
+                    (s.get('module') == module and 'service' not in s)
+                    or (s.get('module') == module and s.get('service') == service)]
 
         workspace_defined_services = [s for s in services if s.get('workspace') == workspace]
         workspace_undefined_services = [s for s in services if 'workspace' not in s]

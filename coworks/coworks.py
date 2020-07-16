@@ -333,7 +333,7 @@ class TechMicroService(CoworksMixin, Chalice):
 
         May be used as a decorator.
 
-        The function will be called without any arguments and its return value is ignored.
+        The function will be called with one parameter, the workspace, and its return value is ignored.
         """
 
         self.deferred_inits.append(f)
