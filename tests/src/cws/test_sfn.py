@@ -8,9 +8,8 @@ import yaml
 
 from coworks import BizFactory
 from coworks.cws.command import CwsCommandOptions
-from coworks.cws.sfn import CwsSFNWriter, StepFunction, TechState, CwsSFNTranslater
+from coworks.cws.sfn import StepFunction, TechState, CwsSFNTranslater
 from coworks.cws.writer import CwsWriterError
-
 from tests.src.coworks.tech_ms import S3MockTechMS
 
 
