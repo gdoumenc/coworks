@@ -3,16 +3,16 @@ from unittest.mock import Mock, MagicMock
 
 import pytest
 
-from coworks.pytest.fixture import local_server_factory as factory
+from coworks.cws.fixture import local_server_factory as factory
 from tests.mockup import email_mock, smtp_mock, boto3_mock
 
 
-@pytest.fixture()
+@pytest.fixture
 def example_dir():
     return os.getenv('EXAMPLE_DIR')
 
 
-@pytest.fixture()
+@pytest.fixture
 def zipfile_mock(request):
     import zipfile
 
@@ -32,17 +32,17 @@ def zipfile_mock(request):
     return zip_mock
 
 
-@pytest.fixture()
+@pytest.fixture
 def email_mock_fixture():
     yield email_mock
 
 
-@pytest.fixture()
+@pytest.fixture
 def smtp_mock_fixture():
     yield smtp_mock
 
 
-@pytest.fixture()
+@pytest.fixture
 def boto3_mock_fixture():
     yield boto3_mock
 

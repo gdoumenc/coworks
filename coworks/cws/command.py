@@ -2,6 +2,7 @@ import sys
 from abc import ABC, abstractmethod
 
 from coworks import TechMicroService
+from coworks.cws.error import CwsCommandError
 
 
 class CwsCommandOptions():
@@ -47,8 +48,13 @@ class CwsCommandOptions():
     def keys(self):
         return self.__options.keys()
 
-    def to_dict(self):
-        return self.__options
+    def to_dict(self, pop=None):
+        if type(pop) is not list:
+            pop = [pop]
+        options = self.__options
+        for p in pop:
+            options.pop(p, None)
+        return options
 
     def __repr__(self):
         return str(self.__options)
@@ -56,6 +62,10 @@ class CwsCommandOptions():
     def setdefault(self, key, value):
         if self.__options.get(key) is None:
             self.__options[key] = value
+
+    def pop(self, key, value=None):
+        return self.__options.pop(key, value)
+
 
 class CwsCommand(ABC):
 
@@ -78,10 +88,17 @@ class CwsCommand(ABC):
         app.commands[self.name] = self
 
     @property
-    def options(self):
-        return ()
+    def needed_commands(self):
+        return []
 
-    def execute(self, *, options:CwsCommandOptions, output=None, error=None):
+    @property
+    def options(self):
+        opt = []
+        for cmd in self.needed_commands:
+            opt.extend(self.app.commands[cmd].options)
+        return opt
+
+    def execute(self, *, options: CwsCommandOptions, output=None, error=None):
         """ Called when the command is called.
         :param output: output stream.
         :param error: error stream.
@@ -95,13 +112,18 @@ class CwsCommand(ABC):
         if error is not None:
             self.error = open(error, 'w+') if type(error) is str else error
 
-        for func in self.before_funcs:
-            func(options)
+        try:
+            for func in self.before_funcs:
+                func(options)
 
-        self._execute(options)
+            self._execute(options)
 
-        for func in self.after_funcs:
-            func(options)
+            for func in self.after_funcs:
+                func(options)
+        except CwsCommandError:
+            raise
+        except Exception as e:
+            raise CwsCommandError(str(e))
 
     def before_execute(self, f):
         """Registers a function to be run before the command execution.

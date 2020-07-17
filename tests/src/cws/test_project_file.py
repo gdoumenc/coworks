@@ -42,3 +42,18 @@ class TestClass:
         assert pytest_wrapped_e.value.code == 0
         captured = capsys.readouterr()
         assert captured.out == "info passed on paraminfo passed on param"
+
+    def test_project_file_project1(self, example_dir, capsys):
+        with pytest.raises(SystemExit) as pytest_wrapped_e:
+            client(prog_name='cws', args=['-p', 'tests/example', '-m', 'example', '-s', 'project1', 'test'], obj={})
+        assert pytest_wrapped_e.type == SystemExit
+        assert pytest_wrapped_e.value.code == 0
+        captured = capsys.readouterr()
+        assert captured.out == "info passed on test info"
+
+    def test_project_file_project2(self, example_dir, capsys):
+        with pytest.raises(SystemExit) as pytest_wrapped_e:
+            client(prog_name='cws', args=['-p', 'tests/example', '-m', 'example', '-s', 'project2', 'test'], obj={})
+        assert pytest_wrapped_e.type == SystemExit
+        assert pytest_wrapped_e.value.code == 0
+        captured = capsys.readouterr()

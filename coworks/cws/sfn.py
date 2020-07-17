@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 
 import yaml
 
-from coworks.cws.writer import CwsWriter, WriterError, CwsTerraformWriter
+from coworks.cws.writer import CwsWriter, CwsWriterError, CwsTerraformWriter
 
 INITIAL_STATE_NAME = "Init"
 LAMBDA_ERROR_FALLBACK = "MicroServiceErrorFallback"
@@ -28,24 +28,15 @@ class CwsSFNTranslater(CwsWriter):
     def _export_content(self, options):
         module_path = options.module.split('.')
         step_functions = {}
-        errors = {}
         sfn_name = self.app.sfn_name
         filename = pathlib.Path(options.project_dir, *module_path[:-1]) / f"{sfn_name}.{self.extension}"
-        try:
-            sfn = StepFunction(sfn_name, filename, options)
-            step_functions[sfn_name] = sfn.generate()
-        except WriterError as e:
-            errors[sfn_name] = str(e)
 
-        if errors:
-            for sfn_name, error in errors.items():
-                print(f"Error in {sfn_name}: {error}", file=self.error)
-            raise WriterError()
-        else:
-            for idx, (sfn_name, sfn) in enumerate(step_functions.items()):
-                if idx > 0:
-                    print("---", file=self.output)
-                print(json.dumps(sfn, indent=2), file=self.output)
+        sfn = StepFunction(sfn_name, filename, options)
+        step_functions[sfn_name] = sfn.generate()
+        for idx, (sfn_name, sfn) in enumerate(step_functions.items()):
+            if idx > 0:
+                print("---", file=self.output)
+            print(json.dumps(sfn, indent=2), file=self.output)
 
 
 class CwsSFNWriter(CwsTerraformWriter):
@@ -81,14 +72,14 @@ class StepFunction:
             with filepath.open() as file:
                 self.data = yaml.load(file, Loader=yaml.SafeLoader)
                 if not self.data:
-                    raise WriterError(f"The content of the {sfn_name} microservice seems to be empty.")
+                    raise CwsWriterError(f"The content of the {sfn_name} microservice seems to be empty.")
         except FileNotFoundError:
             path = pathlib.Path(filepath)
             if not path.is_absolute():
                 path = pathlib.Path(f"{os.getcwd()}/{filepath}")
-            raise WriterError(f"The source for the {sfn_name} microservice should be found in {path}.")
+            raise CwsWriterError(f"The source for the {sfn_name} microservice should be found in {path}.")
         except Exception as e:
-            raise WriterError(str(e))
+            raise CwsWriterError(str(e))
 
         self.global_catch = 'catch' in self.data
 
@@ -116,7 +107,7 @@ class StepFunction:
 
     def add_actions(self, states, actions, no_catch=False):
         if not actions:
-            raise WriterError("Actions list cannot be empty.")
+            raise CwsWriterError("Actions list cannot be empty.")
 
         previous_state = states[-1] if len(states) > 0 else None
         for action in actions:
@@ -151,7 +142,7 @@ class StepFunction:
         elif 'wait' in action:
             state = WaitState(self, action)
         else:
-            raise WriterError(f"Undefined type of action for {action}")
+            raise CwsWriterError(f"Undefined type of action for {action}")
 
         if previous_state is not None:
             add_next_to_previous_state()
@@ -184,7 +175,7 @@ class State(ABC):
         try:
             return action[key]
         except (KeyError, TypeError):
-            raise WriterError(f"The key {key} is missing for {action}")
+            raise CwsWriterError(f"The key {key} is missing for {action}")
 
     @staticmethod
     def get_goto(action_or_choice):
@@ -237,7 +228,7 @@ class ChoiceState(State):
 
         choices = self.get_or_raise(action, 'choices')
         if not choices:
-            raise WriterError(f"The list of choices may not be empty {action}")
+            raise CwsWriterError(f"The list of choices may not be empty {action}")
 
         self.state['Choices'] = self.create_choices_sequence(choices)
 
@@ -308,7 +299,7 @@ class TechState(PassState):
 
         tech_data = self.get_or_raise(action, 'tech')
         if not tech_data:
-            raise WriterError(f"The content of tech action is empty")
+            raise CwsWriterError(f"The content of tech action is empty")
 
         try:
             res = self.get_or_raise(tech_data, 'service')
@@ -339,7 +330,7 @@ class TechState(PassState):
                     })
 
         except KeyError as e:
-            raise WriterError(f"The key {e} is missing for {action}")
+            raise CwsWriterError(f"The key {e} is missing for {action}")
 
         self.add_goto(action)
 
@@ -357,7 +348,7 @@ class TechState(PassState):
         has_post = 'post' in tech_data
         has_put = 'put' in tech_data
         if has_get + has_post + has_put > 1:
-            raise WriterError(f"Too many methods defined for {action}")
+            raise CwsWriterError(f"Too many methods defined for {action}")
         if has_get:
             route = tech_data['get']
             method = 'GET'
@@ -368,7 +359,7 @@ class TechState(PassState):
             route = tech_data['put']
             method = 'PUT'
         if route is None:
-            raise WriterError(f"No route defined for {action}")
+            raise CwsWriterError(f"No route defined for {action}")
 
         # get call parameters
         uri_params = tech_data.get('uri_params')

@@ -4,7 +4,7 @@ import time
 
 import requests
 
-from coworks.pytest.local_server import ThreadedLocalServer
+from coworks.cws.runner import ThreadedLocalServer
 from coworks.utils import import_attr
 
 

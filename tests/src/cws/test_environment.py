@@ -3,12 +3,11 @@ import threading
 import time
 from pathlib import Path
 
-import pytest
 import requests
 
 from coworks.config import Config
 from coworks.cws.runner import CwsRunner
-from coworks.pytest.local_server import ThreadedLocalServer
+from coworks.cws.runner import ThreadedLocalServer
 from tests.src.coworks.tech_ms import *
 
 EXAMPLE_DIR = os.getenv('EXAMPLE_DIR')

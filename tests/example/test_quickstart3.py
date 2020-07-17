@@ -6,7 +6,7 @@ from pathlib import Path
 import requests
 
 from coworks.config import Config
-from coworks.pytest.local_server import ThreadedLocalServer
+from coworks.cws.runner import ThreadedLocalServer
 from coworks.utils import import_attr
 from .example import TechMS
 

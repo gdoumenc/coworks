@@ -1,10 +1,16 @@
+import contextlib
 import logging
 import os
+import socket
 import sys
 import threading
+import urllib.parse
+from threading import Thread, Event
 
+import chalice.local
 import click
-from chalice.local import LocalDevServer
+from chalice.config import Config
+from chalice.local import ChaliceRequestHandler, LocalGateway, LocalDevServer
 
 from .command import CwsCommand
 
@@ -15,11 +21,12 @@ class CwsRunner(CwsCommand):
 
     @property
     def options(self):
-        return (
+        return [
+            *super().options,
             click.option('-h', '--host', default='127.0.0.1'),
             click.option('-p', '--port', default=8000, type=click.INT),
             click.option('--debug/--no-debug', default=False, help='Print debug logs to stderr.')
-        )
+        ]
 
     def _execute(self, options):
         """ Runs the microservice in a local Chalice emulator.
@@ -46,9 +53,32 @@ class CwsRunner(CwsCommand):
 
         factory = CwsFactory(ms, options.project_dir, debug=options['debug'])
         config = factory.mock_config_obj(ms)
-        ms.local_server = LocalDevServer(ms, config, options['host'], options['port'])
+        ms.local_server = LocalDevServer(ms, config, options['host'], options['port'],
+                                         handler_cls=CwsRequestHandler)
         ms.__class__ = type('LocalMicroService', (ms.__class__, ThreadedMixin), {})
         ms.local_server.serve_forever()
+
+
+class CwsRequestHandler(ChaliceRequestHandler):
+    """Request handler redefined to quote query parameters."""
+
+    def __init__(self, request, client_address, server, app_object, config):
+        chalice.local.LocalGateway = CwsLocalGateway
+        super().__init__(request, client_address, server, app_object, config)
+        chalice.local.LocalGateway = LocalGateway
+
+    def parse_request(self):
+        request = super().parse_request()
+        self.path = urllib.parse.quote(self.path)
+        return request
+
+
+class CwsLocalGateway(LocalGateway):
+    """Local gateway redefined to unquote query parameters."""
+
+    def _generate_lambda_event(self, method, path, headers, body):
+        path = urllib.parse.unquote(path)
+        return super()._generate_lambda_event(method, path, headers, body)
 
 
 class ThreadedMixin:
@@ -61,3 +91,44 @@ class ThreadedMixin:
     @current_request.setter
     def current_request(self, value):
         self._THREAD_LOCAL.current_request = value
+
+
+
+class ThreadedLocalServer(Thread):
+    threaded_servers = {}
+
+    def __init__(self, *, port=None, host='localhost'):
+        super().__init__()
+        self._app_object = None
+        self._config = None
+        self._host = host
+        self._port = port or self.unused_tcp_port()
+        self._server = None
+        self._server_ready = Event()
+
+    def wait_for_server_ready(self):
+        self._server_ready.wait()
+
+    def configure(self, app_object, config=None, **kwargs):
+        self._app_object = app_object
+        self._config = config if config else Config()
+
+    def run(self):
+        self._server = LocalDevServer(self._app_object, self._config, self._host, self._port)
+        self._server_ready.set()
+        self._server.serve_forever()
+
+    def make_call(self, method, path, timeout=0.5, **kwarg):
+        self._server_ready.wait()
+        return method('http://{host}:{port}{path}'.format(
+            path=path, host=self._host, port=self._port), timeout=timeout, **kwarg)
+
+    def shutdown(self):
+        if self._server is not None:
+            self._server.server.shutdown()
+
+    @classmethod
+    def unused_tcp_port(cls):
+        with contextlib.closing(socket.socket()) as sock:
+            sock.bind(('localhost', 0))
+            return sock.getsockname()[1]

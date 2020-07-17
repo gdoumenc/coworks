@@ -1,13 +1,13 @@
-import pytest
-
 import os
 
-from .local_server import ThreadedLocalServer
-from .. import TechMicroService
+import pytest
+
+from coworks import TechMicroService
+from .runner import ThreadedLocalServer
 from ..config import DEFAULT_PROJECT_DIR, DEFAULT_WORKSPACE
 
 
-@pytest.fixture()
+@pytest.fixture
 def local_server_factory():
     threaded_server = ThreadedLocalServer()
 

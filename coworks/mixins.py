@@ -11,6 +11,7 @@ from botocore.exceptions import BotoCoreError
 from chalice import BadRequestError, Response
 from requests_toolbelt.multipart import MultipartDecoder
 
+from coworks.cws.error import CwsError
 from coworks.utils import begin_xray_subsegment, end_xray_subsegment
 
 
@@ -74,7 +75,7 @@ class CoworksMixin:
                                     name, content = self._get_multipart_content(part)
                                     add_param(name, content)
                             except Exception as e:
-                                print(e)
+                                raise CwsError(str(e))
                             kwargs = dict(**kwargs, **params)
 
                         elif content_type.startswith('application/json'):
@@ -142,8 +143,7 @@ class CoworksMixin:
             try:
                 s3_object = self.aws_s3_form_data_session.client.get_object(Bucket=pathes[0], Key=pathes[1])
             except BotoCoreError:
-                print(f"Bucket={pathes[0]} Key={pathes[1]} not found on s3")
-                return BadRequestError(f"Bucket={pathes[0]} Key={pathes[1]} not found on s3")
+                return CwsError(f"Bucket={pathes[0]} Key={pathes[1]} not found on s3")
             file = io.BytesIO(s3_object['Body'].read())
             mime_type = s3_object['ContentType']
         else:
@@ -266,7 +266,6 @@ class Boto3Mixin:
     def aws_access_key(self):
         value = os.getenv(self.__env_var_access_key)
         if not value:
-            print(f"{self.__env_var_access_key} not defined in environment")
             raise EnvironmentError(f"{self.__env_var_access_key} not defined in environment")
         return value
 
@@ -274,7 +273,6 @@ class Boto3Mixin:
     def aws_secret_access_key(self):
         value = os.getenv(self.__env_var_secret_key)
         if not value:
-            print(f"{self.__env_var_secret_key} not defined in environment")
             raise EnvironmentError(f"{self.__env_var_secret_key} not defined in environment")
         return value
 
@@ -282,7 +280,6 @@ class Boto3Mixin:
     def region_name(self):
         value = os.getenv(self.__env_var_region)
         if not value:
-            print(f"{self.__env_var_region} not defined in environment")
             raise EnvironmentError(f"{self.__env_var_region} not defined in environment")
         return value
 
@@ -300,16 +297,14 @@ class Boto3Mixin:
                 try:
                     self.__session__ = boto3.Session(profile_name=self.__profile_name, region_name=region_name)
                 except Exception:
-                    print(f"Cannot create session for profile {self.__profile_name} and region {region_name}")
-                    raise
+                    raise CwsError(f"Cannot create session for profile {self.__profile_name} and region {region_name}")
             else:
                 access_key = self.aws_access_key
                 secret_key = self.aws_secret_access_key
                 try:
                     self.__session__ = boto3.Session(access_key, secret_key, region_name=region_name)
                 except Exception:
-                    print(f"Cannot create session for key {access_key}, secret {secret_key} and region {region_name}")
-                    raise
+                    raise CwsError(f"Cannot create session for key {access_key}, secret {secret_key} and region {region_name}")
         return self.__session__
 
 

@@ -2,18 +2,19 @@ import inspect
 import json
 import logging
 import os
-import sys
 import traceback
 from functools import update_wrapper
 from threading import Lock
 from typing import Dict, List, Union
 
+import sys
 from aws_xray_sdk.core import xray_recorder
 from chalice import AuthResponse, BadRequestError, Rate, Cron
 from chalice import Chalice, Blueprint as ChaliceBlueprint
 from requests_toolbelt.multipart import MultipartEncoder
 
 from .config import Config, DEFAULT_WORKSPACE
+from .cws.error import CwsCommandError
 from .mixins import CoworksMixin, AwsSFNSession
 from .utils import begin_xray_subsegment, end_xray_subsegment
 from .utils import class_auth_methods, class_rest_methods, class_attribute, trim_underscores
@@ -155,7 +156,7 @@ class TechMicroService(CoworksMixin, Chalice):
         service = kwargs.setdefault('service', self.ms_name)
         cmd = project_config.get_command(self, module, service, workspace)
         if not cmd:
-            raise Exception(f"The command {command} was not added to the microservice {self.ms_name}.\n")
+            raise CwsCommandError(f"The command {command} was not added to the microservice {self.ms_name}.\n")
 
         options = CwsCommandOptions(cmd, project_dir=project_dir, module=module, workspace=workspace, **kwargs)
         project_config.complete_options(options)
@@ -332,7 +333,7 @@ class TechMicroService(CoworksMixin, Chalice):
 
         May be used as a decorator.
 
-        The function will be called without any arguments and its return value is ignored.
+        The function will be called with one parameter, the workspace, and its return value is ignored.
         """
 
         self.deferred_inits.append(f)
