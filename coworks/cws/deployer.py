@@ -8,6 +8,7 @@ from python_terraform import Terraform
 from threading import Thread
 from pprint import PrettyPrinter
 
+from coworks.config import Config
 from .command import CwsCommand
 from coworks import BizFactory
 
@@ -128,10 +129,15 @@ class CwsDeployer(CwsCommand):
         print("Stepfunction deployment :")
 
         # Step 1.
+        biz_factory = self.app
+        biz_factory_name = options['service']
         for biz_name, biz in self.app.biz.items():
+            biz.deferred_init(options.workspace)
             self.app = biz
             options.__setitem__('service', biz_name)
             self.local_techms_deploy(options)
+        self.app = biz_factory
+        options.__setitem__('service', biz_factory_name)
 
         # Step 2.1
         (Path('.') / 'terraform').mkdir(exist_ok=True)

@@ -415,7 +415,7 @@ class BizFactory(TechMicroService):
             res = self.sfn_client.list_state_machines()
             while True:
                 for sfn in res['stateMachines']:
-                    if sfn['name'] == self.sfn_name:
+                    if sfn['name'] == f"{self.sfn_name}-{os.environ['WORKSPACE']}":
                         self.__sfn_arn__ = sfn['stateMachineArn']
                         return self.__sfn_arn__
 
@@ -426,39 +426,39 @@ class BizFactory(TechMicroService):
                 res = self.sfn_client.list_state_machines(nextToken=next_token)
         return self.__sfn_arn__
 
-    def get_sfn_name(self):
-        """Returns the name of the associated step function."""
-        return self.sfn_name
+    # def get_sfn_name(self):
+    #     """Returns the name of the associated step function."""
+    #     return self.sfn_name
+    #
+    # def get_sfn_arn(self):
+    #     """Returns the arn of the associated step function."""
+    #     return self.sfn_arn
+    #
+    # def get_biz_names(self):
+    #     """Returns the list of biz microservices defined in the factory."""
+    #     return [name for name in self.biz]
 
-    def get_sfn_arn(self):
-        """Returns the arn of the associated step function."""
-        return self.sfn_arn
+    # def post_trigger(self, biz_name, data=None):
+    #     """Manual triggering a biz microservice."""
+    #     if self.debug:
+    #         print(f"Manual triggering: {biz_name}")
+    #
+    #     data = data or {}
+    #     try:
+    #         self.biz[biz_name].data.update(data)
+    #         return self.biz[biz_name](data, {})
+    #     except KeyError:
+    #         if self.debug:
+    #             print(f"Cannot found {biz_name} in services {[k for k in self.biz.keys()]}")
+    #         raise BadRequestError(f"Cannot found {biz_name} biz microservice")
 
-    def get_biz_names(self):
-        """Returns the list of biz microservices defined in the factory."""
-        return [name for name in self.biz]
-
-    def post_trigger(self, biz_name, data=None):
-        """Manual triggering a biz microservice."""
-        if self.debug:
-            print(f"Manual triggering: {biz_name}")
-
-        data = data or {}
-        try:
-            self.biz[biz_name].data.update(data)
-            return self.biz[biz_name](data, {})
-        except KeyError:
-            if self.debug:
-                print(f"Cannot found {biz_name} in services {[k for k in self.biz.keys()]}")
-            raise BadRequestError(f"Cannot found {biz_name} biz microservice")
-
-    def create(self, biz_name, trigger=None, data: dict = None, **kwargs):
+    def create(self, biz_name, trigger=None, configs: List[dict] = None, **kwargs):
         """Creates a biz microservice. If the trigger is not defined the microservice can only be triggered manually."""
 
         if biz_name in self.biz:
             raise BadRequestError(f"Biz microservice {biz_name} already defined for {self.sfn_name}")
 
-        self.biz[biz_name] = BizMicroService(self, data, trigger, ms_name=biz_name, **kwargs)
+        self.biz[biz_name] = BizMicroService(self, trigger, configs, ms_name=biz_name, **kwargs)
         return self.biz[biz_name]
 
     def invoke(self, data):
@@ -487,14 +487,38 @@ class BizMicroService(TechMicroService):
     """Biz composed microservice activated by a reactor.
     """
 
-    def __init__(self, biz_factory, data, trigger, **kwargs):
+    def __init__(self, biz_factory, trigger, configs, **kwargs):
         super().__init__(**kwargs)
         self.biz_factory = biz_factory
-        self.data = data
+        self.configs = configs
         self.trigger = trigger
 
-    def handler(self, event, context):
-        return self.biz_factory.invoke(self.data)
+    # def handler(self, event, context):
+    #     return self.biz_factory.invoke(self.data)
+
+    def get_sfn_name(self):
+        """Returns the name of the associated step function."""
+        return self.biz_factory.sfn_name
+
+    def get_sfn_arn(self):
+        """Returns the arn of the associated step function."""
+        return self.biz_factory.sfn_arn
+
+    def get_biz_names(self):
+        """Returns the list of biz microservices defined in the factory."""
+        return [name for name in self.biz_factory]
+
+    def post_trigger(self, data=None):
+        data = data or {}
+        workspace = os.environ['WORKSPACE']
+        try:
+            default_data = next(c.get('data') for c in self.configs[workspace] if c.workspace == workspace)
+        except StopIteration:
+            default_data = {}
+        except KeyError:
+            default_data = {}
+        default_data.update(data)
+        return self.biz_factory.invoke()
 
 
 def hide_entry(f):

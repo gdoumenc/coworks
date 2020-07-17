@@ -34,6 +34,7 @@ class Config:
     environment_variables_file: str = None
     auth: Callable[[CoworksMixin, AuthRequest], Union[bool, list, AuthResponse]] = None
     cors: CORSConfig = CORSConfig(allow_origin='')
+    data: dict = None
 
     def existing_environment_variables_files(self, project_dir):
         """ :return: list containing the paths to environment variables files that acually exist """
