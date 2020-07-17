@@ -5,9 +5,9 @@ from pathlib import Path
 from shutil import copytree, ignore_patterns, make_archive
 
 import click
+
 from coworks.cws.error import CwsCommandError
 from coworks.mixins import Boto3Mixin, AwsS3Session
-
 from .command import CwsCommand
 
 
@@ -43,7 +43,8 @@ class CwsZipArchiver(CwsCommand, Boto3Mixin):
                 try:
                     archive_name = f"source_archives/{options.module}-{options.service}-{options['customer']}/archive.zip"
                     aws_s3_session.client.upload_fileobj(module_archive, options['bucket'], archive_name)
-                    print(f"Successfully uploaded archive as {archive_name} ")
+                    if options['debug']:
+                        print(f"Successfully uploaded archive as {archive_name} ")
                 except Exception as e:
                     print(f"Failed to upload module archive on S3 : {e}")
                     raise CwsCommandError(str(e))
@@ -55,8 +56,9 @@ class CwsZipArchiver(CwsCommand, Boto3Mixin):
                 try:
                     aws_s3_session.client.upload_fileobj(b64sha256_file, options['bucket'], f"{archive_name}.b64sha256",
                                                          ExtraArgs={'ContentType': 'text/plain'})
-                    print(
-                        f"Successfully uploaded archive hash as {archive_name}.b64sha256, value of the hash : {b64sha256} ")
+                    if options['debug']:
+                        print(
+                            f"Successfully uploaded archive hash as {archive_name}.b64sha256, value of the hash : {b64sha256} ")
                 except Exception as e:
                     print(f"Failed to upload archive hash on S3 : {e}")
                     raise CwsCommandError(str(e))
