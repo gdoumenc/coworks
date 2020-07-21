@@ -66,6 +66,9 @@ class CwsCommandOptions():
     def pop(self, key, value=None):
         return self.__options.pop(key, value)
 
+    def get(self, key):
+        return self.__options.get(key)
+
 
 class CwsCommand(ABC):
 

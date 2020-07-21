@@ -303,7 +303,10 @@ class TechState(PassState):
 
         try:
             res = self.get_or_raise(tech_data, 'service')
-            self.state['Resource'] = f"arn:aws:lambda:eu-west-1:{options['account_number']}:function:{res}-{options.workspace}"
+            if options.get('customer'):
+                self.state['Resource'] = f"arn:aws:lambda:eu-west-1:{options['account_number']}:function:{options.module}-{res}-{options.get('customer')}-{options.workspace}"
+            else:
+                self.state['Resource'] = f"arn:aws:lambda:eu-west-1:{options['account_number']}:function:{options.module}-{res}-{options.workspace}"
             self.state["InputPath"] = f"$"
             result_path = tech_data.get('result_path')
             self.state["ResultPath"] = result_path if result_path else f"$.{self.slug}.result"
