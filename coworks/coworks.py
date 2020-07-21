@@ -416,7 +416,7 @@ class BizFactory(TechMicroService):
             res = self.sfn_client.list_state_machines()
             while True:
                 for sfn in res['stateMachines']:
-                    if sfn['name'] == os.environ['sfn_name']:
+                    if sfn['name'] == os.environ['SFN_NAME']:
                         self.__sfn_arn__ = sfn['stateMachineArn']
                         return self.__sfn_arn__
 

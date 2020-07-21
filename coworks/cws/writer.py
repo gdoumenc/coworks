@@ -105,6 +105,7 @@ class CwsTemplateWriter(CwsWriter):
             'ms_name': self.app.ms_name,
             'app_config': config,
             'environment_variable_files': environment_variable_files,
+            'sfn_name': options['sfn_name'],
             **options.to_dict()
         }
         data.update(self.data)
@@ -217,10 +218,12 @@ class CwsTerraformStagingWriter(CwsTerraformWriter):
             click.option('--custom_layers'),
             click.option('--common_layers'),
             click.option('--binary_media_types'),
+            click.option('--sfn-name'),
         ]
 
     def _validate_context(self, options):
         options.setdefault('custom_layers', [])
         options.setdefault('common_layers', [])
         options.setdefault('binary_media_types', [])
+        options.setdefault('sfn-name', "")
         return options

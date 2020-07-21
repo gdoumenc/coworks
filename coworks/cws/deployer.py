@@ -150,6 +150,7 @@ class CwsDeployer(CwsCommand):
             biz.deferred_init(options.workspace)
             self.app = biz
             options.__setitem__('service', biz_name)
+            options.__setitem__('sfn_name', biz_factory_name)
             self.local_techms_deploy(options)
         self.app = biz_factory
         options.__setitem__('service', biz_factory_name)
