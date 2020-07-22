@@ -7,7 +7,6 @@ import sys
 from python_terraform import Terraform
 from time import sleep
 
-from coworks.config import Config
 from .command import CwsCommand
 from coworks import BizFactory
 

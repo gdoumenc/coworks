@@ -105,7 +105,8 @@ class CwsTemplateWriter(CwsWriter):
             'ms_name': self.app.ms_name,
             'app_config': config,
             'environment_variable_files': environment_variable_files,
-            'sfn_name': options['sfn_name'],
+            'sfn_name': options.get('sfn_name'),
+            'account_number': options.get('account_number'),
             **options.to_dict()
         }
         data.update(self.data)
