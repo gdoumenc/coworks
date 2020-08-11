@@ -391,18 +391,6 @@ class BizFactory(TechMicroService):
             return self.sfn_arn
 
     @property
-    def ms_type(self):
-        return 'biz'
-
-    @property
-    def trigger_sources(self):
-
-        def to_dict(name, trigger):
-            return {'name': f"{self.sfn_name}-{name}", **trigger.to_dict()}
-
-        return [to_dict(name, biz.trigger) for name, biz in self.biz.items()]
-
-    @property
     def sfn_client(self):
         if self.__sfn_client__ is None:
             session = AwsSFNSession(profile_name=self.aws_profile, env_var_access_key="AWS_RUN_ACCESS_KEY_ID",
@@ -427,6 +415,14 @@ class BizFactory(TechMicroService):
                 res = self.sfn_client.list_state_machines(nextToken=next_token)
         return self.__sfn_arn__
 
+    @property
+    def trigger_sources(self):
+
+        def to_dict(name, trigger):
+            return {'name': f"{self.sfn_name}-{name}", **trigger.to_dict()}
+
+        return [to_dict(name, biz.trigger) for name, biz in self.biz.items()]
+
     def create(self, biz_name, trigger=None, configs: List[Config] = None, **kwargs):
         """Creates a biz microservice. If the trigger is not defined the microservice can only be triggered manually."""
 
@@ -440,23 +436,6 @@ class BizFactory(TechMicroService):
         res = self.sfn_client.start_execution(stateMachineArn=self.sfn_arn, input=json.dumps(data if data else {}))
         return json.dumps(res, indent=4, sort_keys=True, default=str)
 
-    def handler(self, event, context):
-        if 'detail-type' in event and event['detail-type'] == 'Scheduled Event':
-            res_name = event['resources'][0].split('/')[-1]
-            if not res_name.startswith(self.sfn_name):
-                raise BadRequestError(f"Biz {self.sfn_name} called with resource {res_name}")
-
-            biz_name = res_name[len(self.sfn_name) + 1:]
-            if biz_name not in self.biz:
-                raise BadRequestError(f"Unregistered biz : {biz_name}")
-
-            if self.debug:
-                print(f"Trigger: {biz_name}")
-
-            return self.biz[biz_name](event, context)
-
-        return super().handler(event, context)
-
 
 class BizMicroService(TechMicroService):
     """Biz composed microservice activated by a reactor.
@@ -467,6 +446,14 @@ class BizMicroService(TechMicroService):
         self.biz_factory = biz_factory
         self.configs = configs
         self.trigger = trigger
+
+    @property
+    def ms_type(self):
+        return 'biz'
+
+    @property
+    def trigger_source(self):
+        return self.trigger.to_dict()
 
     def get_sfn_name(self):
         """Returns the name of the associated step function."""
@@ -480,9 +467,11 @@ class BizMicroService(TechMicroService):
         """Returns the list of biz microservices defined in the factory."""
         return [name for name in self.biz_factory]
 
-    def post_trigger(self, data=None):
-        data = data or {}
-        workspace = os.environ['WORKSPACE']
+    def get_default_data(self):
+        try:
+            workspace = os.environ['WORKSPACE']
+        except KeyError:
+            raise EnvironmentError("environment variable WORKSPACE is not defined")
         try:
             default_data = next(c.data for c in self.configs if c.workspace == workspace)
         except StopIteration:
@@ -490,8 +479,20 @@ class BizMicroService(TechMicroService):
             default_data = {}
         except KeyError:
             default_data = {}
-        data.update(default_data)
+        return default_data
+
+    def post_trigger(self, data=None):
+        data = data or {}
+        data.update(self.get_default_data())
         return self.biz_factory.invoke(data)
+
+    def handler(self, event, context):
+        if 'detail-type' in event and event['detail-type'] == 'Scheduled Event':
+            if self.debug:
+                print(f"Trigger: {self.biz_factory.sfn_name}")
+            return self.biz_factory.invoke(self.get_default_data())
+
+        return super().handler(event, context)
 
 
 def hide_entry(f):
