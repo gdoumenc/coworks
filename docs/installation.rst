@@ -6,25 +6,25 @@ Installation
 Python Version
 --------------
 
-CoWorks supports only AWS Lambda python version >= 3.7 versions.
+Coworks supports only AWS Lambda python version >= 3.7 versions.
 
-Install CoWorks
+Install Coworks
 ---------------
 
-Use a virtual environment to install CoWorks. We recommend using ``pipenv``::
+Use a virtual environment to install Coworks. We recommend using ``pipenv``::
 
 	$ mkdir project
 	$ cd project
 	$ pipenv install coworks
 	$ pipenv shell
 
-Check CoWorks is installed. Check it with::
+Check Coworks is installed. Check it with::
 
 	(project) $ cws --version
 
 If you cannot find ``cws`` in your execution path, verify you activated the virtualenv for the project.
 
-CoWorks is now ready for you.
+Coworks is now ready for you.
 
 *Beware*: As ``awscli`` (even ``boto3``) often evolves, make sure you have a compatible version of it in
 your python virtual environment or dependencies conflicts may occur.
@@ -62,15 +62,15 @@ You now have everything you need to create your first micro-service :ref:`tech_q
 PostgreSQL and MariaDB
 **********************
 
-If you want to use the predefined CoWorks SQL microservices, then on Debian/Ubuntu:
+If you want to use the predefined Coworks SQL microservices, then on Debian/Ubuntu:
 
 postgreSQL::
 
-sudo apt-get install libpq-dev
+    sudo apt-get install libpq-dev
 
 mariaDB::
 
-sudo apt-get install libmariadbclient-dev
+    sudo apt-get install libmariadbclient-dev
 
 
 

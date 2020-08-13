@@ -3,8 +3,8 @@
 TechMS Quickstart
 =================
 
-This page gives a quick and partial introduction to CoWorks technical microservices.
-Follow :doc:`installation` to set up a project and install CoWorks first.
+This page gives a quick and partial introduction to Coworks technical microservices.
+Follow :doc:`installation` to set up a project and install Coworks first.
 
 A tech microservice is simply defined by a single python class which looks like this:
 
@@ -22,7 +22,8 @@ To create your first complete technical microservice, create a file ``first.py``
 
 .. literalinclude:: ../tests/example/quickstart1.py
 
-This first example defines a very simple microservice ``app`` and adds it a local run command.
+This first example defines a very simple microservice ``app`` and adds it a local ``run`` command.
+This ``run`` command is defined by the ``CwsRunner`` extension added to the microservice.
 
 Test this microservice locally::
 
@@ -40,47 +41,35 @@ Looks good...
 Deploy the try
 --------------
 
-First we will create an AWS lambda layer with the ``scons`` tool. This layer will contain all the necessary python modules
-for a simple execution.
+First we will create an AWS lambda layer::
 
-For this purpose, create a file ``SConstruct`` with the following content:
-
-.. literalinclude:: ../tests/example/SConstruct
-
-Then do the following command::
-
-	(project) $ scons -s
+	(project) $ ln -s "$(pipenv --venv)" python
+	(project) $ zip -r layer.zip python -x "*.pyc" -x "*__pycache__*" -x "python/bin*"
+	(project) $ rm python
 
 A ``layer.zip`` file is then available.
 
-Next, add the default ``TerraformWriter`` to export terraform configuration file from the microservice code:
+Next, add the default ``CwsTerraformWriter`` extension to add the command to export terraform configuration files
+from the microservice code:
 
 .. literalinclude:: ../tests/example/quickstart2.py
 
 Create the terraform files for deployment::
 
-	(project) $ cws export -o app.tf
+	(project) $ cws -m first -s app export -o app.tf
 
 This will create an ``app.tf`` terraform file for managing all the ressources needed for this first simple microservice.
-
 
 Enter the following command to initialize terraform::
 
 	(project) $ terraform init
 	Initializing the backend...
-
-	Initializing provider plugins...
-	- Checking for available provider plugins...
-	- Downloading plugin for provider "aws" (hashicorp/aws) 2.62.0...
-	- Downloading plugin for provider "archive" (hashicorp/archive) 1.3.0...
 	...
 
 And now apply the configuration (it will create the resources)::
 
 	(project) $ terraform apply
-
 	...
-
 	Plan: 10 to add, 0 to change, 0 to destroy.
 
 	Do you want to perform these actions?
@@ -123,20 +112,6 @@ Finally, to remove the project and its virtual environment::
 Commands
 --------
 
-To view all CoWorks commands and options::
+To view all Coworks commands and options::
 
 	(project) $ cws --help
-	Usage: cws [OPTIONS] COMMAND [ARGS]...
-
-	Options:
-	  --version               Show the version and exit.
-	  -p, --project-dir TEXT  The project directory path (absolute or relative).
-							  Defaults to CWD
-
-	  --help                  Show this message and exit.
-
-	Commands:
-	  export  Export microservice in other description languages.
-	  info    Information on a microservice.
-	  run     Run local server.
-	  update  Update biz microservice.

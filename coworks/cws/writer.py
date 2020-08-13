@@ -27,7 +27,7 @@ class CwsWriter(CwsCommand):
     def options(self):
         return [
             *super().options,
-            click.option('--output', default=None),
+            click.option('-o', '--output', default=None),
             click.option('--step', default=DEFAULT_STEP),
             click.option('--config', default=None),
             click.option('--debug/--no-debug', default=False, help='Print debug logs to stderr.')
@@ -96,6 +96,7 @@ class CwsTemplateWriter(CwsWriter):
         data = {
             'writer': self,
             'project_dir': options.project_dir,
+            'source_file': pathlib.PurePath(options.project_dir, *module_path),
             'module': options.module,
             'module_path': pathlib.PurePath(*module_path),
             'module_dir': pathlib.PurePath(*module_path[:-1]),
@@ -202,25 +203,3 @@ class CwsTerraformWriter(CwsTemplateWriter):
         return all_pathes_id
 
 
-class CwsTerraformStagingWriter(CwsTerraformWriter):
-    def __init__(self, app=None, *, name='terraform-staging', data=None, **kwargs):
-        super().__init__(app, name=name, data=data, **kwargs)
-
-    @property
-    def default_template_filenames(self):
-        return ['terraform_staging.j2']
-
-    @property
-    def options(self):
-        return [
-            *super().options,
-            click.option('--custom_layers'),
-            click.option('--common_layers'),
-            click.option('--binary_media_types'),
-        ]
-
-    def _validate_context(self, options):
-        options.setdefault('custom_layers', [])
-        options.setdefault('common_layers', [])
-        options.setdefault('binary_media_types', [])
-        return options

@@ -1,12 +1,12 @@
 .. figure:: ./img/coworks.png
   :height: 100px
-  :alt: CoWorks Logo
+  :alt: Coworks Logo
   :target: https://coworks.readthedocs.io/en/latest/?badge=latest
 
 Introduction
 ============
 
-CoWorks is a unified serverless microservices framework based on AWS technologies.
+Coworks is a unified serverless microservices framework based on AWS technologies.
 
 Each atomic microservice (defined as ``class TechMicroService``) is a simple python class deployed as a serverless AWS Lambda, and
 composition of microservices (defined as ``class BizMicroService``) is performed over the AWS Step Function product.
@@ -29,7 +29,7 @@ Other tools used:
 * `Terraform <https://github.com/hashicorp/terraform>`_ - Infrastructure configuration management tool.
 
 
-What does microservice mean in CoWorks?
+What does microservice mean in Coworks?
 ****************************************
 
 In short, the microservice architectural style is an approach to developing a single application as a suite of small services,
@@ -47,7 +47,7 @@ by outlining traits microservice applications share:
 * Decentralized
 * Built and released with automated processes
 
-In CoWorks, microservices are serverless services over APIs.
+In Coworks, microservices are serverless services over APIs.
 
 Small in size
   Simply implemented as a python class.
@@ -70,14 +70,14 @@ Smart endpoints
 Two levels of microservice
 **************************
 
-In ``CoWorks`` microservices are divided in two categories :
+In ``Coworks`` microservices are divided in two categories :
 
 **Small technical microservice**
 
   Implemented as a simple AWS Lambda function, this kind of microservice is dedicated to technical
   operations over a specific service.
 
-  Here are some examples of technical services in CoWorks :
+  Here are some examples of technical services in Coworks :
 
     * Mail
     * Jinja templating
@@ -88,7 +88,7 @@ In ``CoWorks`` microservices are divided in two categories :
   Implemented over AWS Step Function, this kind of microservice allows non programmer to construct
   functional business workflows.
 
-  Here are some examples of business services in CoWorks :
+  Here are some examples of business services in Coworks :
 
     * Invoicing Process
     * Automated Dashbords

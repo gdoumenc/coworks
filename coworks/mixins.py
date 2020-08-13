@@ -39,7 +39,7 @@ class CoworksMixin:
             subsegment = begin_xray_subsegment(f"{func.__name__} microservice")
             try:
                 if subsegment:
-                    subsegment.put_metadata('headers', self.current_request.headers, "CoWorks")
+                    subsegment.put_metadata('headers', self.current_request.headers, "Coworks")
 
                 # Renames positional parameters (index added in label)
                 kwargs = {}

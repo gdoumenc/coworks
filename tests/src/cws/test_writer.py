@@ -1,8 +1,9 @@
 import io
 import re
 
-from coworks.cws.writer import CwsTerraformWriter
+from coworks.config import Config, CORSConfig
 from coworks.cws.command import CwsCommandOptions
+from coworks.cws.writer import CwsTerraformWriter
 from tests.src.coworks.tech_ms import SimpleMS
 
 
@@ -11,16 +12,13 @@ class TestClass:
     def test_export_terraform(self):
         simple = SimpleMS()
         writer = CwsTerraformWriter(simple)
-        simple.execute('terraform', project_dir='.', module="", service="", workspace='dev', step='update',
-                       output='/dev/null')
+        self.export_cmd(simple)
         output = io.StringIO()
-        options = CwsCommandOptions(writer, project_dir='.', module="", service="", workspace='dev', step='update')
-        writer.execute(options=options,output=output)
+        self.export_writer(writer, output)
         output.seek(0)
         print(output.read())
         output.seek(0)
-        assert len(re.sub(r"\s", "", output.read())) == 18196
-        print(writer.entries)
+        assert len(re.sub(r"\s", "", output.read())) == 8408
         assert len(writer.entries) == 8
 
         assert writer.entries['_'].parent_uid is None
@@ -41,3 +39,26 @@ class TestClass:
         assert not writer.entries['__extended_content'].is_root
         assert not writer.entries['__extended_content'].parent_is_root
         assert 'GET' in writer.entries['__extended_content'].methods
+
+    def test_export_terraform_with_cors(self):
+        config = Config(cors=CORSConfig(allow_origin='www.test.fr'))
+        simple = SimpleMS(configs=config)
+        writer = CwsTerraformWriter(simple)
+        self.export_cmd(simple)
+        output = io.StringIO()
+        self.export_writer(writer, output)
+        output.seek(0)
+        print(output.read())
+        output.seek(0)
+        assert len(re.sub(r"\s", "", output.read())) == 19565
+
+    @staticmethod
+    def export_cmd(ms):
+        ms.execute('terraform', project_dir='.', module="test", service="app", workspace='dev', step='update',
+                   output='/dev/null')
+
+    @staticmethod
+    def export_writer(writer, output):
+        options = CwsCommandOptions(writer, project_dir='.', module="test", service="app", workspace='dev',
+                                    step='update')
+        writer.execute(options=options, output=output)

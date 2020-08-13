@@ -2,18 +2,14 @@
 # LAMBDA
 # ---------------------------------------------------------------------------------------------------------------------
 
-{%- if not lambda_zip_file %}
-  data "archive_file" "{{ module_file }}" {
-  source_file = "{{ project_dir }}/{{ module_dir }}/{{ module_file }}.py"
+data "archive_file" "{{ module_file }}" {
+  source_file = "{{ source_file }}.py"
   output_path = "{{ module_file }}.zip"
   type = "zip"
-  }
-{% endif -%}
+}
 
 resource "aws_lambda_function" "{{ ms_name }}" {
-filename ={%- if lambda_zip_file %}{{ lambda_zip_file }}
-{% else %}data.archive_file.{{ module_file }}.output_path
-{% endif -%}
+filename =data.archive_file.{{ module_file }}.output_path
 function_name = "{{ ms_name }}"
 role = aws_iam_role.{{ ms_name }}.arn
 handler = "{{ module_file }}.{{ handler }}"
@@ -127,7 +123,7 @@ authorizer_uri = aws_lambda_function.{{ ms_name }}.invoke_arn
       }
     {% endfor %}
 
-    {%- if entry.cors %}
+    {%- if entry.cors.allow_origin %}
       resource "aws_api_gateway_method" "{{ ms_name }}_{{ res }}_OPTIONS" {
       rest_api_id = local.{{ ms_name }}.api_id
       {%- if entry.is_root %}
@@ -206,7 +202,6 @@ depends_on = [
 ]
 rest_api_id = local.{{ ms_name }}.api_id
 stage_name = "dev"
-stage_description = md5(file("{{ module_file }}.tf"))
 }
 
 

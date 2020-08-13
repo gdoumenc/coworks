@@ -27,7 +27,7 @@ class CwsInfo(CwsCommand):
 
 
 class TechMS(TechMicroService):
-    """Technical microservice for the CoWorks tutorial example."""
+    """Technical microservice for the Coworks tutorial example."""
     version = "1.2"
     values = defaultdict(int)
     init_value = None

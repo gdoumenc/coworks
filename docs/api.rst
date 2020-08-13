@@ -3,7 +3,7 @@
 Developer Interface
 ===================
 
-This part of the documentation presents all the classes of CoWorks.
+This part of the documentation presents all the classes of Coworks.
 
 
 Microservices

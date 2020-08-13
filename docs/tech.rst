@@ -3,7 +3,7 @@
 TechMS
 ======
 
-TechMicroservices are the 'atom' of the CoWorks microservices framework. They represent the building blocks
+TechMicroservices are the 'atom' of the Coworks microservices framework. They represent the building blocks
 for other more complex microservices.
 
 Routing
@@ -168,7 +168,7 @@ As for ``Flask`` and ``Chalice``, the return value from a class microservice is 
 * If the return value is a ``dict`` or a ``list``, it's converted to a JSON structure.
 * If a ``tuple`` is returned the items in the tuple can provide extra information. Such tuples have to be in the form (response, status), or (response, status, headers). The status value will override the status code and headers can be a list or dictionary of additional header values.
 
-If none of that works, ``CoWorks`` will assume the return value is a valid
+If none of that works, ``Coworks`` will assume the return value is a valid
 ``Chalice`` `Response <https://chalice.readthedocs.io/en/latest/api.html#Response>`_ instance.
 
 Test
@@ -250,7 +250,7 @@ Blueprints and Extensions
 Blueprints
 ^^^^^^^^^^
 
-CoWorks blueprints are used to add to your application more routes deriving from logical components.
+Coworks blueprints are used to add to your application more routes deriving from logical components.
 Blueprints allow you to complete your microservices with transversal functionalities.
 
 Blueprint Registration
@@ -297,7 +297,7 @@ The admin blueprint adds the following routes :
 Extensions
 ^^^^^^^^^^
 
-Extensions are extra packages that add functionalities to a CoWorks application.
+Extensions are extra packages that add functionalities to a Coworks application.
 Extensions are inspired from `Flask <https://flask.palletsprojects.com/en/1.1.x/extensions/>`_.
 
 

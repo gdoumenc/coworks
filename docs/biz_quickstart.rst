@@ -3,7 +3,7 @@
 BizMS Quickstart
 =================
 
-This page gives a quick and partial introduction to CoWorks business microservices.
+This page gives a quick and partial introduction to Coworks business microservices.
 You must have understand first how to deploy technical microservice :doc:`tech`.
 
 A biz microservice is defined by a definition of states (in YAML):

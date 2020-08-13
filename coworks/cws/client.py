@@ -53,7 +53,7 @@ def invoke(initial, ctx):
             handler = get_handler(project_dir, module, service)
             cmd = project_config.get_command(handler, module, service, workspace)
             if not cmd:
-                raise CwsClientError(f"Undefined command {cmd}.\n")
+                raise CwsClientError(f"Undefined command {cmd_name}.\n")
 
             # Defines the proxy command with all user options
             def call_execute(**command_options):

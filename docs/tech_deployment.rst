@@ -171,9 +171,6 @@ To run the microservice in a specific workspace, add the workspace parameter:
 
 	app.run(workspace='prod')
 
-The complete microservice will be:
-
-.. literalinclude:: ../tests/example/quickstart3.py
 
 Staging deployment
 ******************

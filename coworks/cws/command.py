@@ -107,6 +107,9 @@ class CwsCommand(ABC):
         """
         self.app.deferred_init(options.workspace)
 
+        if output is None and 'output' in options:
+            output = options['output']
+
         if output is not None:
             self.output = open(output, 'w+') if type(output) is str else output
         if error is not None:
