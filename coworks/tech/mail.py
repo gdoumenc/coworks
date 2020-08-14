@@ -16,7 +16,7 @@ class MailMicroService(TechMicroService):
         super().__init__(**kwargs)
         self.smtp_server = self.smtp_login = self.smtp_passwd = None
 
-        @self.before_first_request
+        @self.before_first_activation
         def check_env_vars():
             self.smtp_server = os.getenv('SMTP_SERVER')
             if not self.smtp_server:
