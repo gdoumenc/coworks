@@ -44,7 +44,7 @@ class CwsTerraform(Terraform):
         self._print(out, err)
 
     def apply(self, **kwargs):
-        return_code, out, err = super().apply(skip_plan=True, input=False, raise_on_error=True)
+        return_code, out, err = super().apply(skip_plan=True, input=False, raise_on_error=True, parallelism=1)
         self._print(out, err)
 
     def destroy(self, **kwargs):
