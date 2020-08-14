@@ -20,3 +20,6 @@ CONFIG = Config(
 app = SimpleMicroService(ms_name='test', configs=[CONFIG])
 CwsRunner(app)
 CwsTerraformWriter(app, name='export')
+
+if __name__ == '__main__':
+    app.execute('run', project_dir='.', workspace='dev', module='quickstart')

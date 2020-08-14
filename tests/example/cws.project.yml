@@ -23,7 +23,6 @@ commands:
   run:
     default:
       class: coworks.cws.runner.CwsRunner
-      port: 8000
     services:
       - module: app2
         service: app2

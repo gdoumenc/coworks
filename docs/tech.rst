@@ -3,7 +3,7 @@
 TechMS
 ======
 
-TechMicroservices are the 'atom' of the Coworks microservices framework. They represent the building blocks
+TechMicroservices are the 'atoms' of the Coworks microservices framework. They represent the building blocks
 for other more complex microservices.
 
 Routing
@@ -12,7 +12,7 @@ Routing
 Routes are defined by function names in the microservice class.
 The function names must follow the syntax below::
 
-	<request_method><associated_route>
+	<request_method>_<associated_route>
 
 The request method is then defined for the associated route.
 Composed routes are defined with the ``_`` separator.
@@ -114,7 +114,6 @@ for deployement as::
 	/content/{_0}/{_1}
 
 The actual routes are defined this way for the microservice.
-This will not change anything in code but it must be known for `Step Function` calls.
 
 Query or body parameters
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -155,18 +154,23 @@ You can also use the ``**`` notation to get any values::
 	def get_content(self, **kwargs):
 		return f"here are all the parameters: {kwargs}"
 
-**Note**: The current implementation doesn't take into account the typing of the entrypoint function parameters (forcasted).
+**Note**: The current implementation doesn't take into account the typing of the entrypoint function parameters
+(forcasted).
 So all query parameters are from type ``string``.
 If you want to pass typed or structured values, use the JSON mode.
 
 Microservice Response
 ---------------------
 
-As for ``Flask`` and ``Chalice``, the return value from a class microservice is automatically converted into a response object for you.
+As for ``Flask`` and ``Chalice``, the return value from a class microservice is automatically converted into a response
+object for you.
 
-* If the return value is a ``string`` or ``bytes``, it’s converted into a response object with the string or bytes list as response body, a 200 OK status code and a text/html mimetype.
+* If the return value is a ``string`` or ``bytes``, it’s converted into a response object with the string or bytes list
+as response body, a 200 OK status code and a text/html mimetype.
 * If the return value is a ``dict`` or a ``list``, it's converted to a JSON structure.
-* If a ``tuple`` is returned the items in the tuple can provide extra information. Such tuples have to be in the form (response, status), or (response, status, headers). The status value will override the status code and headers can be a list or dictionary of additional header values.
+* If a ``tuple`` is returned the items in the tuple can provide extra information. Such tuples have to be in the form
+(response, status), or (response, status, headers).
+The status value will override the status code and headers can be a list or dictionary of additional header values.
 
 If none of that works, ``Coworks`` will assume the return value is a valid
 ``Chalice`` `Response <https://chalice.readthedocs.io/en/latest/api.html#Response>`_ instance.
@@ -184,25 +188,25 @@ As a classical python application
 
 As seen, you can run your microservice locally with the command::
 
-	$ cws run
+	$ cws .. run
 
 You can also run you microservice in a classical way of python application:
 
 .. code-block:: python
 
-	if __name__ == '__main__':
-		app.run()
+    if __name__ == '__main__':
+        app.execute('run', project_dir='.', workspace='dev', module='app')
 
 You can add more options for testing such as changing the port or the stage::
 
-	$ cws run --port 8001
+	$ cws .. run --port 8001
 
-The same goes for python application:
+or in python code:
 
 .. code-block:: python
 
-	if __name__ == '__main__':
-		app.run(port=8001)
+    if __name__ == '__main__':
+        app.execute('run', project_dir='.', workspace='dev', module='quickstart', port=8001)
 
 To get the list of options::
 

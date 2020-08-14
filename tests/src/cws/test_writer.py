@@ -18,7 +18,7 @@ class TestClass:
         output.seek(0)
         print(output.read())
         output.seek(0)
-        assert len(re.sub(r"\s", "", output.read())) == 8408
+        assert len(re.sub(r"\s", "", output.read())) == 8448
         assert len(writer.entries) == 8
 
         assert writer.entries['_'].parent_uid is None
@@ -50,7 +50,7 @@ class TestClass:
         output.seek(0)
         print(output.read())
         output.seek(0)
-        assert len(re.sub(r"\s", "", output.read())) == 19565
+        assert len(re.sub(r"\s", "", output.read())) == 19605
 
     @staticmethod
     def export_cmd(ms):

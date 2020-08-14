@@ -154,6 +154,20 @@ class CwsCommand(ABC):
         self.after_funcs.append(f)
         return f
 
+    def complete_options_from_click(self, options):
+        """Adds default value option from click definition to the command options."""
+
+        def dummy():
+            pass
+
+        for opt in self.options:
+            opt(dummy)
+
+        for param in dummy.__click_params__:
+            if param.name not in options and param.default:
+                options[param.name] = param.default
+        return options
+
     @abstractmethod
     def _execute(self, options):
         """ Main command function.

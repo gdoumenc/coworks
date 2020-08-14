@@ -39,6 +39,9 @@ class CwsRunner(CwsCommand):
         :return: None
         """
 
+        assert 'host' in options
+        assert 'port' in options
+
         # chalice.cli package is not defined in deployment
         from .factory import CwsFactory
 

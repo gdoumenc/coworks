@@ -160,6 +160,7 @@ class TechMicroService(CoworksMixin, Chalice):
 
         options = CwsCommandOptions(cmd, project_dir=project_dir, module=module, workspace=workspace, **kwargs)
         project_config.complete_options(options)
+        cmd.complete_options_from_click(options)
         cmd.execute(options=options, output=output, error=error)
 
     def _init_routes(self, *, workspace=DEFAULT_WORKSPACE, component=None, url_prefix=None):
