@@ -5,6 +5,7 @@ import os
 import sys
 import traceback
 from functools import update_wrapper
+import urllib
 
 import boto3
 from botocore.exceptions import BotoCoreError
@@ -77,7 +78,9 @@ class CoworksMixin:
                             except Exception as e:
                                 raise CwsError(str(e))
                             kwargs = dict(**kwargs, **params)
-
+                        elif content_type.startswith('application/x-www-form-urlencoded'):
+                            params = urllib.parse.parse_qs(req.raw_body.decode("utf-8"))
+                            kwargs = dict(**kwargs, **params)
                         elif content_type.startswith('application/json'):
                             if hasattr(req.json_body, 'items'):
                                 params = {}

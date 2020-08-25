@@ -3,7 +3,7 @@ import os
 from dataclasses import dataclass
 from json import JSONDecodeError
 from pathlib import Path
-from typing import Callable, Union
+from typing import Callable, Union, Tuple
 
 from chalice import CORSConfig as ChaliceCORSConfig
 from chalice.app import AuthRequest, AuthResponse
@@ -34,6 +34,7 @@ class Config:
     environment_variables_file: str = None
     auth: Callable[[CoworksMixin, AuthRequest], Union[bool, list, AuthResponse]] = None
     cors: CORSConfig = CORSConfig(allow_origin='')
+    content_type: Tuple[str] = ('multipart/form-data', 'application/json', 'text/plain')
 
     def existing_environment_variables_files(self, project_dir):
         """Returns a list containing the paths to environment variables files that acually exist """

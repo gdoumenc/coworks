@@ -222,7 +222,7 @@ class TechMicroService(CoworksMixin, Chalice):
 
             # complete all entries
             component.route(f"/{route}", methods=[method.upper()], authorizer=auth, cors=self.config.cors,
-                            content_types=['multipart/form-data', 'application/json', 'text/plain'])(proxy)
+                            content_types=list(self.config.content_type))(proxy)
             if url_prefix:
                 self.entries[f"{url_prefix}/{route}"] = (method.upper(), func)
             else:
