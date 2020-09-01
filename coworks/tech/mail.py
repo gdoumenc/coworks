@@ -68,7 +68,7 @@ class MailMicroService(TechMicroService):
                     if response.status_code == 200:
                         attachment = response.content
                         maintype, subtype = response.headers['Content-Type'].split('/')
-                        msg.add_attachment(response.content, maintype=maintype, subtype=subtype,
+                        msg.add_attachment(attachment, maintype=maintype, subtype=subtype,
                                            filename=attachment_name)
                     else:
                         raise BadRequestError(f"Failed to download attachment, error {response.status_code}")
