@@ -106,6 +106,8 @@ class CwsTemplateWriter(CwsWriter):
             'ms_name': self.app.ms_name,
             'app_config': config,
             'environment_variable_files': environment_variable_files,
+            'sfn_name': options.get('sfn_name'),
+            'account_number': options.get('account_number'),
             **options.to_dict()
         }
         data.update(self.data)
@@ -201,5 +203,3 @@ class CwsTerraformWriter(CwsTemplateWriter):
             add_entry(previous_uid, last_path, methods.keys())
 
         return all_pathes_id
-
-
