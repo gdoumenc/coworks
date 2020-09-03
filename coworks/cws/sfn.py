@@ -39,29 +39,6 @@ class CwsSFNTranslater(CwsWriter):
             print(json.dumps(sfn, indent=2), file=self.output)
 
 
-class CwsSFNWriter(CwsTerraformWriter):
-    def __init__(self, app=None, *, name='export-sfn', data=None, **kwargs):
-        super().__init__(app, name=name, data=data, **kwargs)
-
-    @property
-    def default_template_filenames(self):
-        return ['sfn.j2']
-
-    @property
-    def options(self):
-        return (
-            click.option('--custom_layers', default=[]),
-            click.option('--common_layers', default=[]),
-            click.option('--binary_media_types', default=[]),
-        )
-
-    def _validate_context(self, options):
-        options.setdefault('custom_layers', [])
-        options.setdefault('common_layers', [])
-        options.setdefault('binary_media_types', [])
-        return options
-
-
 class StepFunction:
 
     def __init__(self, sfn_name, filepath, options):
