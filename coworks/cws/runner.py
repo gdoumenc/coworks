@@ -13,6 +13,7 @@ from chalice.config import Config
 from chalice.local import ChaliceRequestHandler, LocalGateway, LocalDevServer
 
 from .command import CwsCommand
+from .utils import threaded
 
 
 class CwsRunner(CwsCommand):
@@ -28,6 +29,7 @@ class CwsRunner(CwsCommand):
             click.option('--debug/--no-debug', default=False, help='Print debug logs to stderr.')
         ]
 
+    @threaded
     def _execute(self, options):
         """ Runs the microservice in a local Chalice emulator.
 

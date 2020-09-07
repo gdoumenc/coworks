@@ -1,5 +1,6 @@
 import io
 import json
+import os
 from unittest.mock import Mock, MagicMock
 
 import pytest
@@ -7,7 +8,7 @@ import yaml
 
 from coworks import BizFactory
 from coworks.cws.command import CwsCommandOptions
-from coworks.cws.sfn import StepFunctionWriter, StepFunction, TechState
+from coworks.cws.sfn import StepFunction, TechState, CwsSFNTranslater
 from coworks.cws.writer import CwsWriterError
 from tests.src.coworks.tech_ms import S3MockTechMS
 
@@ -22,7 +23,7 @@ class TestStepFunction(StepFunction):
         with filepath.open() as file:
             self.data = yaml.load(file, Loader=yaml.SafeLoader)
 
-        super().__init__("test", filepath)
+        super().__init__("test", filepath, CwsCommandOptions('translate-sfn', **{'module': None, 'service': None, 'project_dir':None, 'workspace': None, 'account_number': '123412341234'}))
 
 
 class TechMS(S3MockTechMS):
@@ -41,6 +42,7 @@ class TechMS(S3MockTechMS):
 
 
 class TestClass:
+    os.environ["WORKSPACE"] = ''  # not sure where this should be set
 
     def test_no_params(self):
         tech = TechMS()
@@ -93,21 +95,21 @@ class TestClass:
     def test_biz_empty(self):
         biz = BizFactory('tests/src/coworks/biz/empty')
         biz.create('test')
-        writer = StepFunctionWriter(biz)
-        self.io = io.StringIO()
-        output = self.io
+        translater = CwsSFNTranslater(biz)
+        output = io.StringIO()
         with pytest.raises(CwsWriterError):
-            options = CwsCommandOptions(writer, project_dir='.', module='', service='', workspace='dev')
-            writer.execute(options=options, output=output, error=output)
+            options = CwsCommandOptions(translater, project_dir='.', module='', service='', workspace='dev')
+            translater.execute(options=options, output=output, error=output)
+
 
     def test_biz_complete(self):
         """Tests the doc example."""
         fact = BizFactory('tests/src/coworks/biz/complete')
         fact.create('test')
-        writer = StepFunctionWriter(fact)
+        translater = CwsSFNTranslater(fact)
         output = io.StringIO()
-        options = CwsCommandOptions(writer, project_dir='.', module='', service='', workspace='dev')
-        writer.execute(options=options, output=output, error=output)
+        options = CwsCommandOptions(translater, project_dir='.', module='', service='', workspace='dev')
+        translater.execute(options=options, output=output, error=output)
         output.seek(0)
         source = json.loads(output.read())
         assert source['Version'] == "1.0"

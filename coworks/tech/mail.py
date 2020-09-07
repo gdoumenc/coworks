@@ -16,7 +16,7 @@ class MailMicroService(TechMicroService):
         super().__init__(**kwargs)
         self.smtp_server = self.smtp_login = self.smtp_passwd = None
 
-        @self.before_first_request
+        @self.before_first_activation
         def check_env_vars():
             self.smtp_server = os.getenv('SMTP_SERVER')
             if not self.smtp_server:
@@ -68,7 +68,7 @@ class MailMicroService(TechMicroService):
                     if response.status_code == 200:
                         attachment = response.content
                         maintype, subtype = response.headers['Content-Type'].split('/')
-                        msg.add_attachment(response.content, maintype=maintype, subtype=subtype,
+                        msg.add_attachment(attachment, maintype=maintype, subtype=subtype,
                                            filename=attachment_name)
                     else:
                         raise BadRequestError(f"Failed to download attachment, error {response.status_code}")

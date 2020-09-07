@@ -35,6 +35,7 @@ class Config:
     auth: Callable[[CoworksMixin, AuthRequest], Union[bool, list, AuthResponse]] = None
     cors: CORSConfig = CORSConfig(allow_origin='')
     content_type: Tuple[str] = ('multipart/form-data', 'application/json', 'text/plain')
+    data: dict = None
 
     def existing_environment_variables_files(self, project_dir):
         """Returns a list containing the paths to environment variables files that acually exist """
