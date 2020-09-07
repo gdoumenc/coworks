@@ -3,7 +3,7 @@ import os
 import pytest
 import requests
 
-from coworks.tech import MailMicroService
+from coworks.tech.mail import MailMicroService
 
 env = {
     "SMTP_SERVER": "mail.test.com:587",

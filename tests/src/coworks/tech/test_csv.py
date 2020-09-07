@@ -2,7 +2,7 @@ import json
 
 import requests
 
-from coworks.tech import CSVMicroService
+from coworks.tech.csv import CSVMicroService
 
 csv_content = json.dumps([
     {"col1": "value1", "col2": "value2"},

@@ -26,11 +26,11 @@ class SqlMicroService(TechMicroService):
             if self.dialect is None:
                 self.dialect = os.getenv(self.dialect_env_var_name)
                 if not self.dialect:
-                    raise EnvironmentError(f"{self.dialect_env_var_name} not defined in environment")
+                    raise EnvironmentError(f"{self.dialect_env_var_name} not defined in environment.")
             if self.host is None:
                 self.host = os.getenv(self.host_env_var_name)
                 if not self.host:
-                    raise EnvironmentError(f"{self.host_env_var_name} not defined in environment")
+                    raise EnvironmentError(f"{self.host_env_var_name} not defined in environment.")
             if self.port is None:
                 self.port = os.getenv(self.port_env_var_name)
                 if self.port is None:
@@ -41,11 +41,11 @@ class SqlMicroService(TechMicroService):
             if self.dbname is None:
                 self.dbname = os.getenv(self.dbname_env_var_name)
                 if not self.dbname:
-                    raise EnvironmentError(f"{self.dbname_env_var_name} not defined in environment")
+                    raise EnvironmentError(f"{self.dbname_env_var_name} not defined in environment.")
             if self.user is None:
                 self.user = os.getenv(self.user_env_var_name)
                 if not self.user:
-                    raise EnvironmentError(f"{self.user_env_var_name} not defined in environment")
+                    raise EnvironmentError(f"{self.user_env_var_name} not defined in environment.")
             self.password = os.getenv(self.passwd_env_var_name, '')
 
         @self.before_activation

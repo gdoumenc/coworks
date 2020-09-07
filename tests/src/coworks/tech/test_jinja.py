@@ -5,7 +5,7 @@ import tempfile
 
 import requests
 
-from coworks.tech import JinjaRenderMicroService
+from coworks.tech.jinja import JinjaRenderMicroService
 
 
 class TestClass:

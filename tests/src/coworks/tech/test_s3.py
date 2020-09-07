@@ -1,7 +1,7 @@
 import pytest
 import requests
 
-from coworks.tech import S3MicroService
+from coworks.tech.s3 import S3MicroService
 
 env = {
     "AWS_ACCESS_KEY_ID": "access key",
