@@ -2,12 +2,12 @@ import inspect
 import json
 import logging
 import os
+import sys
 import traceback
 from functools import update_wrapper
 from threading import Lock
 from typing import Dict, List, Union
 
-import sys
 from aws_xray_sdk.core import xray_recorder
 from chalice import AuthResponse, BadRequestError, Rate, Cron
 from chalice import Chalice, Blueprint as ChaliceBlueprint
@@ -259,28 +259,15 @@ class TechMicroService(CoworksMixin, Chalice):
         return component.authorizer(name='auth')(proxy)
 
     def __call__(self, event, context):
-        # workspace = self._called_workspace(event, context)
-
-        with self._before_activation_lock:
-            workspace = os.environ['WORKSPACE']
-            self.deferred_init(workspace=workspace)
-
-            if not self._got_first_activation:
-                for func in self.before_first_activation_funcs:
-                    func()
-                self._got_first_activation = True
-
-        for func in self.before_activation_funcs:
-            func()
-
+        """Lambda handler."""
+        self.do_before_first_activation()
+        self.do_before_activation()
         res = self.handler(event, context)
-
-        for func in self.after_activation_funcs:
-            func()
-
+        self.do_after_activation()
         return res
 
     def handler(self, event, context):
+        """Main microservice entry point."""
 
         # authorization call
         if event.get('type') == 'TOKEN':
@@ -351,6 +338,21 @@ class TechMicroService(CoworksMixin, Chalice):
         self.before_first_activation_funcs.append(f)
         return f
 
+    def do_before_first_activation(self):
+        """Calls all before first activation functions."""
+        if self._got_first_activation:
+            return
+
+        # lock needed only if boolean may change value
+        with self._before_activation_lock:
+            workspace = os.environ['WORKSPACE']
+            self.deferred_init(workspace=workspace)
+
+            if not self._got_first_activation:
+                for func in self.before_first_activation_funcs:
+                    func()
+                self._got_first_activation = True
+
     def before_activation(self, f):
         """Registers a function to run before each activation of the microservice.
         :param f:  Function added to the list.
@@ -364,6 +366,11 @@ class TechMicroService(CoworksMixin, Chalice):
         self.before_activation_funcs.append(f)
         return f
 
+    def do_before_activation(self):
+        """Calls all before activation functions."""
+        for func in self.before_activation_funcs:
+            func()
+
     def after_activation(self, f):
         """Registers a function to be run after each activation of the microservice.
 
@@ -374,6 +381,11 @@ class TechMicroService(CoworksMixin, Chalice):
 
         self.after_activation_funcs.append(f)
         return f
+
+    def do_after_activation(self):
+        """Calls all after activation functions."""
+        for func in self.after_activation_funcs:
+            func()
 
 
 class BizFactory(TechMicroService):
