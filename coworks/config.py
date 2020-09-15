@@ -3,7 +3,7 @@ import os
 from dataclasses import dataclass
 from json import JSONDecodeError
 from pathlib import Path
-from typing import Callable, Union, Tuple
+from typing import Callable, Union, List, Tuple, Any
 
 from chalice import CORSConfig as ChaliceCORSConfig
 from chalice.app import AuthRequest, AuthResponse
@@ -31,31 +31,39 @@ class Config:
 
     version: str = ""
     workspace: str = DEFAULT_WORKSPACE
-    environment_variables_file: str = None
-    auth: Callable[[CoworksMixin, AuthRequest], Union[bool, list, AuthResponse]] = None
+    environment_variables_file: Union[str, List[str]] = None
+    environment_variables: Union[dict, List[dict]] = None
+    auth: Callable[[CoworksMixin, AuthRequest], Any] = None
     cors: CORSConfig = CORSConfig(allow_origin='')
     content_type: Tuple[str] = ('multipart/form-data', 'application/json', 'text/plain')
     data: dict = None
 
     def existing_environment_variables_files(self, project_dir):
-        """Returns a list containing the paths to environment variables files that acually exist """
+        """Returns a list containing the paths to environment variables files that actually exist """
         if self.environment_variables_file is None:
             return []
         else:
-            parent = Path(project_dir)
-            var_file = parent / self.environment_variables_file
-            var_secret_file = var_file.with_suffix(SECRET_ENV_FILE_SUFFIX)
+            if type(self.environment_variables_file) is str:
+                self.environment_variables_file = [self.environment_variables_file]
             files = []
-            if var_file.is_file():
-                files.append(var_file)
-            if var_secret_file.is_file():
-                files.append(var_secret_file)
+            parent = Path(project_dir)
+            for file in self.environment_variables_file:
+                var_file = parent / file
+                if var_file.is_file():
+                    files.append(var_file)
+                var_secret_file = var_file.with_suffix(SECRET_ENV_FILE_SUFFIX)
+                if var_secret_file.is_file():
+                    files.append(var_secret_file)
             return files
 
     def load_environment_variables(self, project_dir):
-        """Uploads environment variables from the environment variables files."""
+        """Uploads environment variables from the environment variables files and variables."""
         for file in self.existing_environment_variables_files(project_dir):
             self._load_file(file)
+
+        if self.environment_variables:
+            for key, value in self.environment_variables:
+                os.putenv(key, value)
 
     def setdefault(self, key, value):
         """Same as for dict."""
