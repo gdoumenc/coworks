@@ -49,7 +49,6 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
 
     @xray_recorder.capture("Connect to ODOO")
     def connect(self, url=None, dbname=None, user=None, passwd=None):
-
         # initialize connection informations
         self.url = url or os.getenv(self.url_env_var_name)
         if not self.url:
@@ -69,7 +68,7 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
         try:
             subsegment = xray_recorder.current_subsegment()
             if subsegment:
-                subsegment.put_metadata(f"Connexion parameters: {self.url}, {self.dbname}, {self.user}, {self.passwd}")
+                subsegment.put_metadata("connection", f"Connection parameters: {self.url}, {self.dbname}, {self.user}, {self.passwd}")
 
             # initialize xml connection to odoo
             common = client.ServerProxy(f'{self.url}/xmlrpc/2/common')
@@ -104,9 +103,9 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
         options = {}
         if fields:
             options["fields"] = fields if type(fields) is list else [fields]
-        options.setdefault("offset", int(offset) or 0)
-        options.setdefault("limit", int(limit) or 50)
-        options.setdefault("order", order or 'id asc')
+        options.setdefault("offset", int(offset) if offset else 0)
+        options.setdefault("limit", int(limit) if limit else 50)
+        options.setdefault("order", order if order else 'id asc')
 
         try:
             results = self.execute_kw(model, 'search_read', filters, options)
