@@ -31,7 +31,7 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
         results = self.search(model, [[(searched_field, '=', searched_value)]], fields=fields, **kwargs)
         if not results:
             return "No object found", 404
-        return _reduce_result(results, fields, ensure_one)
+        return results
 
     def get_fields(self, model, searched_field, searched_value, returned_fields=None):
         """Returns the value of the object which searched_field is equal to the searched_value."""
@@ -40,8 +40,7 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
 
     def get_field(self, model, searched_field, searched_value, returned_field='id'):
         """Returns the value of the object which searched_field is equal to the searched_value."""
-        value = self.get_model(model, searched_field, searched_value, fields=[returned_field], ensure_one=True)
-        return value[returned_field]
+        return self.get_model(model, searched_field, searched_value, fields=[returned_field], ensure_one=True)[0]
 
     def get_id(self, model, searched_field, searched_value):
         """Returns the id of the object which searched_field is equal to the searched_value."""
