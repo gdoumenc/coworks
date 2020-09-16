@@ -59,6 +59,13 @@ class TestClass:
         assert response.status_code == 200
         assert response.text == 'test prod environment variable'
 
+    def test_env_var(self, local_server_factory):
+        config = Config(environment_variables= {'test': 'test value environment variable'})
+        local_server = local_server_factory(WithEnvMS(configs=config))
+        response = local_server.make_call(requests.get, '/')
+        assert response.status_code == 200
+        assert response.text == 'test value environment variable'
+
 
 def run_server_example(app, port):
     print(f"Server starting on port {port}")

@@ -60,7 +60,7 @@ class Config:
 
         if self.environment_variables:
             for key, value in self.environment_variables.items():
-                os.putenv(key, str(value))
+                os.environ[key] = str(value)
 
     def setdefault(self, key, value):
         """Same as for dict."""
