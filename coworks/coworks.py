@@ -51,6 +51,14 @@ class Blueprint(CoworksMixin, ChaliceBlueprint):
     def current_app(self):
         return self._current_app
 
+    def _add_registered_functions(self, current_app):
+        for func in self.before_first_activation_funcs:
+            current_app.before_first_activation(func)
+        for func in self.before_activation_funcs:
+            current_app.before_activation(func)
+        for func in self.after_activation_funcs:
+            current_app.after_activation(func)
+
 
 class TechMicroService(CoworksMixin, Chalice):
     """Simple tech microservice created directly from class.
@@ -84,16 +92,6 @@ class TechMicroService(CoworksMixin, Chalice):
 
         # Extended commands added
         self.commands = {}
-
-        # A list of functions that will be called at the first activation.
-        # To register a function, use the :meth:`before_first_request` decorator.
-        self.before_first_activation_funcs = []
-
-        # A list of functions that will be called at the beginning of each activation.
-        # To register a function, use the :meth:`before_activation` decorator.
-        self.before_activation_funcs = []
-
-        self.after_activation_funcs = []
 
         self._got_first_activation = False
         self._before_activation_lock = Lock()
@@ -143,6 +141,7 @@ class TechMicroService(CoworksMixin, Chalice):
 
         def deferred(workspace):
             self._init_routes(workspace=workspace, component=blueprint, url_prefix=kwargs['url_prefix'])
+            blueprint._add_registered_functions(self)
             Chalice.register_blueprint(self, blueprint, **kwargs)
 
         self.blueprint_deferred_inits.append(deferred)
@@ -327,17 +326,6 @@ class TechMicroService(CoworksMixin, Chalice):
         self.deferred_inits.append(f)
         return f
 
-    def before_first_activation(self, f):
-        """Registers a function to be run before the first activation of the microservice.
-
-        May be used as a decorator.
-
-        The function will be called without any arguments and its return value is ignored.
-        """
-
-        self.before_first_activation_funcs.append(f)
-        return f
-
     def do_before_first_activation(self):
         """Calls all before first activation functions."""
         if self._got_first_activation:
@@ -353,34 +341,10 @@ class TechMicroService(CoworksMixin, Chalice):
                     func()
                 self._got_first_activation = True
 
-    def before_activation(self, f):
-        """Registers a function to run before each activation of the microservice.
-        :param f:  Function added to the list.
-        :return: None.
-
-        May be used as a decorator.
-
-        The function will be called without any arguments and its return value is ignored.
-        """
-
-        self.before_activation_funcs.append(f)
-        return f
-
     def do_before_activation(self):
         """Calls all before activation functions."""
         for func in self.before_activation_funcs:
             func()
-
-    def after_activation(self, f):
-        """Registers a function to be run after each activation of the microservice.
-
-        May be used as a decorator.
-
-        The function will be called without any arguments and its return value is ignored.
-        """
-
-        self.after_activation_funcs.append(f)
-        return f
 
     def do_after_activation(self):
         """Calls all after activation functions."""

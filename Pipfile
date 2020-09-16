@@ -23,6 +23,7 @@ sqlalchemy = "*"
 psycopg2 = "*"
 mysqlclient = "*"
 python-terraform = "*"
+boto3-stubs = "*"
 
 [requires]
 python_version = "3.7"

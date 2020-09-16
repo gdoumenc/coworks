@@ -1,8 +1,8 @@
 import threading
-import time
 from pathlib import Path
 
 import requests
+import time
 
 from coworks.config import Config
 from coworks.cws.runner import ThreadedLocalServer

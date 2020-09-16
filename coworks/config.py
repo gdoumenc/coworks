@@ -9,6 +9,7 @@ from chalice import CORSConfig as ChaliceCORSConfig
 from chalice.app import AuthRequest, AuthResponse
 
 from .mixins import CoworksMixin
+from .utils import as_list
 
 DEFAULT_PROJECT_DIR = '.'
 DEFAULT_WORKSPACE = 'dev'
@@ -40,21 +41,17 @@ class Config:
 
     def existing_environment_variables_files(self, project_dir):
         """Returns a list containing the paths to environment variables files that actually exist """
-        if self.environment_variables_file is None:
-            return []
-        else:
-            if type(self.environment_variables_file) is str:
-                self.environment_variables_file = [self.environment_variables_file]
-            files = []
-            parent = Path(project_dir)
-            for file in self.environment_variables_file:
-                var_file = parent / file
-                if var_file.is_file():
-                    files.append(var_file)
-                var_secret_file = var_file.with_suffix(SECRET_ENV_FILE_SUFFIX)
-                if var_secret_file.is_file():
-                    files.append(var_secret_file)
-            return files
+        environment_variables_file = as_list(self.environment_variables_file)
+        files = []
+        parent = Path(project_dir)
+        for file in environment_variables_file:
+            var_file = parent / file
+            if var_file.is_file():
+                files.append(var_file)
+            var_secret_file = var_file.with_suffix(SECRET_ENV_FILE_SUFFIX)
+            if var_secret_file.is_file():
+                files.append(var_secret_file)
+        return files
 
     def load_environment_variables(self, project_dir):
         """Uploads environment variables from the environment variables files and variables."""
@@ -62,8 +59,8 @@ class Config:
             self._load_file(file)
 
         if self.environment_variables:
-            for key, value in self.environment_variables:
-                os.putenv(key, value)
+            for key, value in self.environment_variables.items():
+                os.putenv(key, str(value))
 
     def setdefault(self, key, value):
         """Same as for dict."""

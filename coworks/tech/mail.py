@@ -28,6 +28,7 @@ class MailMicroService(TechMicroService):
             if not self.smtp_passwd:
                 raise EnvironmentError('SMTP_PASSWD not defined in environment')
 
+    @xray_recorder.capture()
     def post_send(self, subject="", from_addr: str = None, to_addrs: [str] = None, cc_addrs: [str] = None, bcc_addrs: [str] = None, body="",
                   attachments: [FileParam] = None, attachment_urls: dict = None, subtype="plain", starttls=True):
         """ Send mail.
@@ -82,13 +83,10 @@ class MailMicroService(TechMicroService):
                 if starttls:
                     server.starttls()
                 server.login(self.smtp_login, self.smtp_passwd)
-                subsegment = xray_recorder.begin_subsegment(f"SMTP sending")
-                try:
-                    if subsegment:
-                        subsegment.put_metadata('message', msg.as_string())
-                    server.send_message(msg)
-                finally:
-                    xray_recorder.end_subsegment()
+                subsegment = xray_recorder.current_subsegment()
+                if subsegment:
+                    subsegment.put_metadata('message', msg.as_string())
+                server.send_message(msg)
 
             return f"Mail sent to {msg['To']}"
         except smtplib.SMTPAuthenticationError:

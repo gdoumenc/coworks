@@ -7,6 +7,8 @@ from typing import List, Tuple, Union
 from xmlrpc import client
 from xmlrpc.client import Fault
 
+from aws_xray_sdk.core import xray_recorder
+
 from coworks.mixins import Boto3Mixin
 from .. import Blueprint
 from ..coworks import TechMicroService
@@ -29,7 +31,7 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
         results = self.search(model, [[(searched_field, '=', searched_value)]], fields=fields, **kwargs)
         if not results:
             return "No object found", 404
-        return _ensure_one(results) if ensure_one else results
+        return _reduce_result(results, fields, ensure_one)
 
     def get_fields(self, model, searched_field, searched_value, returned_fields=None):
         """Returns the value of the object which searched_field is equal to the searched_value."""
@@ -45,6 +47,7 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
         """Returns the id of the object which searched_field is equal to the searched_value."""
         return self.get_field(model, searched_field, searched_value)
 
+    @xray_recorder.capture("Connect to ODOO")
     def connect(self, url=None, dbname=None, user=None, passwd=None):
 
         # initialize connection informations
@@ -64,6 +67,10 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
         self.logger = logging.getLogger('odoo')
 
         try:
+            subsegment = xray_recorder.current_subsegment()
+            if subsegment:
+                subsegment.put_metadata(f"Connexion parameters: {self.url}, {self.dbname}, {self.user}, {self.passwd}")
+
             # initialize xml connection to odoo
             common = client.ServerProxy(f'{self.url}/xmlrpc/2/common')
             self.api_uid = common.authenticate(self.dbname, self.user, self.passwd, {})
@@ -72,13 +79,15 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
         except Exception:
             raise Exception(f'Odoo interface variables wrongly defined.')
 
+    @xray_recorder.capture()
     def execute_kw(self, model: str, method: str, *args):
         if not self.api_uid:
             self.connect()
         models_url = f'{self.url}/xmlrpc/2/object'
         try:
             with client.ServerProxy(models_url, allow_none=True) as models:
-                return models.execute_kw(self.dbname, self.api_uid, self.passwd, model, method, *args)
+                res: List[dict] = models.execute_kw(self.dbname, self.api_uid, self.passwd, model, method, *args)
+                return res
         except (BadStatusLine, ExpatError):
             time.sleep(2)
             with client.ServerProxy(models_url) as models:
@@ -91,16 +100,19 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
             raise
 
     def search(self, model, filters: List[List[tuple]], *, fields=None, offset=None, limit=None, order=None,
-               ensure_one: bool = False) -> list:
+               ensure_one: bool = False) -> Union[Tuple[str, int], dict, List[dict]]:
         options = {}
         if fields:
             options["fields"] = fields if type(fields) is list else [fields]
-        options.setdefault("offset", int(offset) if offset else 0)
-        options.setdefault("limit", int(limit) if limit else 50)
-        options.setdefault("order", order if order else 'id asc')
+        options.setdefault("offset", int(offset) or 0)
+        options.setdefault("limit", int(limit) or 50)
+        options.setdefault("order", order or 'id asc')
 
-        results = self.execute_kw(model, 'search_read', filters, options)
-        return _ensure_one(results) if ensure_one else results
+        try:
+            results = self.execute_kw(model, 'search_read', filters, options)
+            return _reduce_result(results, fields, ensure_one)
+        except Exception as e:
+            return str(e), 404
 
     def create(self, model, data: dict):
         return self.execute_kw(model, 'create', [self._replace_tuple(data)])
@@ -121,6 +133,7 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
                     del struct[k]
                     struct[k[1:-1]] = [tuple(v) for v in value]
         return struct
+
     @property
     def url_env_var_name(self):
         return 'URL'
@@ -373,13 +386,17 @@ class OdooBlueprint(Blueprint):
         return self.current_app.delete_model(self._model, _id, dry=dry)
 
 
-def _ensure_one(results) -> Union[Tuple[str, int], dict]:
-    """Ensure only only one in the result list and returns it."""
-    if len(results) == 0:
-        return "No object found.", 404
-    if len(results) > 1:
-        return f"More than one object ({len(results)}) founds : ids={[o.get('id') for o in results]}", 404
-    return results[0]
+def _reduce_result(results: List[dict], fields, ensure_one):
+    """Reduces rows values if only one value and ensure only only one in the result list and returns it."""
+    if len(fields) == 1:
+        results = [row[fields[0]] for row in results]
+    if ensure_one:
+        if len(results) == 0:
+            return "No object found.", 404
+        if len(results) > 1:
+            return f"More than one object ({len(results)}) founds : ids={[o.get('id') for o in results]}", 404
+        return results[0]
+    return results
 
 
 class UserBlueprint(OdooBlueprint):

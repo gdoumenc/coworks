@@ -23,12 +23,57 @@ class CoworksMixin:
         self.debug = kwargs.pop('debug', False)
         self.__auth__ = None
 
+        # A list of functions that will be called at the first activation.
+        # To register a function, use the :meth:`before_first_request` decorator.
+        self.before_first_activation_funcs = []
+
+        # A list of functions that will be called at the beginning of each activation.
+        # To register a function, use the :meth:`before_activation` decorator.
+        self.before_activation_funcs = []
+
+        self.after_activation_funcs = []
+
         self.aws_s3_sfn_data_session = AwsS3Session(env_var_access_key="AWS_RUN_ACCESS_KEY_ID",
                                                     env_var_secret_key="AWS_RUN_SECRET_KEY",
                                                     env_var_region="AWS_RUN_REGION")
         self.aws_s3_form_data_session = AwsS3Session(env_var_access_key="AWS_FORM_DATA_ACCESS_KEY_ID",
                                                      env_var_secret_key="AWS_FORM_DATA_SECRET_KEY",
                                                      env_var_region="AWS_FORM_DATA_REGION")
+
+    def before_first_activation(self, f):
+        """Registers a function to be run before the first activation of the microservice.
+
+        May be used as a decorator.
+
+        The function will be called without any arguments and its return value is ignored.
+        """
+
+        self.before_first_activation_funcs.append(f)
+        return f
+
+    def before_activation(self, f):
+        """Registers a function to run before each activation of the microservice.
+        :param f:  Function added to the list.
+        :return: None.
+
+        May be used as a decorator.
+
+        The function will be called without any arguments and its return value is ignored.
+        """
+
+        self.before_activation_funcs.append(f)
+        return f
+
+    def after_activation(self, f):
+        """Registers a function to be run after each activation of the microservice.
+
+        May be used as a decorator.
+
+        The function will be called without any arguments and its return value is ignored.
+        """
+
+        self.after_activation_funcs.append(f)
+        return f
 
     def _create_rest_proxy(self, func, kwarg_keys, args, varkw):
         original_app_class = self.__class__
