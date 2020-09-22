@@ -29,7 +29,7 @@ class TestClass:
         assert pytest_wrapped_e.type == SystemExit
         assert pytest_wrapped_e.value.code == 0
         captured = capsys.readouterr()
-        assert captured.out == "info passed for b=test info only"
+        assert captured.out == "test command with a=default/test command with b=value"
 
     def test_info_wrong_option(self, example_dir, capsys):
         with pytest.raises(SystemExit) as pytest_wrapped_e:
@@ -45,7 +45,7 @@ class TestClass:
         assert pytest_wrapped_e.type == SystemExit
         assert pytest_wrapped_e.value.code == 0
         captured = capsys.readouterr()
-        assert captured.out == "info passed with a=right"
+        assert captured.out == "test command with a=right/test command with b=value"
 
     def test_info_wrong_b_option(self, example_dir, capsys):
         with pytest.raises(SystemExit) as pytest_wrapped_e:
@@ -61,7 +61,7 @@ class TestClass:
         assert pytest_wrapped_e.type == SystemExit
         assert pytest_wrapped_e.value.code == 0
         captured = capsys.readouterr()
-        assert captured.out == "info passed for b=right only"
+        assert captured.out == "test command with a=default/test command with b=right"
 
     def test_run(self, example_dir):
         with pytest.raises(SystemExit) as pytest_wrapped_e:

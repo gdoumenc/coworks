@@ -11,9 +11,9 @@ cmd_mock = Mock()
 
 
 class MyCommand(CwsCommand):
-    def _execute(self, **options):
+    def _execute(self, *, project_dir, **options):
         cmd_mock()
-        assert options['project_dir'] == '.'
+        assert project_dir == '.'
         assert options['module'] == 'test_cmd'
         assert options['workspace'] == 'dev'
         assert options['service'] == 'test'
@@ -26,12 +26,13 @@ class MyCommandWithOoptions(CwsCommand):
         return [
             *super().options,
             click.option('--param', required=True),
+            click.option('--autre', required=True),
         ]
 
-    def _execute(self, **options):
+    def _execute(self, *, project_dir, **options):
         cmd_mock()
 
-        assert options['project_dir'] == '.'
+        assert project_dir == 'tests/src/cws'
         assert options['module'] == 'test_cmd'
         assert options['workspace'] == 'dev'
         assert options['service'] == 'test'
@@ -55,11 +56,11 @@ class TestCommand:
 
     def test_command_with_options(self):
         simple = SimpleMS()
-        MyCommandWithOoptions(simple, name='test')
+        MyCommandWithOoptions(simple, name='test_command_with_options')
 
         with pytest.raises(CwsCommandError) as pytest_wrapped_e:
-            simple.execute('test', project_dir='.', module='test_cmd', workspace='dev')
+            simple.execute('test_command_with_options', project_dir='tests/src/cws', module='test_cmd', workspace='dev')
         assert pytest_wrapped_e.type == CwsCommandError
         assert pytest_wrapped_e.value.msg == 'missing parameter: param'
 
-        simple.execute('test', project_dir='.', module='test_cmd', workspace='dev', param='param')
+        simple.execute('test_command_with_options', project_dir='tests/src/cws', module='test_cmd', workspace='dev', param='param')

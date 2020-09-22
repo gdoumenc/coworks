@@ -17,7 +17,8 @@ class TestClass:
         assert pytest_wrapped_e.type == SystemExit
         assert pytest_wrapped_e.value.code == 0
         captured = capsys.readouterr()
-        assert captured.out == "info passed for b=test info onlyinfo passed with a=project2"
+        assert captured.out == \
+               "test command with a=default/test command with b=valuetest command with a=project2/test command with b=value"
 
     def test_project_file_no_param_workspace_dev(self, example_dir, capsys):
         with pytest.raises(SystemExit) as pytest_wrapped_e:
@@ -25,7 +26,8 @@ class TestClass:
         assert pytest_wrapped_e.type == SystemExit
         assert pytest_wrapped_e.value.code == 0
         captured = capsys.readouterr()
-        assert captured.out == "info passed for b=test info onlyinfo passed with a=project2"
+        assert captured.out == \
+               "test command with a=default/test command with b=valuetest command with a=project2/test command with b=value"
 
     def test_project_file_no_param_workspace_prod(self, example_dir, capsys):
         with pytest.raises(SystemExit) as pytest_wrapped_e:
@@ -33,7 +35,8 @@ class TestClass:
         assert pytest_wrapped_e.type == SystemExit
         assert pytest_wrapped_e.value.code == 0
         captured = capsys.readouterr()
-        assert captured.out == "info passed for b=test info onlyinfo passed with a=prod2"
+        assert captured.out == \
+               "test command with a=default/test command with b=valuetest command with a=prod2/test command with b=value"
 
     def test_project_file_param(self, example_dir, capsys):
         with pytest.raises(SystemExit) as pytest_wrapped_e:
@@ -41,7 +44,8 @@ class TestClass:
         assert pytest_wrapped_e.type == SystemExit
         assert pytest_wrapped_e.value.code == 0
         captured = capsys.readouterr()
-        assert captured.out == "info passed with a=paraminfo passed with a=param"
+        assert captured.out == \
+               "test command with a=param/test command with b=valuetest command with a=param/test command with b=value"
 
     def test_project_file_project1(self, example_dir, capsys):
         with pytest.raises(SystemExit) as pytest_wrapped_e:
@@ -49,7 +53,7 @@ class TestClass:
         assert pytest_wrapped_e.type == SystemExit
         assert pytest_wrapped_e.value.code == 0
         captured = capsys.readouterr()
-        assert captured.out == "info passed for b=test info only"
+        assert captured.out == "test command with a=default/test command with b=value"
 
     def test_project_file_project2(self, example_dir, capsys):
         with pytest.raises(SystemExit) as pytest_wrapped_e:
@@ -57,3 +61,4 @@ class TestClass:
         assert pytest_wrapped_e.type == SystemExit
         assert pytest_wrapped_e.value.code == 0
         captured = capsys.readouterr()
+        assert captured.out == "test command with a=project2/test command with b=value"

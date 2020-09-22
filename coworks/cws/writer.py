@@ -57,7 +57,7 @@ class CwsWriter(CwsCommand):
 class CwsTemplateWriter(CwsWriter):
     """Writer with  jinja templating."""
 
-    def __init__(self, app=None, *, name='export', data, template_filenames, env):
+    def __init__(self, app=None, *, name='export', data=None, template_filenames=None, env=None):
         super().__init__(app, name=name)
         self.data = data or {}
         self.template_filenames = template_filenames or self.default_template_filenames
@@ -149,7 +149,7 @@ class TerraformEntry:
 
 class CwsTerraformWriter(CwsTemplateWriter):
 
-    def __init__(self, app=None, *, name='terraform', data, **kwargs):
+    def __init__(self, app=None, *, name='terraform', data=None, **kwargs):
 
         data = data or {
             'layer_zip_file': 'layer.zip',

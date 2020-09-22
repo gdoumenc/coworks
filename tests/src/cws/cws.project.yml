@@ -1,0 +1,6 @@
+version: ">=11"
+services:
+commands:
+  test_command_with_options:
+    default:
+      autre: value

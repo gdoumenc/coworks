@@ -11,7 +11,8 @@ commands:
   test:
     default:
       class: example.TestCmd
-      b: test info
+      b: value
+      a: default
     services:
       - module: example
         service: project2

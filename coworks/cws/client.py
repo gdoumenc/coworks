@@ -3,17 +3,17 @@ from functools import partial
 
 import anyconfig
 import click
-from chalice.cli import chalice_version, get_system_info
 
 from coworks.config import DEFAULT_PROJECT_DIR, DEFAULT_WORKSPACE
 from coworks.cws.error import CwsClientError
 from coworks.utils import import_attr
 from coworks.version import __version__
 
+from .utils import get_system_info
+
 
 @click.group()
-@click.version_option(version=__version__,
-                      message=f'%(prog)s %(version)s, chalice {chalice_version}, {get_system_info()}')
+@click.version_option(version=__version__, message=f'%(prog)s %(version)s, {get_system_info()}')
 @click.option('-p', '--project-dir', default=DEFAULT_PROJECT_DIR,
               help='The project directory path (absolute or relative). Defaults to CWD')
 @click.option('-m', '--module', help="Filename of your microservice python source file.")
@@ -45,7 +45,7 @@ def invoke(initial, ctx):
 
         # Iterates over the declared services in project configuration file
         for module, service in services:
-            ctx.args = args
+            ctx.args = list(args)
             ctx.protected_args = protected_args
 
             # Get command from the microservice
@@ -55,21 +55,10 @@ def invoke(initial, ctx):
             if not cmd:
                 raise CwsClientError(f"Undefined command {cmd_name}.\n")
 
-            # Defines the proxy command with all user options
-            def call_execute(**command_options):
-                try:
-                    client_options = {'project_dir': project_dir, 'module': module, 'service': service, 'workspace': workspace}
-                    complement = cmd_project_config.missing_options(**client_options, **command_options)
-                    cmd.execute(**client_options, **complement)
-                except Exception as err:
-                    raise CwsClientError(str(err))
-
-            for opt in cmd.options:
-                call_execute = opt(call_execute)
-            client.command(cmd_name)(call_execute)
-
-            # Call the command from click
-            initial(ctx)
+            client_args = cmd.make_parser(ctx).parse_args(ctx.args)
+            client_params = {'project_dir': project_dir, 'module': module, 'service': service, 'workspace': workspace}
+            complemented_args = cmd_project_config.missing_options(**client_params, **client_args[0])
+            cmd.execute(**client_params, **complemented_args)
     except CwsClientError as client_err:
         sys.stderr.write(client_err.msg)
         sys.exit(1)

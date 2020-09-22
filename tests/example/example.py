@@ -15,15 +15,15 @@ class TestCmd(CwsCommand):
     def options(self):
         return [
             *super().options,
-            click.option('-a', '--a'),
+            click.option('-a', '--a', required=True),
             click.option('--b')
         ]
 
     def _execute(self, *, a, b, **options):
         if a:
-            self.output.write(f"info passed with a={a}")
-        else:
-            self.output.write(f"info passed for b={b} only")
+            self.output.write(f"test command with a={a}")
+            self.output.write("/")
+        self.output.write(f"test command with b={b}")
 
 
 class TechMS(TechMicroService):

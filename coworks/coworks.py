@@ -156,9 +156,9 @@ class TechMicroService(CoworksMixin, Chalice):
         if not cmd:
             raise CwsCommandError(f"The command {command} was not added to the microservice {self.ms_name}.\n")
 
-        client_options = {'project_dir':project_dir, 'module':module, 'service':service, 'workspace':workspace}
-        complement = project_config.missing_options(**client_options, **kwargs)
-        cmd.execute(output=output, error=error, **client_options, **complement)
+        client_params = {'project_dir':project_dir, 'module':module, 'service':service, 'workspace':workspace}
+        complemented_args = project_config.missing_options(**client_params, **kwargs)
+        cmd.execute(output=output, error=error, **client_params, **complemented_args)
 
     def _init_routes(self, *, workspace=DEFAULT_WORKSPACE, component=None, url_prefix=None):
         if self.config is None:
