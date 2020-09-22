@@ -27,9 +27,9 @@ class CwsWriter(CwsCommand):
     def options(self):
         return [
             *super().options,
-            click.option('-o', '--output', default=None),
+            click.option('-o', '--output'),
             click.option('--step', default=DEFAULT_STEP),
-            click.option('--config', default=None),
+            click.option('--config'),
             click.option('--debug/--no-debug', default=False, help='Print debug logs to stderr.')
         ]
 
@@ -57,7 +57,7 @@ class CwsWriter(CwsCommand):
 class CwsTemplateWriter(CwsWriter):
     """Writer with  jinja templating."""
 
-    def __init__(self, app=None, *, name='export', data=None, template_filenames=None, env=None):
+    def __init__(self, app=None, *, name='export', data, template_filenames, env):
         super().__init__(app, name=name)
         self.data = data or {}
         self.template_filenames = template_filenames or self.default_template_filenames
@@ -71,16 +71,7 @@ class CwsTemplateWriter(CwsWriter):
     def default_template_filenames(self):
         """Must be redefined to set template file for writing."""
 
-    def _validate_context(self, **options):
-        """ Validator called before templating.
-
-        :param options: context used for templating.
-        :return: validated context.
-        """
-        return options
-
     def _export_content(self, *, project_dir, module, service, workspace, **options):
-        self._validate_context(**options)
         module_path = module.split('.')
 
         # Get parameters for execution
@@ -104,6 +95,7 @@ class CwsTemplateWriter(CwsWriter):
             'handler': service,
             'app': self.app,
             'ms_name': self.app.ms_name,
+            'workspace': workspace,
             'app_config': config,
             'environment_variable_files': environment_variable_files,
             'sfn_name': options.get('sfn_name'),
@@ -157,7 +149,7 @@ class TerraformEntry:
 
 class CwsTerraformWriter(CwsTemplateWriter):
 
-    def __init__(self, app=None, *, name='terraform', data=None, **kwargs):
+    def __init__(self, app=None, *, name='terraform', data, **kwargs):
 
         data = data or {
             'layer_zip_file': 'layer.zip',
