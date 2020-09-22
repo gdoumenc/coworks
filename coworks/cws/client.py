@@ -6,7 +6,6 @@ import click
 from chalice.cli import chalice_version, get_system_info
 
 from coworks.config import DEFAULT_PROJECT_DIR, DEFAULT_WORKSPACE
-from coworks.cws.command import CwsCommandOptions
 from coworks.cws.error import CwsClientError
 from coworks.utils import import_attr
 from coworks.version import __version__
@@ -28,9 +27,10 @@ def client(*args, **kwargs):
 def invoke(initial, ctx):
     """Invokes the command over the service or the declared services in project configuration file."""
     try:
-        cmd_name = ctx.protected_args[0] if ctx.protected_args else None
         args = ctx.args
         protected_args = ctx.protected_args
+
+        cmd_name = protected_args[0] if protected_args else None
 
         project_dir = ctx.params.get('project_dir')
         module = ctx.params.get('module')
@@ -58,10 +58,9 @@ def invoke(initial, ctx):
             # Defines the proxy command with all user options
             def call_execute(**command_options):
                 try:
-                    options = CwsCommandOptions(cmd, project_dir=project_dir, module=module, service=service,
-                                                workspace=workspace, **command_options)
-                    cmd_project_config.complete_options(options)
-                    cmd.execute(options=options)
+                    client_options = {'project_dir': project_dir, 'module': module, 'service': service, 'workspace': workspace}
+                    complement = cmd_project_config.missing_options(**client_options, **command_options)
+                    cmd.execute(**client_options, **complement)
                 except Exception as err:
                     raise CwsClientError(str(err))
 
@@ -130,13 +129,16 @@ class ProjectConfig:
                 proj = ProjectConfig(needed, self.project_dir)
                 proj.get_command(ms, module, service, workspace)
 
+            click.help_option()(cmd)
             return cmd
 
-    def complete_options(self, options):
+    def missing_options(self, project_dir, module, service, workspace, **options):
         """Adds project options to the command options."""
-        for key in self._all_options_keys(options.module, options.service, options.workspace):
+        for key in self._all_options_keys(module, service, workspace):
+            if key == 'class':
+                continue
             if key not in options or options[key] is None:
-                options[key] = self._get_option(options.module, options.service, options.workspace, key)
+                options[key] = self._get_option(module, service, workspace, key)
         return options
 
     @property

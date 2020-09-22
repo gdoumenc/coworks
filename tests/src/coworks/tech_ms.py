@@ -106,8 +106,14 @@ class TupleReturnedMS(TechMS):
     def get(self):
         return 'ok', 200
 
+    def get_json(self):
+        return {'value': 'ok'}, 200
+
     def get_resp(self, str):
         return Response(body=str, status_code=200)
 
     def get_error(self, str):
         return str, 300
+
+    def get_tuple(self, str):
+        return (str, 200, {'x-test': 'true'})

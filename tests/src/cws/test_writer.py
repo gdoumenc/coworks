@@ -2,7 +2,6 @@ import io
 import re
 
 from coworks.config import Config, CORSConfig
-from coworks.cws.command import CwsCommandOptions
 from coworks.cws.writer import CwsTerraformWriter
 from tests.src.coworks.tech_ms import SimpleMS
 
@@ -12,13 +11,12 @@ class TestClass:
     def test_export_terraform(self):
         simple = SimpleMS()
         writer = CwsTerraformWriter(simple)
-        self.export_cmd(simple)
         output = io.StringIO()
-        self.export_writer(writer, output)
+        self.export_cmd(simple, output)
         output.seek(0)
         print(output.read())
         output.seek(0)
-        assert len(re.sub(r"\s", "", output.read())) == 8448
+        assert len(re.sub(r"\s", "", output.read())) == 8449
         assert len(writer.entries) == 8
 
         assert writer.entries['_'].parent_uid is None
@@ -43,22 +41,15 @@ class TestClass:
     def test_export_terraform_with_cors(self):
         config = Config(cors=CORSConfig(allow_origin='www.test.fr'))
         simple = SimpleMS(configs=config)
-        writer = CwsTerraformWriter(simple)
-        self.export_cmd(simple)
+        CwsTerraformWriter(simple)
         output = io.StringIO()
-        self.export_writer(writer, output)
+        self.export_cmd(simple, output)
         output.seek(0)
         print(output.read())
         output.seek(0)
-        assert len(re.sub(r"\s", "", output.read())) == 19605
+        assert len(re.sub(r"\s", "", output.read())) == 19606
 
     @staticmethod
-    def export_cmd(ms):
-        ms.execute('terraform', project_dir='.', module="test", service="app", workspace='dev', step='update',
-                   output='/dev/null')
-
-    @staticmethod
-    def export_writer(writer, output):
-        options = CwsCommandOptions(writer, project_dir='.', module="test", service="app", workspace='dev',
-                                    step='update')
-        writer.execute(options=options, output=output)
+    def export_cmd(simple, output):
+        options = {'project_dir': '.', 'module': "test", 'workspace': 'dev', 'step': 'update'}
+        simple.execute('terraform', output=output, **options)

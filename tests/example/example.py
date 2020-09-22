@@ -9,21 +9,21 @@ from coworks.cws.command import CwsCommand
 from coworks.cws.writer import CwsTerraformWriter
 
 
-class CwsInfo(CwsCommand):
+class TestCmd(CwsCommand):
 
     @property
     def options(self):
         return [
             *super().options,
-            click.option('-h'),
-            click.option('-a')
+            click.option('-a', '--a'),
+            click.option('--b')
         ]
 
-    def _execute(self, options):
-        if options['h']:
-            self.output.write(f"info passed on {options['h']}")
+    def _execute(self, *, a, b, **options):
+        if a:
+            self.output.write(f"info passed with a={a}")
         else:
-            self.output.write(f"info passed on {self.app.ms_name}")
+            self.output.write(f"info passed for b={b} only")
 
 
 class TechMS(TechMicroService):
@@ -60,11 +60,11 @@ class TechMS(TechMicroService):
 
 # usefull for test info (don't remove)
 tech_app = TechMS()
-CwsInfo(tech_app, name='info')
+TestCmd(tech_app, name='test')
 CwsTerraformWriter(tech_app)
 
 app = TechMS(configs=Config(environment_variables_file="config/vars_dev.json"))
-CwsInfo(tech_app, name='info')
+TestCmd(tech_app, name='test')
 
 project1 = TechMS()
 project2 = TechMS()

@@ -47,7 +47,7 @@ Related Projects
 ----------------
 
 * `Chalice <https://github.com/aws/chalice>`_ - Python Serverless Microframework for AWS.
+* `Click <https://github.com/pallets/click>`_ -  A package for creating beautiful command line interfaces.
 * `Terraform <https://github.com/hashicorp/terraform>`_ - Infrastructure configuration management tool.
-* `SCons <https://github.com/SCons/scons>`_ -  A software construction tool.
 
 

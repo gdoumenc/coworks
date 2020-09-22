@@ -1,79 +1,16 @@
 import sys
 from abc import ABC, abstractmethod
 
+import click
+
 from coworks import TechMicroService
 from coworks.cws.error import CwsCommandError
 
 
-class CwsCommandOptions():
-    """ Dictionnary wrapper over options to be able to get default options for command """
-
-    def __init__(self, cmd, **kwargs):
-        super().__init__()
-        self.__cmd = cmd
-        self.__options = kwargs
-
-        assert 'project_dir' in kwargs
-        assert 'module' in kwargs
-        assert 'workspace' in kwargs
-
-        if 'service' not in kwargs:
-            self.__options['service'] = cmd.app
-
-    @property
-    def project_dir(self):
-        return self.__options['project_dir']
-
-    @property
-    def module(self):
-        return self.__options['module']
-
-    @property
-    def service(self):
-        return self.__options['service']
-
-    @property
-    def workspace(self):
-        return self.__options['workspace']
-
-    def __getitem__(self, key):
-        return self.__options.get(key)
-
-    def __setitem__(self, key, value):
-        self.__options[key] = value
-
-    def __contains__(self, key):
-        return key in self.__options
-
-    def keys(self):
-        return self.__options.keys()
-
-    def to_dict(self, pop=None):
-        if type(pop) is not list:
-            pop = [pop]
-        options = self.__options
-        for p in pop:
-            options.pop(p, None)
-        return options
-
-    def __repr__(self):
-        return str(self.__options)
-
-    def setdefault(self, key, value):
-        if self.__options.get(key) is None:
-            self.__options[key] = value
-
-    def pop(self, key, value=None):
-        return self.__options.pop(key, value)
-
-    def get(self, key):
-        return self.__options.get(key)
-
-
-class CwsCommand(ABC):
+class CwsCommand(click.Command, ABC):
 
     def __init__(self, app: TechMicroService = None, *, name):
-        self.name = name
+        super().__init__(name, callback=self._execute)
 
         # Trace interfaces.
         self.output = sys.stdout
@@ -86,6 +23,9 @@ class CwsCommand(ABC):
         if app is not None:
             self.app = app
             self.init_app(app)
+
+        for opt in self.options:
+            opt(self)
 
     def init_app(self, app):
         app.commands[self.name] = self
@@ -101,14 +41,14 @@ class CwsCommand(ABC):
             opt.extend(self.app.commands[cmd].options)
         return opt
 
-    def execute(self, *, options: CwsCommandOptions, output=None, error=None):
+    def execute(self, *, project_dir, module, service, workspace, output=None, error=None, **options):
         """ Called when the command is called.
         :param output: output stream.
         :param error: error stream.
         :param options: command options.
         :return: None
         """
-        self.app.deferred_init(options.workspace)
+        self.app.deferred_init(workspace)
 
         if output is None and 'output' in options:
             output = options['output']
@@ -122,10 +62,16 @@ class CwsCommand(ABC):
             for func in self.before_funcs:
                 func(options)
 
-            self._execute(options)
+            ctx = self.make_context(self.name, options)
+            ctx.params.update(project_dir=project_dir, module=module, service=service, workspace=workspace, **options)
+            self.invoke(ctx)
 
             for func in self.after_funcs:
                 func(options)
+        except click.exceptions.Exit as e:
+            if e.exit_code:
+                raise CwsCommandError("Command exits with error")
+            return
         except CwsCommandError:
             raise
         except Exception as e:
@@ -157,22 +103,17 @@ class CwsCommand(ABC):
         self.after_funcs.append(f)
         return f
 
-    def complete_options_from_click(self, options):
-        """Adds default value option from click definition to the command options."""
-
-        def dummy():
-            pass
-
-        for opt in self.options:
-            opt(dummy)
-
-        for param in dummy.__click_params__:
-            if param.name not in options and param.default:
-                options[param.name] = param.default
-        return options
+    def parse_args(self, ctx, args):
+        for param in self.get_params(ctx):
+            if param.name not in args:
+                if param.required:
+                    raise CwsCommandError(f"missing parameter: {param.name}")
+                args[param.name] = param.get_default(ctx)
+        ctx.args = args
+        return args
 
     @abstractmethod
-    def _execute(self, options):
+    def _execute(self, **options):
         """ Main command function.
         :param options: Command options.
         :return: None.

@@ -25,13 +25,13 @@ class CwsSFNTranslater(CwsWriter):
             click.option('--account_number', default=None),
         )
 
-    def _export_content(self, options):
-        module_path = options.module.split('.')
+    def _export_content(self, *, project_dir, module, **options):
+        module_path = module.split('.')
         step_functions = {}
         sfn_name = self.app.sfn_name
-        filename = pathlib.Path(options.project_dir, *module_path[:-1]) / f"{sfn_name}.{self.extension}"
+        filename = pathlib.Path(project_dir, *module_path[:-1]) / f"{sfn_name}.{self.extension}"
 
-        sfn = StepFunction(sfn_name, filename, options)
+        sfn = StepFunction(sfn_name, filename, **options)
         step_functions[sfn_name] = sfn.generate()
         for idx, (sfn_name, sfn) in enumerate(step_functions.items()):
             if idx > 0:
@@ -41,7 +41,7 @@ class CwsSFNTranslater(CwsWriter):
 
 class StepFunction:
 
-    def __init__(self, sfn_name, filepath, options):
+    def __init__(self, sfn_name, filepath, **options):
         self.name = sfn_name
         self.options = options
         self.all_states = []
@@ -115,7 +115,7 @@ class StepFunction:
         elif 'success' in action:
             state = SuccessState(self, action)
         elif 'tech' in action:
-            state = TechState(self, action, self.options, no_catch=no_catch)
+            state = TechState(self, action, no_catch=no_catch, **self.options)
         elif 'wait' in action:
             state = WaitState(self, action)
         else:
@@ -270,7 +270,7 @@ class WaitState(PassState):
 
 
 class TechState(PassState):
-    def __init__(self, sfn, action, options, **kwargs):
+    def __init__(self, sfn, action, *, workspace, **kwargs):
         self.no_catch = kwargs.pop('no_catch', False)
         super().__init__(sfn, action, Type="Task", **kwargs)
 
@@ -280,10 +280,10 @@ class TechState(PassState):
 
         try:
             res = self.get_or_raise(tech_data, 'service')
-            if options.get('customer'):
-                self.state['Resource'] = f"arn:aws:lambda:eu-west-1:{options['account_number']}:function:{res}-{options.get('customer')}-{options.workspace}"
+            if kwargs.get('customer'):
+                self.state['Resource'] = f"arn:aws:lambda:eu-west-1:{kwargs['account_number']}:function:{res}-{kwargs.get('customer')}-{workspace}"
             else:
-                self.state['Resource'] = f"arn:aws:lambda:eu-west-1:{options['account_number']}:function:{res}-{options.workspace}"
+                self.state['Resource'] = f"arn:aws:lambda:eu-west-1:{kwargs['account_number']}:function:{res}-{workspace}"
             self.state["InputPath"] = f"$"
             result_path = tech_data.get('result_path')
             self.state["ResultPath"] = result_path if result_path else f"$.{self.slug}.result"

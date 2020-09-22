@@ -5,21 +5,24 @@ services:
   - module: example
     service: project2
 commands:
+  info:
+    default:
+      class: coworks.cws.info.CwsInfo
   test:
     default:
-      class: example.CwsInfo
-      h: test info
+      class: example.TestCmd
+      b: test info
     services:
       - module: example
         service: project2
         workspace: prod
-        h: prod2
+        a: prod2
       - module: example
         service: project2
-        h: project2
+        a: project2
       - module: example
         service: autre
-        h: autre
+        a: autre
   run:
     default:
       class: coworks.cws.runner.CwsRunner

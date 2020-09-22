@@ -115,14 +115,23 @@ class TestClass:
 
     def test_tuple_returned(self, local_server_factory):
         local_server = local_server_factory(TupleReturnedMS())
-        response = local_server.make_call(requests.get, '/')
+        headers = {'Content-type': 'text/plain', 'Accept': 'text/plain'}
+        response = local_server.make_call(requests.get, '/', headers=headers)
         assert response.status_code == 200
         assert response.text == 'ok'
+        assert response.headers['content-type'] == 'application/json'
+        response = local_server.make_call(requests.get, '/json')
+        assert response.status_code == 200
+        assert response.json()['value'] == 'ok'
+        assert response.headers['content-type'] == 'application/json'
         response = local_server.make_call(requests.get, '/resp/ok')
         assert response.status_code == 200
         assert response.text == 'ok'
-        response = local_server.make_call(requests.get, '/error/test')
-        assert response.status_code == 300
+        assert response.headers['content-type'] == 'application/json'
+        response = local_server.make_call(requests.get, '/tuple/test')
+        assert response.status_code == 200
+        assert response.headers['content-type'] == 'application/json'
+        assert response.headers['x-test'] == 'true'
         assert response.text == 'test'
 
 

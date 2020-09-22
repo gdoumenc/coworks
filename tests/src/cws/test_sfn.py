@@ -7,7 +7,6 @@ import pytest
 import yaml
 
 from coworks import BizFactory
-from coworks.cws.command import CwsCommandOptions
 from coworks.cws.sfn import StepFunction, TechState, CwsSFNTranslater
 from coworks.cws.writer import CwsWriterError
 from tests.src.coworks.tech_ms import S3MockTechMS
@@ -23,7 +22,8 @@ class TestStepFunction(StepFunction):
         with filepath.open() as file:
             self.data = yaml.load(file, Loader=yaml.SafeLoader)
 
-        super().__init__("test", filepath, CwsCommandOptions('translate-sfn', **{'module': None, 'service': None, 'project_dir':None, 'workspace': None, 'account_number': '123412341234'}))
+        options = {'module': None, 'service': None, 'project_dir': None, 'workspace': None}
+        super().__init__("test", filepath, account_number='123412341234', **options)
 
 
 class TechMS(S3MockTechMS):
@@ -98,9 +98,8 @@ class TestClass:
         translater = CwsSFNTranslater(biz)
         output = io.StringIO()
         with pytest.raises(CwsWriterError):
-            options = CwsCommandOptions(translater, project_dir='.', module='', service='', workspace='dev')
-            translater.execute(options=options, output=output, error=output)
-
+            options = {'project_dir': '.', 'module': '', 'service': '', 'workspace': 'dev'}
+            translater.execute(output=output, error=output, **options)
 
     def test_biz_complete(self):
         """Tests the doc example."""
@@ -108,8 +107,8 @@ class TestClass:
         fact.create('test')
         translater = CwsSFNTranslater(fact)
         output = io.StringIO()
-        options = CwsCommandOptions(translater, project_dir='.', module='', service='', workspace='dev')
-        translater.execute(options=options, output=output, error=output)
+        options = {'project_dir': '.', 'module': '', 'service': '', 'workspace': 'dev'}
+        translater.execute(output=output, error=output, **options)
         output.seek(0)
         source = json.loads(output.read())
         assert source['Version'] == "1.0"

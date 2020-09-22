@@ -30,7 +30,7 @@ class CwsRunner(CwsCommand):
         ]
 
     @threaded
-    def _execute(self, options):
+    def _execute(self, *, project_dir, workspace, host, port, debug, **options):
         """ Runs the microservice in a local Chalice emulator.
 
         :param host: the hostname to listen on.
@@ -41,25 +41,21 @@ class CwsRunner(CwsCommand):
         :return: None
         """
 
-        assert 'host' in options
-        assert 'port' in options
-
         # chalice.cli package is not defined in deployment
         from .factory import CwsFactory
 
         ms = self.app
-        os.environ['WORKSPACE'] = options.workspace
-        ms.config.load_environment_variables(options.project_dir)
+        os.environ['WORKSPACE'] = workspace
+        ms.config.load_environment_variables(project_dir)
         if ms.entries is None:
-            ms.deferred_init(options.workspace)
+            ms.deferred_init(workspace)
 
-        if options['debug']:
+        if debug:
             logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')
 
-        factory = CwsFactory(ms, options.project_dir, debug=options['debug'])
+        factory = CwsFactory(ms, project_dir, debug=debug)
         config = factory.mock_config_obj(ms)
-        ms.local_server = LocalDevServer(ms, config, options['host'], options['port'],
-                                         handler_cls=CwsRequestHandler)
+        ms.local_server = LocalDevServer(ms, config, host, port, handler_cls=CwsRequestHandler)
         ms.__class__ = type('LocalMicroService', (ms.__class__, ThreadedMixin), {})
         ms.local_server.serve_forever()
 
@@ -96,7 +92,6 @@ class ThreadedMixin:
     @current_request.setter
     def current_request(self, value):
         self._THREAD_LOCAL.current_request = value
-
 
 
 class ThreadedLocalServer(Thread):

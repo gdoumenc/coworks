@@ -165,91 +165,21 @@ Microservice Response
 As for ``Flask`` and ``Chalice``, the return value from a class microservice is automatically converted into a response
 object for you.
 
-* If the return value is a ``string`` or ``bytes``, it’s converted into a response object with the string or bytes list
-as response body, a 200 OK status code and a text/html mimetype.
-* If the return value is a ``dict`` or a ``list``, it's converted to a JSON structure.
-* If a ``tuple`` is returned the items in the tuple can provide extra information. Such tuples have to be in the form
-(response, status), or (response, status, headers).
-The status value will override the status code and headers can be a list or dictionary of additional header values.
+* If the return value is a ``string`` or ``bytes``, it’s converted into a response object with the string or bytes
+  list as response body, a 200 OK status code and a ``application/json mimetype``.
+* If the return value is a ``dict`` or a ``list``, it's converted to a JSON structure, a 200 OK status code and
+  a ``application/json`` mimetype.
+* If a ``tuple`` is returned the items in the tuple can provide extra information. Such tuples have to be in the
+  form (response, status), or (response, status, headers). The status value will override the status code and headers
+  can be a list or dictionary of additional header values.
 
 If none of that works, ``Coworks`` will assume the return value is a valid
 ``Chalice`` `Response <https://chalice.readthedocs.io/en/latest/api.html#Response>`_ instance.
 
-Test
-----
-
-Tests may be made in two ways:
-
-* Online test
-* Classical test with test tools like pytest
-
-As a classical python application
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-As seen, you can run your microservice locally with the command::
-
-	$ cws .. run
-
-You can also run you microservice in a classical way of python application:
-
-.. code-block:: python
-
-    if __name__ == '__main__':
-        app.execute('run', project_dir='.', workspace='dev', module='app')
-
-You can add more options for testing such as changing the port or the stage::
-
-	$ cws .. run --port 8001
-
-or in python code:
-
-.. code-block:: python
-
-    if __name__ == '__main__':
-        app.execute('run', project_dir='.', workspace='dev', module='quickstart', port=8001)
-
-To get the list of options::
-
-	$ cws run --help
-
-PyTest
-^^^^^^
-
-To create your tests for pytest, add this fixture in your ``conftest.py``::
-
-	from coworks.pytest.fixture import local_server_factory
-
-Then
-
-.. code-block:: python
-
-	def test_root(local_server_factory):
-		local_server = local_server_factory(SimpleExampleMicroservice())
-		response = local_server.make_call(requests.get, '/')
-		assert response.status_code == 200
-
-If you want to debug your test and stop on breakpoint, you need to increase request timeout:
-
-.. code-block:: python
-
-	def test_root(local_server_factory):
-		local_server = local_server_factory(SimpleExampleMicroservice())
-		response = local_server.make_call(requests.get, '/', timeout=200.0)
-		assert response.status_code == 200
-
-If you have an authorized access:
-
-.. code-block:: python
-
-	def test_root(local_server_factory):
-		local_server = local_server_factory(SimpleExampleMicroservice())
-		response = local_server.make_call(requests.get, '/', headers={'authorization': 'allow'})
-		assert response.status_code == 200
-
 .. _blueprint:
 
-Blueprints and Extensions
--------------------------
+Blueprints
+----------
 
 Blueprints
 ^^^^^^^^^^
@@ -298,23 +228,3 @@ The admin blueprint adds the following routes :
 
 	Return the deployment context of the microservice.
 
-Extensions
-^^^^^^^^^^
-
-Extensions are extra packages that add functionalities to a Coworks application.
-Extensions are inspired from `Flask <https://flask.palletsprojects.com/en/1.1.x/extensions/>`_.
-
-
-Predefined Extensions
-*********************
-
-Writer
-::::::
-
-Writers are extensions used by the ``format`` option of the ``cws export`` command. It uses Jinja templating to
-generate service description.
-
-Terraform writer
-::::::::::::::::
-
-** TO BE COMPLETED **

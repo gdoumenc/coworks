@@ -112,11 +112,10 @@ Documentation
   installation
   tech_quickstart
   tech
-  tech_deployment
   biz_quickstart
   biz
-  biz_deployment
-  cli
+  command
+  deployment
   faq
   api
   contributing
