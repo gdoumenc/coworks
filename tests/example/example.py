@@ -6,6 +6,7 @@ import click
 from coworks import TechMicroService
 from coworks.config import Config
 from coworks.cws.command import CwsCommand
+from coworks.cws.runner import CwsRunner
 from coworks.cws.writer import CwsTerraformWriter
 
 
@@ -66,5 +67,13 @@ CwsTerraformWriter(tech_app)
 app = TechMS(configs=Config(environment_variables_file="config/vars_dev.json"))
 TestCmd(tech_app, name='test')
 
+
+class RunnerMock(CwsRunner):
+
+    def _execute(self, *, project_dir, workspace, host, port, debug, **options):
+        assert type(port) is int
+
+
 project1 = TechMS()
+RunnerMock(project1)
 project2 = TechMS()

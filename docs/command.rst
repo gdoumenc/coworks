@@ -139,6 +139,12 @@ And at least, the content execution code::
 
     def _execute(self, *, project_dir, workspace, host, port, debug, **options):
 
+cws.project.yml file
+^^^^^^^^^^^^^^^^^^^^
+
+This configuration file, defined in the project directory can facilitate the launch of commands by
+providing default commands arguments values.
+
 PyTest
 ^^^^^^
 

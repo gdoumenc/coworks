@@ -55,9 +55,14 @@ def invoke(initial, ctx):
             if not cmd:
                 raise CwsClientError(f"Undefined command {cmd_name}.\n")
 
-            client_args = cmd.make_parser(ctx).parse_args(ctx.args)
+            # Get user defined options and convert them in right types
+            client_opts, _, cmd_opts = cmd.make_parser(ctx).parse_args(ctx.args)
+            for opt_key, opt_value in client_opts.items():
+                cmd_opt = next(x for x in cmd_opts if x.name == opt_key)
+                client_opts[opt_key] = cmd_opt.type(opt_value)
+
             client_params = {'project_dir': project_dir, 'module': module, 'service': service, 'workspace': workspace}
-            complemented_args = cmd_project_config.missing_options(**client_params, **client_args[0])
+            complemented_args = cmd_project_config.missing_options(**client_params, **client_opts)
             cmd.execute(**client_params, **complemented_args)
     except CwsClientError as client_err:
         sys.stderr.write(client_err.msg)

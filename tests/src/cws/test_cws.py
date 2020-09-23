@@ -69,6 +69,14 @@ class TestClass:
         assert pytest_wrapped_e.type == SystemExit
         assert pytest_wrapped_e.value.code == 1
 
+    @pytest.mark.wip
+    def test_run_with_int_option(self, example_dir):
+        with pytest.raises(SystemExit) as pytest_wrapped_e:
+            client(prog_name='cws', args=['-p', example_dir, '-m', 'example', '-s', 'project1', 'run', '-p', '8000'],
+                   obj={})
+        assert pytest_wrapped_e.type == SystemExit
+        assert pytest_wrapped_e.value.code == 0
+
     def test_export(self, example_dir):
         with pytest.raises(SystemExit) as pytest_wrapped_e:
             client(prog_name='cws',
