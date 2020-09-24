@@ -23,7 +23,7 @@ commands:
         a: project2
       - module: example
         service: autre
-        a: autre
+        a: autre1
   run:
     default:
       class: coworks.cws.runner.CwsRunner

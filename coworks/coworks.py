@@ -146,12 +146,13 @@ class TechMicroService(CoworksMixin, Chalice):
 
         self.blueprint_deferred_inits.append(deferred)
 
-    def execute(self, command, *, project_dir, module, workspace, output=None, error=None, **kwargs):
-        """Executes a client command."""
+    def execute(self, command, *, project_dir, module, service=None, workspace, output=None, error=None, **kwargs):
+        """Executes a coworks command."""
         from coworks.cws.client import ProjectConfig
 
         project_config = ProjectConfig(command, project_dir)
-        service = self.ms_name
+        if not service:
+            service = self.ms_name
         cmd = project_config.get_command(self, module, service, workspace)
         if not cmd:
             raise CwsCommandError(f"The command {command} was not added to the microservice {self.ms_name}.\n")

@@ -2,6 +2,7 @@ import pathlib
 from abc import abstractmethod
 from dataclasses import dataclass
 from typing import List
+import inspect
 
 import click
 from jinja2 import Environment, PackageLoader, select_autoescape, TemplateNotFound
@@ -100,6 +101,7 @@ class CwsTemplateWriter(CwsWriter):
             'environment_variable_files': environment_variable_files,
             'sfn_name': options.get('sfn_name'),
             'account_number': options.get('account_number'),
+            'description':  inspect.getdoc(self.app),
             **options
         }
         data.update(self.data)
