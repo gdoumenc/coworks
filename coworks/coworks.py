@@ -476,7 +476,7 @@ class BizMicroService(TechMicroService):
         return super().handler(event, context)
 
 
-def hide_entry(f):
+def hide(f):
     """Hide a route of the microservice.
 
      May be used as a decorator.
