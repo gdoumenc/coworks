@@ -36,8 +36,8 @@ def get_signature(func):
             continue
         sp = k
         if p.annotation != inspect.Parameter.empty:
-            sp = f"{sp}:{str(p.annotation.__name__)}"
+            sp = f"{sp}:{str(p.annotation)}"
         if p.default != inspect.Parameter.empty:
-            sp = f"{sp}='{p.default}'" if type(p.default) == str else f"{sp}={p.default}"
+            sp = f"{sp}={p.default}"
         sig = f"{sp}" if index == 2 else f"{sig}, {sp}"
     return f"({sig})"

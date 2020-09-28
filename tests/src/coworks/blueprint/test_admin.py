@@ -2,11 +2,12 @@ import json
 
 import requests
 
+from coworks import Blueprint
 from coworks.blueprint import Admin
 from tests.src.coworks.tech_ms import *
 
 
-class DoumentedMS(TechMS):
+class DocumentedMS(TechMS):
 
     def get(self):
         """Root access."""
@@ -20,36 +21,65 @@ class DoumentedMS(TechMS):
         """Add content."""
         return f"post_content {value}{other}"
 
+    def get_list(self, values: [int]):
+        """Tests list param."""
+        return "ok"
+
+
+class HiddenBlueprint(Blueprint):
+
+    def get(self):
+        """Test not in routes."""
+        return "ok"
+
 
 class TestClass:
-
     def test_documentation(self, local_server_factory):
-        ms = DoumentedMS()
+        ms = DocumentedMS()
         ms.register_blueprint(Admin(), url_prefix="/admin")
         local_server = local_server_factory(ms)
         response = local_server.make_call(requests.get, '/admin/routes', timeout=500)
         assert response.status_code == 200
-        assert json.loads(response.text)["/"] == {
+        routes = json.loads(response.text)
+        assert routes["/"] == {
             "GET": {
                 "doc": "Root access.",
                 "signature": "()"
             }
         }
-        assert json.loads(response.text)["/content/{_0}"] == {
+        assert routes["/content/{_0}"] == {
             "POST": {
                 "doc": "Add content.",
-                "signature": "(value, other=\'none\')"
+                "signature": "(value, other=none)"
             }
         }
-        assert json.loads(response.text)["/contentannotated/{_0}"] == {
+        assert routes["/contentannotated/{_0}"] == {
             "POST": {
                 "doc": "Add content.",
-                "signature": "(value:int, other:str=\'none\')"
+                "signature": "(value:<class 'int'>, other:<class 'str'>=none)"
             }
         }
-        assert json.loads(response.text)["/admin/routes"] == {
+        assert routes["/admin/routes"] == {
             "GET": {
                 "doc": 'Returns the list of entrypoints with signature.',
                 "signature": "()"
             }
         }
+        assert routes["/list/{_0}"] == {
+            "GET": {
+                "doc": 'Tests list param.',
+                "signature": "(values:[<class 'int'>])"
+            }
+        }
+
+    import pytest
+    @pytest.mark.wip
+    def test_documentation(self, local_server_factory):
+        ms = DocumentedMS()
+        ms.register_blueprint(Admin(), url_prefix="/admin")
+        ms.register_blueprint(HiddenBlueprint(), url_prefix="/hidden", hide_routes=True)
+        local_server = local_server_factory(ms)
+        response = local_server.make_call(requests.get, '/admin/routes', timeout=500)
+        assert response.status_code == 200
+        routes = json.loads(response.text)
+        assert '/hidden' not in routes

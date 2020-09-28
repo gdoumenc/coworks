@@ -17,7 +17,7 @@ CONFIG = Config(
     workspace="dev"
 )
 
-app = SimpleMicroService(ms_name='test', configs=[CONFIG])
+app = SimpleMicroService(name='test', configs=[CONFIG])
 CwsRunner(app)
 CwsTerraformWriter(app, name='export')
 

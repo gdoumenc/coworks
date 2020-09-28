@@ -30,34 +30,30 @@ class Blueprint(CoworksMixin, ChaliceBlueprint):
 
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, name=None, **kwargs):
         """Initialize a blueprint.
 
         :param kwargs: Other Chalice parameters.
 
         """
-        import_name = kwargs.pop('import_name', self.__class__.__name__)
+        import_name = name or self.__class__.__name__.lower()
         super().__init__(import_name)
 
     @property
-    def import_name(self):
+    def name(self):
         return self._import_name
-
-    @property
-    def component_name(self):
-        return ''
 
     @property
     def current_app(self):
         return self._current_app
 
-    def _add_registered_functions(self, current_app):
+    def deferred_init(self, workspace):
         for func in self.before_first_activation_funcs:
-            current_app.before_first_activation(func)
+            self.current_app.before_first_activation(func)
         for func in self.before_activation_funcs:
-            current_app.before_activation(func)
+            self.current_app.before_activation(func)
         for func in self.after_activation_funcs:
-            current_app.after_activation(func)
+            self.current_app.after_activation(func)
 
 
 class TechMicroService(CoworksMixin, Chalice):
@@ -67,32 +63,31 @@ class TechMicroService(CoworksMixin, Chalice):
     
     """
 
-    def __init__(self, ms_name: str = None, configs: Union[Config, List[Config]] = None, **kwargs):
+    def __init__(self, name: str = None, configs: Union[Config, List[Config]] = None, **kwargs):
         """ Initialize a technical microservice.
-        :param ms_name: Name used to identify the resource.
+        :param name: Name used to identify the microservice.
         :param configs: Deployment configuration.
         :param workspace used for execution.
         :param kwargs: Other Chalice parameters.
         """
-        ms_name = ms_name or self.__class__.__name__
+        name = name or self.__class__.__name__.lower()
 
         self.configs = configs or [Config()]
         if type(self.configs) is not list:
             self.configs = [configs]
         self.config = None
 
-        super().__init__(app_name=ms_name, **kwargs)
+        super().__init__(app_name=name, **kwargs)
+
+        # Blueprints and extended commands added
         self.experimental_feature_flags.update([
             'BLUEPRINTS'
         ])
-
-        # App and blueprints init deferered functions.
-        self.deferred_inits = []
-        self.blueprint_deferred_inits = []
-
-        # Extended commands added
+        self.blueprints = {}
         self.commands = {}
 
+        # App init deferered functions.
+        self.deferred_inits = []
         self._got_first_activation = False
         self._before_activation_lock = Lock()
 
@@ -105,11 +100,7 @@ class TechMicroService(CoworksMixin, Chalice):
         self.__global_auth__ = None
 
     @property
-    def component_name(self):
-        return class_attribute(self, 'url_prefix', '')
-
-    @property
-    def ms_name(self):
+    def name(self):
         return self.app_name
 
     @property
@@ -118,33 +109,45 @@ class TechMicroService(CoworksMixin, Chalice):
 
     def deferred_init(self, workspace):
         if self.entries is None:
-            self._init_routes(workspace=workspace)
+            url_prefix = class_attribute(self, 'url_prefix', '')
+            self._init_routes(workspace=workspace, url_prefix=url_prefix)
             for deferred_init in self.deferred_inits:
                 deferred_init(workspace)
-            for deferred_init in self.blueprint_deferred_inits:
-                deferred_init(workspace)
+            for blueprint in self.iter_blueprints():
+                blueprint.deferred_init(workspace)
 
-    def register_blueprint(self, blueprint: Blueprint, authorizer=None, **kwargs):
+    def register_blueprint(self, blueprint: Blueprint, authorizer=None, url_prefix=None, hide_routes=False,
+                           **kwargs):
         """ Register a :class:`Blueprint` on the microservice.
 
         :param blueprint:
         :param authorizer:
+        :param url_prefix:
+        :param hide_routes:
         :param kwargs:
         :return:
         """
         if 'name_prefix' not in kwargs:
-            kwargs['name_prefix'] = blueprint.component_name
+            kwargs['name_prefix'] = blueprint.name
         if 'url_prefix' not in kwargs:
-            kwargs['url_prefix'] = f"/{blueprint.component_name}"
+            kwargs['url_prefix'] = f"/{blueprint.name}"
 
-        blueprint.__auth__ = self._create_auth_proxy(self, authorizer) if authorizer else None
+        if url_prefix in self.blueprints:
+            raise NameError(f"A blueprint is already defined for the {url_prefix} prefix.")
+        self.blueprints[url_prefix] = blueprint
+
+        if not hide_routes:
+            blueprint.__auth__ = self._create_auth_proxy(self, authorizer) if authorizer else None
 
         def deferred(workspace):
-            self._init_routes(workspace=workspace, component=blueprint, url_prefix=kwargs['url_prefix'])
-            blueprint._add_registered_functions(self)
-            Chalice.register_blueprint(self, blueprint, **kwargs)
+            if not hide_routes:
+                self._init_routes(workspace=workspace, component=blueprint, url_prefix=url_prefix)
+            Chalice.register_blueprint(self, blueprint, url_prefix=url_prefix)
 
-        self.blueprint_deferred_inits.append(deferred)
+        self.deferred_inits.append(deferred)
+
+    def iter_blueprints(self):
+        return self.blueprints.values()
 
     def execute(self, command, *, project_dir, module, service=None, workspace, output=None, error=None, **kwargs):
         """Executes a coworks command."""
@@ -152,16 +155,16 @@ class TechMicroService(CoworksMixin, Chalice):
 
         project_config = ProjectConfig(command, project_dir)
         if not service:
-            service = self.ms_name
+            service = self.name
         cmd = project_config.get_command(self, module, service, workspace)
         if not cmd:
-            raise CwsCommandError(f"The command {command} was not added to the microservice {self.ms_name}.\n")
+            raise CwsCommandError(f"The command {command} was not added to the microservice {self.name}.\n")
 
-        client_params = {'project_dir':project_dir, 'module':module, 'service':service, 'workspace':workspace}
+        client_params = {'project_dir': project_dir, 'module': module, 'service': service, 'workspace': workspace}
         complemented_args = project_config.missing_options(**client_params, **kwargs)
         cmd.execute(output=output, error=error, **client_params, **complemented_args)
 
-    def _init_routes(self, *, workspace=DEFAULT_WORKSPACE, component=None, url_prefix=None):
+    def _init_routes(self, *, workspace=DEFAULT_WORKSPACE, component=None, url_prefix=''):
         if self.config is None:
             for conf in self.configs:
                 if conf.workspace == workspace:
@@ -195,12 +198,12 @@ class TechMicroService(CoworksMixin, Chalice):
 
             # Get function's route
             if func.__name__ == method:
-                route = f"{component.component_name}"
+                route = f"{url_prefix}"
             else:
                 name = func.__name__[len(method) + 1:]
                 name = trim_underscores(name)  # to allow several functions with same route but different args
                 name = name.replace('_', '/')
-                route = f"{component.component_name}/{name}" if component.component_name else f"{name}"
+                route = f"{url_prefix}/{name}" if url_prefix else f"{name}"
 
             # Get parameters
             args = inspect.getfullargspec(func).args[1:]
@@ -219,12 +222,14 @@ class TechMicroService(CoworksMixin, Chalice):
             proxy = component._create_rest_proxy(func, kwarg_keys, args, varkw)
 
             # complete all entries
-            component.route(f"/{route}", methods=[method.upper()], authorizer=auth, cors=self.config.cors,
-                            content_types=list(self.config.content_type))(proxy)
+            if not route.startswith('/'):
+                route = '/' + route
+            self.route(f"{route}", methods=[method.upper()], authorizer=auth, cors=self.config.cors,
+                       content_types=list(self.config.content_type))(proxy)
             if url_prefix:
-                self.entries[f"{url_prefix}/{route}"] = (method.upper(), func)
+                self.entries[f"{url_prefix}{route}"] = (method.upper(), func)
             else:
-                self.entries[f"/{route}"] = (method.upper(), func)
+                self.entries[f"{route}"] = (method.upper(), func)
 
     @staticmethod
     def _create_auth_proxy(component, auth_method):
@@ -270,18 +275,18 @@ class TechMicroService(CoworksMixin, Chalice):
         # authorization call
         if event.get('type') == 'TOKEN':
             if self.debug:
-                print(f"Calling {self.ms_name} for authorization")
+                print(f"Calling {self.name} for authorization")
 
             if self.__auth__:
                 return self.__auth__(event, context)
 
-            print(f"Undefined authorization method for {self.ms_name} ")
+            print(f"Undefined authorization method for {self.name} ")
             return 'Unauthorized', 403
 
         # step function call
         if event.get('type') == 'CWS_SFN':
             if self.debug:
-                print(f"Calling {self.ms_name} by step function")
+                print(f"Calling {self.name} by step function")
 
             self.sfn_call = True
             content_type = event['headers']['Content-Type']
@@ -297,7 +302,7 @@ class TechMicroService(CoworksMixin, Chalice):
                 raise BadRequestError(f"Undefined content type {content_type} for Step Function call")
         else:
             if self.debug:
-                print(f"Calling {self.ms_name} with event {event}")
+                print(f"Calling {self.name} with event {event}")
 
         res = super().__call__(event, context)
 
@@ -310,7 +315,7 @@ class TechMicroService(CoworksMixin, Chalice):
                 pass
 
         if self.debug:
-            print(f"Call {self.ms_name} returns {res}")
+            print(f"Call {self.name} returns {res}")
 
         return res
 
@@ -356,7 +361,7 @@ class BizFactory(TechMicroService):
     """
 
     def __init__(self, sfn_name, **kwargs):
-        super().__init__(ms_name=sfn_name, **kwargs)
+        super().__init__(name=sfn_name, **kwargs)
 
         self.aws_profile = self.__sfn_client__ = self.__sfn_arn__ = None
         self.sfn_name = sfn_name
@@ -405,7 +410,7 @@ class BizFactory(TechMicroService):
         if biz_name in self.biz:
             raise BadRequestError(f"Biz microservice {biz_name} already defined for {self.sfn_name}")
 
-        self.biz[biz_name] = BizMicroService(self, trigger, configs, ms_name=biz_name, **kwargs)
+        self.biz[biz_name] = BizMicroService(self, trigger, configs, name=biz_name, **kwargs)
         return self.biz[biz_name]
 
     def invoke(self, data):

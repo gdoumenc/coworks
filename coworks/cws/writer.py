@@ -95,7 +95,7 @@ class CwsTemplateWriter(CwsWriter):
             'module_file': module_path[-1],
             'handler': service,
             'app': self.app,
-            'ms_name': self.app.ms_name,
+            'ms_name': self.app.name,
             'workspace': workspace,
             'app_config': config,
             'environment_variable_files': environment_variable_files,
