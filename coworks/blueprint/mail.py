@@ -10,26 +10,30 @@ from coworks import Blueprint, FileParam
 
 
 class Mail(Blueprint):
-    """Mail microservice"""
+    """Mail blueprint."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, env_server_var_name, env_login_var_name, env_passwd_var_name, **kwargs):
         super().__init__(**kwargs)
+        self.env_server_var_name = env_server_var_name
+        self.env_login_var_name = env_login_var_name
+        self.env_passwd_var_name = env_passwd_var_name
         self.smtp_server = self.smtp_login = self.smtp_passwd = None
 
         @self.before_first_activation
         def check_env_vars():
-            self.smtp_server = os.getenv('SMTP_SERVER')
+            self.smtp_server = os.getenv(self.env_server_var_name)
             if not self.smtp_server:
-                raise EnvironmentError('SMTP_SERVER not defined in environment')
-            self.smtp_login = os.getenv('SMTP_LOGIN')
+                raise EnvironmentError(f'{self.env_server_var_name} not defined in environment.')
+            self.smtp_login = os.getenv(self.env_login_var_name)
             if not self.smtp_login:
-                raise EnvironmentError('SMTP_LOGIN not defined in environment')
-            self.smtp_passwd = os.getenv('SMTP_PASSWD')
+                raise EnvironmentError(f'{self.env_login_var_name} not defined in environment.')
+            self.smtp_passwd = os.getenv(env_passwd_var_name)
             if not self.smtp_passwd:
-                raise EnvironmentError('SMTP_PASSWD not defined in environment')
+                raise EnvironmentError(f'{env_passwd_var_name} not defined in environment.')
 
     @xray_recorder.capture()
-    def post_send(self, subject="", from_addr: str = None, to_addrs: [str] = None, cc_addrs: [str] = None, bcc_addrs: [str] = None, body="",
+    def post_send(self, subject="", from_addr: str = None, to_addrs: [str] = None, cc_addrs: [str] = None,
+                  bcc_addrs: [str] = None, body="",
                   attachments: [FileParam] = None, attachment_urls: dict = None, subtype="plain", starttls=True):
         """ Send mail.
         To send attachments, add files in the body of the request as multipart/form-data. """
@@ -58,7 +62,7 @@ class Mail(Blueprint):
                     attachments = [attachments]
                 for attachment in attachments:
                     if not attachment.mime_type:
-                        raise BadRequestError(f"Mime type of the attachment {attachment.file.name} is not defined")
+                        raise BadRequestError(f"Mime type of the attachment {attachment.file.name} is not defined.")
                     maintype, subtype = attachment.mime_type.split("/")
                     msg.add_attachment(attachment.file.read(), maintype=maintype, subtype=subtype,
                                        filename=attachment.file.name)
@@ -72,7 +76,7 @@ class Mail(Blueprint):
                         msg.add_attachment(attachment, maintype=maintype, subtype=subtype,
                                            filename=attachment_name)
                     else:
-                        raise BadRequestError(f"Failed to download attachment, error {response.status_code}")
+                        raise BadRequestError(f"Failed to download attachment, error {response.status_code}.")
 
         except Exception as e:
             raise ChaliceViewError(f"Cannot create email message (Error: {str(e)}).")
