@@ -72,8 +72,6 @@ class TestClass:
             }
         }
 
-    import pytest
-    @pytest.mark.wip
     def test_documentation(self, local_server_factory):
         ms = DocumentedMS()
         ms.register_blueprint(Admin(), url_prefix="/admin")

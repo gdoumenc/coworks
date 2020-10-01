@@ -1,6 +1,47 @@
 version: ">=11"
 services:
+  - module: m1
+    services:
+      - service: s1
+      - service: s2
+  - module: m2
+    service: s3
 commands:
+  test_command0:
+    option_key1: option_value1
+    option_key2: option_value4
+    option_key3: option_value3
+    workspaces:
+      - workspace: dev
+        option_key2: option_value2
+  test_command1:
+    - option_key1: option_value1
+      option_key2: option_value4
+      option_key3: option_value3
+      workspaces:
+        - workspace: dev
+          option_key2: option_value2
+    - option_key3: option_value5
+  test_command2:
+    - option_key1: option_value1
+      workspaces:
+        - workspace: dev
+          option_key2: option_value2
+    - module: m1
+      option_key2: option_value4
+      services:
+        - service: s1
+          option_key3: option_value5
+        - service: s2
+          option_key4: option_value6
+          workspaces:
+            - workspace: dev
+              option_key4: option_value7
+      workspaces:
+        - workspace: dev
+          option_key4: option_value8
+    - module: m2
+      service: s3
+      option_key: option_value9
   test_command_with_options:
-    default:
-      autre: value
+    autre: value

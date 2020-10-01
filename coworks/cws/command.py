@@ -1,6 +1,5 @@
 import sys
 from abc import ABC, abstractmethod
-
 import click
 
 from coworks import TechMicroService
@@ -120,3 +119,4 @@ class CwsCommand(click.Command, ABC):
 
         Abstract method which must be redefined in any subclass. The content should be written in self.output.
         """
+

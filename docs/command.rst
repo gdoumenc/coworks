@@ -18,8 +18,10 @@ cws
 ``cws`` is a command-line shell program that provides convenience and productivity
 features to help user to :
 
- * Export information from microservice definition
- * Update deployed services
+ * Get moicroservices informations,
+ * Export microservices to another formats,
+ * Update deployed microservices,
+ * ...
 
 Usage
 ^^^^^
@@ -58,35 +60,58 @@ Coworks Command
 
 Let see how predefined commands are defined before explaining how to create new ones.
 
+The "info" command
+^^^^^^^^^^^^^^^^^^
+
+The first simple command is the microservice descriptor defined by the ``CwsDescriptor`` class.
+It allows you to get simple informations on microservices defined in your project.
+
+To add the command ``info`` to the service ``service`` defined in module ``module`` in the project directory ``src``::
+
+    ... src/module.py ...
+
+    service = ...
+    CwsDescriptor(service)
+
+Then you can call this command from the ``cws`` application::
+
+	$ cws -p src -m module -s service info
+
+**Notice**: The options ``-p (project_dir)`` , ``-m (module)`` and ``-s (service)`` are mandatory for launching
+any command from the ``cws`` application.
+
+**Notice**: There is also another client option ``-w (workspace)`` but its default value is ``dev`` and may be not
+defined as optional.
+
+Another way to add this command to any microservice is using the project configuration file described below.
+
+
 The "run" command
 ^^^^^^^^^^^^^^^^^
 
-The first simple command is the local runner defined by the ``CwsRunner``. It allows you to test your microservice
+A more complete command is the local runner defined by the ``CwsRunner`` class. It allows you to test your microservice
 as a local service on your computer (as seen in the quickstart).
 
-To add the command ``run`` to the service ``service`` defined in module ``module`` in the project directory ``src``::
+As defined previously, you can add the command by::
 
     ... src/module.py ...
 
     service = ...
     CwsRunner(service)
 
-Then you can call this command from the ``cws`` application::
+And then you can call this command from the ``cws`` application::
 
 	$ cws -p src -m module -s service run
 
-**Notice**: The options ``-p (project_dir)`` , ``-m (module)`` and ``-s (service)`` are mandatory for launching
-any command from the ``cws`` application.
-There is also another client option ``-w (workspace)`` but its default value is ``dev``.
 
-You can also run you microservice in a classical way of python application:
+But this way, it is not easy to debug, so you can also run you microservice in a classical way of python application:
 
 .. code-block:: python
 
     if __name__ == '__main__':
-        app.execute('run', project_dir='.', module='app', workspace='dev')
+        app.execute('run', project_dir='.', workspace='dev')
 
-**Notice**: In this case the ``service`` option is not needed and ``workspace`` is still optional.
+**Notice**: In this case the ``service`` and ``module`` options are not needed and ``workspace`` is still optional.
 
 You can add more options for testing such as changing the port or the stage::
 
@@ -97,7 +122,7 @@ or in python code:
 .. code-block:: python
 
     if __name__ == '__main__':
-        app.execute('run', project_dir='.', workspace='dev', module='quickstart', port=8001)
+        app.execute('run', project_dir='.', workspace='dev', port=8001)
 
 To get the list of options::
 
@@ -107,19 +132,19 @@ The "deploy" command
 ^^^^^^^^^^^^^^^^^^^^
 
 Another important command is the ``export`` command defined for creating terraform files from templates.
-This command may be used to deal with complex deployments, mainly for staging or infrastucture constraints.
+This command may be used to deal with complex deployments, mainly for staging or respecting infrastucture constraints.
 
 Thus use of this command is explain in :ref:`tech_deployment` chapter.
 
 Defining a new command
 ^^^^^^^^^^^^^^^^^^^^^^
 
-To define a new command you have to define a sub class of ``coworks.command.CwsCommand``::
+To define a new command you have to define a sub class of the ``coworks.command.CwsCommand`` class::
 
     class CwsRunner(CwsCommand):
         ...
 
-And give it a name::
+And give it a name when attached to the microservice::
 
     def __init__(self, app=None, name='run'):
         super().__init__(app, name=name)
@@ -137,13 +162,26 @@ You can add options as for ``click``::
 
 And at least, the content execution code::
 
-    def _execute(self, *, project_dir, workspace, host, port, debug, **options):
+    def _execute(self, *, project_dir, module, service, workspace, host, port, debug, **options):
+        ...
 
 cws.project.yml file
 ^^^^^^^^^^^^^^^^^^^^
 
-This configuration file, defined in the project directory can facilitate the launch of commands by
-providing default commands arguments values.
+This configuration file is a YAML file describing the microservices and the commands defined in the project::
+
+    version: ">0.3.3"
+    services:
+    commands:
+
+The version key is used for compatibility. The services key introduce the ``services`` defined in the project,
+and the ``commands`` one the commands.
+
+Service part
+""""""""""""
+
+Command part
+""""""""""""
 
 PyTest
 ^^^^^^

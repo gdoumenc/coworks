@@ -149,20 +149,26 @@ class TechMicroService(CoworksMixin, Chalice):
     def iter_blueprints(self):
         return self.blueprints.values()
 
-    def execute(self, command, *, project_dir, module, service=None, workspace, output=None, error=None, **kwargs):
+    def execute(self, command, *, project_dir, module=None, service=None, workspace, output=None, error=None, **options):
         """Executes a coworks command."""
         from coworks.cws.client import ProjectConfig
 
-        project_config = ProjectConfig(command, project_dir)
+        if module is None:
+            module = __name__
+        if service is None:
+            service = self.name
+
+        project_config = ProjectConfig(project_dir)
         if not service:
             service = self.name
-        cmd = project_config.get_command(self, module, service, workspace)
+        cmd = project_config.get_command(command, self, module, service, workspace)
         if not cmd:
             raise CwsCommandError(f"The command {command} was not added to the microservice {self.name}.\n")
 
-        client_params = {'project_dir': project_dir, 'module': module, 'service': service, 'workspace': workspace}
-        complemented_args = project_config.missing_options(**client_params, **kwargs)
-        cmd.execute(output=output, error=error, **client_params, **complemented_args)
+        client_params = {'module': module, 'service': service, 'workspace': workspace}
+        command_options = project_config.get_command_options(cmd_name=command, **client_params)
+        execute_options = {**options, **command_options}
+        cmd.execute(output=output, error=error, project_dir=project_dir, **client_params, **execute_options)
 
     def _init_routes(self, *, workspace=DEFAULT_WORKSPACE, component=None, url_prefix=''):
         if self.config is None:

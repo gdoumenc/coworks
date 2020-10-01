@@ -2,7 +2,7 @@ from .command import CwsCommand
 import click
 
 
-class CwsInfo(CwsCommand):
+class CwsDescriptor(CwsCommand):
     def __init__(self, app=None, name='info'):
         super().__init__(app, name=name)
 
