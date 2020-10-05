@@ -73,56 +73,64 @@ class TestClass:
 
     def test_command0(self):
         conf = ProjectConfig('tests/src/cws')
+        service_conf = conf.get_service_config('module', 'service', 'dev')
         commands = conf.all_commands
         assert len(commands) == 4
-        options = conf.get_command_options('test_command0', 'module', 'service', 'dev')
-        assert len(options) == 3
+        options = service_conf.get_command_options('test_command0')
+        assert len(options) == 7
         assert options['option_key1'] == "option_value1"
         assert options['option_key2'] == "option_value2"
         assert options['option_key3'] == "option_value3"
 
     def test_command1(self):
         conf = ProjectConfig('tests/src/cws')
-        options = conf.get_command_options('test_command1', 'module', 'service', 'dev')
-        assert len(options) == 3
+        service_conf = conf.get_service_config('module', 'service', 'dev')
+        options = service_conf.get_command_options('test_command1')
+        assert len(options) == 7
         assert options['option_key1'] == "option_value1"
         assert options['option_key2'] == "option_value2"
         assert options['option_key3'] == "option_value5"
-        options = conf.get_command_options('test_command1', 'module', 'service', 'prod')
-        assert len(options) == 3
+        service_conf = conf.get_service_config('module', 'service', 'prod')
+        options = service_conf.get_command_options('test_command1')
+        assert len(options) == 7
         assert options['option_key1'] == "option_value1"
         assert options['option_key2'] == "option_value4"
         assert options['option_key3'] == "option_value5"
 
     def test_command2_no_service(self):
         conf = ProjectConfig('tests/src/cws')
-        options = conf.get_command_options('test_command2', 'module', 'service', 'dev')
-        assert len(options) == 2
+        service_conf = conf.get_service_config('module', 'service', 'dev')
+        options = service_conf.get_command_options('test_command2')
+        assert len(options) == 6
         assert options['option_key1'] == "option_value1"
         assert options['option_key2'] == "option_value2"
 
     def test_command2_wrong_service(self):
         conf = ProjectConfig('tests/src/cws')
-        options = conf.get_command_options('test_command2', 'm1', 'service', 'dev')
-        assert len(options) == 3
+        service_conf = conf.get_service_config('m1', 'service', 'dev')
+        options = service_conf.get_command_options('test_command2')
+        assert len(options) == 7
         assert options['option_key1'] == "option_value1"
         assert options['option_key2'] == "option_value4"
         assert options['option_key4'] == "option_value8"
-        options = conf.get_command_options('test_command2', 'm1', 'service', 'prod')
-        assert len(options) == 2
+        service_conf = conf.get_service_config('m1', 'service', 'prod')
+        options = service_conf.get_command_options('test_command2')
+        assert len(options) == 6
         assert options['option_key1'] == "option_value1"
         assert options['option_key2'] == "option_value4"
 
     def test_command2_service_s1(self):
         conf = ProjectConfig('tests/src/cws')
-        options = conf.get_command_options('test_command2', 'm1', 's1', 'dev')
-        assert len(options) == 4
+        service_conf = conf.get_service_config('m1', 's1', 'dev')
+        options = service_conf.get_command_options('test_command2')
+        assert len(options) == 8
         assert options['option_key1'] == "option_value1"
         assert options['option_key2'] == "option_value4"
         assert options['option_key3'] == "option_value5"
         assert options['option_key4'] == "option_value8"
-        options = conf.get_command_options('test_command2', 'm1', 's1', 'prod')
-        assert len(options) == 3
+        service_conf = conf.get_service_config('m1', 's1', 'prod')
+        options = service_conf.get_command_options('test_command2')
+        assert len(options) == 7
         assert options['option_key1'] == "option_value1"
         assert options['option_key2'] == "option_value4"
         assert options['option_key3'] == "option_value5"
@@ -130,13 +138,15 @@ class TestClass:
 
     def test_command2_service_s2(self):
         conf = ProjectConfig('tests/src/cws')
-        options = conf.get_command_options('test_command2', 'm1', 's2', 'dev')
-        assert len(options) == 3
+        service_conf = conf.get_service_config('m1', 's2', 'dev')
+        options = service_conf.get_command_options('test_command2')
+        assert len(options) == 7
         assert options['option_key1'] == "option_value1"
         assert options['option_key2'] == "option_value4"
         assert options['option_key4'] == "option_value7"
-        options = conf.get_command_options('test_command2', 'm1', 's2', 'prod')
-        assert len(options) == 3
+        service_conf = conf.get_service_config('m1', 's2', 'prod')
+        options = service_conf.get_command_options('test_command2')
+        assert len(options) == 7
         assert options['option_key1'] == "option_value1"
         assert options['option_key2'] == "option_value4"
         assert options['option_key4'] == "option_value6"

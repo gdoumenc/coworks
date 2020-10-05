@@ -31,6 +31,8 @@ class CwsSFNTranslater(CwsWriter):
         sfn_name = self.app.sfn_name
         filename = pathlib.Path(project_dir, *module_path[:-1]) / f"{sfn_name}.{self.extension}"
 
+        options.pop('output')
+        options.pop('error')
         sfn = StepFunction(sfn_name, filename, **options)
         step_functions[sfn_name] = sfn.generate()
         for idx, (sfn_name, sfn) in enumerate(step_functions.items()):

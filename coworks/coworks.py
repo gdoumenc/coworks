@@ -7,6 +7,7 @@ import traceback
 from functools import update_wrapper
 from threading import Lock
 from typing import Dict, List, Union
+import dataclasses
 
 from aws_xray_sdk.core import xray_recorder
 from chalice import AuthResponse, BadRequestError, Rate, Cron
@@ -149,9 +150,10 @@ class TechMicroService(CoworksMixin, Chalice):
     def iter_blueprints(self):
         return self.blueprints.values()
 
-    def execute(self, command, *, project_dir, module=None, service=None, workspace, output=None, error=None, **options):
+    def execute(self, command, *, project_dir, module=None, service=None, workspace, output=None, error=None,
+                **options):
         """Executes a coworks command."""
-        from coworks.cws.client import ProjectConfig
+        from coworks.cws.client import ServiceConfig, ProjectConfig
 
         if module is None:
             module = __name__
@@ -159,16 +161,13 @@ class TechMicroService(CoworksMixin, Chalice):
             service = self.name
 
         project_config = ProjectConfig(project_dir)
-        if not service:
-            service = self.name
-        cmd = project_config.get_command(command, self, module, service, workspace)
+        service_config = project_config.get_service_config(module, service, workspace)
+        cmd = service_config.get_command(command, self)
         if not cmd:
             raise CwsCommandError(f"The command {command} was not added to the microservice {self.name}.\n")
-
-        client_params = {'module': module, 'service': service, 'workspace': workspace}
-        command_options = project_config.get_command_options(cmd_name=command, **client_params)
-        execute_options = {**options, **command_options}
-        cmd.execute(output=output, error=error, project_dir=project_dir, **client_params, **execute_options)
+        command_options = service_config.get_command_options(command)
+        execution_params = {**command_options, **options}
+        cmd.execute(output=output, error=error, **execution_params)
 
     def _init_routes(self, *, workspace=DEFAULT_WORKSPACE, component=None, url_prefix=''):
         if self.config is None:

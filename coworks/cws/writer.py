@@ -37,6 +37,7 @@ class CwsWriter(CwsCommand):
     def _execute(self, **options):
         self._export_header(**options)
         self._export_content(**options)
+
         print('', file=self.output, flush=True)
 
     def _export_header(self, **options):
@@ -101,7 +102,7 @@ class CwsTemplateWriter(CwsWriter):
             'environment_variable_files': environment_variable_files,
             'sfn_name': options.get('sfn_name'),
             'account_number': options.get('account_number'),
-            'description':  inspect.getdoc(self.app),
+            'description': inspect.getdoc(self.app),
             **options
         }
         data.update(self.data)
@@ -197,3 +198,8 @@ class CwsTerraformWriter(CwsTemplateWriter):
             add_entry(previous_uid, last_path, methods.keys())
 
         return all_pathes_id
+
+    def _execute(self, **options):
+        if options['debug']:
+            print(f"Generate terraform file: {options['output']}")
+        super()._execute(**options)

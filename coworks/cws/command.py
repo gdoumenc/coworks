@@ -1,5 +1,6 @@
 import sys
 from abc import ABC, abstractmethod
+
 import click
 
 from coworks import TechMicroService
@@ -7,6 +8,11 @@ from coworks.cws.error import CwsCommandError
 
 
 class CwsCommand(click.Command, ABC):
+
+    @classmethod
+    def multi_execute(cls, project_dir, workspace, commands):
+        for command, options in commands:
+            command.execute(**options)
 
     def __init__(self, app: TechMicroService = None, *, name):
         super().__init__(name, callback=self._execute)
@@ -28,6 +34,12 @@ class CwsCommand(click.Command, ABC):
 
     def init_app(self, app):
         app.commands[self.name] = self
+        for cmd in self.needed_commands:
+            if cmd not in app.commands:
+                raise CwsCommandError(f"Undefined command {cmd} needed.")
+
+            for opt in self.app.commands[cmd].options:
+                opt(self)
 
     @property
     def needed_commands(self):
@@ -35,10 +47,7 @@ class CwsCommand(click.Command, ABC):
 
     @property
     def options(self):
-        opt = []
-        for cmd in self.needed_commands:
-            opt.extend(self.app.commands[cmd].options)
-        return opt
+        return []
 
     def execute(self, *, project_dir, module, service, workspace, output=None, error=None, **options):
         """ Called when the command is called.
@@ -48,9 +57,6 @@ class CwsCommand(click.Command, ABC):
         :return: None
         """
         self.app.deferred_init(workspace)
-
-        if output is None and 'output' in options:
-            output = options['output']
 
         if output is not None:
             self.output = open(output, 'w+') if type(output) is str else output
@@ -62,7 +68,9 @@ class CwsCommand(click.Command, ABC):
                 func(options)
 
             ctx = self.make_context(self.name, options)
-            ctx.params.update(project_dir=project_dir, module=module, service=service, workspace=workspace, **options)
+            ctx_options = {**options, 'output': output, 'error': error}
+            ctx.params.update(project_dir=project_dir, module=module, service=service, workspace=workspace,
+                              **ctx_options)
             self.invoke(ctx)
 
             for func in self.after_funcs:
@@ -119,4 +127,3 @@ class CwsCommand(click.Command, ABC):
 
         Abstract method which must be redefined in any subclass. The content should be written in self.output.
         """
-

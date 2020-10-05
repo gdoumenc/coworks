@@ -1,5 +1,7 @@
 import sys
+from collections import defaultdict
 from copy import deepcopy
+from dataclasses import dataclass, asdict
 
 import anyconfig
 import click
@@ -28,44 +30,48 @@ def invoke(ctx):
         args = ctx.args
         protected_args = ctx.protected_args
 
-        cmd_name = protected_args[0] if protected_args else None
+        command_name = protected_args[0] if protected_args else None
 
         project_dir = ctx.params.get('project_dir')
+        workspace = ctx.params.get('workspace')
         module = ctx.params.get('module')
         service = ctx.params.get('service')
-        workspace = ctx.params.get('workspace')
 
         project_config = ProjectConfig(project_dir)
         if service:
             services = [(module, service)]
         else:
-            services = project_config.all_services
+            services = project_config.all_services # TODO should depend of module
 
         if not services:
             sys.stderr.write(str("Nothing to execute as no service defined."))
             sys.exit(1)
 
         # Iterates over the declared services in project configuration file
+        commands_to_be_executed = defaultdict(list)
         for module, service in services:
             ctx.args = list(args)
             ctx.protected_args = protected_args
+            service_config = project_config.get_service_config(module, service, workspace)
 
             # Get command from the microservice
             handler = get_handler(project_dir, module, service)
-            cmd = project_config.get_command(cmd_name, handler, module, service, workspace)
-            if not cmd:
-                raise CwsClientError(f"Undefined command {cmd_name}.\n")
+            command = service_config.get_command(command_name, handler)
+            if not command:
+                raise CwsClientError(f"Undefined command {command_name}.\n")
+            command_options = service_config.get_command_options(command_name)
 
             # Get user defined options and convert them in right types
-            client_options, _, cmd_opts = cmd.make_parser(ctx).parse_args(ctx.args)
+            client_options, _, cmd_opts = command.make_parser(ctx).parse_args(ctx.args)
             for opt_key, opt_value in client_options.items():
                 cmd_opt = next(x for x in cmd_opts if x.name == opt_key)
                 client_options[opt_key] = cmd_opt.type(opt_value)
 
-            client_params = {'module': module, 'service': service, 'workspace': workspace}
-            command_options = project_config.get_command_options(cmd_name=cmd_name, **client_params)
-            execute_params = {**command_options, **client_options}
-            cmd.execute(project_dir=project_dir, **client_params, **execute_params)
+            execution_params = {**command_options, **client_options}
+            command.make_context(command.name, execution_params)
+            commands_to_be_executed[type(command)].append((command, execution_params))
+        for command, options in commands_to_be_executed.items():
+            command.multi_execute(project_dir, workspace, options)
     except CwsClientError as client_err:
         sys.stderr.write(client_err.msg)
         sys.exit(1)
@@ -90,25 +96,8 @@ class ProjectConfig:
         project_secret_file = project_dir_path / (file_name + '.secret' + file_suffix)
         self.params = anyconfig.multi_load([project_file, project_secret_file], ac_ignore_missing=True)
 
-    def get_command(self, cmd_name, ms, module, service, workspace):
-        """Get the command associated to this microservice."""
-
-        # Get command already added in handler
-        for name in ms.commands:
-            if name == cmd_name:
-                return ms.commands[name]
-
-        # Creates it from project class parameter if not already defined
-        cmd_class = self._command_class(cmd_name, module, service, workspace)
-        if cmd_class:
-            cmd = cmd_class(ms, name=cmd_name)
-
-            # Installs needed commands
-            for needed in cmd.needed_commands:
-                self.get_command(needed, ms, module, service, workspace)
-
-            click.help_option()(cmd)
-            return cmd
+    def get_service_config(self, module, service, workspace):
+        return ServiceConfig(self, module, service, workspace)
 
     @property
     def all_services(self):
@@ -150,7 +139,7 @@ class ProjectConfig:
                 service_options.update(self._get_workspace_options(s, workspace))
         return {**service_options}
 
-    def _get_module_options(self, options_list, module, service, workspace):
+    def get_module_options(self, options_list, module, service, workspace):
         """Returns the option values defined for the specific module, service and workspace or globally."""
 
         if type(options_list) is not list:
@@ -166,15 +155,51 @@ class ProjectConfig:
 
         return {**module_options, **service_options}
 
-    def get_command_options(self, cmd_name, module, service, workspace):
-        options = deepcopy(self.all_commands.get(cmd_name, {}))
-        return self._get_module_options(options, module, service, workspace)
 
-    def _command_class(self, cmd_name, module, service, workspace):
-        cmd_class_name = self.get_command_options(cmd_name, module, service, workspace).get('class')
+@dataclass
+class ServiceConfig:
+    project_config: ProjectConfig
+    module: str
+    service: str
+    workspace: str
+
+    @property
+    def client_params(self):
+        res = asdict(self)
+        del res['project_config']
+        res['project_dir'] = self.project_config.project_dir
+        return res
+
+    def get_command(self, cmd_name, ms):
+        """Get the command associated to this microservice."""
+
+        # Get command already added in handler
+        for name in ms.commands:
+            if name == cmd_name:
+                return ms.commands[name]
+
+        # Creates it from project class parameter if not already defined
+        cmd_class = self._command_class(cmd_name)
+        if cmd_class:
+            cmd = cmd_class(ms, name=cmd_name)
+
+            # Installs needed commands
+            for needed in cmd.needed_commands:
+                self.get_command(needed, ms)
+
+            click.help_option()(cmd)
+            return cmd
+
+    def _command_class(self, cmd_name):
+        cmd_class_name = self.get_command_options(cmd_name).get('class')
         if cmd_class_name:
             splitted = cmd_class_name.split('.')
-            return import_attr('.'.join(splitted[:-1]), splitted[-1], cwd=self.project_dir)
+            return import_attr('.'.join(splitted[:-1]), splitted[-1], cwd=self.project_config.project_dir)
+
+    def get_command_options(self, cmd_name):
+        options = deepcopy(self.project_config.all_commands.get(cmd_name, {}))
+        module_options = self.project_config.get_module_options(options, self.module, self.service, self.workspace)
+        return {**self.client_params, **module_options}
 
 
 def main():
