@@ -7,7 +7,6 @@ import traceback
 from functools import update_wrapper
 from threading import Lock
 from typing import Dict, List, Union
-import dataclasses
 
 from aws_xray_sdk.core import xray_recorder
 from chalice import AuthResponse, BadRequestError, Rate, Cron
@@ -153,7 +152,7 @@ class TechMicroService(CoworksMixin, Chalice):
     def execute(self, command, *, project_dir, module=None, service=None, workspace, output=None, error=None,
                 **options):
         """Executes a coworks command."""
-        from coworks.cws.client import ServiceConfig, ProjectConfig
+        from coworks.cws.client import ProjectConfig
 
         if module is None:
             module = __name__

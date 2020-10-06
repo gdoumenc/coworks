@@ -2,6 +2,7 @@ import sys
 from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass, asdict
+from logging import getLogger, WARNING
 
 import anyconfig
 import click
@@ -41,7 +42,7 @@ def invoke(ctx):
         if service:
             services = [(module, service)]
         else:
-            services = project_config.all_services # TODO should depend of module
+            services = project_config.all_services  # TODO should depend of module
 
         if not services:
             sys.stderr.write(str("Nothing to execute as no service defined."))
@@ -94,6 +95,7 @@ class ProjectConfig:
         project_dir_path = Path(project_dir)
         project_file = project_dir_path / (file_name + file_suffix)
         project_secret_file = project_dir_path / (file_name + '.secret' + file_suffix)
+        getLogger('anyconfig').setLevel(WARNING)
         self.params = anyconfig.multi_load([project_file, project_secret_file], ac_ignore_missing=True)
 
     def get_service_config(self, module, service, workspace):
