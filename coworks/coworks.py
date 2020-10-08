@@ -19,8 +19,17 @@ from .mixins import CoworksMixin, AwsSFNSession
 from .utils import begin_xray_subsegment, end_xray_subsegment
 from .utils import class_auth_methods, class_rest_methods, class_attribute, trim_underscores
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+
+class Entry:
+
+    def __init__(self, route):
+        self.route = route
+
+    def get(self, **kwargs):
+        return self.route["GET"].view_function.__cws_func__(**kwargs)
+
+    def post(self, **kwargs):
+        return self.route["POST"].view_function.__cws_func__(**kwargs)
 
 
 class Blueprint(CoworksMixin, ChaliceBlueprint):
@@ -47,6 +56,13 @@ class Blueprint(CoworksMixin, ChaliceBlueprint):
     def current_app(self):
         return self._current_app
 
+    @property
+    def logger(self):
+        return self._current_app.logger
+
+    def entry(self, route):
+        return self.current_app.entry(route)
+
     def deferred_init(self, workspace):
         for func in self.before_first_activation_funcs:
             self.current_app.before_first_activation(func)
@@ -54,6 +70,8 @@ class Blueprint(CoworksMixin, ChaliceBlueprint):
             self.current_app.before_activation(func)
         for func in self.after_activation_funcs:
             self.current_app.after_activation(func)
+        for func in self.handle_exception_funcs:
+            self.current_app.handle_exception_funcs(func)
 
 
 class TechMicroService(CoworksMixin, Chalice):
@@ -72,6 +90,7 @@ class TechMicroService(CoworksMixin, Chalice):
         """
         name = name or self.__class__.__name__.lower()
 
+        self.create_logger(name, **kwargs)
         self.configs = configs or [Config()]
         if type(self.configs) is not list:
             self.configs = [configs]
@@ -106,6 +125,11 @@ class TechMicroService(CoworksMixin, Chalice):
     @property
     def ms_type(self):
         return 'tech'
+
+    def create_logger(self, name, **kwargs):
+        self.logger = logging.getLogger(name)
+        if 'debug' in kwargs:
+            self.logger.setLevel(logging.DEBUG)
 
     def deferred_init(self, workspace):
         if self.entries is None:
@@ -145,6 +169,9 @@ class TechMicroService(CoworksMixin, Chalice):
             Chalice.register_blueprint(self, blueprint, url_prefix=url_prefix)
 
         self.deferred_inits.append(deferred)
+
+    def entry(self, route):
+        return Entry(self.routes[route])
 
     def iter_blueprints(self):
         return self.blueprints.values()
@@ -245,7 +272,7 @@ class TechMicroService(CoworksMixin, Chalice):
                 if subsegment:
                     subsegment.put_metadata('result', auth)
             except Exception as e:
-                logger.info(f"Exception : {str(e)}")
+                component.logger.info(f"Exception : {str(e)}")
                 traceback.print_exc()
                 if subsegment:
                     subsegment.add_exception(e, traceback.extract_stack())
@@ -267,30 +294,34 @@ class TechMicroService(CoworksMixin, Chalice):
 
     def __call__(self, event, context):
         """Lambda handler."""
-        self.do_before_first_activation()
-        self.do_before_activation()
-        res = self.handler(event, context)
-        self.do_after_activation()
-        return res
+        try:
+            self.do_before_first_activation(event, context)
+            self.do_before_activation(event, context)
+            response = self.handler(event, context)
+            return self.do_after_activation(response)
+        except Exception as e:
+            response = self.do_handle_exception(e)
+            if response is None:
+                raise
+            return response
 
     def handler(self, event, context):
         """Main microservice entry point."""
 
         # authorization call
         if event.get('type') == 'TOKEN':
-            if self.debug:
-                print(f"Calling {self.name} for authorization")
+            self.logger.debug(f"Calling {self.name} for authorization")
 
             if self.__auth__:
                 return self.__auth__(event, context)
 
-            print(f"Undefined authorization method for {self.name} ")
+            self.logger.debug(f"Undefined authorization method for {self.name} ")
             return 'Unauthorized', 403
 
         # step function call
         if event.get('type') == 'CWS_SFN':
             if self.debug:
-                print(f"Calling {self.name} by step function")
+                self.logger.debug(f"Calling {self.name} by step function")
 
             self.sfn_call = True
             content_type = event['headers']['Content-Type']
@@ -304,10 +335,8 @@ class TechMicroService(CoworksMixin, Chalice):
                     event['body'] = multi_parts.to_string()
             else:
                 raise BadRequestError(f"Undefined content type {content_type} for Step Function call")
-        else:
-            if self.debug:
-                print(f"Calling {self.name} with event {event}")
 
+        self.logger.debug(f"Calling {self.name} with event {event}")
         res = super().__call__(event, context)
 
         if self.sfn_call:
@@ -318,9 +347,7 @@ class TechMicroService(CoworksMixin, Chalice):
             except json.JSONDecodeError:
                 pass
 
-        if self.debug:
-            print(f"Call {self.name} returns {res}")
-
+        self.logger.debug(f"Call {self.name} returns {res}")
         return res
 
     def deferred(self, f):
@@ -334,7 +361,7 @@ class TechMicroService(CoworksMixin, Chalice):
         self.deferred_inits.append(f)
         return f
 
-    def do_before_first_activation(self):
+    def do_before_first_activation(self, event, context):
         """Calls all before first activation functions."""
         if self._got_first_activation:
             return
@@ -346,18 +373,28 @@ class TechMicroService(CoworksMixin, Chalice):
 
             if not self._got_first_activation:
                 for func in self.before_first_activation_funcs:
-                    func()
+                    func(event, context)
                 self._got_first_activation = True
 
-    def do_before_activation(self):
+    def do_before_activation(self, event, context):
         """Calls all before activation functions."""
         for func in self.before_activation_funcs:
-            func()
+            func(event, context)
 
-    def do_after_activation(self):
+    def do_after_activation(self, response):
         """Calls all after activation functions."""
-        for func in self.after_activation_funcs:
-            func()
+        for func in reversed(self.after_activation_funcs):
+            resp = func(response)
+            if resp is not None:
+                response = resp
+        return response
+
+    def do_handle_exception(self, exc):
+        """Calls all exception handlers."""
+        for func in reversed(self.handle_exception_funcs):
+            resp = func(exc)
+            if resp is not None:
+                return resp
 
 
 class BizFactory(TechMicroService):
@@ -460,7 +497,7 @@ class BizMicroService(TechMicroService):
         try:
             default_data = next(c.data for c in self.configs if c.workspace == workspace)
         except StopIteration:
-            print(f"No configuration found for workspace {workspace} in {self.configs}")
+            self.logger.debug(f"No configuration found for workspace {workspace} in {self.configs}")
             default_data = {}
         except KeyError:
             default_data = {}
@@ -474,7 +511,7 @@ class BizMicroService(TechMicroService):
     def handler(self, event, context):
         if 'detail-type' in event and event['detail-type'] == 'Scheduled Event':
             if self.debug:
-                print(f"Trigger: {self.biz_factory.sfn_name}")
+                self.logger.debug(f"Trigger: {self.biz_factory.sfn_name}")
             return self.biz_factory.invoke(self.get_default_data())
 
         return super().handler(event, context)

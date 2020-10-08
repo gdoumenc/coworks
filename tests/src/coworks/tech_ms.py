@@ -83,9 +83,8 @@ class ParamMS(TechMS):
     def get_value(self):
         return self.value
 
-    def put_value(self):
-        request = self.current_request
-        self.value = request.json_body['value']
+    def put_value(self, value=None):
+        self.value = value
         return self.value
 
     def get_param(self, str1, param1='default1', param2='default2'):

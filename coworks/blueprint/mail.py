@@ -3,7 +3,6 @@ import smtplib
 from email.message import EmailMessage
 
 import requests
-from aws_xray_sdk.core import xray_recorder
 from chalice import ChaliceViewError, BadRequestError
 
 from coworks import Blueprint, FileParam
@@ -20,7 +19,7 @@ class Mail(Blueprint):
         self.smtp_server = self.smtp_login = self.smtp_passwd = None
 
         @self.before_first_activation
-        def check_env_vars():
+        def check_env_vars(event, context):
             self.smtp_server = os.getenv(self.env_server_var_name)
             if not self.smtp_server:
                 raise EnvironmentError(f'{self.env_server_var_name} not defined in environment.')
@@ -31,7 +30,6 @@ class Mail(Blueprint):
             if not self.smtp_passwd:
                 raise EnvironmentError(f'{env_passwd_var_name} not defined in environment.')
 
-    @xray_recorder.capture()
     def post_send(self, subject="", from_addr: str = None, to_addrs: [str] = None, cc_addrs: [str] = None,
                   bcc_addrs: [str] = None, body="",
                   attachments: [FileParam] = None, attachment_urls: dict = None, subtype="plain", starttls=True):
@@ -87,9 +85,7 @@ class Mail(Blueprint):
                 if starttls:
                     server.starttls()
                 server.login(self.smtp_login, self.smtp_passwd)
-                subsegment = xray_recorder.current_subsegment()
-                if subsegment:
-                    subsegment.put_metadata('message', msg.as_string())
+                # self.xray_put_metadata(environment=self.environment_value, message=msg.as_string())
                 server.send_message(msg)
 
             return f"Mail sent to {msg['To']}"
@@ -97,3 +93,11 @@ class Mail(Blueprint):
             raise BadRequestError("Wrong username/password.")
         except Exception as e:
             raise ChaliceViewError(f"Cannot send email message (Error: {str(e)}).")
+
+    @property
+    def environment_value(self):
+        return {
+            'server': self.smtp_server,
+            'login': self.smtp_login,
+            'passwd': self.smtp_passwd,
+        }

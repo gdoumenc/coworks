@@ -53,13 +53,14 @@ class InitBP(BP):
         self.do_after_activation = Mock()
 
         @self.before_first_activation
-        def before_first_activation():
-            self.do_before_first_activation()
+        def before_first_activation(event, context):
+            self.do_before_first_activation(event, context)
 
         @self.before_activation
-        def before_activation():
-            self.do_before_activation()
+        def before_activation(event, context):
+            self.do_before_activation(event, context)
 
         @self.after_activation
-        def before_first_activation():
-            self.do_after_activation()
+        def after_activation(response):
+            self.do_after_activation(response)
+            return response

@@ -22,7 +22,7 @@ class SqlMicroService(TechMicroService):
         self.__engine = None
 
         @self.before_first_activation
-        def check_env_vars():
+        def check_env_vars(event, context):
             if self.dialect is None:
                 self.dialect = os.getenv(self.dialect_env_var_name)
                 if not self.dialect:
@@ -49,7 +49,7 @@ class SqlMicroService(TechMicroService):
             self.password = os.getenv(self.passwd_env_var_name, '')
 
         @self.before_activation
-        def set_session():
+        def set_session(event, context):
             self.session = sessionmaker(bind=self.engine)()
 
     @property

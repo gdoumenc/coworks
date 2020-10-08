@@ -2,18 +2,16 @@ import cgi
 import io
 import json
 import os
-import sys
-import traceback
-from functools import update_wrapper
 import urllib
+from functools import update_wrapper, partial
 
 import boto3
+from aws_xray_sdk.core import xray_recorder
 from botocore.exceptions import BotoCoreError
 from chalice import BadRequestError, Response
 from requests_toolbelt.multipart import MultipartDecoder
 
 from coworks.cws.error import CwsError
-from coworks.utils import begin_xray_subsegment, end_xray_subsegment
 
 
 class CoworksMixin:
@@ -31,7 +29,13 @@ class CoworksMixin:
         # To register a function, use the :meth:`before_activation` decorator.
         self.before_activation_funcs = []
 
+        # A list of functions that will be called after each activation.
+        # To register a function, use the :meth:`after_activation` decorator.
         self.after_activation_funcs = []
+
+        # A list of functions that will be called in case of exception.
+        # To register a function, use the :meth:`handle_exception` decorator.
+        self.handle_exception_funcs = []
 
         self.aws_s3_sfn_data_session = AwsS3Session(env_var_access_key="AWS_RUN_ACCESS_KEY_ID",
                                                     env_var_secret_key="AWS_RUN_SECRET_KEY",
@@ -45,48 +49,52 @@ class CoworksMixin:
 
         May be used as a decorator.
 
-        The function will be called without any arguments and its return value is ignored.
+        The function will be called with event and context positional arguments and its return value is ignored.
         """
 
         self.before_first_activation_funcs.append(f)
         return f
 
     def before_activation(self, f):
-        """Registers a function to run before each activation of the microservice.
+        """Registers a function to called before each activation of the microservice.
         :param f:  Function added to the list.
         :return: None.
 
         May be used as a decorator.
 
-        The function will be called without any arguments and its return value is ignored.
+        The function will be called with event and context positional arguments and its return value is ignored.
         """
 
         self.before_activation_funcs.append(f)
         return f
 
     def after_activation(self, f):
-        """Registers a function to be run after each activation of the microservice.
+        """Registers a function to be called after each activation of the microservice.
 
         May be used as a decorator.
 
-        The function will be called without any arguments and its return value is ignored.
+        The function will be called with the response and its return value is the final response.
         """
 
         self.after_activation_funcs.append(f)
+        return f
+
+    def handle_exception(self, f):
+        """Registers a function to be called in case of exception.
+
+        May be used as a decorator.
+
+        The function will be called with the exception and eventually a response to return.
+        """
+
+        self.handle_exception_funcs.append(f)
         return f
 
     def _create_rest_proxy(self, func, kwarg_keys, args, varkw):
         original_app_class = self.__class__
 
         def proxy(**kws):
-            if self.debug:
-                print(f"Calling {func} for {self}")
-
-            subsegment = begin_xray_subsegment(f"{func.__name__} microservice")
             try:
-                if subsegment:
-                    subsegment.put_metadata('headers', self.current_request.headers, "Coworks")
-
                 # Renames positional parameters (index added in label)
                 kwargs = {}
                 for kw, value in kws.items():
@@ -146,30 +154,28 @@ class CoworksMixin:
                             value = req.query_params.getlist(k)
                             add_param(k, value if len(value) > 1 else value[0])
                         kwargs = dict(**kwargs, **params)
-
-                if self.debug:
-                    print(f"Calling {self} with event {kwargs}")
+                else:
+                    if not args and (req.raw_body or req.query_params):
+                        raise BadRequestError(f"TypeError: got an unexpected arguments")
 
                 # chalice is changing class for local server for threading reason (why not mixin..?)
                 self_class = self.__class__
                 if self_class != original_app_class:
                     self.__class__ = original_app_class
+
                 resp = func(self, **kwargs)
                 self.__class__ = self_class
-
                 return _convert_response(resp)
 
             except Exception as e:
-                print(f"Exception : {str(e)}")
-                traceback.print_exc()
-                if subsegment:
-                    subsegment.add_exception(e, traceback.extract_stack())
-                raise BadRequestError(str(e))
+                raise
             finally:
-                end_xray_subsegment()
+                subsegment = xray_recorder.current_subsegment()
+                if subsegment:
+                    subsegment.add_error_flag()
 
         proxy = update_wrapper(proxy, func)
-        proxy.__class_func__ = func
+        proxy.__cws_func__ = update_wrapper(partial(func, self), func)
         return proxy
 
     def _get_multipart_content(self, part):
@@ -352,7 +358,8 @@ class Boto3Mixin:
                 try:
                     self.__session__ = boto3.Session(access_key, secret_key, region_name=region_name)
                 except Exception:
-                    raise CwsError(f"Cannot create session for key {access_key}, secret {secret_key} and region {region_name}")
+                    raise CwsError(
+                        f"Cannot create session for key {access_key}, secret {secret_key} and region {region_name}")
         return self.__session__
 
 
