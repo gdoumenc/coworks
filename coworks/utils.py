@@ -3,10 +3,21 @@ import inspect
 import os
 import platform
 import sys
+import json
 from functools import wraps
 from threading import Thread
 
 from aws_xray_sdk.core import xray_recorder
+
+
+def jsonify(result, pretty=False, indent=None, separators=None):
+    if pretty:
+        indent = indent or 4
+        separators = separators or (",", ": ")
+    else:
+        separators = separators or (",", ":")
+
+    return json.dumps(result, indent=indent, separators=separators)
 
 
 def import_attr(module, attr, cwd='.'):

@@ -1,35 +1,20 @@
-import inspect
 import json
 import logging
 import os
 import sys
-import traceback
-from functools import update_wrapper
+from collections import defaultdict
 from threading import Lock
 from typing import Dict, List, Union
 
 from aws_xray_sdk.core import xray_recorder
-from chalice import AuthResponse, BadRequestError, Rate, Cron
+from chalice import BadRequestError, Rate, Cron
 from chalice import Chalice, Blueprint as ChaliceBlueprint
 from requests_toolbelt.multipart import MultipartEncoder
 
-from .config import Config, DEFAULT_WORKSPACE
+from .config import Config
 from .cws.error import CwsCommandError
-from .mixins import CoworksMixin, AwsSFNSession
-from .utils import begin_xray_subsegment, end_xray_subsegment
-from .utils import class_auth_methods, class_rest_methods, class_attribute, trim_underscores
-
-
-class Entry:
-
-    def __init__(self, route):
-        self.route = route
-
-    def get(self, **kwargs):
-        return self.route["GET"].view_function.__cws_func__(**kwargs)
-
-    def post(self, **kwargs):
-        return self.route["POST"].view_function.__cws_func__(**kwargs)
+from .mixins import Entry, CoworksMixin, AwsSFNSession
+from .utils import class_auth_methods
 
 
 class Blueprint(CoworksMixin, ChaliceBlueprint):
@@ -90,7 +75,8 @@ class TechMicroService(CoworksMixin, Chalice):
         """
         name = name or self.__class__.__name__.lower()
 
-        self.create_logger(name, **kwargs)
+        self.logger = self.create_logger(name, **kwargs)
+
         self.configs = configs or [Config()]
         if type(self.configs) is not list:
             self.configs = [configs]
@@ -110,13 +96,12 @@ class TechMicroService(CoworksMixin, Chalice):
         self._got_first_activation = False
         self._before_activation_lock = Lock()
 
+        self.__auth__ = None
         self.entries = None
         self.sfn_call = False
 
         if "pytest" in sys.modules:
             xray_recorder.configure(context_missing="LOG_ERROR")
-
-        self.__global_auth__ = None
 
     @property
     def name(self):
@@ -126,52 +111,62 @@ class TechMicroService(CoworksMixin, Chalice):
     def ms_type(self):
         return 'tech'
 
-    def create_logger(self, name, **kwargs):
-        self.logger = logging.getLogger(name)
+    @staticmethod
+    def create_logger(name, **kwargs):
+        logger = logging.getLogger(name)
         if 'debug' in kwargs:
-            self.logger.setLevel(logging.DEBUG)
+            logger.setLevel(logging.DEBUG)
+        return logger
 
     def deferred_init(self, workspace):
         if self.entries is None:
-            url_prefix = class_attribute(self, 'url_prefix', '')
-            self._init_routes(workspace=workspace, url_prefix=url_prefix)
+            self.entries = defaultdict(Entry)
+
+            # Set workspace config
+            for conf in self.configs:
+                if conf.workspace == workspace:
+                    self.config = conf
+                    break
+            if self.config is None:
+                self.config = self.configs[0]
+
+            # Initializes routes
+            if self.config.auth:
+                self.__auth__ = self._create_auth_proxy(self.config.auth)
+            else:
+                auth_fun = class_auth_methods(self)
+                if auth_fun:
+                    self.__auth__ = self._create_auth_proxy(auth_fun)
+            self._init_routes(self, authorizer=self.__auth__)
+
             for deferred_init in self.deferred_inits:
                 deferred_init(workspace)
             for blueprint in self.iter_blueprints():
                 blueprint.deferred_init(workspace)
 
-    def register_blueprint(self, blueprint: Blueprint, authorizer=None, url_prefix=None, hide_routes=False,
-                           **kwargs):
+    def register_blueprint(self, blueprint: Blueprint, url_prefix=None, authorizer=None, hide_routes=False):
         """ Register a :class:`Blueprint` on the microservice.
 
-        :param blueprint:
-        :param authorizer:
-        :param url_prefix:
+        :param blueprint: blueprint to register.
+        :param url_prefix: url prefix for the routes added (must be unique for each blueprints).
+        :param authorizer: authorizer for this blueprint.
         :param hide_routes:
-        :param kwargs:
         :return:
         """
-        if 'name_prefix' not in kwargs:
-            kwargs['name_prefix'] = blueprint.name
-        if 'url_prefix' not in kwargs:
-            kwargs['url_prefix'] = f"/{blueprint.name}"
-
         if url_prefix in self.blueprints:
             raise NameError(f"A blueprint is already defined for the {url_prefix} prefix.")
         self.blueprints[url_prefix] = blueprint
 
-        if not hide_routes:
-            blueprint.__auth__ = self._create_auth_proxy(self, authorizer) if authorizer else None
-
         def deferred(workspace):
             if not hide_routes:
-                self._init_routes(workspace=workspace, component=blueprint, url_prefix=url_prefix)
-            Chalice.register_blueprint(self, blueprint, url_prefix=url_prefix)
+                auth = self._create_auth_proxy(authorizer) if authorizer else self.__auth__
+                blueprint._init_routes(self, url_prefix=url_prefix, authorizer=auth)
+            super(TechMicroService, self).register_blueprint(blueprint, url_prefix=url_prefix)
 
         self.deferred_inits.append(deferred)
 
     def entry(self, route):
-        return Entry(self.routes[route])
+        return self.entries[route]
 
     def iter_blueprints(self):
         return self.blueprints.values()
@@ -179,12 +174,10 @@ class TechMicroService(CoworksMixin, Chalice):
     def execute(self, command, *, project_dir, module=None, service=None, workspace, output=None, error=None,
                 **options):
         """Executes a coworks command."""
-        from coworks.cws.client import ProjectConfig
+        from coworks.cws.client import ProjectConfig  # only available from client module
 
-        if module is None:
-            module = __name__
-        if service is None:
-            service = self.name
+        module = __name__ if module is None else module
+        service = self.name if service is None else service
 
         project_config = ProjectConfig(project_dir)
         service_config = project_config.get_service_config(module, service, workspace)
@@ -194,103 +187,6 @@ class TechMicroService(CoworksMixin, Chalice):
         command_options = service_config.get_command_options(command)
         execution_params = {**command_options, **options}
         cmd.execute(output=output, error=error, **execution_params)
-
-    def _init_routes(self, *, workspace=DEFAULT_WORKSPACE, component=None, url_prefix=''):
-        if self.config is None:
-            for conf in self.configs:
-                if conf.workspace == workspace:
-                    self.config = conf
-                    break
-            if self.config is None:
-                self.config = self.configs[0]
-
-        if component is None:
-            component = self
-
-        # External authorizer has priority (forced)
-        if self.config.auth:
-            if self.__global_auth__ is None:
-                self.__global_auth__ = self._create_auth_proxy(self, self.config.auth)
-            auth = component.__auth__ = self.__global_auth__
-        else:
-            auth = class_auth_methods(component)
-            if auth and component.__auth__ is None:
-                auth = TechMicroService._create_auth_proxy(component, auth)
-                component.__auth__ = auth
-            auth = component.__auth__
-
-        # Adds entrypoints
-        if self.entries is None:
-            self.entries = {}
-        methods = class_rest_methods(component)
-        for method, func in methods:
-            if getattr(func, '__cws_hidden', False):
-                continue
-
-            # Get function's route
-            if func.__name__ == method:
-                route = f"{url_prefix}"
-            else:
-                name = func.__name__[len(method) + 1:]
-                name = trim_underscores(name)  # to allow several functions with same route but different args
-                name = name.replace('_', '/')
-                route = f"{url_prefix}/{name}" if url_prefix else f"{name}"
-
-            # Get parameters
-            args = inspect.getfullargspec(func).args[1:]
-            defaults = inspect.getfullargspec(func).defaults
-            varkw = inspect.getfullargspec(func).varkw
-            if defaults:
-                len_defaults = len(defaults)
-                for index, arg in enumerate(args[:-len_defaults]):
-                    route = route + f"/{{_{index}}}" if route else f"{{_{index}}}"
-                kwarg_keys = args[-len_defaults:]
-            else:
-                for index, arg in enumerate(args):
-                    route = route + f"/{{_{index}}}" if route else f"{{_{index}}}"
-                kwarg_keys = {}
-
-            proxy = component._create_rest_proxy(func, kwarg_keys, args, varkw)
-
-            # complete all entries
-            if not route.startswith('/'):
-                route = '/' + route
-            self.route(f"{route}", methods=[method.upper()], authorizer=auth, cors=self.config.cors,
-                       content_types=list(self.config.content_type))(proxy)
-            if url_prefix:
-                self.entries[f"{url_prefix}{route}"] = (method.upper(), func)
-            else:
-                self.entries[f"{route}"] = (method.upper(), func)
-
-    @staticmethod
-    def _create_auth_proxy(component, auth_method):
-
-        def proxy(auth_activation):
-            subsegment = begin_xray_subsegment(f"auth microservice")
-            try:
-                auth = auth_method(component, auth_activation)
-                if subsegment:
-                    subsegment.put_metadata('result', auth)
-            except Exception as e:
-                component.logger.info(f"Exception : {str(e)}")
-                traceback.print_exc()
-                if subsegment:
-                    subsegment.add_exception(e, traceback.extract_stack())
-                raise BadRequestError(str(e))
-            finally:
-                end_xray_subsegment()
-
-            if type(auth) is bool:
-                if auth:
-                    return AuthResponse(routes=['*'], principal_id='user')
-                return AuthResponse(routes=[], principal_id='user')
-            elif type(auth) is list:
-                return AuthResponse(routes=auth, principal_id='user')
-            return auth
-
-        proxy = update_wrapper(proxy, auth_method)
-        proxy.__name__ = 'app'
-        return component.authorizer(name='auth')(proxy)
 
     def __call__(self, event, context):
         """Lambda handler."""
@@ -312,8 +208,10 @@ class TechMicroService(CoworksMixin, Chalice):
         if event.get('type') == 'TOKEN':
             self.logger.debug(f"Calling {self.name} for authorization")
 
-            if self.__auth__:
-                return self.__auth__(event, context)
+            route = event.get('methodArn').split('/', 3)[-1]
+            authorizer = self.entry(route).authorizer
+            if authorizer:
+                return authorizer(event, context)
 
             self.logger.debug(f"Undefined authorization method for {self.name} ")
             return 'Unauthorized', 403

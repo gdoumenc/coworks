@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Callable, Union, List, Tuple, Any
 
 from chalice import CORSConfig as ChaliceCORSConfig
-from chalice.app import AuthRequest, AuthResponse
+from chalice.app import AuthRequest as ChaliceAuthRequest
 
 from .mixins import CoworksMixin
 from .utils import as_list
@@ -16,6 +16,15 @@ DEFAULT_WORKSPACE = 'dev'
 
 ENV_FILE_SUFFIX = '.json'
 SECRET_ENV_FILE_SUFFIX = '.secret.json'
+
+
+class AuthRequest(ChaliceAuthRequest):
+    def __init__(self, auth_type, token, method_arn):
+        self.auth_type = auth_type
+        self.token = token
+        self.method_arn = method_arn
+
+        _, self.workspace, self.method, self.route = method_arn.split('/', 3)
 
 
 class CORSConfig(ChaliceCORSConfig):

@@ -58,18 +58,6 @@ class TestClass:
         assert response.status_code == 200
         assert response.text == "hello world"
 
-    def test_prefixed(self, local_server_factory):
-        local_server = local_server_factory(PrefixedMS())
-        response = local_server.make_call(requests.get, '/prefix')
-        assert response.status_code == 200
-        assert response.text == "hello world"
-        response = local_server.make_call(requests.get, '/prefix/content')
-        assert response.status_code == 200
-        assert response.text == "hello world"
-        response = local_server.make_call(requests.get, '/prefix/extended/content')
-        assert response.status_code == 200
-        assert response.text == "hello world"
-
     def test_parameterized(self, local_server_factory):
         local_server = local_server_factory(ParamMS())
         response = local_server.make_call(requests.get, '/123')
@@ -105,11 +93,11 @@ class TestClass:
         assert response.text == "test1['param1', 'param2']default2"
 
     def test_slug_parameterized(self, local_server_factory):
-        local_server = local_server_factory(PrefixedParamMS())
-        response = local_server.make_call(requests.get, '/prefix/123')
+        local_server = local_server_factory(ParamMS())
+        response = local_server.make_call(requests.get, '/123')
         assert response.status_code == 200
         assert response.text == '123'
-        response = local_server.make_call(requests.get, '/prefix/concat/123/456')
+        response = local_server.make_call(requests.get, '/concat/123/456')
         assert response.status_code == 200
         assert response.text == '123456'
 

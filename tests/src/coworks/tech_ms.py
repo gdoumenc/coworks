@@ -58,19 +58,6 @@ class SimpleMS(TechMS):
         return "hello world"
 
 
-class PrefixedMS(TechMS):
-    url_prefix = 'prefix'
-
-    def get(self):
-        return "hello world"
-
-    def get_content(self):
-        return "hello world"
-
-    def get_extended_content(self):
-        return "hello world"
-
-
 class ParamMS(TechMS):
     value = "123"
 
@@ -89,16 +76,6 @@ class ParamMS(TechMS):
 
     def get_param(self, str1, param1='default1', param2='default2'):
         return str1 + str(param1) + param2
-
-
-class PrefixedParamMS(TechMS):
-    url_prefix = 'prefix'
-
-    def get(self, str):
-        return str
-
-    def get_concat(self, str1, str2):
-        return str1 + str2
 
 
 class TupleReturnedMS(TechMS):
