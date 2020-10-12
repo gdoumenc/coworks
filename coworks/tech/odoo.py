@@ -5,7 +5,7 @@ from http.client import BadStatusLine
 from pyexpat import ExpatError
 from typing import List, Tuple, Union
 from xmlrpc import client
-from xmlrpc.client import Fault
+from xmlrpc.client import Fault, ProtocolError
 
 from aws_xray_sdk.core import xray_recorder
 
@@ -29,8 +29,6 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
         """Returns the list of objects or the object which searched_field is equal to the searched_value."""
         fields = fields or ['id']
         results = self.search(model, [[(searched_field, '=', searched_value)]], fields=fields, **kwargs)
-        if not results:
-            return "No object found", 404
         return results
 
     def get_fields(self, model, searched_field, searched_value, returned_fields=None):
@@ -86,7 +84,7 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
             with client.ServerProxy(models_url, allow_none=True) as models:
                 res: List[dict] = models.execute_kw(self.dbname, self.api_uid, self.passwd, model, method, *args)
                 return res
-        except (BadStatusLine, ExpatError):
+        except (BadStatusLine, ExpatError, ProtocolError):
             time.sleep(2)
             with client.ServerProxy(models_url) as models:
                 return models.execute_kw(self.dbname, self.api_uid, self.passwd, model, method, *args)
