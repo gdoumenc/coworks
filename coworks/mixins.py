@@ -29,14 +29,14 @@ class Entry(dict):
 
     @property
     def authorizer(self):
-        method = self["GET"] or self['POST'] or self['PUT']
+        method = self.get("GET") or self.get('POST') or self.get('PUT')
         return method.auth
 
-    def get(self, **kwargs):
+    def call_get(self, **kwargs):
         method = self["GET"]
         return method.fun(method.component, **kwargs)
 
-    def post(self, **kwargs):
+    def call_post(self, **kwargs):
         method = self["POST"]
         return method.fun(method.component, **kwargs)
 

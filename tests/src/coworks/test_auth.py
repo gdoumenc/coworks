@@ -91,7 +91,8 @@ class TestClass:
         assert response.text == 'get'
         response = local_server.make_call(requests.get, '/', headers={'authorization': 'refuse'})
         assert response.status_code == 403
-        response = local_server.make_call(requests.get, '/blueprint/test/3', headers={'authorization': 'allow'}, timeout=500)
+        response = local_server.make_call(requests.get, '/blueprint/test/3', headers={'authorization': 'allow'},
+                                          timeout=500)
         assert response.status_code == 200
         assert response.text == 'blueprint test 3'
         response = local_server.make_call(requests.get, '/blueprint/test/3', headers={'authorization': 'refuse'})
@@ -124,6 +125,17 @@ class TestClass:
         assert response.text == 'blueprint test 3'
         response = local_server.make_call(requests.get, '/blueprint/test/3', headers={'authorization': 'refuse'})
         assert response.status_code == 403
+
+    def test_auth_entry(self, local_server_factory):
+        ms = AuthorizedMS()
+        local_server = local_server_factory(ms)
+        response = local_server.make_call(requests.get, '/', headers={'authorization': 'allow'})
+        assert response.status_code == 200
+        assert ms.entry('/').authorizer
+        assert response.status_code == 200
+        response = local_server.make_call(requests.get, '/blueprint/test/3', headers={'authorization': 'allow'})
+        assert response.status_code == 200
+        assert ms.entry('/blueprint/test/{_0}').authorizer
 
 
 def auth_external(self, auth_request):

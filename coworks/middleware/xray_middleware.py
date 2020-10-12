@@ -1,6 +1,5 @@
+import traceback
 from functools import partial, update_wrapper
-
-from aws_xray_sdk.core.models import http
 
 LAMBDA_NAMESPACE = 'lambda'
 COWORKS_NAMESPACE = 'coworks'
@@ -12,8 +11,6 @@ class XRayMiddleware(object):
         self.app = app
         self.app.logger.info("initializing xray middleware")
 
-        self._recorder = recorder
-
         @app.before_first_activation
         def capture_routes(event, context):
             for path, route in app.routes.items():
@@ -22,7 +19,7 @@ class XRayMiddleware(object):
                     cws_function = view_function.__cws_func__
 
                     def captured(_view_function, *args, **kwargs):
-                        subsegment = self._recorder.current_subsegment()
+                        subsegment = recorder.current_subsegment()
                         subsegment.put_metadata('event', event, LAMBDA_NAMESPACE)
                         subsegment.put_metadata('context', context, LAMBDA_NAMESPACE)
                         subsegment.put_annotation('service', app.name)
@@ -33,7 +30,7 @@ class XRayMiddleware(object):
                         return response
 
                     def captured_entry(_cws_function, *args, **kwargs):
-                        subsegment = self._recorder.current_subsegment()
+                        subsegment = recorder.current_subsegment()
                         subsegment.put_metadata('args', args, COWORKS_NAMESPACE)
                         subsegment.put_metadata('kwargs', kwargs, COWORKS_NAMESPACE)
                         response = _cws_function(*args, **kwargs)
@@ -41,7 +38,17 @@ class XRayMiddleware(object):
                         return response
 
                     wrapped_fun = update_wrapper(partial(captured, view_function), view_function)
-                    entry.view_function = self._recorder.capture(view_function.__name__)(wrapped_fun)
+                    entry.view_function = recorder.capture(view_function.__name__)(wrapped_fun)
 
                     wrapped_fun = update_wrapper(partial(captured_entry, cws_function), cws_function)
-                    entry.view_function.__cws_func__ = self._recorder.capture(cws_function.__name__)(wrapped_fun)
+                    entry.view_function.__cws_func__ = recorder.capture(cws_function.__name__)(wrapped_fun)
+
+        @app.handle_exception
+        def capture_exception(e):
+            app.logger.error(e)
+            app.logger.error(traceback.extract_stack())
+            subsegment = recorder.begin_subsegment("Exception")
+            subsegment.put_annotation('service', app.name)
+            subsegment.add_exception(e, traceback.extract_stack())
+            recorder.end_subsegment(subsegment)
+            return 'Exception in microservice', 200
