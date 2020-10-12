@@ -196,6 +196,7 @@ class TechMicroService(CoworksMixin, Chalice):
             response = self.handler(event, context)
             return self.do_after_activation(response)
         except Exception as e:
+            print(f"exception: {e}")
             response = self.do_handle_exception(e)
             if response is None:
                 raise
@@ -209,7 +210,7 @@ class TechMicroService(CoworksMixin, Chalice):
             self.logger.debug(f"Calling {self.name} for authorization")
 
             route = event.get('methodArn').split('/', 3)[-1]
-            authorizer = self.entry(route).authorizer
+            authorizer = self.entry(f'/{route}').authorizer
             if authorizer:
                 return authorizer(event, context)
 
