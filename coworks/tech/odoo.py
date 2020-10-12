@@ -1,4 +1,3 @@
-import logging
 import os
 import time
 from http.client import BadStatusLine
@@ -18,7 +17,7 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.url = self.dbname = self.user = self.passwd = None
-        self.api_uid = self.logger = None
+        self.api_uid = None
 
     def get(self):
         """Check the connection."""
@@ -59,8 +58,6 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
         self.passwd = passwd or os.getenv(self.passwd_env_var_name)
         if not self.passwd:
             raise EnvironmentError(f"{self.passwd_env_var_name} not defined in environment.")
-
-        self.logger = logging.getLogger('odoo')
 
         try:
             subsegment = xray_recorder.current_subsegment()
