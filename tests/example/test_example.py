@@ -1,8 +1,8 @@
 import threading
+import time
 from pathlib import Path
 
 import requests
-import time
 
 from coworks.config import Config
 from coworks.cws.runner import ThreadedLocalServer
@@ -11,7 +11,6 @@ from .example import TechMS
 
 
 class TestClass:
-
     def test_simple_example(self, local_server_factory):
         local_server = local_server_factory(TechMS())
         response = local_server.make_call(requests.get, '/')

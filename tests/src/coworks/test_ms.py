@@ -134,24 +134,3 @@ class TestClass:
         assert response.headers['x-test'] == 'true'
         assert response.text == 'test'
 
-
-def test_after_before_request():
-    simple = SimpleMS()
-    evts = []
-
-    @simple.before_first_activation
-    def always_first():
-        evts.append("first")
-
-    @simple.before_activation
-    def before():
-        evts.append("before")
-
-    @simple.after_activation
-    def always_first():
-        evts.append("after")
-
-    simple({}, {})
-    simple({}, {})
-
-    assert evts == ["first", "before", "after", "before", "after"]

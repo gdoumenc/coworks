@@ -16,7 +16,7 @@ class Admin(Blueprint):
                 doc = inspect.getdoc(function_called)
                 route[http_method] = {
                     'doc': doc if doc else '',
-                    'signature': get_signature(function_called.__class_func__)
+                    'signature': get_signature(function_called.__cws_func__)
                 }
             routes[resource_path] = route
         return routes
@@ -36,8 +36,8 @@ def get_signature(func):
             continue
         sp = k
         if p.annotation != inspect.Parameter.empty:
-            sp = f"{sp}:{str(p.annotation.__name__)}"
+            sp = f"{sp}:{str(p.annotation)}"
         if p.default != inspect.Parameter.empty:
-            sp = f"{sp}='{p.default}'" if type(p.default) == str else f"{sp}={p.default}"
+            sp = f"{sp}={p.default}"
         sig = f"{sp}" if index == 2 else f"{sig}, {sp}"
     return f"({sig})"

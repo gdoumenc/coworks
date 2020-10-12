@@ -6,36 +6,32 @@ services:
     service: project2
 commands:
   info:
-    default:
-      class: coworks.cws.info.CwsInfo
+    class: coworks.cws.info.CwsDescriptor
   test:
-    default:
-      class: example.TestCmd
-      b: value
-      a: default
+    class: example.TestCmd
+    b: value
+    a: default
     services:
-      - module: example
-        service: project2
-        workspace: prod
-        a: prod2
       - module: example
         service: project2
         a: project2
+        workspaces:
+          - workspace: prod
+            a: prod2
       - module: example
         service: autre
-        a: autre
+        a: autre1
   run:
-    default:
-      class: coworks.cws.runner.CwsRunner
+    class: coworks.cws.runner.CwsRunner
     services:
       - module: app2
         service: app2
-        worskpace: dev
-        class: coworks.cws.runner.CwsMyRunner
-        port: 8001
+        workspaces:
+          - worskpace: dev
+            class: coworks.cws.runner.CwsMyRunner
+            port: 8001
   deploy:
-    default:
-      class: coworks.cws.CwsDeployer
+    class: coworks.cws.CwsDeployer
     services:
       - module: app2
         config:

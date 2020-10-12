@@ -26,7 +26,7 @@ class CwsFactory(CLIFactory):
         }
         config_from_disk = {
             'version': 1,
-            'ms_name': 'app',
+            'name': 'app',
             'stages': {
             }
         }

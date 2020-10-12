@@ -1,7 +1,7 @@
-from unittest.mock import Mock, MagicMock
+import os
+from unittest.mock import Mock
 
 import pytest
-import os
 
 from coworks import BizFactory, Every, At
 from coworks.config import Config
@@ -52,10 +52,10 @@ class TestClass:
         assert 'at2' in fact.biz
 
         biz_1({'detail-type': 'Scheduled Event',
-              'resources': ['arn:aws:events:eu-west-1:123456789:rule/sfn_name1-every1']}, {})
+               'resources': ['arn:aws:events:eu-west-1:123456789:rule/sfn_name1-every1']}, {})
         fact.sfn_client.start_execution.assert_called_once_with(input='{"key1": "value1"}', stateMachineArn='arn1')
         biz_2({'detail-type': 'Scheduled Event',
-              'resources': ['arn:aws:events:eu-west-1:123456789:rule/sfn_name1-at2']}, {})
+               'resources': ['arn:aws:events:eu-west-1:123456789:rule/sfn_name1-at2']}, {})
         fact.sfn_client.start_execution.assert_called_with(input='{"key2": "value2"}', stateMachineArn='arn1')
 
     def test_biz_data(self):
@@ -76,12 +76,12 @@ class TestClass:
 
         biz = fact.create('every1', Every(5, Every.MINUTES), configs=[test_config_1])
         biz({'detail-type': 'Scheduled Event',
-              'resources': ['arn:aws:events:eu-west-1:123456789:rule/step_function-every1']}, {})
+             'resources': ['arn:aws:events:eu-west-1:123456789:rule/step_function-every1']}, {})
         fact.sfn_client.start_execution.assert_called_once_with(input='{}', stateMachineArn='arn')
 
         biz = fact.create('every2', Every(10, Every.HOURS), configs=[test_config_2])
         biz({'detail-type': 'Scheduled Event',
-              'resources': ['arn:aws:events:eu-west-1:123456789:rule/step_function-every2']}, {})
+             'resources': ['arn:aws:events:eu-west-1:123456789:rule/step_function-every2']}, {})
 
         fact.sfn_client.start_execution.assert_called_with(input='{"key": "value"}', stateMachineArn='arn')
 

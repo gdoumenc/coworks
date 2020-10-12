@@ -19,9 +19,8 @@ class WithEnvMS(SimpleMS):
         super().__init__(**kwargs)
 
         @self.before_first_activation
-        def init():
+        def init(event, context):
             assert os.getenv("test") is not None
-
 
     def get(self):
         """Root access."""
@@ -60,7 +59,7 @@ class TestClass:
         assert response.text == 'test prod environment variable'
 
     def test_env_var(self, local_server_factory):
-        config = Config(environment_variables= {'test': 'test value environment variable'})
+        config = Config(environment_variables={'test': 'test value environment variable'})
         local_server = local_server_factory(WithEnvMS(configs=config))
         response = local_server.make_call(requests.get, '/')
         assert response.status_code == 200

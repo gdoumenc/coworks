@@ -2,6 +2,7 @@ import pathlib
 from abc import abstractmethod
 from dataclasses import dataclass
 from typing import List
+import inspect
 
 import click
 from jinja2 import Environment, PackageLoader, select_autoescape, TemplateNotFound
@@ -36,6 +37,7 @@ class CwsWriter(CwsCommand):
     def _execute(self, **options):
         self._export_header(**options)
         self._export_content(**options)
+
         print('', file=self.output, flush=True)
 
     def _export_header(self, **options):
@@ -94,12 +96,13 @@ class CwsTemplateWriter(CwsWriter):
             'module_file': module_path[-1],
             'handler': service,
             'app': self.app,
-            'ms_name': self.app.ms_name,
+            'ms_name': self.app.name,
             'workspace': workspace,
             'app_config': config,
             'environment_variable_files': environment_variable_files,
             'sfn_name': options.get('sfn_name'),
             'account_number': options.get('account_number'),
+            'description': inspect.getdoc(self.app),
             **options
         }
         data.update(self.data)
@@ -195,3 +198,8 @@ class CwsTerraformWriter(CwsTemplateWriter):
             add_entry(previous_uid, last_path, methods.keys())
 
         return all_pathes_id
+
+    def _execute(self, **options):
+        if options['debug']:
+            print(f"Generate terraform file: {options['output']}")
+        super()._execute(**options)

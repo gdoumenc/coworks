@@ -8,12 +8,12 @@ from coworks import TechMicroService
 
 class TechMS(TechMicroService):
     def __init__(self, **kwargs):
-        super().__init__(ms_name='test', **kwargs)
+        super().__init__(name='test', **kwargs)
 
 
 class S3MockTechMS(TechMicroService):
     def __init__(self):
-        super().__init__(ms_name='test')
+        super().__init__(name='test')
         session = MagicMock()
         session.client = MagicMock()
         s3_object = {'Body': io.BytesIO(b'test'), 'ContentType': 'text/plain'}
@@ -83,9 +83,8 @@ class ParamMS(TechMS):
     def get_value(self):
         return self.value
 
-    def put_value(self):
-        request = self.current_request
-        self.value = request.json_body['value']
+    def put_value(self, value=None):
+        self.value = value
         return self.value
 
     def get_param(self, str1, param1='default1', param2='default2'):

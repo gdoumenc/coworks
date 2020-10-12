@@ -19,8 +19,17 @@ from .mixins import CoworksMixin, AwsSFNSession
 from .utils import begin_xray_subsegment, end_xray_subsegment
 from .utils import class_auth_methods, class_rest_methods, class_attribute, trim_underscores
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+
+class Entry:
+
+    def __init__(self, route):
+        self.route = route
+
+    def get(self, **kwargs):
+        return self.route["GET"].view_function.__cws_func__(**kwargs)
+
+    def post(self, **kwargs):
+        return self.route["POST"].view_function.__cws_func__(**kwargs)
 
 
 class Blueprint(CoworksMixin, ChaliceBlueprint):
@@ -30,34 +39,39 @@ class Blueprint(CoworksMixin, ChaliceBlueprint):
 
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, name=None, **kwargs):
         """Initialize a blueprint.
 
         :param kwargs: Other Chalice parameters.
 
         """
-        import_name = kwargs.pop('import_name', self.__class__.__name__)
+        import_name = name or self.__class__.__name__.lower()
         super().__init__(import_name)
 
     @property
-    def import_name(self):
+    def name(self):
         return self._import_name
-
-    @property
-    def component_name(self):
-        return ''
 
     @property
     def current_app(self):
         return self._current_app
 
-    def _add_registered_functions(self, current_app):
+    @property
+    def logger(self):
+        return self._current_app.logger
+
+    def entry(self, route):
+        return self.current_app.entry(route)
+
+    def deferred_init(self, workspace):
         for func in self.before_first_activation_funcs:
-            current_app.before_first_activation(func)
+            self.current_app.before_first_activation(func)
         for func in self.before_activation_funcs:
-            current_app.before_activation(func)
+            self.current_app.before_activation(func)
         for func in self.after_activation_funcs:
-            current_app.after_activation(func)
+            self.current_app.after_activation(func)
+        for func in self.handle_exception_funcs:
+            self.current_app.handle_exception_funcs(func)
 
 
 class TechMicroService(CoworksMixin, Chalice):
@@ -67,32 +81,32 @@ class TechMicroService(CoworksMixin, Chalice):
     
     """
 
-    def __init__(self, ms_name: str = None, configs: Union[Config, List[Config]] = None, **kwargs):
+    def __init__(self, name: str = None, configs: Union[Config, List[Config]] = None, **kwargs):
         """ Initialize a technical microservice.
-        :param ms_name: Name used to identify the resource.
+        :param name: Name used to identify the microservice.
         :param configs: Deployment configuration.
         :param workspace used for execution.
         :param kwargs: Other Chalice parameters.
         """
-        ms_name = ms_name or self.__class__.__name__
+        name = name or self.__class__.__name__.lower()
 
+        self.create_logger(name, **kwargs)
         self.configs = configs or [Config()]
         if type(self.configs) is not list:
             self.configs = [configs]
         self.config = None
 
-        super().__init__(app_name=ms_name, **kwargs)
+        super().__init__(app_name=name, **kwargs)
+
+        # Blueprints and extended commands added
         self.experimental_feature_flags.update([
             'BLUEPRINTS'
         ])
-
-        # App and blueprints init deferered functions.
-        self.deferred_inits = []
-        self.blueprint_deferred_inits = []
-
-        # Extended commands added
+        self.blueprints = {}
         self.commands = {}
 
+        # App init deferered functions.
+        self.deferred_inits = []
         self._got_first_activation = False
         self._before_activation_lock = Lock()
 
@@ -105,62 +119,83 @@ class TechMicroService(CoworksMixin, Chalice):
         self.__global_auth__ = None
 
     @property
-    def component_name(self):
-        return class_attribute(self, 'url_prefix', '')
-
-    @property
-    def ms_name(self):
+    def name(self):
         return self.app_name
 
     @property
     def ms_type(self):
         return 'tech'
 
+    def create_logger(self, name, **kwargs):
+        self.logger = logging.getLogger(name)
+        if 'debug' in kwargs:
+            self.logger.setLevel(logging.DEBUG)
+
     def deferred_init(self, workspace):
         if self.entries is None:
-            self._init_routes(workspace=workspace)
+            url_prefix = class_attribute(self, 'url_prefix', '')
+            self._init_routes(workspace=workspace, url_prefix=url_prefix)
             for deferred_init in self.deferred_inits:
                 deferred_init(workspace)
-            for deferred_init in self.blueprint_deferred_inits:
-                deferred_init(workspace)
+            for blueprint in self.iter_blueprints():
+                blueprint.deferred_init(workspace)
 
-    def register_blueprint(self, blueprint: Blueprint, authorizer=None, **kwargs):
+    def register_blueprint(self, blueprint: Blueprint, authorizer=None, url_prefix=None, hide_routes=False,
+                           **kwargs):
         """ Register a :class:`Blueprint` on the microservice.
 
         :param blueprint:
         :param authorizer:
+        :param url_prefix:
+        :param hide_routes:
         :param kwargs:
         :return:
         """
         if 'name_prefix' not in kwargs:
-            kwargs['name_prefix'] = blueprint.component_name
+            kwargs['name_prefix'] = blueprint.name
         if 'url_prefix' not in kwargs:
-            kwargs['url_prefix'] = f"/{blueprint.component_name}"
+            kwargs['url_prefix'] = f"/{blueprint.name}"
 
-        blueprint.__auth__ = self._create_auth_proxy(self, authorizer) if authorizer else None
+        if url_prefix in self.blueprints:
+            raise NameError(f"A blueprint is already defined for the {url_prefix} prefix.")
+        self.blueprints[url_prefix] = blueprint
+
+        if not hide_routes:
+            blueprint.__auth__ = self._create_auth_proxy(self, authorizer) if authorizer else None
 
         def deferred(workspace):
-            self._init_routes(workspace=workspace, component=blueprint, url_prefix=kwargs['url_prefix'])
-            blueprint._add_registered_functions(self)
-            Chalice.register_blueprint(self, blueprint, **kwargs)
+            if not hide_routes:
+                self._init_routes(workspace=workspace, component=blueprint, url_prefix=url_prefix)
+            Chalice.register_blueprint(self, blueprint, url_prefix=url_prefix)
 
-        self.blueprint_deferred_inits.append(deferred)
+        self.deferred_inits.append(deferred)
 
-    def execute(self, command, *, project_dir, module, workspace, output=None, error=None, **kwargs):
-        """Executes a client command."""
+    def entry(self, route):
+        return Entry(self.routes[route])
+
+    def iter_blueprints(self):
+        return self.blueprints.values()
+
+    def execute(self, command, *, project_dir, module=None, service=None, workspace, output=None, error=None,
+                **options):
+        """Executes a coworks command."""
         from coworks.cws.client import ProjectConfig
 
-        project_config = ProjectConfig(command, project_dir)
-        service = self.ms_name
-        cmd = project_config.get_command(self, module, service, workspace)
+        if module is None:
+            module = __name__
+        if service is None:
+            service = self.name
+
+        project_config = ProjectConfig(project_dir)
+        service_config = project_config.get_service_config(module, service, workspace)
+        cmd = service_config.get_command(command, self)
         if not cmd:
-            raise CwsCommandError(f"The command {command} was not added to the microservice {self.ms_name}.\n")
+            raise CwsCommandError(f"The command {command} was not added to the microservice {self.name}.\n")
+        command_options = service_config.get_command_options(command)
+        execution_params = {**command_options, **options}
+        cmd.execute(output=output, error=error, **execution_params)
 
-        client_params = {'project_dir':project_dir, 'module':module, 'service':service, 'workspace':workspace}
-        complemented_args = project_config.missing_options(**client_params, **kwargs)
-        cmd.execute(output=output, error=error, **client_params, **complemented_args)
-
-    def _init_routes(self, *, workspace=DEFAULT_WORKSPACE, component=None, url_prefix=None):
+    def _init_routes(self, *, workspace=DEFAULT_WORKSPACE, component=None, url_prefix=''):
         if self.config is None:
             for conf in self.configs:
                 if conf.workspace == workspace:
@@ -194,12 +229,12 @@ class TechMicroService(CoworksMixin, Chalice):
 
             # Get function's route
             if func.__name__ == method:
-                route = f"{component.component_name}"
+                route = f"{url_prefix}"
             else:
                 name = func.__name__[len(method) + 1:]
                 name = trim_underscores(name)  # to allow several functions with same route but different args
                 name = name.replace('_', '/')
-                route = f"{component.component_name}/{name}" if component.component_name else f"{name}"
+                route = f"{url_prefix}/{name}" if url_prefix else f"{name}"
 
             # Get parameters
             args = inspect.getfullargspec(func).args[1:]
@@ -218,12 +253,14 @@ class TechMicroService(CoworksMixin, Chalice):
             proxy = component._create_rest_proxy(func, kwarg_keys, args, varkw)
 
             # complete all entries
-            component.route(f"/{route}", methods=[method.upper()], authorizer=auth, cors=self.config.cors,
-                            content_types=list(self.config.content_type))(proxy)
+            if not route.startswith('/'):
+                route = '/' + route
+            self.route(f"{route}", methods=[method.upper()], authorizer=auth, cors=self.config.cors,
+                       content_types=list(self.config.content_type))(proxy)
             if url_prefix:
-                self.entries[f"{url_prefix}/{route}"] = (method.upper(), func)
+                self.entries[f"{url_prefix}{route}"] = (method.upper(), func)
             else:
-                self.entries[f"/{route}"] = (method.upper(), func)
+                self.entries[f"{route}"] = (method.upper(), func)
 
     @staticmethod
     def _create_auth_proxy(component, auth_method):
@@ -235,7 +272,7 @@ class TechMicroService(CoworksMixin, Chalice):
                 if subsegment:
                     subsegment.put_metadata('result', auth)
             except Exception as e:
-                logger.info(f"Exception : {str(e)}")
+                component.logger.info(f"Exception : {str(e)}")
                 traceback.print_exc()
                 if subsegment:
                     subsegment.add_exception(e, traceback.extract_stack())
@@ -257,30 +294,34 @@ class TechMicroService(CoworksMixin, Chalice):
 
     def __call__(self, event, context):
         """Lambda handler."""
-        self.do_before_first_activation()
-        self.do_before_activation()
-        res = self.handler(event, context)
-        self.do_after_activation()
-        return res
+        try:
+            self.do_before_first_activation(event, context)
+            self.do_before_activation(event, context)
+            response = self.handler(event, context)
+            return self.do_after_activation(response)
+        except Exception as e:
+            response = self.do_handle_exception(e)
+            if response is None:
+                raise
+            return response
 
     def handler(self, event, context):
         """Main microservice entry point."""
 
         # authorization call
         if event.get('type') == 'TOKEN':
-            if self.debug:
-                print(f"Calling {self.ms_name} for authorization")
+            self.logger.debug(f"Calling {self.name} for authorization")
 
             if self.__auth__:
                 return self.__auth__(event, context)
 
-            print(f"Undefined authorization method for {self.ms_name} ")
+            self.logger.debug(f"Undefined authorization method for {self.name} ")
             return 'Unauthorized', 403
 
         # step function call
         if event.get('type') == 'CWS_SFN':
             if self.debug:
-                print(f"Calling {self.ms_name} by step function")
+                self.logger.debug(f"Calling {self.name} by step function")
 
             self.sfn_call = True
             content_type = event['headers']['Content-Type']
@@ -294,10 +335,8 @@ class TechMicroService(CoworksMixin, Chalice):
                     event['body'] = multi_parts.to_string()
             else:
                 raise BadRequestError(f"Undefined content type {content_type} for Step Function call")
-        else:
-            if self.debug:
-                print(f"Calling {self.ms_name} with event {event}")
 
+        self.logger.debug(f"Calling {self.name} with event {event}")
         res = super().__call__(event, context)
 
         if self.sfn_call:
@@ -308,9 +347,7 @@ class TechMicroService(CoworksMixin, Chalice):
             except json.JSONDecodeError:
                 pass
 
-        if self.debug:
-            print(f"Call {self.ms_name} returns {res}")
-
+        self.logger.debug(f"Call {self.name} returns {res}")
         return res
 
     def deferred(self, f):
@@ -324,7 +361,7 @@ class TechMicroService(CoworksMixin, Chalice):
         self.deferred_inits.append(f)
         return f
 
-    def do_before_first_activation(self):
+    def do_before_first_activation(self, event, context):
         """Calls all before first activation functions."""
         if self._got_first_activation:
             return
@@ -336,18 +373,28 @@ class TechMicroService(CoworksMixin, Chalice):
 
             if not self._got_first_activation:
                 for func in self.before_first_activation_funcs:
-                    func()
+                    func(event, context)
                 self._got_first_activation = True
 
-    def do_before_activation(self):
+    def do_before_activation(self, event, context):
         """Calls all before activation functions."""
         for func in self.before_activation_funcs:
-            func()
+            func(event, context)
 
-    def do_after_activation(self):
+    def do_after_activation(self, response):
         """Calls all after activation functions."""
-        for func in self.after_activation_funcs:
-            func()
+        for func in reversed(self.after_activation_funcs):
+            resp = func(response)
+            if resp is not None:
+                response = resp
+        return response
+
+    def do_handle_exception(self, exc):
+        """Calls all exception handlers."""
+        for func in reversed(self.handle_exception_funcs):
+            resp = func(exc)
+            if resp is not None:
+                return resp
 
 
 class BizFactory(TechMicroService):
@@ -355,7 +402,7 @@ class BizFactory(TechMicroService):
     """
 
     def __init__(self, sfn_name, **kwargs):
-        super().__init__(ms_name=sfn_name, **kwargs)
+        super().__init__(name=sfn_name, **kwargs)
 
         self.aws_profile = self.__sfn_client__ = self.__sfn_arn__ = None
         self.sfn_name = sfn_name
@@ -404,7 +451,7 @@ class BizFactory(TechMicroService):
         if biz_name in self.biz:
             raise BadRequestError(f"Biz microservice {biz_name} already defined for {self.sfn_name}")
 
-        self.biz[biz_name] = BizMicroService(self, trigger, configs, ms_name=biz_name, **kwargs)
+        self.biz[biz_name] = BizMicroService(self, trigger, configs, name=biz_name, **kwargs)
         return self.biz[biz_name]
 
     def invoke(self, data):
@@ -450,7 +497,7 @@ class BizMicroService(TechMicroService):
         try:
             default_data = next(c.data for c in self.configs if c.workspace == workspace)
         except StopIteration:
-            print(f"No configuration found for workspace {workspace} in {self.configs}")
+            self.logger.debug(f"No configuration found for workspace {workspace} in {self.configs}")
             default_data = {}
         except KeyError:
             default_data = {}
@@ -464,13 +511,13 @@ class BizMicroService(TechMicroService):
     def handler(self, event, context):
         if 'detail-type' in event and event['detail-type'] == 'Scheduled Event':
             if self.debug:
-                print(f"Trigger: {self.biz_factory.sfn_name}")
+                self.logger.debug(f"Trigger: {self.biz_factory.sfn_name}")
             return self.biz_factory.invoke(self.get_default_data())
 
         return super().handler(event, context)
 
 
-def hide_entry(f):
+def hide(f):
     """Hide a route of the microservice.
 
      May be used as a decorator.

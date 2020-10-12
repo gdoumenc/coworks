@@ -13,7 +13,7 @@ from chalice.config import Config
 from chalice.local import ChaliceRequestHandler, LocalGateway, LocalDevServer
 
 from .command import CwsCommand
-from .utils import threaded
+from ..utils import threaded
 
 
 class CwsRunner(CwsCommand):
