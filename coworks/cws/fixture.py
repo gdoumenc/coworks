@@ -12,13 +12,13 @@ def local_server_factory():
     threaded_server = ThreadedLocalServer()
 
     def create_server(app: TechMicroService, **kwargs):
-        kwargs.setdefault('project_dir', DEFAULT_PROJECT_DIR)
-        kwargs.setdefault('workspace', DEFAULT_WORKSPACE)
+        project_dir = kwargs.setdefault('project_dir', DEFAULT_PROJECT_DIR)
+        workspace = kwargs.setdefault('workspace', DEFAULT_WORKSPACE)
 
         # if config_path defined, use it to update environment from conf json file
-        os.environ['WORKSPACE'] = kwargs['workspace']
-        app.deferred_init(kwargs['workspace'])
-        app.config.load_environment_variables(kwargs['project_dir'])
+        os.environ['WORKSPACE'] = workspace
+        app.deferred_init(workspace)
+        app.config.load_environment_variables(project_dir)
 
         threaded_server.configure(app, **kwargs)
         threaded_server.start()

@@ -1,17 +1,44 @@
 import cgi
+import inspect
 import io
 import json
 import os
+import traceback
 import urllib
 from functools import update_wrapper, partial
 
 import boto3
 from aws_xray_sdk.core import xray_recorder
 from botocore.exceptions import BotoCoreError
-from chalice import BadRequestError, Response
+from chalice import AuthResponse, BadRequestError, Response
 from requests_toolbelt.multipart import MultipartDecoder
 
 from coworks.cws.error import CwsError
+from .utils import class_auth_methods, class_rest_methods, trim_underscores
+
+
+class EntryPoint:
+
+    def __init__(self, component, auth, fun):
+        self.component = component
+        self.auth = auth
+        self.fun = fun
+
+
+class Entry(dict):
+
+    @property
+    def authorizer(self):
+        method = self["GET"] or self['POST'] or self['PUT']
+        return method.auth
+
+    def get(self, **kwargs):
+        method = self["GET"]
+        return method.fun(method.component, **kwargs)
+
+    def post(self, **kwargs):
+        method = self["POST"]
+        return method.fun(method.component, **kwargs)
 
 
 class CoworksMixin:
@@ -19,7 +46,6 @@ class CoworksMixin:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.debug = kwargs.pop('debug', False)
-        self.__auth__ = None
 
         # A list of functions that will be called at the first activation.
         # To register a function, use the :meth:`before_first_request` decorator.
@@ -89,6 +115,80 @@ class CoworksMixin:
 
         self.handle_exception_funcs.append(f)
         return f
+
+    def _init_routes(self, app, *, url_prefix='', authorizer=None):
+        # External authorizer has priority (forced)
+        if authorizer is None:
+            auth_fun = app.config.auth if app.config.auth else class_auth_methods(self)
+            auth = self._create_auth_proxy(auth_fun) if auth_fun else None
+        else:
+            auth = authorizer
+
+        # Adds entrypoints
+        methods = class_rest_methods(self)
+        for method, func in methods:
+            if getattr(func, '__cws_hidden', False):
+                continue
+
+            # Get function's route
+            if func.__name__ == method:
+                route = f"{url_prefix}"
+            else:
+                name = func.__name__[len(method) + 1:]
+                name = trim_underscores(name)  # to allow several functions with same route but different args
+                name = name.replace('_', '/')
+                route = f"{url_prefix}/{name}" if url_prefix else f"{name}"
+
+            # Get parameters
+            args = inspect.getfullargspec(func).args[1:]
+            defaults = inspect.getfullargspec(func).defaults
+            varkw = inspect.getfullargspec(func).varkw
+            if defaults:
+                len_defaults = len(defaults)
+                for index, arg in enumerate(args[:-len_defaults]):
+                    route = route + f"/{{_{index}}}" if route else f"{{_{index}}}"
+                kwarg_keys = args[-len_defaults:]
+            else:
+                for index, arg in enumerate(args):
+                    route = route + f"/{{_{index}}}" if route else f"{{_{index}}}"
+                kwarg_keys = {}
+
+            proxy = self._create_rest_proxy(func, kwarg_keys, args, varkw)
+
+            # complete all entries
+            if not route.startswith('/'):
+                route = '/' + route
+            app.route(f"{route}", methods=[method.upper()], authorizer=auth, cors=app.config.cors,
+                      content_types=list(app.config.content_type))(proxy)
+            app.entries[route][method.upper()] = EntryPoint(self, auth, func)
+
+    def _create_auth_proxy(self, auth_method):
+
+        # @xray_recorder.capture('auth')
+        def proxy(auth_activation):
+            subsegment = xray_recorder.current_subsegment()
+            try:
+                auth = auth_method(self, auth_activation)
+                if subsegment:
+                    subsegment.put_metadata('result', auth)
+            except Exception as e:
+                self.logger.info(f"Exception : {str(e)}")
+                traceback.print_exc()
+                if subsegment:
+                    subsegment.add_exception(e, traceback.extract_stack())
+                raise BadRequestError(str(e))
+
+            if type(auth) is bool:
+                if auth:
+                    return AuthResponse(routes=['*'], principal_id='user')
+                return AuthResponse(routes=[], principal_id='user')
+            elif type(auth) is list:
+                return AuthResponse(routes=auth, principal_id='user')
+            return auth
+
+        proxy = update_wrapper(proxy, auth_method)
+        proxy.__name__ = 'app'
+        return self.authorizer(name='auth')(proxy)
 
     def _create_rest_proxy(self, func, kwarg_keys, args, varkw):
         original_app_class = self.__class__

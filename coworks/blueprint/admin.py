@@ -1,11 +1,11 @@
 import inspect
 
-from coworks import Blueprint
+from coworks import Blueprint, jsonify
 
 
 class Admin(Blueprint):
 
-    def get_routes(self):
+    def get_routes(self, pretty=False):
         """Returns the list of entrypoints with signature."""
         app = self._current_app
         routes = {}
@@ -19,7 +19,8 @@ class Admin(Blueprint):
                     'signature': get_signature(function_called.__cws_func__)
                 }
             routes[resource_path] = route
-        return routes
+
+        return jsonify(routes, pretty)
 
     def get_context(self):
         """Returns the calling context."""
