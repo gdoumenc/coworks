@@ -166,6 +166,8 @@ class TechMicroService(CoworksMixin, Chalice):
         self.deferred_inits.append(deferred)
 
     def entry(self, route):
+        if not route.startswith('/'):
+            route = f'/{route}'
         route_pathes = route.split('/')
         for entry, result in self.entries.items():
             entry_pathes = entry.split('/')

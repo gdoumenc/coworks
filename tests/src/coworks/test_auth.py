@@ -142,11 +142,11 @@ class TestClass:
         local_server = local_server_factory(ms)
         response = local_server.make_call(requests.get, '/', headers={'authorization': 'allow'})
         assert response.status_code == 200
-        assert ms.entry('/wrong') is None
-        assert ms.entry('/content') is not None
-        assert ms.entry('/content/value') is not None
-        assert ms.entry('/content/value/other') is not None
-        assert ms.entry('/content/value/other/wrong') is None
+        assert ms.entry('wrong') is None
+        assert ms.entry('content') is not None
+        assert ms.entry('content/value') is not None
+        assert ms.entry('content/value/other') is not None
+        assert ms.entry('content/value/other/wrong') is None
 
 
 def auth_external(self, auth_request):
