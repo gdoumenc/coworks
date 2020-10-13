@@ -166,7 +166,20 @@ class TechMicroService(CoworksMixin, Chalice):
         self.deferred_inits.append(deferred)
 
     def entry(self, route):
-        return self.entries[route]
+        route_pathes = route.split('/')
+        for entry in self.entries:
+            entry_pathes = entry.split('/')
+            index = 0
+            found = True
+            for index, path in enumerate(entry_pathes):
+                if index < len(route_pathes):
+                    if path.startswith('{') or path == route_pathes[index]:
+                        continue
+                found = False
+                break
+            if found and len(route_pathes) == index:
+                return entry
+        return None
 
     def iter_blueprints(self):
         return self.blueprints.values()
