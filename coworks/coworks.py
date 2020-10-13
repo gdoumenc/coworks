@@ -167,9 +167,11 @@ class TechMicroService(CoworksMixin, Chalice):
 
     def entry(self, route):
         route_pathes = route.split('/')
-        for entry in self.entries:
+        for entry, result in self.entries.items():
             entry_pathes = entry.split('/')
-            index = 0
+            if len(route_pathes) != len(entry_pathes):
+                continue
+
             found = True
             for index, path in enumerate(entry_pathes):
                 if index < len(route_pathes):
@@ -177,8 +179,9 @@ class TechMicroService(CoworksMixin, Chalice):
                         continue
                 found = False
                 break
-            if found and len(route_pathes) == index:
-                return entry
+
+            if found:
+                return result
         return None
 
     def iter_blueprints(self):

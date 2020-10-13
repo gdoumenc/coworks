@@ -85,7 +85,6 @@ class Mail(Blueprint):
                 if starttls:
                     server.starttls()
                 server.login(self.smtp_login, self.smtp_passwd)
-                # self.xray_put_metadata(environment=self.environment_value, message=msg.as_string())
                 server.send_message(msg)
 
             return f"Mail sent to {msg['To']}"
@@ -93,11 +92,3 @@ class Mail(Blueprint):
             raise BadRequestError("Wrong username/password.")
         except Exception as e:
             raise ChaliceViewError(f"Cannot send email message (Error: {str(e)}).")
-
-    @property
-    def environment_value(self):
-        return {
-            'server': self.smtp_server,
-            'login': self.smtp_login,
-            'passwd': self.smtp_passwd,
-        }
