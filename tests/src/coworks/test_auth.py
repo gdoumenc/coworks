@@ -15,6 +15,8 @@ class AuthorizeAll(SimpleMS):
     def auth(self, auth_request):
         return True
 
+    def get_product(self, ref):
+        return ref
 
 class AuthorizeNothingExceptBP(SimpleMS):
 
@@ -147,6 +149,7 @@ class TestClass:
         assert ms.entry('content/value') is not None
         assert ms.entry('content/value/other') is not None
         assert ms.entry('content/value/other/wrong') is None
+        assert ms.entry('/product/TRANSPORT') is not None
 
 
 def auth_external(self, auth_request):

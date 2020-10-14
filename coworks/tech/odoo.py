@@ -113,8 +113,8 @@ class OdooMicroService(TechMicroService, Boto3Mixin):
     def write(self, model, _id, data: dict):
         return self.execute_kw(model, 'write', [[_id], self._replace_tuple(data)])
 
-    def delete(self, model, _id):
-        return self.execute_kw(model, 'unlink', [[_id]])
+    # def delete(self, model, _id):
+    #     return self.execute_kw(model, 'unlink', [[_id]])
 
     def _replace_tuple(self, struct: dict) -> dict:
         """For data from JSON, tuple are defined with key surronded by paranthesis."""
