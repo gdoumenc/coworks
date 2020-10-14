@@ -10,6 +10,12 @@ from threading import Thread
 from aws_xray_sdk.core import xray_recorder
 
 
+def make_absolute(route):
+    if not route.startswith('/'):
+        route = '/' + route
+    return route
+
+
 def jsonify(result, pretty=False, indent=None, separators=None):
     if pretty:
         indent = indent or 4

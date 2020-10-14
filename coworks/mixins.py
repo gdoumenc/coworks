@@ -14,7 +14,7 @@ from chalice import AuthResponse, BadRequestError, Response
 from requests_toolbelt.multipart import MultipartDecoder
 
 from coworks.cws.error import CwsError
-from .utils import class_auth_methods, class_rest_methods, trim_underscores
+from .utils import class_auth_methods, class_rest_methods, trim_underscores, make_absolute
 
 
 class EntryPoint:
@@ -32,13 +32,13 @@ class Entry(dict):
         method = self.get("GET") or self.get('POST') or self.get('PUT')
         return method.auth
 
-    def call_get(self, **kwargs):
+    def call_get(self, *args, **kwargs):
         method = self["GET"]
-        return method.fun(method.component, **kwargs)
+        return method.fun(method.component, *args, **kwargs)
 
-    def call_post(self, **kwargs):
+    def call_post(self, *args, **kwargs):
         method = self["POST"]
-        return method.fun(method.component, **kwargs)
+        return method.fun(method.component, *args, **kwargs)
 
 
 class CoworksMixin:
@@ -156,8 +156,7 @@ class CoworksMixin:
             proxy = self._create_rest_proxy(func, kwarg_keys, args, varkw)
 
             # complete all entries
-            if not route.startswith('/'):
-                route = '/' + route
+            route = make_absolute(route)
             app.route(f"{route}", methods=[method.upper()], authorizer=auth, cors=app.config.cors,
                       content_types=list(app.config.content_type))(proxy)
             app.entries[route][method.upper()] = EntryPoint(self, auth, func)

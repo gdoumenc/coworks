@@ -14,7 +14,7 @@ from requests_toolbelt.multipart import MultipartEncoder
 from .config import Config
 from .cws.error import CwsCommandError
 from .mixins import Entry, CoworksMixin, AwsSFNSession
-from .utils import class_auth_methods
+from .utils import class_auth_methods, make_absolute
 
 
 class Blueprint(CoworksMixin, ChaliceBlueprint):
@@ -166,8 +166,7 @@ class TechMicroService(CoworksMixin, Chalice):
         self.deferred_inits.append(deferred)
 
     def entry(self, route):
-        if not route.startswith('/'):
-            route = f'/{route}'
+        route = make_absolute(route)
         route_pathes = route.split('/')
         for entry, result in self.entries.items():
             entry_pathes = entry.split('/')
