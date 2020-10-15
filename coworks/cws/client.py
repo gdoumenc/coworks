@@ -93,10 +93,10 @@ class ProjectConfig:
         self.params = {}
 
         project_dir_path = Path(project_dir)
-        project_file = project_dir_path / (file_name + file_suffix)
+        self.project_file = project_dir_path / (file_name + file_suffix)
         project_secret_file = project_dir_path / (file_name + '.secret' + file_suffix)
         getLogger('anyconfig').setLevel(WARNING)
-        self.params = anyconfig.multi_load([project_file, project_secret_file], ac_ignore_missing=True)
+        self.params = anyconfig.multi_load([self.project_file, project_secret_file], ac_ignore_missing=True)
 
     def get_service_config(self, module, service, workspace):
         return ServiceConfig(self, module, service, workspace)

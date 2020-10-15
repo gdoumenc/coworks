@@ -115,7 +115,7 @@ class TechMicroService(CoworksMixin, Chalice):
     def create_logger(name, **kwargs):
         logger = logging.getLogger(name)
         if 'debug' in kwargs:
-            logger.setLevel(logging.DEBUG)
+            logger.setLevel(logging.INFO)
         return logger
 
     def deferred_init(self, workspace):
@@ -197,6 +197,8 @@ class TechMicroService(CoworksMixin, Chalice):
         service = self.name if service is None else service
 
         project_config = ProjectConfig(project_dir)
+        if not project_config.params:
+            self.logger.debug(f"No project parameters defined (check {project_config.project_file} file exists).")
         service_config = project_config.get_service_config(module, service, workspace)
         cmd = service_config.get_command(command, self)
         if not cmd:
