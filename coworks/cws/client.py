@@ -71,8 +71,8 @@ def invoke(ctx):
             execution_params = {**command_options, **client_options}
             command.make_context(command.name, execution_params)
             commands_to_be_executed[type(command)].append((command, execution_params))
-        for command, options in commands_to_be_executed.items():
-            command.multi_execute(project_dir, workspace, options)
+        for command_class, execution_params in commands_to_be_executed.items():
+            command_class.multi_execute(project_dir, workspace, execution_params)
     except CwsClientError as client_err:
         sys.stderr.write(client_err.msg)
         sys.exit(1)

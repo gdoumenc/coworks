@@ -10,8 +10,8 @@ from coworks.cws.error import CwsCommandError
 class CwsCommand(click.Command, ABC):
 
     @classmethod
-    def multi_execute(cls, project_dir, workspace, commands):
-        for command, options in commands:
+    def multi_execute(cls, project_dir, workspace, execution_params):
+        for command, options in execution_params:
             command.execute(**options)
 
     def __init__(self, app: TechMicroService = None, *, name):
