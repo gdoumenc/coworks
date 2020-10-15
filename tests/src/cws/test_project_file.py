@@ -64,7 +64,7 @@ class TestClass:
 
     def test_all_services(self):
         conf = ProjectConfig('tests/src/cws')
-        services = conf.all_services
+        services = conf.all_services()
         assert len(services) == 3
         assert ('m1', 's1') in services
         assert ('m1', 's2') in services

@@ -42,7 +42,7 @@ def invoke(ctx):
         if service:
             services = [(module, service)]
         else:
-            services = project_config.all_services  # TODO should depend of module
+            services = project_config.all_services(module)
 
         if not services:
             sys.stderr.write(str("Nothing to execute as no service defined."))
@@ -101,21 +101,24 @@ class ProjectConfig:
     def get_service_config(self, module, service, workspace):
         return ServiceConfig(self, module, service, workspace)
 
-    @property
-    def all_services(self):
+    def all_services(self, module=None):
         """ Returns the list of microservices on which the command will be executed."""
         services = self.params.get('services', {})
+
         res = []
         for s in services:
             if 'module' not in s:
                 continue
-            module = s['module']
+
+            if module and s['module'] != module:
+                continue
+
             if 'service' in s:
-                res.append((module, s['service']))
+                res.append((s['module'], s['service']))
             elif 'services' in s:
                 for ss in s['services']:
                     if 'service' in ss:
-                        res.append((module, ss['service']))
+                        res.append((s['module'], ss['service']))
         return res
 
     @property
