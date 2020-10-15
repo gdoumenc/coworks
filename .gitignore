@@ -1,5 +1,6 @@
 # Project
 coworks.egg-info/
+build/
 dist/
 Pipfile.lock
 
