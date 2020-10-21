@@ -158,9 +158,8 @@ class TechMicroService(CoworksMixin, Chalice):
         self.blueprints[url_prefix] = blueprint
 
         def deferred(workspace):
-            if not hide_routes:
-                auth = self._create_auth_proxy(authorizer) if authorizer else self.__auth__
-                blueprint._init_routes(self, url_prefix=url_prefix, authorizer=auth)
+            auth = self._create_auth_proxy(authorizer) if authorizer else self.__auth__
+            blueprint._init_routes(self, url_prefix=url_prefix, authorizer=auth, hide_routes=hide_routes)
             super(TechMicroService, self).register_blueprint(blueprint, url_prefix=url_prefix)
 
         self.deferred_inits.append(deferred)

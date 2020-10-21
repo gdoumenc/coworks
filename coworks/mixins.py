@@ -116,7 +116,7 @@ class CoworksMixin:
         self.handle_exception_funcs.append(f)
         return f
 
-    def _init_routes(self, app, *, url_prefix='', authorizer=None):
+    def _init_routes(self, app, *, url_prefix='', authorizer=None, hide_routes=False):
         # External authorizer has priority (forced)
         if authorizer is None:
             auth_fun = app.config.auth if app.config.auth else class_auth_methods(self)
@@ -127,8 +127,6 @@ class CoworksMixin:
         # Adds entrypoints
         methods = class_rest_methods(self)
         for method, func in methods:
-            if getattr(func, '__cws_hidden', False):
-                continue
 
             # Get function's route
             if func.__name__ == method:
@@ -157,9 +155,10 @@ class CoworksMixin:
 
             # complete all entries
             route = make_absolute(route)
-            app.route(f"{route}", methods=[method.upper()], authorizer=auth, cors=app.config.cors,
-                      content_types=list(app.config.content_type))(proxy)
             app.entries[route][method.upper()] = EntryPoint(self, auth, func)
+            if not hide_routes and not getattr(func, '__cws_hidden', False):
+                app.route(f"{route}", methods=[method.upper()], authorizer=auth, cors=app.config.cors,
+                          content_types=list(app.config.content_type))(proxy)
 
     def _create_auth_proxy(self, auth_method):
 
