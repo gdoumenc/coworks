@@ -14,7 +14,7 @@ from chalice import AuthResponse, BadRequestError, Response
 from requests_toolbelt.multipart import MultipartDecoder
 
 from coworks.cws.error import CwsError
-from .utils import class_auth_methods, class_rest_methods, trim_underscores, make_absolute
+from .utils import HTTP_METHODS, class_auth_methods, class_http_methods, trim_underscores, make_absolute
 
 
 class EntryPoint:
@@ -29,8 +29,10 @@ class Entry(dict):
 
     @property
     def authorizer(self):
-        method = self.get("GET") or self.get('POST') or self.get('PUT')
-        return method.auth
+        for method in HTTP_METHODS:
+            m = self.get(method.upper())
+            if m:
+                return m.auth
 
     def call_get(self, *args, **kwargs):
         method = self["GET"]
@@ -125,7 +127,7 @@ class CoworksMixin:
             auth = authorizer
 
         # Adds entrypoints
-        methods = class_rest_methods(self)
+        methods = class_http_methods(self)
         for method, func in methods:
 
             # Get function's route

@@ -9,6 +9,8 @@ from threading import Thread
 
 from aws_xray_sdk.core import xray_recorder
 
+HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch', 'options']
+
 
 def make_absolute(route):
     if not route.startswith('/'):
@@ -46,24 +48,16 @@ def class_auth_methods(obj):
     return None
 
 
-def class_rest_methods(obj):
+def class_http_methods(obj):
     """Returns the list of methods from the class."""
     methods = inspect.getmembers(obj.__class__, lambda x: inspect.isfunction(x))
 
     res = []
     for name, func in methods:
-        if name == 'get' or name.startswith('get_'):
-            res.append(('get', func))
-        elif name == 'post' or name.startswith('post_'):
-            res.append(('post', func))
-        elif name == 'put' or name.startswith('put_'):
-            res.append(('put', func))
-        elif name == 'delete' or name.startswith('delete_'):
-            res.append(('delete', func))
-        elif name == 'patch' or name.startswith('patch_'):
-            res.append(('patch', func))
-        elif name == 'options' or name.startswith('options_'):
-            res.append(('options', func))
+        for method in HTTP_METHODS:
+            if name == method or name.startswith(f'{method}_'):
+                res.append((method, func))
+                break
     return res
 
 
