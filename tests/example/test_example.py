@@ -2,9 +2,11 @@ import threading
 import time
 from pathlib import Path
 
+import pytest
 import requests
 
 from coworks.config import Config
+from coworks.cws.client import client
 from coworks.cws.runner import ThreadedLocalServer
 from coworks.utils import import_attr
 from .example import TechMS
@@ -46,8 +48,7 @@ class TestClass:
         assert response.text == "Simple microservice for test dev environment variable.\n"
 
     def test_init(self, local_server_factory, example_dir):
-        config = Config(environment_variables_file=Path(example_dir) / "config" / "vars_dev.json")
-        local_server = local_server_factory(TechMS(configs=[config]))
+        local_server = local_server_factory(TechMS(configs=[]))
         response = local_server.make_call(requests.get, '/init', timeout=500)
         assert response.status_code == 200
         assert response.text == "Initial value is test.\n"
@@ -67,6 +68,15 @@ class TestClass:
         response = requests.get(f'http://localhost:{port}/', params={"usage": "demo"})
         assert response.status_code == 200
         assert response.text == "Simple microservice for demo.\n"
+
+    def test_cmd_wront_project_dir(self, example_dir, capsys):
+        with pytest.raises(SystemExit) as pytest_wrapped_e:
+            client(prog_name='cws', args=['-p', 'tests/example', 'info'], obj={})
+        assert pytest_wrapped_e.type == SystemExit
+        assert pytest_wrapped_e.value.code == 0
+        captured = capsys.readouterr()
+        assert captured.out == \
+               'Microservice project1 defined in module example\nMicroservice project2 defined in module example\n'
 
 
 def run_server_example(app, port, example_dir):

@@ -13,7 +13,7 @@ from botocore.exceptions import BotoCoreError
 from chalice import AuthResponse, BadRequestError, Response
 from requests_toolbelt.multipart import MultipartDecoder
 
-from coworks.cws.error import CwsError
+from coworks.error import CwsError
 from .utils import HTTP_METHODS, class_auth_methods, class_http_methods, trim_underscores, make_absolute
 
 

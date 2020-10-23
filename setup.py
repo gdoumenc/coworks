@@ -23,13 +23,14 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        'anyconfig==0.9.11',
-        'aws_xray_sdk==2.5.0',
-        'boto3==1.13.15',
-        'chalice==1.14.1',
-        'jinja2==3.0.0a1',
-        'pyyaml==5.3.1',
-        'requests_toolbelt',
+        'anyconfig>=0.9.11',
+        'aws_xray_sdk>=2.5.0',
+        'boto3>=1.13.15',
+        'chalice>=1.14.1',
+        'jinja2>=3.0.0a1',
+        'pyyaml>=5.3.1',
+        'requests_toolbelt>=0.9.1',
+        'python_terraform>=0.10.1'
     ],
     keywords='python3 serverless microservice aws-lambda aws step-functions',
     entry_points={

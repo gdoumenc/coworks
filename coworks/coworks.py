@@ -12,7 +12,6 @@ from chalice import Chalice, Blueprint as ChaliceBlueprint
 from requests_toolbelt.multipart import MultipartEncoder
 
 from .config import Config
-from .cws.error import CwsCommandError
 from .mixins import Entry, CoworksMixin, AwsSFNSession
 from .utils import class_auth_methods, make_absolute
 
@@ -190,7 +189,8 @@ class TechMicroService(CoworksMixin, Chalice):
     def execute(self, command, *, project_dir, module=None, service=None, workspace, output=None, error=None,
                 **options):
         """Executes a coworks command."""
-        from coworks.cws.client import ProjectConfig  # only available from client module
+        from .cws.error import CwsCommandError
+        from .cws.client import ProjectConfig  # only available from client module
 
         module = __name__ if module is None else module
         service = self.name if service is None else service

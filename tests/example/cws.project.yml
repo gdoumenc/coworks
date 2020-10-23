@@ -1,12 +1,12 @@
 version: ">=11"
 services:
   - module: example
-    service: project1
-  - module: example
-    service: project2
+    services:
+      - service: project1
+      - service: project2
 commands:
   info:
-    class: coworks.cws.info.CwsDescriptor
+    class: coworks.cws.CwsInformant
   test:
     class: example.TestCmd
     b: value

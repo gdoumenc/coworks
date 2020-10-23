@@ -5,6 +5,7 @@ verify_ssl = true
 
 [packages]
 coworks = {path = ".",editable = true}
+python-terraform = "*"
 
 [dev-packages]
 codecov = "*"
