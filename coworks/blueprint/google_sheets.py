@@ -1,6 +1,5 @@
 import json
 import os
-from urllib.parse import unquote_plus
 
 from coworks import Blueprint
 from pygsheets import Worksheet, DataRange
@@ -48,7 +47,7 @@ class GoogleSheets(Blueprint):
         """Get list of worksheet index and titles.
         :param key:         Document google key.
         """
-        spreadsheet = self.google_client.open_by_key(key=unquote_plus(key))
+        spreadsheet = self.google_client.open_by_key(key=key)
         return [{'index': w.index, 'title': w.title} for w in spreadsheet.worksheets()]
 
     def get_worksheet_all(self, key: str, worksheet: str, property='index', **kwargs):
@@ -85,7 +84,7 @@ class GoogleSheets(Blueprint):
         :param index:   Tab index of the worksheet.
         :param title:   Worksheet's title.
         """
-        spreadsheet = self.google_client.open_by_key(key=unquote_plus(key))
+        spreadsheet = self.google_client.open_by_key(key=key)
         spreadsheet.add_worksheet(title, index=index, **kwargs)
 
     def post_worksheet_content(self, key: str, worksheet: str, property='index', values=None, start=(1, 1), **kwargs):
@@ -95,6 +94,6 @@ class GoogleSheets(Blueprint):
         worksheet.update_values(start, values, **kwargs)
 
     def _get_worksheet(self, key, worksheet, *, property) -> Worksheet:
-        spreadsheet = self.google_client.open_by_key(key=unquote_plus(key))
-        worksheet = spreadsheet.worksheet(property=property, value=unquote_plus(worksheet))
+        spreadsheet = self.google_client.open_by_key(key=key)
+        worksheet = spreadsheet.worksheet(property=property, value=worksheet)
         return worksheet
