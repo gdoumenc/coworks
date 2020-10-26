@@ -27,7 +27,7 @@ setup(
         'aws_xray_sdk>=2.5.0',
         'boto3>=1.13.15',
         'chalice>=1.14.1',
-        'jinja2>=3.0.0a1',
+        'jinja2>=2.11',
         'pyyaml>=5.3.1',
         'requests_toolbelt>=0.9.1',
         'python_terraform>=0.10.1'

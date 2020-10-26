@@ -4,8 +4,9 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [packages]
-coworks = {path = ".",editable = true}
+coworks = { path = ".", editable = true }
 python-terraform = "*"
+jinja2 = ">=2.11"
 
 [dev-packages]
 codecov = "*"
