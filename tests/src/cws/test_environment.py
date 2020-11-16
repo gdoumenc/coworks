@@ -3,6 +3,7 @@ import threading
 import time
 from pathlib import Path
 
+import pytest
 import requests
 
 from coworks.config import Config
@@ -64,6 +65,13 @@ class TestClass:
         response = local_server.make_call(requests.get, '/')
         assert response.status_code == 200
         assert response.text == 'test value environment variable'
+
+    def test_wrong_env_var_name(self, local_server_factory):
+        config = Config(environment_variables={'1test': 'test value environment variable'})
+        with pytest.raises(KeyError) as pytest_wrapped_e:
+            local_server = local_server_factory(WithEnvMS(configs=config))
+        assert pytest_wrapped_e.type == KeyError
+        assert pytest_wrapped_e.value.args[0] == "Wrong environment variable name: 1test"
 
 
 def run_server_example(app, port):

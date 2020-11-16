@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from dataclasses import dataclass
 from json import JSONDecodeError
 from pathlib import Path
@@ -64,11 +65,25 @@ class Config:
 
     def load_environment_variables(self, project_dir):
         """Uploads environment variables from the environment variables files and variables."""
-        for file in self.existing_environment_variables_files(project_dir):
-            self._load_file(file)
+        environment_variables = {}
 
+        # Environment variables from files and from config
+        for file in self.existing_environment_variables_files(project_dir):
+            environment_variables.update(self._load_file(file))
         if self.environment_variables:
-            for key, value in self.environment_variables.items():
+            environment_variables.update(self.environment_variables)
+
+        # Check environment variables name are accepted by AWS
+        # Keys start with a letter and are at least two characters.
+        # Keys only contain letters, numbers, and the underscore character (_).
+        var_name_regexp = re.compile(r'[a-zA-Z][a-zA-Z_]+')
+        for key in environment_variables:
+            if not var_name_regexp.fullmatch(key):
+                raise KeyError(f'Wrong environment variable name: {key}')
+
+        # Set environment variables
+        if environment_variables:
+            for key, value in environment_variables.items():
                 os.environ[key] = str(value)
 
     def setdefault(self, key, value):
@@ -80,7 +95,7 @@ class Config:
     def _load_file(var_file):
         try:
             with var_file.open() as f:
-                os.environ.update(json.loads(f.read()))
+                return json.loads(f.read())
         except JSONDecodeError as e:
             raise FileNotFoundError(f"Syntax error when in e{var_file}: {str(e)}.\n")
         except Exception as e:

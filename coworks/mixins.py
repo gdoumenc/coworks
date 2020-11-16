@@ -164,7 +164,6 @@ class CoworksMixin:
 
     def _create_auth_proxy(self, auth_method):
 
-        # @xray_recorder.capture('auth')
         def proxy(auth_activation):
             subsegment = xray_recorder.current_subsegment()
             try:

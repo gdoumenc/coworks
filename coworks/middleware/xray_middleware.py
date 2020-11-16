@@ -5,7 +5,7 @@ LAMBDA_NAMESPACE = 'lambda'
 COWORKS_NAMESPACE = 'coworks'
 
 
-class XRayMiddleware(object):
+class XRayMiddleware:
 
     def __init__(self, app, recorder):
         self.app = app
@@ -48,8 +48,9 @@ class XRayMiddleware(object):
         def capture_exception(e):
             app.logger.error(e)
             app.logger.error(traceback.extract_stack())
-            subsegment = recorder.begin_subsegment("Exception")
-            subsegment.put_annotation('service', app.name)
-            subsegment.add_exception(e, traceback.extract_stack())
-            recorder.end_subsegment(subsegment)
+            subsegment = recorder.current_subsegment
+            if subsegment:
+                subsegment.put_annotation('service', app.name)
+                subsegment.add_exception(e, traceback.extract_stack())
+
             return 'Exception in microservice', 200
