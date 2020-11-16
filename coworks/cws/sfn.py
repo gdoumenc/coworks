@@ -272,7 +272,7 @@ class WaitState(PassState):
 
 
 class TechState(PassState):
-    def __init__(self, sfn, action, *, workspace, **kwargs):
+    def __init__(self, sfn, action, *, workspace, account_number, customer, **kwargs):
         self.no_catch = kwargs.pop('no_catch', False)
         super().__init__(sfn, action, Type="Task", **kwargs)
 
@@ -282,10 +282,10 @@ class TechState(PassState):
 
         try:
             res = self.get_or_raise(tech_data, 'service')
-            if kwargs.get('customer'):
-                self.state['Resource'] = f"arn:aws:lambda:eu-west-1:{kwargs['account_number']}:function:{res}-{kwargs.get('customer')}-{workspace}"
+            if customer:
+                self.state['Resource'] = f"arn:aws:lambda:eu-west-1:{account_number}:function:{res}-{customer}-{workspace}"
             else:
-                self.state['Resource'] = f"arn:aws:lambda:eu-west-1:{kwargs['account_number']}:function:{res}-{workspace}"
+                self.state['Resource'] = f"arn:aws:lambda:eu-west-1:{account_number}:function:{res}-{workspace}"
             self.state["InputPath"] = f"$"
             result_path = tech_data.get('result_path')
             self.state["ResultPath"] = result_path if result_path else f"$.{self.slug}.result"
