@@ -1,16 +1,18 @@
 .. _command:
 
-CWS Command
-===========
+Commands
+========
 
-Coworks allows you to extends the ``cws`` application with commands. This powerfull extension is very usefull
-for complex deployment or documentation.
+Coworks allows you to extends the ``cws`` applications with commands. This powerfull extension is very usefull
+for complex deployment, testing or documentation.
 
+As explained before, the microservice architecture needs to be completed by tools. The cws command line ``cws`` is
+the interface for that purpose.
 
 .. _cli:
 
-CWS Command Line Interface
---------------------------
+CWS : Command Line Interface
+----------------------------
 
 cws
 ^^^
@@ -18,10 +20,12 @@ cws
 ``cws`` is a command-line shell program that provides convenience and productivity
 features to help user to :
 
- * Get moicroservices informations,
+ * Get microservices informations,
  * Export microservices to another formats,
  * Update deployed microservices,
  * ...
+
+It is a generic client interface on which commands may be defined.
 
 Usage
 ^^^^^
@@ -55,10 +59,10 @@ And complete description ::
     $ cws -p tests/example info --help
 
 
-Coworks Command
----------------
+Predefined Coworks Commands
+---------------------------
 
-Let see how predefined commands are defined before explaining how to create new ones.
+Let see some predefined commands before explaining how to create new ones.
 
 The "info" command
 ^^^^^^^^^^^^^^^^^^
@@ -131,13 +135,13 @@ To get the list of options::
 The "deploy" command
 ^^^^^^^^^^^^^^^^^^^^
 
-Another important command is the ``export`` command defined for creating terraform files from templates.
+Another important command is the ``deploy`` command defined for creating terraform files from templates.
 This command may be used to deal with complex deployments, mainly for staging or respecting infrastucture constraints.
 
-Thus use of this command is explain in :ref:`tech_deployment` chapter.
+A more complete usage of this command is explained in the :ref:`tech_deployment` chapter.
 
 Defining a new command
-^^^^^^^^^^^^^^^^^^^^^^
+----------------------
 
 To define a new command you have to define a sub class of the ``coworks.command.CwsCommand`` class::
 
@@ -160,15 +164,16 @@ You can add options as for ``click``::
             click.option('--debug/--no-debug', default=False, help='Print debug logs to stderr.')
         ]
 
-And at least, the content execution code::
+And at least, define the content execution code::
 
     def _execute(self, *, project_dir, module, service, workspace, host, port, debug, **options):
         ...
 
-cws.project.yml file
-^^^^^^^^^^^^^^^^^^^^
+Project configuration file
+--------------------------
 
-This configuration file is a YAML file describing the microservices and the commands defined in the project::
+This configuration file is a YAML file describing the microservices and the commands defined in the project.
+Mainly this file is defined in two parts::
 
     version: ">0.3.3"
     services:
@@ -178,13 +183,69 @@ The version key is used for compatibility. The services key introduce the ``serv
 and the ``commands`` one the commands.
 
 Service part
-""""""""""""
+^^^^^^^^^^^^
+
+This part described the services defined in the project.
+
+So if you pass no module and service option to the ``cws`` command it will apply this command to all services defined.
+If you specify only the module, then the command will be applyed on all services of this module.
+
+Here is an example :
+
+.. code-block:: yaml
+
+    services:
+      - module: content_manager
+        service: content_cms
+      - module: configuration_manager
+        services:
+          - service: configuration_cms
+          - service: authorization_cms
+
 
 Command part
-""""""""""""
+^^^^^^^^^^^^
 
-PyTest
-^^^^^^
+This part described the commands and default options defined in the project.
+
+Here is an example :
+
+.. code-block:: yaml
+
+    commands:
+      run:
+        class: coworks.cws.runner.CwsRunner
+        port: 8000
+      info:
+        class: fpr.cws.FprInformant
+      deploy:
+        class: fpr.cws.deployer.FPRDeploy
+        project_name: cms
+        custom_layers: []
+        binary_media_types: ["application/json", "text/plain"]
+        profile_name: fpr-customer
+        bucket: coworks-microservice
+        services:
+          - module: configuration_manager
+            service: configuration_cms_ms
+            workspaces:
+              - workspace: prod
+                common_layers: ["fpr-1", "storage-1"]
+              - workspace: dev
+                common_layers: ["fpr-dev", "storage-1"]
+        workspaces:
+          - workspace: prod
+            common_layers: ["fpr-1"]
+          - workspace: dev
+            common_layers: ["fpr-dev"]
+
+Testing
+-------
+
+Testing part is very important for CD/CI process.
+
+PyTest Intergration
+^^^^^^^^^^^^^^^^^^^
 
 To create your tests for pytest, add this fixture in your ``conftest.py``::
 

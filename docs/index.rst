@@ -26,7 +26,8 @@ Using and derived from `Chalice <https://github.com/aws/chalice>`_ and some idea
 
 Other tools used:
 
-* `Terraform <https://github.com/hashicorp/terraform>`_ - Infrastructure configuration management tool.
+* `Click <https://github.com/pallets/click>`_ - Command Line Interface Creation Kit.
+* `Terraform <https://github.com/hashicorp/terraform>`_ - Infrastructure Configuration Management Tool.
 
 
 What does microservice mean in Coworks?
@@ -67,38 +68,41 @@ Decentralized
 Smart endpoints
   Deriving directly from class methods.
 
+What are Coworks main benefits?
+*******************************
+
+Like any model of software architecture, it is very usefull to have complementary tools for programming, testing,
+documenting or deploying over it.
+
+The main advantage of using Coworks is its ability to defined tools around the microservices defined by code.
+Prédefined tools like `run` or `deploy` are provided, but you can redefined them or creates new ones like for
+documentation or testing.
+
+For more details, see: :ref:`command`.
+
 Two levels of microservice
 **************************
 
-In ``Coworks`` microservices are divided in two categories :
+Coworks microservices are divided in two categories :
 
 **Small technical microservice**
 
   Implemented as a simple AWS Lambda function, this kind of microservice is dedicated to technical
   operations over a specific service.
 
-  Here are some examples of technical services in Coworks :
-
-    * Mail
-    * Jinja templating
-    * Odoo
 
 **Functional business microservice**
 
   Implemented over AWS Step Function, this kind of microservice allows non programmer to construct
   functional business workflows.
 
-  Here are some examples of business services in Coworks :
 
-    * Invoicing Process
-    * Automated Dashbords
+Distinction between ``TechMicroservice`` and ``BizMicroservice`` is based not only on granularity size but also:
 
-Distinction between TechMicroservice and BizMicroservice is based not only on granularity size but also:
-
-* TechMicroservice should only be used as receivers of orders coming from BizMicroservices.
-* A BizMicroservice represents a logical workflow of actions while a MicroService represents a simple concrete action.
-* A ThechMicroservice is an independant microservice while a BizMicroservice is connected to event handlers (cron, notification, event, ...).
-* A ThechMicroservice is more a handler pattern and BizMicroservice a reactor pattern.
+* A ``TechMicroservice`` should only be used as receivers of orders coming from ``BizMicroservices``.
+* A ``BizMicroservice`` represents a logical workflow of actions while a MicroService represents a simple concrete action.
+* A ``TechMicroservice`` is an independant microservice while a ``BizMicroservice`` is connected to event handlers (cron, notification, event, ...).
+* A ``TechMicroservice`` is more a handler pattern and ``BizMicroservice`` a reactor pattern.
 
 
 
@@ -112,12 +116,12 @@ Documentation
   installation
   tech_quickstart
   tech
+  command
+  configuration
   biz_quickstart
   biz
-  command
-  deployment
-  faq
   api
+  faq
   contributing
   changelog
 

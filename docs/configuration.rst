@@ -1,7 +1,7 @@
-.. _tech_deployment:
+.. _configuration:
 
-TechMS Deployment
-=================
+Configuration
+=============
 
 Layers
 ------
