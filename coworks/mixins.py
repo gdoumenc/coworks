@@ -267,11 +267,10 @@ class CoworksMixin:
                 return _convert_response(resp)
 
             except Exception as e:
-                raise
-            finally:
                 subsegment = xray_recorder.current_subsegment()
                 if subsegment:
                     subsegment.add_error_flag()
+                raise
 
         proxy = update_wrapper(proxy, func)
         proxy.__cws_func__ = update_wrapper(partial(func, self), func)
