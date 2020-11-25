@@ -9,6 +9,7 @@ from threading import Thread, Event
 
 import chalice.local
 import click
+from aws_xray_sdk.core import xray_recorder
 from chalice.config import Config
 from chalice.local import ChaliceRequestHandler, LocalGateway, LocalDevServer
 
@@ -19,6 +20,7 @@ from ..utils import threaded
 class CwsRunner(CwsCommand):
     def __init__(self, app=None, name='run'):
         super().__init__(app, name=name)
+        xray_recorder.configure(context_missing="LOG_ERROR")
 
     @property
     def options(self):

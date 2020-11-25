@@ -99,9 +99,6 @@ class TechMicroService(CoworksMixin, Chalice):
         self.entries = None
         self.sfn_call = False
 
-        if "pytest" in sys.modules:
-            xray_recorder.configure(context_missing="LOG_ERROR")
-
     @property
     def name(self):
         return self.app_name
