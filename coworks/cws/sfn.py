@@ -20,11 +20,14 @@ class CwsSFNTranslater(CwsWriter):
 
     @property
     def options(self):
-        return (
-            click.option('--output', default=None),
+        return [
+            *super().options,
             click.option('--account_number', default=None),
-        )
+        ]
 
+    def _export_header(self, **options):
+        ...
+    
     def _export_content(self, *, project_dir, module, **options):
         module_path = module.split('.')
         step_functions = {}

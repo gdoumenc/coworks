@@ -22,7 +22,10 @@ To create your first complete technical microservice, create a file ``first.py``
 
 .. literalinclude:: ../tests/example/quickstart1.py
 
-This first example defines a very simple microservice ``app`` and adds it a local ``run`` command.
+This first example defines a very simple microservice ``app`` with a simple ``GET`` entry ``/``
+(see :ref:`routing` for more details on entry)
+and adds it a local ``run`` command (see :ref:`command` for more details on command).
+
 This ``run`` command is defined by the ``CwsRunner`` extension added to the microservice.
 
 Test this microservice locally::
@@ -30,6 +33,8 @@ Test this microservice locally::
 	(project) $ cws -m first -s app run
 	Serving on http://127.0.0.1:8000
 
+The ``-m`` option defines the python module and ``-s`` the variable in this module implementing the microservice
+(see :ref:`cli` for more details on cws client)
 
 On another terminal enter::
 
@@ -41,18 +46,31 @@ Looks good...
 Deploy the try
 --------------
 
-First we will create an AWS lambda layer::
+First, we have to transfer the sources folder to AWS S3.
 
-	(project) $ ln -s "$(pipenv --venv)" python
-	(project) $ zip -r layer.zip python -x "*.pyc" -x "*__pycache__*" -x "python/bin*"
-	(project) $ rm python
+For that purpose, we add the ``zip`` command to the microservice
 
-A ``layer.zip`` file is then available.
+.. literalinclude:: ../tests/example/quickstart2.py
+
+As you can see, a command can be renammed.
+
+And now we can upload the sources folder to AWS S3::
+
+	(project) $ cws -m first -s app upload -p fpr-customer -b coworks-microservice --debug
+        Upload sources...
+        Successfully uploaded sources as coworks-microservice/first-simplemicroservice
+        Upoad sources hash...
+        Successfully uploaded sources hash as first-simplemicroservice.b64sha256
+	(project) $
+
+AS you can see also, the command options are defined after the command itself : ``-p`` for the AWS credential profile,
+``-b`` for the bucket name and ``--debug`` for having trace
+(see :ref:`command_definition` for more details on command options).
 
 Next, add the default ``CwsTerraformWriter`` extension to add the command to export terraform configuration files
 from the microservice code:
 
-.. literalinclude:: ../tests/example/quickstart2.py
+.. literalinclude:: ../tests/example/quickstart3.py
 
 Create the terraform files for deployment::
 

@@ -6,6 +6,8 @@ TechMS
 TechMicroservices are the 'atoms' of the Coworks microservices framework. They represent the building blocks
 for other more complex microservices.
 
+.. _routing:
+
 Routing
 -------
 

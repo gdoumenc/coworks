@@ -38,9 +38,6 @@ class CwsCommand(click.Command, ABC):
             if cmd not in app.commands:
                 raise CwsCommandError(f"Undefined command {cmd} needed.")
 
-            for opt in self.app.commands[cmd].options:
-                opt(self)
-
     @property
     def needed_commands(self):
         return []

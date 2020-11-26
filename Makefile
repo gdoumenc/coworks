@@ -1,13 +1,13 @@
 .PHONY: deploy sdist wheel clean
 
 sdist:
-	python setup.py sdist
+	pipenv run python setup.py sdist
 
 deploy: sdist
-	twine upload dist/*
+	pipenv run twine upload dist/*
 
-wheel:
-	python setup.py bdist_wheel
+deploy-test: sdist
+	pipenv run twine upload --repository testpypi dist/*
 
 clean:
 	rm -rf dist build coworks.egg-info
