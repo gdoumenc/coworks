@@ -1,5 +1,7 @@
 import base64
 import hashlib
+import importlib
+import os
 import tempfile
 from pathlib import Path
 from shutil import copytree, ignore_patterns, make_archive
@@ -24,13 +26,14 @@ class CwsZipArchiver(CwsCommand, Boto3Mixin):
     def options(self):
         return [
             click.option('--bucket', '-b', help="Bucket to upload sources zip file to", required=True),
-            click.option('--key', '-k', help="Sources zip file bucket's name"),
-            click.option('--profile_name', '-p', required=True),
             click.option('--dry', is_flag=True, help="Doesn't perform upload."),
-            click.option('--debug/--no-debug', default=False, help="Print debug logs to stderr.")
+            click.option('--debug/--no-debug', default=False, help="Print debug logs to stderr."),
+            click.option('--key', '-k', help="Sources zip file bucket's name"),
+            click.option('--module_name', '-m', multiple=True, help="Python module added from current pyenv"),
+            click.option('--profile_name', '-p', required=True),
         ]
 
-    def _execute(self, *, project_dir, module, bucket, key, profile_name, dry, debug, **options):
+    def _execute(self, *, project_dir, module, bucket, key, profile_name, module_name, dry, debug, **options):
         aws_s3_session = AwsS3Session(profile_name=profile_name)
 
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -39,6 +42,11 @@ class CwsZipArchiver(CwsCommand, Boto3Mixin):
             # Creates archive
             copytree(project_dir, str(tmp_path.joinpath('filtered_dir')),
                      ignore=ignore_patterns('__pycache__*', '*cws.project.yml', 'env_variables*'))
+            for name in module_name:
+                mod = importlib.import_module(name)
+                module_path = os.path.dirname(os.path.abspath(mod.__file__))
+                copytree(module_path, str(tmp_path.joinpath(f'filtered_dir/{name}')),
+                         ignore=ignore_patterns('__pycache__*'))
             module_archive = make_archive(str(tmp_path / 'sources'), 'zip', str(tmp_path / 'filtered_dir'))
 
             # Uploads archive on S3

@@ -18,7 +18,6 @@ class MockedAwsSession():
         return MockedAwsSession.mock
 
 
-@pytest.mark.wip
 class TestClass:
 
     def test_init(self, monkeypatch, example_dir):
