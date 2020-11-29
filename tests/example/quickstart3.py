@@ -1,6 +1,6 @@
 from coworks import TechMicroService
 from coworks.config import Config
-from coworks.cws.runner import CwsRunner
+from coworks.cws.runner import CwsRunner, run_with_reloader
 from coworks.cws.writer import CwsTerraformWriter
 from coworks.cws.zip import CwsZipArchiver
 
@@ -22,3 +22,6 @@ app = SimpleMicroService(name='test', configs=[CONFIG])
 CwsRunner(app)
 CwsZipArchiver(app, name="upload")
 CwsTerraformWriter(app, name='export')
+
+if __name__ == '__main__':
+    run_with_reloader(app, project_dir='.', module='quickstart1', workspace='dev')

@@ -10,11 +10,11 @@ from threading import Thread, Event
 import chalice.local
 import click
 from aws_xray_sdk.core import xray_recorder
+from chalice.cli import run_local_server, reloader
 from chalice.config import Config
 from chalice.local import ChaliceRequestHandler, LocalGateway, LocalDevServer
 
 from .command import CwsCommand
-from ..utils import threaded
 
 
 class CwsRunner(CwsCommand):
@@ -27,11 +27,11 @@ class CwsRunner(CwsCommand):
         return [
             click.option('-h', '--host', default='127.0.0.1'),
             click.option('-p', '--port', default=8000, type=click.INT),
-            click.option('--debug/--no-debug', default=False, help='Print debug logs to stderr.')
+            click.option('--autoreload', is_flag=True, help='Reload server on source changes.'),
+            click.option('--debug', is_flag=True, help='Print debug logs to stderr.')
         ]
 
-    @threaded
-    def _execute(self, *, project_dir, workspace, host, port, debug, **options):
+    def _execute(self, *, project_dir, workspace, host, port, autoreload, debug, **options):
         """ Runs the microservice in a local Chalice emulator.
 
         :param host: the hostname to listen on.
@@ -54,11 +54,22 @@ class CwsRunner(CwsCommand):
         if debug:
             logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')
 
-        factory = CwsFactory(ms, project_dir, debug=debug)
-        config = factory.mock_config_obj(ms)
-        ms.local_server = LocalDevServer(ms, config, host, port, handler_cls=CwsRequestHandler)
-        ms.__class__ = type('LocalMicroService', (ms.__class__, ThreadedMixin), {})
-        ms.local_server.serve_forever()
+        if autoreload:
+            class _ThreadedLocalServer(ThreadedLocalServer):
+
+                def __init__(self, *args):
+                    super().__init__(*args)
+                    self._app_object = self
+                    self._config = Config()
+                    self._host = host
+                    self._port = port
+                    self._server = LocalDevServer(ms, self._config, self._host, self._port)
+
+            rc = reloader.run_with_reloader(_ThreadedLocalServer, os.environ, project_dir)
+            sys.exit(rc)
+        else:
+            factory = CwsFactory(ms, project_dir, debug=debug)
+            run_local_server(factory, host, port, workspace)
 
 
 class CwsRequestHandler(ChaliceRequestHandler):
@@ -96,8 +107,6 @@ class ThreadedMixin:
 
 
 class ThreadedLocalServer(Thread):
-    threaded_servers = {}
-
     def __init__(self, *, port=None, host='localhost'):
         super().__init__()
         self._app_object = None
@@ -107,16 +116,17 @@ class ThreadedLocalServer(Thread):
         self._server = None
         self._server_ready = Event()
 
-    def wait_for_server_ready(self):
-        self._server_ready.wait()
-
     def configure(self, app_object, config=None, **kwargs):
         self._app_object = app_object
         self._config = config if config else Config()
 
     def run(self):
-        self._server = LocalDevServer(self._app_object, self._config, self._host, self._port)
+        self._server = LocalDevServer(self._app_object, self._config, self._host, self._port, )
+        # handler_cls=CwsRequestHandler)
         self._server_ready.set()
+        self._server.serve_forever()
+
+    def serve_forever(self):
         self._server.serve_forever()
 
     def make_call(self, method, path, timeout=0.5, **kwarg):
@@ -133,3 +143,9 @@ class ThreadedLocalServer(Thread):
         with contextlib.closing(socket.socket()) as sock:
             sock.bind(('localhost', 0))
             return sock.getsockname()[1]
+
+
+def run_with_reloader(app, **kwargs):
+    kwargs.setdefault('autoreload', True)
+    sys.argv = [sys.executable, sys.argv[0]]
+    app.execute('run', **kwargs)

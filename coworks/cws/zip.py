@@ -48,7 +48,7 @@ class CwsZipArchiver(CwsCommand, Boto3Mixin):
             copytree(project_dir, str(tmp_path / 'filtered_dir'),
                      ignore=full_ignore_patterns('*cws.project.yml', 'env_variables*'))
             if coworks_required_modules:
-                pass
+                module_name = ["coworks", "chalice"].extend(module_name)
             for name in module_name:
                 mod = importlib.import_module(name)
                 module_path = Path(mod.__file__).resolve().parent
