@@ -5,15 +5,16 @@
 
 |
 
-.. image:: https://travis-ci.com/gdoumenc/coworks.svg?branch=dev
-  :target: https://travis-ci.com/gdoumenc/coworks
-  :alt: Travis CI
-.. image:: https://readthedocs.org/projects/coworks/badge/?version=dev
-  :target: https://readthedocs.org/projects/coworks/
-  :alt: Documentation Status
-.. image:: https://codecov.io/gh/gdoumenc/coworks/branch/dev/graph/badge.svg
-  :target: https://codecov.io/gh/gdoumenc/coworks
-  :alt: Documentation Status
+.. image:: https://img.shields.io/travis/com/gdoumenc/coworks?style=plastic
+    :alt: Travis (.com)
+.. image:: https://img.shields.io/readthedocs/coworks?style=plastic
+    :alt: Read the Docs
+.. image:: https://img.shields.io/codecov/c/github/gdoumenc/coworks?style=plastic
+    :alt: Codecov.. image:: https://codecov.io/gh/gdoumenc/coworks/branch/dev/graph/badge.svg
+.. image:: https://img.shields.io/pypi/pyversions/coworks?style=plastic
+    :alt: PyPI - Python Version
+.. image:: https://img.shields.io/github/license/gdoumenc/coworks?style=plastic
+    :alt: GitHub
 
 Coworks is an unified compositional microservices framework over AWS technologies and
 based on the `Chalice <https://github.com/aws/chalice>`__ microframework.
