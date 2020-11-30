@@ -1,19 +1,22 @@
 .. image:: https://github.com/gdoumenc/coworks/raw/dev/docs/img/coworks.png
-  :height: 80px
-  :alt: Coworks Logo
-  :target: https://coworks.readthedocs.io/en/latest
+    :height: 80px
+    :alt: Coworks Logo
 
 |
 
-.. image:: https://img.shields.io/travis/com/gdoumenc/coworks?style=plastic
+|Maintenance yes| |Build status| |Documentation status| |Coverage rate| |Python versions| |GitHub license|
+
+.. |Maintenance yes| image:: https://img.shields.io/badge/Maintained%3F-yes-green.svg?style=plastic
+   :target: https://GitHub.com/Naereen/StrapDown.js/graphs/commit-activity
+.. |Build status| image:: https://img.shields.io/travis/com/gdoumenc/coworks?style=plastic
     :alt: Travis (.com)
-.. image:: https://img.shields.io/readthedocs/coworks?style=plastic
+.. |Documentation status| image:: https://img.shields.io/readthedocs/coworks?style=plastic
     :alt: Read the Docs
-.. image:: https://img.shields.io/codecov/c/github/gdoumenc/coworks?style=plastic
+.. |Coverage rate| image:: https://img.shields.io/codecov/c/github/gdoumenc/coworks?style=plastic
     :alt: Codecov.. image:: https://codecov.io/gh/gdoumenc/coworks/branch/dev/graph/badge.svg
-.. image:: https://img.shields.io/pypi/pyversions/coworks?style=plastic
+.. |Python versions| image:: https://img.shields.io/pypi/pyversions/coworks?style=plastic
     :alt: PyPI - Python Version
-.. image:: https://img.shields.io/github/license/gdoumenc/coworks?style=plastic
+.. |GitHub license| image:: https://img.shields.io/github/license/gdoumenc/coworks?style=plastic
     :alt: GitHub
 
 Coworks is an unified compositional microservices framework over AWS technologies and
