@@ -52,7 +52,7 @@ For that purpose, we add the ``zip`` command to the microservice
 
 .. literalinclude:: ../tests/example/quickstart2.py
 
-As you can see, a command can be renammed.
+As you can see, a command can be renamed.
 
 And now we can upload the sources folder to AWS S3::
 
@@ -65,8 +65,9 @@ And now we can upload the sources folder to AWS S3::
 
 AS you can see also, the command options are defined after the command itself : ``-p`` for the AWS credential profile,
 ``-b`` for the bucket name and ``--debug`` for having trace
-(see :ref:`command_definition` for more details on command options). The ``--coworks-required_modules`` option
-uploads all python modules needed to execute the microservice without any specific layer.
+(see :ref:`command_definition` for more details on command options).
+The ``--coworks-required_modules`` option uploads all python modules needed to execute the microservice
+without any specific layer.
 
 Next, add the default ``CwsTerraformWriter`` extension to add the command to export terraform configuration files
 from the microservice code:

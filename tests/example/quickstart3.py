@@ -24,4 +24,4 @@ CwsZipArchiver(app, name="upload")
 CwsTerraformWriter(app, name='export')
 
 if __name__ == '__main__':
-    run_with_reloader(app, project_dir='.', module='quickstart1', workspace='dev')
+    run_with_reloader(app, project_dir='.', module='quickstart3', workspace='dev')

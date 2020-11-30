@@ -3,16 +3,13 @@ import logging
 import os
 import socket
 import sys
-import threading
-import urllib.parse
 from threading import Thread, Event
 
-import chalice.local
 import click
 from aws_xray_sdk.core import xray_recorder
 from chalice.cli import run_local_server, reloader
 from chalice.config import Config
-from chalice.local import ChaliceRequestHandler, LocalGateway, LocalDevServer
+from chalice.local import LocalDevServer
 
 from .command import CwsCommand
 
@@ -57,8 +54,8 @@ class CwsRunner(CwsCommand):
         if autoreload:
             class _ThreadedLocalServer(ThreadedLocalServer):
 
-                def __init__(self, *args):
-                    super().__init__(*args)
+                def __init__(self):
+                    super().__init__()
                     self._app_object = self
                     self._config = Config()
                     self._host = host
@@ -70,40 +67,6 @@ class CwsRunner(CwsCommand):
         else:
             factory = CwsFactory(ms, project_dir, debug=debug)
             run_local_server(factory, host, port, workspace)
-
-
-class CwsRequestHandler(ChaliceRequestHandler):
-    """Request handler redefined to quote query parameters."""
-
-    def __init__(self, request, client_address, server, app_object, config):
-        chalice.local.LocalGateway = CwsLocalGateway
-        super().__init__(request, client_address, server, app_object, config)
-        chalice.local.LocalGateway = LocalGateway
-
-    def parse_request(self):
-        request = super().parse_request()
-        self.path = urllib.parse.quote(self.path)
-        return request
-
-
-class CwsLocalGateway(LocalGateway):
-    """Local gateway redefined to unquote query parameters."""
-
-    def _generate_lambda_event(self, method, path, headers, body):
-        path = urllib.parse.unquote(path)
-        return super()._generate_lambda_event(method, path, headers, body)
-
-
-class ThreadedMixin:
-    _THREAD_LOCAL = threading.local()
-
-    @property
-    def current_request(self):
-        return self._THREAD_LOCAL.current_request
-
-    @current_request.setter
-    def current_request(self, value):
-        self._THREAD_LOCAL.current_request = value
 
 
 class ThreadedLocalServer(Thread):
@@ -122,21 +85,19 @@ class ThreadedLocalServer(Thread):
 
     def run(self):
         self._server = LocalDevServer(self._app_object, self._config, self._host, self._port, )
-        # handler_cls=CwsRequestHandler)
         self._server_ready.set()
         self._server.serve_forever()
 
     def serve_forever(self):
         self._server.serve_forever()
 
-    def make_call(self, method, path, timeout=0.5, **kwarg):
-        self._server_ready.wait()
-        return method('http://{host}:{port}{path}'.format(
-            path=path, host=self._host, port=self._port), timeout=timeout, **kwarg)
-
     def shutdown(self):
         if self._server is not None:
             self._server.server.shutdown()
+
+    def make_call(self, method, path, timeout=0.5, **kwarg):
+        self._server_ready.wait()
+        return method(f'http://{self._host}:{self._port}{path}', timeout=timeout, **kwarg)
 
     @classmethod
     def unused_tcp_port(cls):
