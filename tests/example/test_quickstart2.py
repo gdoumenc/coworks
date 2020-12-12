@@ -41,8 +41,8 @@ class TestClass:
     def test_zip_quickstart2(self, example_dir):
         app = import_attr('quickstart2', 'app', cwd=example_dir)
         with pytest.raises(CwsCommandError):
-            app.execute('upload', project_dir=example_dir, module='quickstart2', workspace='dev')
-        app.execute('upload', project_dir=example_dir, module='quickstart2', workspace='dev',
+            app.execute('zip', project_dir=example_dir, module='quickstart2', workspace='dev')
+        app.execute('zip', project_dir=example_dir, module='quickstart2', workspace='dev',
                     profile_name='profile', bucket='bucket')
         assert len(MockedAwsSession.mock.method_calls) == 2
         name, params, _ = MockedAwsSession.mock.method_calls[0]

@@ -18,6 +18,8 @@ from .utils import HTTP_METHODS, class_auth_methods, class_http_methods, trim_un
 
 
 class EntryPoint:
+    """An entry point is an API entry defined on a component, with a specific authorization function and
+    is response function."""
 
     def __init__(self, component, auth, fun):
         self.component = component
@@ -118,13 +120,18 @@ class CoworksMixin:
         self.handle_exception_funcs.append(f)
         return f
 
-    def _init_routes(self, app, *, url_prefix='', authorizer=None, hide_routes=False):
-        # External authorizer has priority (forced)
-        if authorizer is None:
+    def _init_routes(self, app, *, url_prefix='', authorizer=None, hide_routes=None):
+        """ Creates all routes for a microservice.
+        :param authorizer is the default global authorization function.
+        :param hide_routes list of routes to be hidden.
+        """
+
+        # Global authorization function may be redefined
+        if authorizer is not None:
+            auth = authorizer
+        else:
             auth_fun = app.config.auth if app.config.auth else class_auth_methods(self)
             auth = self._create_auth_proxy(auth_fun) if auth_fun else None
-        else:
-            auth = authorizer
 
         # Adds entrypoints
         methods = class_http_methods(self)
@@ -138,6 +145,7 @@ class CoworksMixin:
                 name = trim_underscores(name)  # to allow several functions with same route but different args
                 name = name.replace('_', '/')
                 route = f"{url_prefix}/{name}" if url_prefix else f"{name}"
+            entry_path = route
 
             # Get parameters
             args = inspect.getfullargspec(func).args[1:]
@@ -146,18 +154,20 @@ class CoworksMixin:
             if defaults:
                 len_defaults = len(defaults)
                 for index, arg in enumerate(args[:-len_defaults]):
+                    entry_path = entry_path + f"/{{{arg}}}" if entry_path else f"{{{arg}}}"
                     route = route + f"/{{_{index}}}" if route else f"{{_{index}}}"
                 kwarg_keys = args[-len_defaults:]
             else:
                 for index, arg in enumerate(args):
+                    entry_path = entry_path + f"/{{{arg}}}" if entry_path else f"{{{arg}}}"
                     route = route + f"/{{_{index}}}" if route else f"{{_{index}}}"
                 kwarg_keys = {}
 
             proxy = self._create_rest_proxy(func, kwarg_keys, args, varkw)
 
-            # complete all entries
+            # Creates the entry (TODO: autorization may be redefined with decorator)
             route = make_absolute(route)
-            app.entries[route][method.upper()] = EntryPoint(self, auth, func)
+            app.entries[entry_path][method.upper()] = EntryPoint(self, auth, func)
             if not hide_routes and not getattr(func, '__cws_hidden', False):
                 app.route(f"{route}", methods=[method.upper()], authorizer=auth, cors=app.config.cors,
                           content_types=list(app.config.content_type))(proxy)

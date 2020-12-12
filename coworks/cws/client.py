@@ -30,6 +30,7 @@ def invoke(ctx):
     try:
         args = ctx.args
         protected_args = ctx.protected_args
+        client_options = {}
 
         command_name = protected_args[0] if protected_args else None
 
@@ -74,12 +75,12 @@ def invoke(ctx):
 
         # Executes all commands
         for command_class, execution_params in commands_to_be_executed.items():
-            command_class.multi_execute(project_dir, workspace, execution_params)
+            command_class.multi_execute(project_dir, workspace, client_options, execution_params)
     except CwsClientError as client_err:
-        sys.stderr.write(client_err.msg)
+        sys.stderr.write(f"Error in command: {client_err.msg}")
         sys.exit(1)
     except Exception as e:
-        sys.stderr.write(str(e))
+        sys.stderr.write(f"Error in command: {str(e)}")
         sys.exit(1)
 
 

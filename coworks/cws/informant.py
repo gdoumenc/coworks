@@ -10,7 +10,7 @@ class CwsInformant(CwsCommand):
     """Command to get information on the project's microservices and teir deployment."""
 
     @classmethod
-    def multi_execute(cls, project_dir, workspace, execution_params):
+    def multi_execute(cls, project_dir, workspace, client_options, execution_params):
         terraform, tf_dir = False, ''
         for command, options in execution_params:
             command.print_module_info(**options)

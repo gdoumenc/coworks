@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 
 import yaml
 
-from coworks.cws.writer import CwsWriter, CwsWriterError, CwsTerraformWriter
+from coworks.cws.writer import CwsWriter, CwsWriterError, CwsTemplateWriter
 
 INITIAL_STATE_NAME = "Init"
 LAMBDA_ERROR_FALLBACK = "MicroServiceErrorFallback"

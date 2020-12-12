@@ -1,6 +1,7 @@
 from coworks import TechMicroService
 from coworks.cws.runner import CwsRunner
 from coworks.cws.zip import CwsZipArchiver
+from coworks.cws.writer import CwsTemplateWriter
 
 
 class SimpleMicroService(TechMicroService):
@@ -11,4 +12,5 @@ class SimpleMicroService(TechMicroService):
 
 app = SimpleMicroService()
 CwsRunner(app)
-CwsZipArchiver(app, name="upload")
+CwsZipArchiver(app)
+CwsTemplateWriter(app)

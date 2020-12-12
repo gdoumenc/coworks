@@ -1,0 +1,77 @@
+# ---------------------------------------------------------------------------------------------------------------------
+# LOCAL FOR THIS CUSTOMER
+# ---------------------------------------------------------------------------------------------------------------------
+
+locals {
+    when_default = terraform.workspace == "default" ? 1 : 0
+    when_stage = terraform.workspace != "default" ? 1 : 0
+}
+
+locals {
+  bucket = "{{ bucket }}"
+  key = "{{ key }}"
+  python = "python3.7"
+  role_arn = join("", aws_iam_role.microservice.*.arn, data.aws_iam_role.microservice.*.arn)
+  security_group_ids = []
+  vpc_id = []
+  subnet_ids = []
+  tags = {
+    Product: "microservice"
+    Creator: "coworks"
+  }
+}
+
+resource "aws_iam_role" "microservice" {
+  count = local.when_default
+  name = "coworks_microservice_role"
+
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "Service": [
+          "lambda.amazonaws.com",
+          "apigateway.amazonaws.com"
+        ]
+      },
+      "Effect": "Allow",
+      "Sid": ""
+    }
+  ]
+}
+EOF
+
+  tags = local.tags
+}
+
+resource "aws_iam_role_policy_attachment" "s3" {
+  count = local.when_default
+  role = join("", aws_iam_role.microservice.*.name)
+  policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "cloud_watch" {
+  count = local.when_default
+  role = join("", aws_iam_role.microservice.*.name)
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+}
+
+resource "aws_iam_role_policy_attachment" "xray" {
+  count = local.when_default
+  role = join("", aws_iam_role.microservice.*.name)
+  policy_arn = "arn:aws:iam::aws:policy/AWSXrayFullAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "step_functions" {
+  count = local.when_default
+  role = join("", aws_iam_role.microservice.*.name)
+  policy_arn = "arn:aws:iam::aws:policy/AWSStepFunctionsFullAccess"
+}
+
+data "aws_iam_role" "microservice" {
+  count = local.when_stage
+  name = "coworks_microservice_role"
+}

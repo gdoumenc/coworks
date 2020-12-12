@@ -45,7 +45,9 @@ class XRayMiddleware:
                     entry.view_function.__cws_func__ = recorder.capture(cws_function.__name__)(wrapped_fun)
 
         @app.handle_exception
-        def capture_exception(e):
+        def capture_exception(event, context, e):
+            app.logger.error(event)
+            app.logger.error(context)
             app.logger.error(e)
             app.logger.error(traceback.extract_stack())
             subsegment = recorder.current_subsegment
