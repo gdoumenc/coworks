@@ -46,31 +46,58 @@ Looks good...
 Deploy the try
 --------------
 
-First, we have to transfer the sources folder to AWS S3.
-
-For that purpose, we add the ``zip`` command to the microservice
+For that purpose, we add the ``deploy`` command to the microservice defined with the use of ``terraform``
+(see `Terraform <https://www.terraform.io/>`_ for more details on Terraform).
 
 .. literalinclude:: ../tests/example/quickstart2.py
 
-As you can see, a command can be renamed.
+As you can see a command may be renamed.
 
-And now we can upload the sources folder to AWS S3::
+This command is a combinaison of two other commmands ``CwsZipArchiver`` and ``CwsTemplateWriter``::
 
-	(project) $ cws -m first -s app upload -p fpr-customer -b coworks-microservice --debug --coworks-required_modules
-        Upload sources...
-        Successfully uploaded sources as coworks-microservice/first-simplemicroservice
-        Upoad sources hash...
-        Successfully uploaded sources hash as first-simplemicroservice.b64sha256
+    class CwsTerraformDeployer(CwsCommand):
+
+        def __init__(self, app=None, name='deploy', template_folder='.'):
+            self.zip_cmd = CwsZipArchiver(app)
+            CwsTemplateWriter(app)
+            super().__init__(app, name=name)
+
+
+The ``CwsZipArchiver`` is a command to create a zip source file, including python modules and uploading this zip file
+to AWS S3.
+
+The ``CwsTemplateWriter`` is a command to generate files from Jinja2 templates
+(see `Jinja2 <https://jinja.palletsprojects.com/>`_ for more details on Jinja2). In this command the fils will be
+terraform templates
+
+And now we can upload the sources files to AWS S3 and apply terraform planifications::
+
+	(project) $ cws -m first -s app deploy -p fpr-customer -b coworks-microservice -c -l arn:aws:lambda:eu-west-1:935392763270:layer:coworks-0_3_3
+        Are you sure you want to (re)create the API [yN]?:y
+        Uploading zip to S3
+        Terraform apply (Create API)
+        Terraform apply (Create lambda)
+        Terraform apply (Update API routes)
+        Terraform apply (Deploy API dev)
+        terraform output : {}
 	(project) $
 
-AS you can see also, the command options are defined after the command itself : ``-p`` for the AWS credential profile,
-``-b`` for the bucket name and ``--debug`` for having trace
-(see :ref:`command_definition` for more details on command options).
-The ``--coworks-required_modules`` option uploads all python modules needed to execute the microservice
-without any specific layer.
+As you can see also, the command options are defined after the command itself : ``-p`` for the AWS credential profile,
+``-b`` for the bucket name (see :ref:`command_definition` for more details on command options).
+The ``-c`` is not really needed but should be used each time you create an API to have good messages.
+It forces to accept API deletion ; this
+may arrive on API modification so it is a good principle to use it only on API creation.
 
-Next, add the default ``CwsTerraformWriter`` extension to add the command to export terraform configuration files
-from the microservice code:
+*In case you cannot use this layer, you can get the content file at
+https://coworks-layer.s3-eu-west-1.amazonaws.com/coworks-0.3.3.zip
+and create a layer with it.*
+
+Now we can try our first deployed microservice::
+
+	(project) $ curl -X "authorization=test" https://
+
+
+To complete we had a more complex microservice and the XRay middleware :
 
 .. literalinclude:: ../tests/example/quickstart3.py
 

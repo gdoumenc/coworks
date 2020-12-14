@@ -8,17 +8,14 @@ from threading import Thread
 from time import sleep
 from typing import List
 
+import boto3
 import click
-from jinja2 import ChoiceLoader, FileSystemLoader
-from python_terraform import Terraform as PythonTerraform
 
 from coworks import TechMicroService
 from coworks.config import CORSConfig
 from .command import CwsCommand, CwsCommandError
 from .writer import CwsTemplateWriter
 from .zip import CwsZipArchiver
-
-DEFAULT_STEP = 'update'
 
 UID_SEP = '_'
 
@@ -60,7 +57,7 @@ class CwsTerraformDeployer(CwsCommand):
         Step 1. Create API in default workspace (destroys API integrations made in previous deployment)
         Step 2. Create Lambda in stage workspace (destroys API deployment made in previous deployment)
     update
-        Step 3. Update API integrations
+        Step 3. Update API routes integrations
         Step 4. Update API deployment
     """
 
@@ -68,57 +65,71 @@ class CwsTerraformDeployer(CwsCommand):
     def multi_execute(cls, project_dir, workspace, client_options, execution_params):
         create = client_options.get('create')
 
+        # if one command is dry all are dry
+        dry = client_options.get('dry') or client_options.get('stop') is not None
+        for command, options in execution_params:
+            dry = dry or options['dry']
+
         # Validate create option choice
         if create:
-            prompts = chain(["Êtes vous sûr de vouloir créer ou recréer l'API [yN]?:"], repeat("Répondre par [yN]: "))
+            prompts = chain(["Are you sure you want to (re)create the API [yN]?:"], repeat("Answer [yN]: "))
             replies = map(input, prompts)
             valid_response = next(filter(lambda x: x == 'y' or x == 'n' or x == '', replies))
             if valid_response != 'y':
                 return
 
         # Transfert zip file to S3 (to be done on each service)
-
+        key = None
         for command, options in execution_params:
-            debug = client_options.get('debug') or options['debug']
-            dry = client_options.get('dry') or options['dry']
-
             print(f"Uploading zip to S3")
             key = options.pop('key') or f"{cls.bucket_key(command, options)}/archive.zip"
             ignore = options.pop('ignore') or ['terraform', '.terraform']
             command.app.execute('zip', key=key, ignore=ignore, **options)
 
-            terraform = Terraform(debug)
+        # Generates terraform files (create step)
+        terraform = Terraform()
+        for command, options in execution_params:
+            debug = client_options.get('debug') or options['debug']
+            profile_name = client_options.get('profile_name') or options['profile_name']
+            aws_region = boto3.Session(profile_name=profile_name).region_name
+
             # Generates terraform files and apply terraform if not dry
-            if not dry or options.get('step') == 'create':
+            if not dry or options.get('stop') == 'create':
                 name = f"{options['module']}-{options['service']}"
                 if debug:
                     print(f"Generate terraform files for creating API and lambdas for {name}")
                 output = str(Path(terraform.working_dir) / f"{name}.tf")
-                command.app.execute('export', template=["terraform.j2"], output=output,
-                                    key=key, entries=_entries(command.app), **options)
-                if not dry:
-                    msg = ["Create API", "Create lambda"] if create else ["Update API", "Update lambda"]
-                    cls._terraform_apply_local(terraform, workspace, msg)
+                command.app.execute('export', template=["terraform.j2"], output=output, aws_region=aws_region,
+                                    step="create", key=key, entries=_entries(command.app), **options)
 
-            # Generates terraform files and apply terraform if not dry
-            if not dry or options.get('step') == 'update':
+        if not dry:
+            msg = ["Create API", "Create lambda"] if create else ["Update API", "Update lambda"]
+            cls._terraform_apply_local(terraform, workspace, msg)
+
+        # Generates terraform files (update step)
+        for command, options in execution_params:
+            debug = client_options.get('debug') or options['debug']
+            profile_name = client_options.get('profile_name') or options['profile_name']
+            aws_region = boto3.Session(profile_name=profile_name).region_name
+
+            if not dry or options.get('stop') == 'update':
                 name = f"{options['module']}-{options['service']}"
                 if debug:
                     print(f"Generate terraform files for updating API for {name}")
                 output = str(Path(terraform.working_dir) / f"{name}.tf")
-                command.app.execute('export', template=["terraform.j2"], output=output,
-                                    key=key, entries=_entries(command.app), **options)
-                if not dry:
-                    cls._terraform_apply_local(terraform, workspace, ["Update API routes", f"Deploy API {workspace}"])
+                command.app.execute('export', template=["terraform.j2"], output=output, aws_region=aws_region,
+                                    step="update", key=key, entries=_entries(command.app), **options)
 
-            terraform = Terraform()
-            out = terraform.output_local("default")
-            print(f"terraform output : {out}")
+        if not dry:
+            cls._terraform_apply_local(terraform, workspace, ["Update API routes", f"Deploy API {workspace}"])
+
+        terraform = Terraform()
+        out = terraform.output_local("default")
+        print(f"terraform output : {out}")
 
     def __init__(self, app=None, name='deploy', template_folder='.'):
         self.zip_cmd = CwsZipArchiver(app)
-        self.writer = CwsTemplateWriter(app)
-        self.writer.env.loader = ChoiceLoader([FileSystemLoader(template_folder), self.writer.env.loader])
+        CwsTemplateWriter(app)
         super().__init__(app, name=name)
 
     @property
@@ -128,9 +139,9 @@ class CwsTerraformDeployer(CwsCommand):
             *self.zip_cmd.options,
             click.option('--binary_media_types'),
             click.option('--create', '-c', is_flag=True, help="May create or recreate the API."),
-            click.option('--layers', 'l', multiple=True),
+            click.option('--layers', '-l', multiple=True),
             click.option('--memory_size', default=128),
-            click.option('--step', default=DEFAULT_STEP),
+            click.option('--stop', type=click.Choice(['create', 'update']), help="Stop the terraform generation"),
             click.option('--timeout', default=30),
         ]
 
@@ -172,29 +183,35 @@ class CwsTerraformDeployer(CwsCommand):
 logging.getLogger("python_terraform").setLevel(logging.ERROR)
 
 
-class Terraform(PythonTerraform):
+class Terraform:
 
-    def __init__(self, debug=False):
-        super().__init__(working_dir='terraform', terraform_bin_path='terraform')
+    def __init__(self):
+        from python_terraform import Terraform as PythonTerraform
+
+        self.terraform = PythonTerraform(working_dir='terraform', terraform_bin_path='terraform')
         Path(self.working_dir).mkdir(exist_ok=True)
-        self.debug = debug
+
+    @property
+    def working_dir(self):
+        return self.terraform.working_dir
 
     def apply_local(self, workspace):
         self._select_workspace(workspace)
-        return_code, _, err = self.apply(skip_plan=True, input=False, raise_on_error=False, parallelism=1)
+        return_code, _, err = self.terraform.apply(skip_plan=True, input=False, raise_on_error=False, parallelism=1)
         if return_code != 0:
             raise CwsCommandError(err)
 
     def output_local(self, workspace):
         self._select_workspace(workspace)
-        return self.output(capture_output=True)
+        values = self.terraform.output(capture_output=True)
+        return {key: value['value'] for key, value in values.items()}
 
     def _select_workspace(self, workspace):
-        return_code, out, err = self.workspace('select', workspace)
+        return_code, out, err = self.terraform.workspace('select', workspace)
         if workspace != 'default' and return_code != 0:
-            _, out, err = self.workspace('new', workspace, raise_on_error=True)
+            _, out, err = self.terraform.workspace('new', workspace, raise_on_error=True)
         if not (Path(self.working_dir) / '.terraform').exists():
-            self.init(input=False, raise_on_error=True)
+            self.terraform.init(input=False, raise_on_error=True)
 
 
 def _entries(app):

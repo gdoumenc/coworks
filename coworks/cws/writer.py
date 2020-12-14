@@ -3,7 +3,7 @@ import pathlib
 import sys
 
 import click
-from jinja2 import Environment, ChoiceLoader, PackageLoader, select_autoescape, TemplateNotFound
+from jinja2 import Environment, PackageLoader, select_autoescape, TemplateNotFound
 
 from .command import CwsCommand
 from .error import CwsCommandError

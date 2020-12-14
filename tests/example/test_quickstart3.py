@@ -21,7 +21,11 @@ class TestClass:
             time.sleep(counter)
             counter += 1
         response = requests.get(f'http://localhost:{port}/', headers={'Authorization': "token"})
-        assert response.text == "Simple microservice ready.\n"
+        assert response.text == "Stored value 0.\n"
+        response = requests.post(f'http://localhost:{port}/', params={'value':1}, headers={'Authorization': "token"})
+        assert response.text == "Value stored.\n"
+        response = requests.get(f'http://localhost:{port}/', headers={'Authorization': "token"})
+        assert response.text == "Stored value 1.\n"
 
     def test_export_quickstart3(self, example_dir):
         app = import_attr('quickstart3', 'app', cwd=example_dir)

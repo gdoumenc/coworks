@@ -440,8 +440,11 @@ class Boto3Mixin:
 
     @property
     def region_name(self):
+        if self.__session__:
+            return self.__session__.region_name
+        
         value = os.getenv(self.__env_var_region)
-        if not value:
+        if not value and self.aws_access_key and self.aws_secret_access_key:
             raise EnvironmentError(f"{self.__env_var_region} not defined in environment")
         return value
 
@@ -454,20 +457,20 @@ class Boto3Mixin:
     @property
     def __session(self):
         if self.__session__ is None:
-            region_name = self.region_name
             if self.__profile_name is not None:
                 try:
-                    self.__session__ = boto3.Session(profile_name=self.__profile_name, region_name=region_name)
+                    self.__session__ = boto3.Session(profile_name=self.__profile_name)
                 except Exception:
-                    raise CwsError(f"Cannot create session for profile {self.__profile_name} and region {region_name}")
+                    raise CwsError(f"Cannot create session for profile {self.__profile_name}.")
             else:
                 access_key = self.aws_access_key
                 secret_key = self.aws_secret_access_key
+                region_name = self.region_name
                 try:
                     self.__session__ = boto3.Session(access_key, secret_key, region_name=region_name)
                 except Exception:
                     raise CwsError(
-                        f"Cannot create session for key {access_key}, secret {secret_key} and region {region_name}")
+                        f"Cannot create session for key {access_key}, secret {secret_key} and region {region_name}.")
         return self.__session__
 
 

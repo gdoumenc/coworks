@@ -31,13 +31,10 @@ class CwsZipArchiver(CwsCommand, Boto3Mixin):
             click.option('--ignore', '-i', multiple=True, help="Ignore pattern."),
             click.option('--key', '-k', help="Sources zip file bucket's name."),
             click.option('--module-name', '-m', multiple=True, help="Python module added from current pyenv."),
-            click.option('--coworks-required-modules', '-mm', is_flag=True,
-                         help="All coworks python modules required for execution."),
             click.option('--profile_name', '-p', required=True, help="AWS credential profile."),
         ]
 
-    def _execute(self, *, project_dir, module, bucket, key, profile_name, module_name, dry, debug,
-                 ignore, coworks_required_modules, **options):
+    def _execute(self, *, project_dir, module, bucket, key, profile_name, module_name, dry, debug, ignore, **options):
         aws_s3_session = AwsS3Session(profile_name=profile_name)
         module_name = module_name or []
 
@@ -55,8 +52,6 @@ class CwsZipArchiver(CwsCommand, Boto3Mixin):
             # Creates archive
             copytree(project_dir, str(tmp_path / 'filtered_dir'),
                      ignore=full_ignore_patterns('*cws.project.yml', 'env_variables*'))
-            if coworks_required_modules:
-                module_name.extend(["coworks", "chalice"])
             for name in module_name:
                 mod = importlib.import_module(name)
                 module_path = Path(mod.__file__).resolve().parent

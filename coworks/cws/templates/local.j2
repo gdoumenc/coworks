@@ -1,3 +1,5 @@
+{% set resource_name = "{}-{}".format(module_file, ms_name) %}
+
 # ---------------------------------------------------------------------------------------------------------------------
 # LOCAL FOR THIS CUSTOMER
 # ---------------------------------------------------------------------------------------------------------------------
@@ -8,22 +10,33 @@ locals {
 }
 
 locals {
-  bucket = "{{ bucket }}"
-  key = "{{ key }}"
-  python = "python3.7"
-  role_arn = join("", aws_iam_role.microservice.*.arn, data.aws_iam_role.microservice.*.arn)
-  security_group_ids = []
-  vpc_id = []
-  subnet_ids = []
-  tags = {
+  {{ resource_name }}_bucket = "{{ bucket }}"
+  {{ resource_name }}_key = "{{ key }}"
+  {{ resource_name }}_python = "python3.7"
+  {{ resource_name }}_role_arn = join("", aws_iam_role.microservice.*.arn, data.aws_iam_role.microservice.*.arn)
+  {{ resource_name }}_security_group_ids = []
+  {{ resource_name }}_vpc_id = []
+  {{ resource_name }}_subnet_ids = []
+  {{ resource_name }}_tags = {
     Product: "microservice"
     Creator: "coworks"
   }
 }
 
+{% if layers %}
+data "aws_lambda_layer_version" "{{ resource_name }}" {
+  for_each = {for layer_name in [{% for  layer in layers %}"{{ layer }}"{% endfor %}]: layer_name => layer_name}
+  layer_name = each.value
+}
+locals {
+  {{ resource_name }}_layer_arns = [for layer in data.aws_lambda_layer_version.{{ resource_name }} : layer.arn]
+}
+{% endif %}
+
+
 resource "aws_iam_role" "microservice" {
   count = local.when_default
-  name = "coworks_microservice_role"
+  name = "{{ resource_name }}_microservice_role"
 
   assume_role_policy = <<EOF
 {
@@ -44,7 +57,10 @@ resource "aws_iam_role" "microservice" {
 }
 EOF
 
-  tags = local.tags
+  tags = {
+    Product: "microservice"
+    Creator: "coworks"
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "s3" {
@@ -73,5 +89,5 @@ resource "aws_iam_role_policy_attachment" "step_functions" {
 
 data "aws_iam_role" "microservice" {
   count = local.when_stage
-  name = "coworks_microservice_role"
+  name = "{{ resource_name }}_microservice_role"
 }

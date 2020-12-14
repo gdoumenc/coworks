@@ -1,6 +1,5 @@
-locals{
-    layers-{{ resource_name }} = {{ layers if layers else '[]'}}
-    {% if environment_variable_files != [] %}
+locals {
+    {% if environment_variable_files %}
     environment_variables_{{ resource_name }} = [
         for envars_string in data.local_file.environment_variables_files_{{ resource_name }}: jsondecode(envars_string.content)
     ]
@@ -12,27 +11,23 @@ locals{
 # ---------------------------------------------------------------------------------------------------------------------
 
 data "aws_s3_bucket_object" "{{ resource_name }}-b64sha256" {
-  bucket = local.bucket
-  key = "${local.key}.b64sha256"
+  bucket = local.{{ resource_name }}_bucket
+  key = "${local.{{ resource_name }}_key}.b64sha256"
 }
 
-data "aws_lambda_layer_version" "{{ resource_name }}" {
-  for_each = {for layer_name in local.layers-{{ resource_name }}: layer_name => layer_name}
-  layer_name = each.value
-}
 
 resource "aws_lambda_function" "{{ resource_name }}" {
   count = local.when_stage
   function_name = "{{ resource_name }}-${terraform.workspace}"
-  s3_bucket = local.bucket
-  s3_key = local.key
+  s3_bucket = local.{{ resource_name }}_bucket
+  s3_key = local.{{ resource_name }}_key
   source_code_hash =  data.aws_s3_bucket_object.{{ resource_name }}-b64sha256.body
-  role = local.role_arn
+  role = local.{{ resource_name }}_role_arn
   handler = "{{ module_file }}.{{ handler }}"
   {% if layers %}
-  layers = data.aws_lambda_layer_version.{{ resource_name }}.*.arn
+  layers = local.{{ resource_name }}_layer_arns
   {% endif %}
-  runtime = local.python
+  runtime = local.{{ resource_name }}_python
   timeout = {{ timeout }}
   memory_size = {{ memory_size }}
   {% if environment_variable_files != [] %}
@@ -48,14 +43,23 @@ resource "aws_lambda_function" "{{ resource_name }}" {
     mode = "Active"
   }
   vpc_config {
-    security_group_ids = local.security_group_ids
-    subnet_ids = local.subnet_ids
+    security_group_ids = local.{{ resource_name }}_security_group_ids
+    subnet_ids = local.{{ resource_name }}_subnet_ids
   }
-  tags = local.tags
+  tags = local.{{ resource_name }}_tags
 }
 
 data "aws_lambda_function" "{{ resource_name }}" {
-  count = {{ 'terraform.workspace == "default"' if step == "update" else 'false'}} ? 1 : 0
+  count = {{ 'local.when_default' if step == "update" else 0}}
   function_name = "{{ resource_name }}-{{ workspace }}"
 }
 
+resource "aws_lambda_permission" "{{ resource_name }}" {
+  count = local.when_stage
+  statement_id = "AllowExecutionFromAPIGateway"
+  action = "lambda:InvokeFunction"
+  function_name = join("", local.{{ resource_name }}_lambda_function.*.function_name)
+  principal = "apigateway.amazonaws.com"
+  source_arn = "${join("", data.aws_api_gateway_rest_api.{{ resource_name }}.*.execution_arn)}/*/*"
+  depends_on = [aws_lambda_function.{{ resource_name }}]
+}

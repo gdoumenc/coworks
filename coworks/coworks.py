@@ -5,13 +5,14 @@ from collections import defaultdict
 from threading import Lock
 from typing import Dict, List, Union
 
-from chalice import BadRequestError, Rate, Cron
+from chalice import AuthResponse, BadRequestError, Rate, Cron
 from chalice import Chalice, Blueprint as ChaliceBlueprint
+from chalice.app import AuthRequest
 from requests_toolbelt.multipart import MultipartEncoder
 
 from .config import Config
 from .mixins import Entry, CoworksMixin, AwsSFNSession
-from .utils import class_auth_methods, make_absolute
+from .utils import class_auth_methods
 
 
 class Blueprint(CoworksMixin, ChaliceBlueprint):
@@ -229,12 +230,15 @@ class TechMicroService(CoworksMixin, Chalice):
             self.logger.debug(f"Calling {self.name} for authorization")
 
             route = event.get('methodArn').split('/', 3)[-1]
-            authorizer = self.entry(f'/{route}').authorizer
-            if authorizer:
+            try:
+                authorizer = self.entry(f'/{route}').authorizer
                 return authorizer(event, context)
+            except:
+                pass
 
             self.logger.debug(f"Undefined authorization method for {self.name} ")
-            return 'Unauthorized', 403
+            request = AuthRequest(event['type'], event['authorizationToken'], event['methodArn'])
+            return AuthResponse(routes=[], principal_id='user').to_dict(request)
 
         # step function call
         if event.get('type') == 'CWS_SFN':
