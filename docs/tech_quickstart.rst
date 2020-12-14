@@ -51,13 +51,15 @@ For that purpose, we add the ``deploy`` command to the microservice defined with
 
 .. literalinclude:: ../tests/example/quickstart2.py
 
-As you can see a command may be renamed.
+We have to add a new function ``auth`` to define an authorizer (see :ref:`auth` for more details on authorizer).
+For this simple test, the authorizer validates all the routes by returning ``True``.
 
+As you can see we have added the command ``CwsTerraformDeployer`` to this microservice.
 This command is a combinaison of two other commmands ``CwsZipArchiver`` and ``CwsTemplateWriter``::
 
     class CwsTerraformDeployer(CwsCommand):
 
-        def __init__(self, app=None, name='deploy', template_folder='.'):
+        def __init__(self, app=None, name='deploy'):
             self.zip_cmd = CwsZipArchiver(app)
             CwsTemplateWriter(app)
             super().__init__(app, name=name)
@@ -79,23 +81,23 @@ And now we can upload the sources files to AWS S3 and apply terraform planificat
         Terraform apply (Create lambda)
         Terraform apply (Update API routes)
         Terraform apply (Deploy API dev)
-        terraform output : {}
+        terraform output : {'first-simplemicroservice': {'id': '3avoth9jcg'}}
 	(project) $
 
-As you can see also, the command options are defined after the command itself : ``-p`` for the AWS credential profile,
+As you can see, the command options are defined after the command itself : ``-p`` for the AWS credential profile,
 ``-b`` for the bucket name (see :ref:`command_definition` for more details on command options).
 The ``-c`` is not really needed but should be used each time you create an API to have good messages.
 It forces to accept API deletion ; this
 may arrive on API modification so it is a good principle to use it only on API creation.
+The ``-l`` is for adding a layer to this lambda function.
 
-*In case you cannot use this layer, you can get the content file at
-https://coworks-layer.s3-eu-west-1.amazonaws.com/coworks-0.3.3.zip
-and create a layer with it.*
+In case you cannot use this layer, you can get the content file at
+`Coworks layers <https://coworks-layer.s3-eu-west-1.amazonaws.com/coworks-0.3.3.zip/>`_ and create a layer with it.
 
 Now we can try our first deployed microservice::
 
-	(project) $ curl -X "authorization=test" https://
-
+	(project) $ curl -H "Authorization:test" https://3avoth9jcg.execute-api.eu-west-1.amazonaws.com/dev
+	Simple microservice ready.
 
 To complete we had a more complex microservice and the XRay middleware :
 

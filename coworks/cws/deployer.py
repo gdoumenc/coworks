@@ -127,7 +127,7 @@ class CwsTerraformDeployer(CwsCommand):
         out = terraform.output_local("default")
         print(f"terraform output : {out}")
 
-    def __init__(self, app=None, name='deploy', template_folder='.'):
+    def __init__(self, app=None, name='deploy'):
         self.zip_cmd = CwsZipArchiver(app)
         CwsTemplateWriter(app)
         super().__init__(app, name=name)
