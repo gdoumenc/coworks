@@ -2,12 +2,12 @@ locals {
   {{ resource_name }}_api_id = join("", aws_api_gateway_rest_api.{{ resource_name }}.*.id, data.aws_api_gateway_rest_api.{{ resource_name }}.*.id)
   {{ resource_name }}_api_root_id = join("", aws_api_gateway_rest_api.{{ resource_name }}.*.root_resource_id, data.aws_api_gateway_rest_api.{{ resource_name }}.*.root_resource_id)
   {{ resource_name }}_lambda_uri = join("", aws_lambda_function.{{ resource_name }}.*.invoke_arn, data.aws_lambda_function.{{ resource_name }}.*.invoke_arn)
-  {{ resource_name }}_lambda_function = terraform.workspace != "default" ? aws_lambda_function.{{ resource_name }} : data.aws_lambda_function.{{ resource_name }}
+  {{ resource_name }}_lambda_function_name = join("", aws_lambda_function.{{ resource_name }}.*.function_name , data.aws_lambda_function.{{ resource_name }}.*.function_name)
 }
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-# APIGATEWAY
+# API GATEWAY
 # ---------------------------------------------------------------------------------------------------------------------
 
 resource "aws_api_gateway_rest_api" "{{ resource_name }}" {
@@ -82,8 +82,12 @@ resource "aws_api_gateway_integration" "{{ resource_name }}_null_integration" {
         resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ res }}[0].id
         {% endif -%}
         http_method = "{{ method }}"
+        {%  if True %}
+        authorization = "NONE"
+        {%  else %}
         authorization = "CUSTOM"
         authorizer_id = aws_api_gateway_authorizer.{{ resource_name }}[0].id
+        {%  endif %}
       }
 
       resource "aws_api_gateway_integration" "{{ resource_name }}_{{ res }}_{{ method }}" {

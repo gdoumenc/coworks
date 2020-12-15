@@ -103,46 +103,6 @@ To complete we had a more complex microservice and the XRay middleware :
 
 .. literalinclude:: ../tests/example/quickstart3.py
 
-Create the terraform files for deployment::
-
-	(project) $ cws -m first -s app export -o app.tf
-
-This will create an ``app.tf`` terraform file for managing all the ressources needed for this first simple microservice.
-
-Enter the following command to initialize terraform::
-
-	(project) $ terraform init
-	Initializing the backend...
-	...
-
-And now apply the configuration (it will create the resources)::
-
-	(project) $ terraform apply
-	...
-	Plan: 10 to add, 0 to change, 0 to destroy.
-
-	Do you want to perform these actions?
-	  Terraform will perform the actions described above.
-	  Only 'yes' will be accepted to approve.
-
-	  Enter a value: yes
-
-	aws_api_gateway_rest_api.test: Creating...
-
-Validate the creation by entering ``yes``.  Then, after all the resources have been created, you should get::
-
-	Apply complete! Resources: 10 added, 0 changed, 0 destroyed.
-
-	Outputs:
-
-	test = {
-	  "invoke-url" = "https://123456789123.execute-api.eu-west-1.amazonaws.com/dev"
-	}
-
-That's it, your first microservice is online! Let's try it out::
-
-	(project) $ curl https://1aaaaa2bbb3c.execute-api.eu-west-1.amazonaws.com/dev -H "Authorization:token"
-	Simple microservice ready.
 
 Deletion
 --------

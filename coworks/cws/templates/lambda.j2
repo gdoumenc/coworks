@@ -15,6 +15,12 @@ data "aws_s3_bucket_object" "{{ resource_name }}-b64sha256" {
   key = "${local.{{ resource_name }}_key}.b64sha256"
 }
 
+{% if environment_variable_files %}
+data "local_file" "environment_variables_files_{{ resource_name }}" {
+  for_each = {for envar_file in {{ environment_variable_files | tojson }}: envar_file => "../${envar_file}"}
+  filename = each.value
+}
+{% endif %}
 
 resource "aws_lambda_function" "{{ resource_name }}" {
   count = local.when_stage
@@ -58,7 +64,7 @@ resource "aws_lambda_permission" "{{ resource_name }}" {
   count = local.when_stage
   statement_id = "AllowExecutionFromAPIGateway"
   action = "lambda:InvokeFunction"
-  function_name = join("", local.{{ resource_name }}_lambda_function.*.function_name)
+  function_name = local.{{ resource_name }}_lambda_function_name
   principal = "apigateway.amazonaws.com"
   source_arn = "${join("", data.aws_api_gateway_rest_api.{{ resource_name }}.*.execution_arn)}/*/*"
   depends_on = [aws_lambda_function.{{ resource_name }}]
