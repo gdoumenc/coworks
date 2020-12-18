@@ -93,15 +93,14 @@ class CwsTerraformDeployer(CwsCommand):
             profile_name = client_options.get('profile_name') or options['profile_name']
             aws_region = boto3.Session(profile_name=profile_name).region_name
 
-            # Generates terraform files and apply terraform if not dry
             if not dry or options.get('stop') == 'create':
-                name = f"{options['module']}-{options['service']}"
                 if debug:
-                    print(f"Generate terraform files for creating API and lambdas for {name}")
-                output = str(Path(terraform.working_dir) / f"{name}.tf")
+                    print(f"Generate terraform files for creating API and lambdas for {command.app.name}")
+                output = str(Path(terraform.working_dir) / f"{command.app.name}.tf")
                 command.app.execute('export', template=["terraform.j2"], output=output, aws_region=aws_region,
                                     step="create", key=key, entries=_entries(command.app), **options)
 
+        # Apply terraform if not dry (create step)
         if not dry:
             msg = ["Create API", "Create lambda"] if create else ["Update API", "Update lambda"]
             cls._terraform_apply_local(terraform, workspace, msg)
@@ -113,13 +112,13 @@ class CwsTerraformDeployer(CwsCommand):
             aws_region = boto3.Session(profile_name=profile_name).region_name
 
             if not dry or options.get('stop') == 'update':
-                name = f"{options['module']}-{options['service']}"
                 if debug:
-                    print(f"Generate terraform files for updating API for {name}")
-                output = str(Path(terraform.working_dir) / f"{name}.tf")
+                    print(f"Generate terraform files for updating API for {command.app.name}")
+                output = str(Path(terraform.working_dir) / f"{command.app.name}.tf")
                 command.app.execute('export', template=["terraform.j2"], output=output, aws_region=aws_region,
                                     step="update", key=key, entries=_entries(command.app), **options)
 
+        # Apply terraform if not dry (update step)
         if not dry:
             cls._terraform_apply_local(terraform, workspace, ["Update API routes", f"Deploy API {workspace}"])
 
@@ -147,7 +146,7 @@ class CwsTerraformDeployer(CwsCommand):
 
     @classmethod
     def bucket_key(cls, command, options):
-        return f"{options['module']}-{command.app.name}"
+        return command.app.name
 
     @staticmethod
     def _terraform_apply_local(terraform, workspace, traces):

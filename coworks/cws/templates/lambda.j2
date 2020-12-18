@@ -38,7 +38,7 @@ resource "aws_lambda_function" "{{ resource_name }}" {
   memory_size = {{ memory_size }}
   {% if environment_variable_files != [] %}
   environment {
-    variables = merge([for item in local.environment_variables_{{ resource_name }}: merge(item,local.environment_variables_{{ resource_name }}...)][0], {"WORKSPACE":"{{ workspace }}"})
+    variables = merge({{ environment_variables | tojson }},[for item in local.environment_variables_{{ resource_name }}: merge(item,local.environment_variables_{{ resource_name }}...)][0], {"WORKSPACE":"{{ workspace }}"})
   }
   {% else %}
   environment {

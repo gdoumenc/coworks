@@ -18,6 +18,7 @@ resource "aws_api_gateway_rest_api" "{{ resource_name }}" {
   binary_media_types = {{ binary_media_types | tojson }}
   {% endif %}
   tags = local.{{ resource_name }}_tags
+
   lifecycle {
     prevent_destroy = {{ 'false' if create else 'true' }}
   }

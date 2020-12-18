@@ -89,6 +89,7 @@ class CwsTemplateWriter(CwsWriter):
             'ms_name': self.app.name,
             'workspace': workspace,
             'app_config': config,
+            'environment_variables': config.environment_variables,
             'environment_variable_files': environment_variable_files,
             'sfn_name': options.get('sfn_name'),
             'account_number': options.get('account_number'),
