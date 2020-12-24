@@ -13,9 +13,10 @@ from .example import TechMS
 
 
 class TestClass:
+
     def test_simple_example(self, local_server_factory):
         local_server = local_server_factory(TechMS())
-        response = local_server.make_call(requests.get, '/')
+        response = local_server.make_call(requests.get, '/', timeout=500)
         assert response.status_code == 200
         assert response.text == "Simple microservice for test.\n"
         response = local_server.make_call(requests.get, '/', params={"usage": "demo"})

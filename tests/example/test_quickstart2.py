@@ -38,7 +38,8 @@ class TestClass:
         response = requests.get(f'http://localhost:{port}/', headers={'Authorization': "token"})
         assert response.text == "Simple microservice ready.\n"
 
-    def test_zip_quickstart2(self, example_dir):
+    def test_zip_quickstart2(self, monkeypatch, example_dir):
+        monkeypatch.setattr(mixins, "AwsS3Session", MockedAwsSession)
         app = import_attr('quickstart2', 'app', cwd=example_dir)
         with pytest.raises(CwsCommandError):
             app.execute('zip', project_dir=example_dir, module='quickstart2', workspace='dev')

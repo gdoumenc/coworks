@@ -47,7 +47,7 @@ class CwsZipArchiver(CwsCommand, Boto3Mixin):
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
 
-            if type(ignore) is not list:
+            if ignore and type(ignore) is not list:
                 ignore = [ignore]
             full_ignore_patterns = functools.partial(ignore_patterns, '*.pyc', '__pycache__', 'bin', 'test', *ignore)
 

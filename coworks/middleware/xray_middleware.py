@@ -1,15 +1,17 @@
 import traceback
 from functools import partial, update_wrapper
 
+from .middleware import Middleware
+
 LAMBDA_NAMESPACE = 'lambda'
 COWORKS_NAMESPACE = 'coworks'
 
 
-class XRayMiddleware:
+class XRayMiddleware(Middleware):
 
     def __init__(self, app, recorder):
-        self.app = app
-        self.app.logger.info("initializing xray middleware")
+        super().__init__(app)
+        app.logger.info("initializing xray middleware")
 
         @app.before_first_activation
         def capture_routes(event, context):

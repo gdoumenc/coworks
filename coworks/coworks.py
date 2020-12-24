@@ -115,17 +115,18 @@ class TechMicroService(CoworksMixin, Chalice):
             logger.setLevel(logging.INFO)
         return logger
 
+    def get_config(self, workspace):
+        for conf in self.configs:
+            if conf.workspace == workspace:
+                return conf
+        return self.configs[0]
+
     def deferred_init(self, workspace):
         if self.entries is None:
             self.entries = defaultdict(Entry)
 
             # Set workspace config
-            for conf in self.configs:
-                if conf.workspace == workspace:
-                    self.config = conf
-                    break
-            if self.config is None:
-                self.config = self.configs[0]
+            self.config = self.get_config(workspace)
 
             # Initializes routes with the global authorization function
             if self.config.auth:
