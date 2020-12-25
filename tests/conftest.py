@@ -2,6 +2,7 @@ import os
 from unittest.mock import Mock, MagicMock
 
 import pytest
+from aws_xray_sdk import core as xray_core
 
 from coworks.cws.fixture import local_server_factory as factory
 from tests.mockup import email_mock, smtp_mock, boto3_mock
@@ -54,3 +55,7 @@ def pytest_sessionstart():
     example_dir = os.getenv('EXAMPLE_DIR')
     if not os.path.exists(example_dir):
         raise pytest.UsageError(f"Undefined example folder: {example_dir} (value defined in pytest.ini).")
+
+    # mock aws
+    xray_core.recorder.capture = lambda _: lambda y: y
+    xray_core.recorder.current_subsegment = lambda: MagicMock()
