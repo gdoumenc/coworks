@@ -1,14 +1,28 @@
 import io
 import threading
 import time
+from unittest.mock import MagicMock
 
 import requests
 
+from coworks import mixins
 from coworks.cws.runner import ThreadedLocalServer
 from coworks.utils import import_attr
 
 
+class MockedAwsSession():
+    mock = MagicMock()
+
+    def __new__(cls, *args, **kwargs):
+        return MockedAwsSession.mock
+
+
 class TestClass:
+
+    def test_init(self, monkeypatch, example_dir):
+        """Force to load the microservice with MockedAwsSession."""
+        monkeypatch.setattr(mixins, "AwsS3Session", MockedAwsSession)
+        import_attr('quickstart2', 'app', cwd=example_dir)
 
     def test_run_quickstart3(self, example_dir):
         app = import_attr('quickstart3', 'app', cwd=example_dir)
@@ -22,7 +36,7 @@ class TestClass:
             counter += 1
         response = requests.get(f'http://localhost:{port}/', headers={'Authorization': "token"})
         assert response.text == "Stored value 0.\n"
-        response = requests.post(f'http://localhost:{port}/', params={'value':1}, headers={'Authorization': "token"})
+        response = requests.post(f'http://localhost:{port}/', params={'value': 1}, headers={'Authorization': "token"})
         assert response.text == "Value stored.\n"
         response = requests.get(f'http://localhost:{port}/', headers={'Authorization': "token"})
         assert response.text == "Stored value 1.\n"

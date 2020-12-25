@@ -26,7 +26,7 @@ def local_server_factory():
         setattr(config, 'lambda_memory_size', 100)
 
         app.deferred_init(workspace)
-        threaded_server.configure(app, app.config)
+        threaded_server.configure(app, config)
         threaded_server.start()
         return threaded_server
 

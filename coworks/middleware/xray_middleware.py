@@ -1,16 +1,13 @@
 import traceback
 from functools import partial, update_wrapper
 
-from .middleware import Middleware
-
 LAMBDA_NAMESPACE = 'lambda'
 COWORKS_NAMESPACE = 'coworks'
 
 
-class XRayMiddleware(Middleware):
+class XRayMiddleware:
 
     def __init__(self, app, recorder):
-        super().__init__(app)
         app.logger.info("initializing xray middleware")
 
         @app.before_first_activation
