@@ -32,7 +32,7 @@ class TestClass:
         server.start()
         counter = 1
         time.sleep(counter)
-        while not server.is_alive() and counter < 3:
+        while not server.is_alive() and counter < 10:
             time.sleep(counter)
             counter += 1
         response = requests.get(f'http://localhost:{port}/', headers={'Authorization': "token"})

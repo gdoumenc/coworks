@@ -4,7 +4,7 @@ from coworks import TechMicroService
 from coworks.config import Config
 from coworks.cws.deployer import CwsTerraformDeployer
 from coworks.cws.runner import CwsRunner, run_with_reloader
-from coworks.middleware import XRayMiddleware
+from coworks.context_manager import XRayContextManager
 
 
 class SimpleMicroService(TechMicroService):
@@ -32,7 +32,7 @@ CONFIG = Config(
 app = SimpleMicroService(name='test', configs=[CONFIG])
 CwsRunner(app)
 CwsTerraformDeployer(app, name='deploy')
-XRayMiddleware(app, recorder)
+XRayContextManager(app, recorder)
 
 if __name__ == '__main__':
     run_with_reloader(app, project_dir='.', module='quickstart3', workspace='dev')
