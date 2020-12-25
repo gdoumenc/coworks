@@ -2,7 +2,6 @@
 coworks.egg-info/
 build/
 dist/
-Pipfile.lock
 
 # Example
 **/example/.sconsign.dblite

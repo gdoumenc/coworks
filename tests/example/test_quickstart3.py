@@ -22,7 +22,7 @@ class TestClass:
     def test_init(self, monkeypatch, example_dir):
         """Force to load the microservice with MockedAwsSession."""
         monkeypatch.setattr(mixins, "AwsS3Session", MockedAwsSession)
-        import_attr('quickstart2', 'app', cwd=example_dir)
+        import_attr('quickstart3', 'app', cwd=example_dir)
 
     def test_run_quickstart3(self, example_dir):
         app = import_attr('quickstart3', 'app', cwd=example_dir)
