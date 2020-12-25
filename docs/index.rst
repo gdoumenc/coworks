@@ -129,7 +129,7 @@ Documentation
   tech
   command
   configuration
-  middleware
+  context_manager
   biz_quickstart
   biz
   api

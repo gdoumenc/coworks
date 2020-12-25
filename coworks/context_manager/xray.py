@@ -46,13 +46,18 @@ class XRayContextManager:
         @app.handle_exception
         def capture_exception(event, context, e):
             try:
-                app.logger.error(event)
-                app.logger.error(context)
-                app.logger.error(e)
-                app.logger.error(traceback.extract_stack())
+                app.logger.error(f"Event: {event}")
+                app.logger.error(f"Context: {context}")
+                app.logger.error(f"Exception: {str(e)}")
+                app.logger.error(traceback.print_exc())
                 subsegment = recorder.current_subsegment
                 if subsegment:
                     subsegment.put_annotation('service', app.name)
                     subsegment.add_exception(e, traceback.extract_stack())
             except Exception:
-                return "", 500
+                return {
+                    'headers': {},
+                    'multiValueHeaders': {},
+                    'statusCode': 500,
+                    'body': "Exception in microservice, see logs in XRay"
+                }
