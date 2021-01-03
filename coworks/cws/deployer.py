@@ -61,6 +61,9 @@ class CwsTerraformDeployer(CwsCommand):
         Step 4. Update API deployment
     """
 
+    ZIP_CMD = 'zip'
+    WRITER_CMD = 'export'
+
     @classmethod
     def multi_execute(cls, project_dir, workspace, client_options, execution_params):
         create = client_options.get('create')
@@ -84,7 +87,7 @@ class CwsTerraformDeployer(CwsCommand):
             print(f"Uploading zip to S3")
             key = options.pop('key') or f"{cls.bucket_key(command, options)}/archive.zip"
             ignore = options.pop('ignore') or ['terraform', '.terraform']
-            command.app.execute('zip', key=key, ignore=ignore, **options)
+            command.app.execute(cls.ZIP_CMD, key=key, ignore=ignore, **options)
 
         # Generates terraform files (create step)
         terraform = Terraform()
@@ -97,7 +100,7 @@ class CwsTerraformDeployer(CwsCommand):
                 if debug:
                     print(f"Generate terraform files for creating API and lambdas for {command.app.name}")
                 output = str(Path(terraform.working_dir) / f"{command.app.name}.tf")
-                command.app.execute('export', template=["terraform.j2"], output=output, aws_region=aws_region,
+                command.app.execute(cls.WRITER_CMD, template=["terraform.j2"], output=output, aws_region=aws_region,
                                     step="create", key=key, entries=_entries(command.app), **options)
 
         # Apply terraform if not dry (create step)
@@ -115,7 +118,7 @@ class CwsTerraformDeployer(CwsCommand):
                 if debug:
                     print(f"Generate terraform files for updating API for {command.app.name}")
                 output = str(Path(terraform.working_dir) / f"{command.app.name}.tf")
-                command.app.execute('export', template=["terraform.j2"], output=output, aws_region=aws_region,
+                command.app.execute(cls.WRITER_CMD, template=["terraform.j2"], output=output, aws_region=aws_region,
                                     step="update", key=key, entries=_entries(command.app), **options)
 
         # Apply terraform if not dry (update step)
@@ -127,9 +130,17 @@ class CwsTerraformDeployer(CwsCommand):
         print(f"terraform output : {out}")
 
     def __init__(self, app=None, name='deploy'):
-        self.zip_cmd = CwsZipArchiver(app)
-        CwsTemplateWriter(app)
+        self.zip_cmd = self.add_zip_command(app)
+        self.writer_cmd = self.add_writer_command(app)
         super().__init__(app, name=name)
+
+    def add_zip_command(self, app):
+        """Default zip command added if not already defined."""
+        return app.commands.get(self.ZIP_CMD) or CwsZipArchiver(app)
+
+    def add_writer_command(self, app):
+        """Default writer command added if not already defined."""
+        return app.commands.get(self.WRITER_CMD) or CwsTemplateWriter(app)
 
     @property
     def options(self):
@@ -203,7 +214,7 @@ class Terraform:
     def output_local(self, workspace):
         self._select_workspace(workspace)
         values = self.terraform.output(capture_output=True)
-        return {key: value['value'] for key, value in values.items()}
+        return {key: value['value'] for key, value in values.items()} if values else "{}"
 
     def _select_workspace(self, workspace):
         return_code, out, err = self.terraform.workspace('select', workspace)
@@ -240,7 +251,7 @@ def _entries(app):
         for prev in splited_route[:-1]:
             previous_uid = add_entry(previous_uid, prev, None)
 
-        # set entryes keys for last entry
+        # set entry keys for last entry
         add_entry(previous_uid, last_path, methods.keys())
 
     return all_pathes_id
