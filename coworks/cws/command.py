@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 import click
 
 from coworks import TechMicroService
-from coworks.cws.error import CwsCommandError
+from .error import CwsCommandError
 
 
 class CwsCommand(click.Command, ABC):

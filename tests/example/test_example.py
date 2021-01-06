@@ -70,7 +70,7 @@ class TestClass:
         assert response.status_code == 200
         assert response.text == "Simple microservice for demo.\n"
 
-    def test_cmd_wront_project_dir(self, example_dir, capsys):
+    def test_cmd_wrong_project_dir(self, example_dir, capsys):
         with pytest.raises(SystemExit) as pytest_wrapped_e:
             client(prog_name='cws', args=['-p', 'tests/example', 'info'], obj={})
         assert pytest_wrapped_e.type == SystemExit

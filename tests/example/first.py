@@ -1,4 +1,4 @@
-from aws_xray_sdk.core import recorder
+from aws_xray_sdk.core import xray_recorder
 
 from coworks import TechMicroService
 from coworks.config import Config
@@ -29,10 +29,10 @@ CONFIG = Config(
     workspace="dev"
 )
 
-app = SimpleMicroService(name='test', configs=[CONFIG])
+app = SimpleMicroService(configs=[CONFIG])
 CwsRunner(app)
 CwsTerraformDeployer(app, name='deploy')
-XRayContextManager(app, recorder)
+XRayContextManager(app, xray_recorder)
 
 if __name__ == '__main__':
     run_with_reloader(app, project_dir='.', module='quickstart3', workspace='dev')

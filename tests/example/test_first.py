@@ -3,6 +3,7 @@ import threading
 import time
 from unittest.mock import MagicMock
 
+import aws_xray_sdk.core as aws_xray_sdk
 import requests
 
 from coworks import mixins
@@ -10,22 +11,22 @@ from coworks.cws.runner import ThreadedLocalServer
 from coworks.utils import import_attr
 
 
-class MockedAwsSession():
+class MockedXRaySession():
     mock = MagicMock()
 
-    def __new__(cls, *args, **kwargs):
-        return MockedAwsSession.mock
+    def capture(self, name):
+        return lambda x: x
+
+    def current_subsegment(self):
+        return MockedXRaySession.mock
 
 
 class TestClass:
 
-    def test_init(self, monkeypatch, example_dir):
-        """Force to load the microservice with MockedAwsSession."""
-        monkeypatch.setattr(mixins, "AwsS3Session", MockedAwsSession)
-        import_attr('quickstart3', 'app', cwd=example_dir)
-
-    def test_run_quickstart3(self, example_dir):
-        app = import_attr('quickstart3', 'app', cwd=example_dir)
+    def test_run_first(self, monkeypatch, s3_session, example_dir):
+        monkeypatch.setattr(mixins, "AwsS3Session", s3_session)
+        monkeypatch.setattr(aws_xray_sdk, "xray_recorder", MockedXRaySession())
+        app = import_attr('first', 'app', cwd=example_dir)
         port = ThreadedLocalServer.unused_tcp_port()
         server = threading.Thread(target=run_server_quickstart, args=(app, port, example_dir), daemon=True)
         server.start()
@@ -41,10 +42,11 @@ class TestClass:
         response = requests.get(f'http://localhost:{port}/', headers={'Authorization': "token"})
         assert response.text == "Stored value 1.\n"
 
-    def test_export_quickstart3(self, example_dir):
-        app = import_attr('quickstart3', 'app', cwd=example_dir)
+    def test_export_first(self, monkeypatch, s3_session, example_dir):
+        monkeypatch.setattr(mixins, "AwsS3Session", s3_session)
+        app = import_attr('first', 'app', cwd=example_dir)
         output = io.StringIO()
-        app.execute('export', project_dir=example_dir, module='quickstart3', workspace='dev', output=output)
+        app.execute('export', project_dir=example_dir, module='first', workspace='dev', output=output)
         output.seek(0)
         print(output.read())
 

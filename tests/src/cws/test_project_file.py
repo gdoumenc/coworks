@@ -63,7 +63,7 @@ class TestClass:
         assert captured.out == "test command with a=project2/test command with b=value"
 
     def test_all_services(self):
-        conf = ProjectConfig('tests/src/cws')
+        conf = ProjectConfig('tests/src/cws', "project")
         services = conf.all_services()
         assert len(services) == 3
         assert ('m1', 's1') in services
@@ -72,7 +72,7 @@ class TestClass:
         assert ('m2', 's3') in services
 
     def test_command0(self):
-        conf = ProjectConfig('tests/src/cws')
+        conf = ProjectConfig('tests/src/cws', "project")
         service_conf = conf.get_service_config('module', 'service', 'dev')
         commands = conf.all_commands
         assert len(commands) == 4
@@ -83,7 +83,7 @@ class TestClass:
         assert options['option_key3'] == "option_value3"
 
     def test_command1(self):
-        conf = ProjectConfig('tests/src/cws')
+        conf = ProjectConfig('tests/src/cws', "project")
         service_conf = conf.get_service_config('module', 'service', 'dev')
         options = service_conf.get_command_options('test_command1')
         assert len(options) == 7
@@ -98,7 +98,7 @@ class TestClass:
         assert options['option_key3'] == "option_value5"
 
     def test_command2_no_service(self):
-        conf = ProjectConfig('tests/src/cws')
+        conf = ProjectConfig('tests/src/cws', "project")
         service_conf = conf.get_service_config('module', 'service', 'dev')
         options = service_conf.get_command_options('test_command2')
         assert len(options) == 6
@@ -106,7 +106,7 @@ class TestClass:
         assert options['option_key2'] == "option_value2"
 
     def test_command2_wrong_service(self):
-        conf = ProjectConfig('tests/src/cws')
+        conf = ProjectConfig('tests/src/cws', "project")
         service_conf = conf.get_service_config('m1', 'service', 'dev')
         options = service_conf.get_command_options('test_command2')
         assert len(options) == 7
@@ -120,7 +120,7 @@ class TestClass:
         assert options['option_key2'] == "option_value4"
 
     def test_command2_service_s1(self):
-        conf = ProjectConfig('tests/src/cws')
+        conf = ProjectConfig('tests/src/cws', "project")
         service_conf = conf.get_service_config('m1', 's1', 'dev')
         options = service_conf.get_command_options('test_command2')
         assert len(options) == 8
@@ -137,7 +137,7 @@ class TestClass:
         assert 'option_key4' not in options
 
     def test_command2_service_s2(self):
-        conf = ProjectConfig('tests/src/cws')
+        conf = ProjectConfig('tests/src/cws', "project")
         service_conf = conf.get_service_config('m1', 's2', 'dev')
         options = service_conf.get_command_options('test_command2')
         assert len(options) == 7

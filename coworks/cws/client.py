@@ -16,10 +16,12 @@ from ..version import __version__
 @click.group()
 @click.version_option(version=__version__, message=f'%(prog)s %(version)s, {get_system_info()}')
 @click.option('-p', '--project-dir', default=DEFAULT_PROJECT_DIR,
-              help='The project directory path (absolute or relative). Defaults to CWD')
+              help=f"The project directory path (absolute or relative) [default to '{DEFAULT_PROJECT_DIR}'].")
+@click.option('-c', '--config_file', help="Configuration file path [path from project dir].")
 @click.option('-m', '--module', help="Filename of your microservice python source file.")
 @click.option('-s', '--service', help="Coworks application in the source file.")
-@click.option('-w', '--workspace', default=DEFAULT_WORKSPACE, help="Application stage.")
+@click.option('-w', '--workspace', default=DEFAULT_WORKSPACE,
+              help=f"Application stage [default to '{DEFAULT_WORKSPACE}'].")
 @click.pass_context
 def client(*args, **kwargs):
     ...
@@ -34,34 +36,24 @@ def invoke(ctx):
 
         command_name = protected_args[0] if protected_args else None
 
-        project_dir = ctx.params.get('project_dir')
-        workspace = ctx.params.get('workspace')
-        module = ctx.params.get('module')
-        service = ctx.params.get('service')
-
-        project_config = ProjectConfig(project_dir)
-        if service:
-            services = [(module, service)]
-        else:
-            services = project_config.all_services(module)
-
-        if not services:
+        cws_options = CwsOptions(ctx.params)
+        if not cws_options.services:
             sys.stderr.write(str("Nothing to execute as no service defined."))
             sys.exit(1)
 
         # Iterates over the declared services in project configuration file
         commands_to_be_executed = defaultdict(list)
-        for module, service in services:
+        for module, service in cws_options.services:
             ctx.args = list(args)
             ctx.protected_args = protected_args
-            service_config = project_config.get_service_config(module, service, workspace)
+            service_config = cws_options.get_service_config(module, service, cws_options.workspace)
 
             # Get command from the microservice
-            handler = get_handler(project_dir, module, service)
+            handler = get_handler(cws_options.project_dir, module, service)
             command = service_config.get_command(command_name, handler)
             if not command:
                 raise CwsClientError(f"Undefined command {command_name}.\n")
-            command_options = service_config.get_command_options(command_name)
+            service_options = service_config.get_command_options(command_name)
 
             # Get user defined options and convert them in right types
             client_options, _, cmd_opts = command.make_parser(ctx).parse_args(ctx.args)
@@ -69,13 +61,14 @@ def invoke(ctx):
                 cmd_opt = next(x for x in cmd_opts if x.name == opt_key)
                 client_options[opt_key] = cmd_opt.type(opt_value)
 
-            execution_params = {**command_options, **client_options}
+            execution_params = {**service_options, **client_options}
             command.make_context(command.name, execution_params)
             commands_to_be_executed[type(command)].append((command, execution_params))
 
         # Executes all commands
         for command_class, execution_params in commands_to_be_executed.items():
-            command_class.multi_execute(project_dir, workspace, client_options, execution_params)
+            command_class.multi_execute(cws_options.project_dir, cws_options.workspace, client_options,
+                                        execution_params)
     except CwsClientError as client_err:
         sys.stderr.write(f"Error in command: {client_err.msg}")
         sys.exit(1)
@@ -87,10 +80,38 @@ def invoke(ctx):
 client.invoke = invoke
 
 
+@dataclass
+class CwsOptions:
+    """Client options defined from click command."""
+    project_dir: str
+    workspace: str
+    module: str
+    service: str
+    config_file:str
+
+    def __init__(self, params):
+        self.project_dir = params.get('project_dir')
+        self.workspace = params.get('workspace')
+        self.module = params.get('module')
+        self.service = params.get('service')
+        self.config_file = params.get('config_file') or "project"
+        self.project_config = ProjectConfig(self.project_dir, self.config_file)
+
+    @property
+    def services(self):
+        """Returns the list of services defined from the client optons"""
+        if self.service:
+            return [(self.module, self.service)]
+        return self.project_config.all_services(self.module)
+
+    def get_service_config(self, module, service, workspace):
+        return ServiceConfig(self.project_config, module, service, workspace)
+
+
 class ProjectConfig:
     """Class for the project configuration file."""
 
-    def __init__(self, project_dir, file_name="cws.project", file_suffix=".yml"):
+    def __init__(self, project_dir, file_name, file_suffix=".cws.yml"):
         from pathlib import Path
         self.project_dir = project_dir
         self.params = {}

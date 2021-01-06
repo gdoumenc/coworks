@@ -188,18 +188,16 @@ class TechMicroService(CoworksMixin, Chalice):
 
     def execute(self, command, *, project_dir, module=None, service=None, workspace, output=None, error=None,
                 **options):
+        from .cws.client import CwsOptions, ProjectConfig
+        from .cws.error import CwsCommandError
+
         """Executes a coworks command."""
         if type(command) is str:
-            from .cws.error import CwsCommandError
-            from .cws.client import ProjectConfig  # only available from client module
-
             module = __name__ if module is None else module
             service = self.name if service is None else service
+            cws_options = CwsOptions({"project_dir":project_dir, 'module':module, 'service': service})
 
-            project_config = ProjectConfig(project_dir)
-            if not project_config.params:
-                self.logger.debug(f"No project parameters defined (check {project_config.project_file} file exists).")
-            service_config = project_config.get_service_config(module, service, workspace)
+            service_config = cws_options.get_service_config(module, service, workspace)
             cmd = service_config.get_command(command, self)
             if not cmd:
                 raise CwsCommandError(f"The command {command} was not added to the microservice {self.name}.\n")

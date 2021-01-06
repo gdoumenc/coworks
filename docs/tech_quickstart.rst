@@ -65,16 +65,16 @@ This command is a combinaison of two other commmands ``CwsZipArchiver`` and ``Cw
             super().__init__(app, name=name)
 
 
-The ``CwsZipArchiver`` is a command to create a zip source file, including python modules and uploading this zip file
+The ``CwsZipArchiver`` is a command to create a zip source file and uploading this zip file
 to AWS S3.
 
 The ``CwsTemplateWriter`` is a command to generate files from Jinja2 templates
-(see `Jinja2 <https://jinja.palletsprojects.com/>`_ for more details on Jinja2). In this command the fils will be
-terraform templates
+(see `Jinja2 <https://jinja.palletsprojects.com/>`_ for more details on Jinja2). In this command the files will be
+terraform files.
 
 And now we can upload the sources files to AWS S3 and apply terraform planifications::
 
-	(project) $ cws -m first -s app deploy -p fpr-customer -b coworks-microservice -c -l arn:aws:lambda:eu-west-1:935392763270:layer:coworks-0_3_3
+	(project) $ cws -m first -s app deploy -p fpr-customer -b coworks-microservice -c -l arn:aws:lambda:eu-west-1:935392763270:layer:coworks-0_3_5
         Are you sure you want to (re)create the API [yN]?:y
         Uploading zip to S3
         Terraform apply (Create API)
@@ -84,43 +84,57 @@ And now we can upload the sources files to AWS S3 and apply terraform planificat
         terraform output : {'first-simplemicroservice': {'id': '3avoth9jcg'}}
 	(project) $
 
-As you can see, the command options are defined after the command itself : ``-p`` for the AWS credential profile,
+As you can see, the command options are defined after the command itself :
+``-p`` for the AWS credential profile,
 ``-b`` for the bucket name (see :ref:`command_definition` for more details on command options).
-The ``-c`` is not really needed but should be used each time you create an API to have good messages.
-It forces to accept API deletion ; this
-may arrive on API modification so it is a good principle to use it only on API creation.
-The ``-l`` is for adding a layer to this lambda function.
+
+The ``-c`` option is not really needed but should be used each time you create an API to have expected messages.
+It forces to accept API deletion ; this may happen on API modification so it is a good principle to use it only on API creation.
+The ``-l`` option is for adding a layer to this lambda function.
 
 In case you cannot use this layer, you can get the content file at
-`Coworks layers <https://coworks-layer.s3-eu-west-1.amazonaws.com/coworks-0.3.3.zip/>`_ and create a layer with it.
+`CoWorks Layers <https://coworks-layer.s3-eu-west-1.amazonaws.com/coworks-0.3.3.zip/>`_ and create a layer with it.
 
 Now we can try our first deployed microservice::
 
 	(project) $ curl -H "Authorization:test" https://3avoth9jcg.execute-api.eu-west-1.amazonaws.com/dev
 	Simple microservice ready.
 
-To complete we had a more complex microservice and the XRay middleware :
+Full project
+------------
 
-.. literalinclude:: ../tests/example/quickstart3.py
+To complete we had a more complex microservice using the XRay context manager :
 
+.. literalinclude:: ../tests/example/first.py
 
-Deletion
---------
+To avoid specifying all the options for the command, a project configuration file may be defined.
+Let's define a very simple one:
 
-Now, to destroy all the ressources created::
+.. literalinclude:: ../tests/example/quickstart.cws.yml
 
-	(project) $ terraform destroy
+A complete description of the syntax for the configuration project file is defined in.
+Then the comand may simply called by:
 
-Finally, to remove the project and its virtual environment::
+.. code-block:: python
 
-	(project) $ exit
-	$ pipenv --rm
-	$ cd ..
-	$ rm -rf project
+	(project) $ cws deploy
+	Uploading zip to S3
+	Terraform apply (Update API)
+	Terraform apply (Update lambda)
+	Terraform apply (Update API routes)
+	Terraform apply (Deploy API dev)
+	terraform output : {'simplemicroservice': {'id': '3avoth9jcg'}}
+	(project) $ curl -H "Authorization:test" https://3avoth9jcg.execute-api.eu-west-1.amazonaws.com/dev
+	Stored value 0.
+	(project) $ curl -H "Authorization:test" -H "Content-Type: application/json" -X POST -d '{"value":10}' https://3avoth9jcg.execute-api.eu-west-1.amazonaws.com/dev
+	Value stored.
+	(project) $ curl -H "Authorization:test" https://3avoth9jcg.execute-api.eu-west-1.amazonaws.com/dev
+	Stored value 10.
+
 
 Commands
 --------
 
-To view all Coworks commands and options::
+To view all CoWorks global options::
 
 	(project) $ cws --help
