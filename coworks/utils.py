@@ -1,11 +1,9 @@
 import importlib
 import inspect
+import json
 import os
 import platform
 import sys
-import json
-from functools import wraps
-from threading import Thread
 
 from aws_xray_sdk.core import xray_recorder
 
@@ -98,15 +96,6 @@ def begin_xray_subsegment(subsegment_name):
 def end_xray_subsegment():
     if xray_recorder.in_subsegment().subsegment is not None:
         return xray_recorder.end_subsegment()
-
-
-def threaded(f):
-    @wraps(f)
-    def threaded_func(*args, **kwargs):
-        thread = Thread(target=f, args=args, kwargs=kwargs)
-        thread.start()
-
-    return threaded_func
 
 
 def get_system_info():

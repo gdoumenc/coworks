@@ -22,7 +22,10 @@ To create your first complete technical microservice, create a file ``first.py``
 
 .. literalinclude:: ../tests/example/quickstart1.py
 
-This first example defines a very simple microservice ``app`` and adds it a local ``run`` command.
+This first example defines a very simple microservice ``app`` with a simple ``GET`` entry ``/``
+(see :ref:`routing` for more details on entry)
+and adds it a local ``run`` command (see :ref:`command` for more details on command).
+
 This ``run`` command is defined by the ``CwsRunner`` extension added to the microservice.
 
 Test this microservice locally::
@@ -30,6 +33,8 @@ Test this microservice locally::
 	(project) $ cws -m first -s app run
 	Serving on http://127.0.0.1:8000
 
+The ``-m`` option defines the python module and ``-s`` the variable in this module implementing the microservice
+(see :ref:`cli` for more details on cws client)
 
 On another terminal enter::
 
@@ -41,77 +46,95 @@ Looks good...
 Deploy the try
 --------------
 
-First we will create an AWS lambda layer::
-
-	(project) $ ln -s "$(pipenv --venv)" python
-	(project) $ zip -r layer.zip python -x "*.pyc" -x "*__pycache__*" -x "python/bin*"
-	(project) $ rm python
-
-A ``layer.zip`` file is then available.
-
-Next, add the default ``CwsTerraformWriter`` extension to add the command to export terraform configuration files
-from the microservice code:
+For that purpose, we add the ``deploy`` command to the microservice defined with the use of ``terraform``
+(see `Terraform <https://www.terraform.io/>`_ for more details on Terraform).
 
 .. literalinclude:: ../tests/example/quickstart2.py
 
-Create the terraform files for deployment::
+We have to add a new function ``auth`` to define an authorizer (see :ref:`auth` for more details on authorizer).
+For this simple test, the authorizer validates all the routes by returning ``True``.
 
-	(project) $ cws -m first -s app export -o app.tf
+As you can see we have added the command ``CwsTerraformDeployer`` to this microservice.
+This command is a combinaison of two other commmands ``CwsZipArchiver`` and ``CwsTemplateWriter``::
 
-This will create an ``app.tf`` terraform file for managing all the ressources needed for this first simple microservice.
+    class CwsTerraformDeployer(CwsCommand):
 
-Enter the following command to initialize terraform::
+        def __init__(self, app=None, name='deploy'):
+            self.zip_cmd = CwsZipArchiver(app)
+            CwsTemplateWriter(app)
+            super().__init__(app, name=name)
 
-	(project) $ terraform init
-	Initializing the backend...
-	...
 
-And now apply the configuration (it will create the resources)::
+The ``CwsZipArchiver`` is a command to create a zip source file and uploading this zip file
+to AWS S3.
 
-	(project) $ terraform apply
-	...
-	Plan: 10 to add, 0 to change, 0 to destroy.
+The ``CwsTemplateWriter`` is a command to generate files from Jinja2 templates
+(see `Jinja2 <https://jinja.palletsprojects.com/>`_ for more details on Jinja2). In this command the files will be
+terraform files.
 
-	Do you want to perform these actions?
-	  Terraform will perform the actions described above.
-	  Only 'yes' will be accepted to approve.
+And now we can upload the sources files to AWS S3 and apply terraform planifications::
 
-	  Enter a value: yes
+	(project) $ cws -m first -s app deploy -p fpr-customer -b coworks-microservice -c -l arn:aws:lambda:eu-west-1:935392763270:layer:coworks-0_3_5
+        Are you sure you want to (re)create the API [yN]?:y
+        Uploading zip to S3
+        Terraform apply (Create API)
+        Terraform apply (Create lambda)
+        Terraform apply (Update API routes)
+        Terraform apply (Deploy API dev)
+        terraform output : {'first-simplemicroservice': {'id': '3avoth9jcg'}}
+	(project) $
 
-	aws_api_gateway_rest_api.test: Creating...
+As you can see, the command options are defined after the command itself :
+``-p`` for the AWS credential profile,
+``-b`` for the bucket name (see :ref:`command_definition` for more details on command options).
 
-Validate the creation by entering ``yes``.  Then, after all the resources have been created, you should get::
+The ``-c`` option is not really needed but should be used each time you create an API to have expected messages.
+It forces to accept API deletion ; this may happen on API modification so it is a good principle to use it only on API creation.
+The ``-l`` option is for adding a layer to this lambda function.
 
-	Apply complete! Resources: 10 added, 0 changed, 0 destroyed.
+In case you cannot use this layer, you can get the content file at
+`CoWorks Layers <https://coworks-layer.s3-eu-west-1.amazonaws.com/coworks-0.3.3.zip/>`_ and create a layer with it.
 
-	Outputs:
+Now we can try our first deployed microservice::
 
-	test = {
-	  "invoke-url" = "https://123456789123.execute-api.eu-west-1.amazonaws.com/dev"
-	}
-
-That's it, your first microservice is online! Let's try it out::
-
-	(project) $ curl https://1aaaaa2bbb3c.execute-api.eu-west-1.amazonaws.com/dev -H "Authorization:token"
+	(project) $ curl -H "Authorization:test" https://3avoth9jcg.execute-api.eu-west-1.amazonaws.com/dev
 	Simple microservice ready.
 
-Deletion
---------
+Full project
+------------
 
-Now, to destroy all the ressources created::
+To complete we had a more complex microservice using the XRay context manager :
 
-	(project) $ terraform destroy
+.. literalinclude:: ../tests/example/first.py
 
-Finally, to remove the project and its virtual environment::
+To avoid specifying all the options for the command, a project configuration file may be defined.
+Let's define a very simple one:
 
-	(project) $ exit
-	$ pipenv --rm
-	$ cd ..
-	$ rm -rf project
+.. literalinclude:: ../tests/example/quickstart.cws.yml
+
+A complete description of the syntax for the configuration project file is defined in.
+Then the comand may simply called by:
+
+.. code-block:: python
+
+	(project) $ cws deploy
+	Uploading zip to S3
+	Terraform apply (Update API)
+	Terraform apply (Update lambda)
+	Terraform apply (Update API routes)
+	Terraform apply (Deploy API dev)
+	terraform output : {'simplemicroservice': {'id': '3avoth9jcg'}}
+	(project) $ curl -H "Authorization:test" https://3avoth9jcg.execute-api.eu-west-1.amazonaws.com/dev
+	Stored value 0.
+	(project) $ curl -H "Authorization:test" -H "Content-Type: application/json" -X POST -d '{"value":10}' https://3avoth9jcg.execute-api.eu-west-1.amazonaws.com/dev
+	Value stored.
+	(project) $ curl -H "Authorization:test" https://3avoth9jcg.execute-api.eu-west-1.amazonaws.com/dev
+	Stored value 10.
+
 
 Commands
 --------
 
-To view all Coworks commands and options::
+To view all CoWorks global options::
 
 	(project) $ cws --help

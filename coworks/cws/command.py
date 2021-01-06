@@ -4,13 +4,13 @@ from abc import ABC, abstractmethod
 import click
 
 from coworks import TechMicroService
-from coworks.cws.error import CwsCommandError
+from .error import CwsCommandError
 
 
 class CwsCommand(click.Command, ABC):
 
     @classmethod
-    def multi_execute(cls, project_dir, workspace, execution_params):
+    def multi_execute(cls, project_dir, workspace, client_options, execution_params):
         for command, options in execution_params:
             command.execute(**options)
 
@@ -37,9 +37,6 @@ class CwsCommand(click.Command, ABC):
         for cmd in self.needed_commands:
             if cmd not in app.commands:
                 raise CwsCommandError(f"Undefined command {cmd} needed.")
-
-            for opt in self.app.commands[cmd].options:
-                opt(self)
 
     @property
     def needed_commands(self):

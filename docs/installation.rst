@@ -48,6 +48,8 @@ and configured the
 Terraform
 *********
 
+*If you have previously installed terraform then you can skip this section.*
+
 For deployment, ``chalice`` provide a very simple and powerfull deployment command (``deploy``) but we prefer using
 ``terraform`` as it allows more controls on the architecture.
 
@@ -58,20 +60,5 @@ Follow these `instructions <https://www.terraform.io/downloads.html>`_ to instal
 Terraform can also be used `online <https://www.terraform.io>`_.
 
 You now have everything you need to create your first micro-service :ref:`tech_quickstart`
-
-PostgreSQL and MariaDB
-**********************
-
-If you want to use the predefined Coworks SQL microservices, then on Debian/Ubuntu:
-
-postgreSQL::
-
-    sudo apt-get install libpq-dev
-
-mariaDB::
-
-    sudo apt-get install libmariadbclient-dev
-
-
 
 

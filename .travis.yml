@@ -6,7 +6,7 @@ before_install:
 install:
   - pip install -U pip
   - pip install pipenv
-  - pipenv install --dev
+  - PIPENV_IGNORE_VIRTUALENVS=1 pipenv install --dev
 script:
   - pipenv run coverage run -m pytest
   - pipenv run coverage xml

@@ -30,16 +30,3 @@ commands:
           - worskpace: dev
             class: coworks.cws.runner.CwsMyRunner
             port: 8001
-  deploy:
-    class: coworks.cws.CwsDeployer
-    services:
-      - module: app2
-        config:
-          - common-layers: ["fpr"]
-            binary-media-types: []
-          - workspace: dev
-            environment_variables_file: "../src/dev_vars_app.json"
-            custom-layers: ["layer_dev"]
-          - workspace: prod
-            environment_variables_file: "../src/prod_vars_app.json"
-            custom-layers: ["layer_prod"]

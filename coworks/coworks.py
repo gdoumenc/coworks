@@ -1,19 +1,18 @@
 import json
 import logging
 import os
-import sys
 from collections import defaultdict
 from threading import Lock
 from typing import Dict, List, Union
 
-from aws_xray_sdk.core import xray_recorder
-from chalice import BadRequestError, Rate, Cron
+from chalice import AuthResponse, BadRequestError, Rate, Cron
 from chalice import Chalice, Blueprint as ChaliceBlueprint
+from chalice.app import AuthRequest
 from requests_toolbelt.multipart import MultipartEncoder
 
 from .config import Config
 from .mixins import Entry, CoworksMixin, AwsSFNSession
-from .utils import class_auth_methods, make_absolute
+from .utils import class_auth_methods
 
 
 class Blueprint(CoworksMixin, ChaliceBlueprint):
@@ -95,7 +94,9 @@ class TechMicroService(CoworksMixin, Chalice):
         self._got_first_activation = False
         self._before_activation_lock = Lock()
 
+        # Global authorization function defined for all entries (used if specifi one not defined)
         self.__auth__ = None
+
         self.entries = None
         self.sfn_call = False
 
@@ -114,19 +115,20 @@ class TechMicroService(CoworksMixin, Chalice):
             logger.setLevel(logging.INFO)
         return logger
 
+    def get_config(self, workspace):
+        for conf in self.configs:
+            if conf.workspace == workspace:
+                return conf
+        return self.configs[0]
+
     def deferred_init(self, workspace):
         if self.entries is None:
             self.entries = defaultdict(Entry)
 
             # Set workspace config
-            for conf in self.configs:
-                if conf.workspace == workspace:
-                    self.config = conf
-                    break
-            if self.config is None:
-                self.config = self.configs[0]
+            self.config = self.get_config(workspace)
 
-            # Initializes routes
+            # Initializes routes with the global authorization function
             if self.config.auth:
                 self.__auth__ = self._create_auth_proxy(self.config.auth)
             else:
@@ -154,6 +156,7 @@ class TechMicroService(CoworksMixin, Chalice):
         self.blueprints[url_prefix] = blueprint
 
         def deferred(workspace):
+            """Global authorization function for the blueprint may be redefined or is the service's one."""
             auth = self._create_auth_proxy(authorizer) if authorizer else self.__auth__
             blueprint._init_routes(self, url_prefix=url_prefix, authorizer=auth, hide_routes=hide_routes)
             super(TechMicroService, self).register_blueprint(blueprint, url_prefix=url_prefix)
@@ -161,10 +164,10 @@ class TechMicroService(CoworksMixin, Chalice):
         self.deferred_inits.append(deferred)
 
     def entry(self, route):
-        route = make_absolute(route)
-        route_pathes = route.split('/')
+        """Finds the entry corresponding to the route."""
+        route_pathes = [x for x in route.split('/') if x]
         for entry, result in self.entries.items():
-            entry_pathes = entry.split('/')
+            entry_pathes = [x for x in entry.split('/') if x]
             if len(route_pathes) != len(entry_pathes):
                 continue
 
@@ -185,23 +188,24 @@ class TechMicroService(CoworksMixin, Chalice):
 
     def execute(self, command, *, project_dir, module=None, service=None, workspace, output=None, error=None,
                 **options):
-        """Executes a coworks command."""
+        from .cws.client import CwsOptions, ProjectConfig
         from .cws.error import CwsCommandError
-        from .cws.client import ProjectConfig  # only available from client module
 
-        module = __name__ if module is None else module
-        service = self.name if service is None else service
+        """Executes a coworks command."""
+        if type(command) is str:
+            module = __name__ if module is None else module
+            service = self.name if service is None else service
+            cws_options = CwsOptions({"project_dir":project_dir, 'module':module, 'service': service})
 
-        project_config = ProjectConfig(project_dir)
-        if not project_config.params:
-            self.logger.debug(f"No project parameters defined (check {project_config.project_file} file exists).")
-        service_config = project_config.get_service_config(module, service, workspace)
-        cmd = service_config.get_command(command, self)
-        if not cmd:
-            raise CwsCommandError(f"The command {command} was not added to the microservice {self.name}.\n")
-        command_options = service_config.get_command_options(command)
-        execution_params = {**command_options, **options}
-        cmd.execute(output=output, error=error, **execution_params)
+            service_config = cws_options.get_service_config(module, service, workspace)
+            cmd = service_config.get_command(command, self)
+            if not cmd:
+                raise CwsCommandError(f"The command {command} was not added to the microservice {self.name}.\n")
+            command_options = service_config.get_command_options(command)
+            execution_params = {**command_options, **options}
+            cmd.execute(output=output, error=error, **execution_params)
+        else:
+            command.execute(output=output, error=error, **options)
 
     def __call__(self, event, context):
         """Lambda handler."""
@@ -212,7 +216,7 @@ class TechMicroService(CoworksMixin, Chalice):
             return self.do_after_activation(response)
         except Exception as e:
             print(f"exception: {e}")
-            response = self.do_handle_exception(e)
+            response = self.do_handle_exception(event, context, e)
             if response is None:
                 raise
             return response
@@ -225,12 +229,15 @@ class TechMicroService(CoworksMixin, Chalice):
             self.logger.debug(f"Calling {self.name} for authorization")
 
             route = event.get('methodArn').split('/', 3)[-1]
-            authorizer = self.entry(f'/{route}').authorizer
-            if authorizer:
+            try:
+                authorizer = self.entry(f'/{route}').authorizer
                 return authorizer(event, context)
+            except:
+                pass
 
             self.logger.debug(f"Undefined authorization method for {self.name} ")
-            return 'Unauthorized', 403
+            request = AuthRequest(event['type'], event['authorizationToken'], event['methodArn'])
+            return AuthResponse(routes=[], principal_id='user').to_dict(request)
 
         # step function call
         if event.get('type') == 'CWS_SFN':
@@ -303,10 +310,10 @@ class TechMicroService(CoworksMixin, Chalice):
                 response = resp
         return response
 
-    def do_handle_exception(self, exc):
+    def do_handle_exception(self, event, context, exc):
         """Calls all exception handlers."""
         for func in reversed(self.handle_exception_funcs):
-            resp = func(exc)
+            resp = func(event, context, exc)
             if resp is not None:
                 return resp
 

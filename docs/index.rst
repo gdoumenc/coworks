@@ -3,6 +3,17 @@
   :alt: Coworks Logo
   :target: https://coworks.readthedocs.io/en/latest/?badge=latest
 
+.. image:: https://img.shields.io/travis/com/gdoumenc/coworks?style=plastic
+    :alt: Travis (.com)
+.. image:: https://img.shields.io/readthedocs/coworks?style=plastic
+    :alt: Read the Docs
+.. image:: https://img.shields.io/codecov/c/github/gdoumenc/coworks?style=plastic
+    :alt: Codecov.. image:: https://codecov.io/gh/gdoumenc/coworks/branch/dev/graph/badge.svg
+.. image:: https://img.shields.io/pypi/pyversions/coworks?style=plastic
+    :alt: PyPI - Python Version
+.. image:: https://img.shields.io/github/license/gdoumenc/coworks?style=plastic
+    :alt: GitHub
+
 Introduction
 ============
 
@@ -118,7 +129,7 @@ Documentation
   tech
   command
   configuration
-  middleware
+  context_manager
   biz_quickstart
   biz
   api

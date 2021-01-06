@@ -4,6 +4,15 @@ Changelogs
 ==========
 
 
+Version 0.4
+^^^^^^^^^^^
+
+First released 2021-01-6
+
+* Global project configuration file.
+* Deployer command using terraform.
+* Context manager defined.
+
 Version 0.3
 ^^^^^^^^^^^
 

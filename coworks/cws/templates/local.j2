@@ -1,0 +1,91 @@
+# ---------------------------------------------------------------------------------------------------------------------
+# LOCAL FOR THIS CUSTOMER
+# ---------------------------------------------------------------------------------------------------------------------
+
+locals {
+    when_default = terraform.workspace == "default" ? 1 : 0
+    when_stage = terraform.workspace != "default" ? 1 : 0
+}
+
+locals {
+  {{ resource_name }}_bucket = "{{ bucket }}"
+  {{ resource_name }}_key = "{{ key }}"
+  {{ resource_name }}_python = "python3.7"
+  {{ resource_name }}_role_arn = join("", aws_iam_role.microservice.*.arn, data.aws_iam_role.microservice.*.arn)
+  {{ resource_name }}_security_group_ids = []
+  {{ resource_name }}_vpc_id = []
+  {{ resource_name }}_subnet_ids = []
+  {{ resource_name }}_tags = {
+    Product: "microservice"
+    Creator: "coworks"
+  }
+}
+
+{% if layers %}
+data "aws_lambda_layer_version" "{{ resource_name }}" {
+  for_each = {for layer_name in [{% for  layer in layers %}"{{ layer }}"{% endfor %}]: layer_name => layer_name}
+  layer_name = each.value
+}
+locals {
+  {{ resource_name }}_layer_arns = [for layer in data.aws_lambda_layer_version.{{ resource_name }} : layer.arn]
+}
+{% endif %}
+
+
+resource "aws_iam_role" "microservice" {
+  count = local.when_default
+  name = "{{ resource_name }}_microservice_role"
+
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "Service": [
+          "lambda.amazonaws.com",
+          "apigateway.amazonaws.com"
+        ]
+      },
+      "Effect": "Allow",
+      "Sid": ""
+    }
+  ]
+}
+EOF
+
+  tags = {
+    Product: "microservice"
+    Creator: "coworks"
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "s3" {
+  count = local.when_default
+  role = join("", aws_iam_role.microservice.*.name)
+  policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "cloud_watch" {
+  count = local.when_default
+  role = join("", aws_iam_role.microservice.*.name)
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+}
+
+resource "aws_iam_role_policy_attachment" "xray" {
+  count = local.when_default
+  role = join("", aws_iam_role.microservice.*.name)
+  policy_arn = "arn:aws:iam::aws:policy/AWSXrayFullAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "step_functions" {
+  count = local.when_default
+  role = join("", aws_iam_role.microservice.*.name)
+  policy_arn = "arn:aws:iam::aws:policy/AWSStepFunctionsFullAccess"
+}
+
+data "aws_iam_role" "microservice" {
+  count = local.when_stage
+  name = "{{ resource_name }}_microservice_role"
+}

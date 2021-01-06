@@ -6,6 +6,8 @@ TechMS
 TechMicroservices are the 'atoms' of the Coworks microservices framework. They represent the building blocks
 for other more complex microservices.
 
+.. _routing:
+
 Routing
 -------
 
@@ -175,6 +177,15 @@ object for you.
 
 If none of that works, ``Coworks`` will assume the return value is a valid
 ``Chalice`` `Response <https://chalice.readthedocs.io/en/latest/api.html#Response>`_ instance.
+
+.. _auth:
+
+Authorizer
+----------
+
+Global authorizer allow to control route access.
+
+
 
 .. _blueprint:
 

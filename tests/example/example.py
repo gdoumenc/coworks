@@ -7,7 +7,7 @@ from coworks import TechMicroService
 from coworks.config import Config
 from coworks.cws.command import CwsCommand
 from coworks.cws.runner import CwsRunner
-from coworks.cws.writer import CwsTerraformWriter
+from coworks.cws.writer import CwsTemplateWriter
 
 
 class TestCmd(CwsCommand):
@@ -62,7 +62,7 @@ class TechMS(TechMicroService):
 # usefull for test info (don't remove)
 tech_app = TechMS()
 TestCmd(tech_app, name='test')
-CwsTerraformWriter(tech_app)
+CwsTemplateWriter(tech_app)
 
 app = TechMS(configs=Config(environment_variables_file="config/vars_dev.json"))
 TestCmd(tech_app, name='test')

@@ -140,6 +140,8 @@ This command may be used to deal with complex deployments, mainly for staging or
 
 A more complete usage of this command is explained in the :ref:`tech_deployment` chapter.
 
+.. _command_definition:
+
 Defining a new command
 ----------------------
 

@@ -2,7 +2,7 @@ from unittest.mock import Mock
 
 import requests
 
-from coworks.middleware.xray_middleware import XRayMiddleware
+from coworks.context_manager import XRayContextManager
 from tests.src.coworks.tech_ms import *
 
 
@@ -89,7 +89,7 @@ class TestClass:
 
     def test_xray_middleware(self, local_server_factory):
         simple = SimpleMS()
-        XRayMiddleware(simple, xray_recorder)
+        XRayContextManager(simple, xray_recorder)
         local_server = local_server_factory(simple)
         response = local_server.make_call(requests.get, '/')
         assert response.status_code == 200

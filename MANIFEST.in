@@ -1,2 +1,3 @@
-include docs/img/*
-include coworks/cws/writer/templates/*
+graft docs/img
+graft coworks/cws/templates
+prune tests

@@ -17,7 +17,9 @@ class CwsFactory(CLIFactory):
                 os.environ[key] = val
         return self.app
 
-    def mock_config_obj(self, app):
+    def create_config_obj(self, chalice_stage_name='DEFAULT_STAGE_NAME',
+                          autogen_policy=None,
+                          api_gateway_stage=None):
         default_params = {
             'project_dir': self.project_dir,
             'api_gateway_stage': DEFAULT_APIGATEWAY_STAGE_NAME,
@@ -34,7 +36,5 @@ class CwsFactory(CLIFactory):
                         config_from_disk=config_from_disk,
                         default_params=default_params)
 
-        config._chalice_app = app
+        config._chalice_app = self.app
         return config
-
-

@@ -5,11 +5,10 @@ LAMBDA_NAMESPACE = 'lambda'
 COWORKS_NAMESPACE = 'coworks'
 
 
-class XRayMiddleware:
+class XRayContextManager:
 
     def __init__(self, app, recorder):
-        self.app = app
-        self.app.logger.info("initializing xray middleware")
+        app.logger.info("initializing xray middleware")
 
         @app.before_first_activation
         def capture_routes(event, context):
@@ -45,12 +44,20 @@ class XRayMiddleware:
                     entry.view_function.__cws_func__ = recorder.capture(cws_function.__name__)(wrapped_fun)
 
         @app.handle_exception
-        def capture_exception(e):
-            app.logger.error(e)
-            app.logger.error(traceback.extract_stack())
-            subsegment = recorder.current_subsegment
-            if subsegment:
-                subsegment.put_annotation('service', app.name)
-                subsegment.add_exception(e, traceback.extract_stack())
-
-            return 'Exception in microservice', 200
+        def capture_exception(event, context, e):
+            try:
+                app.logger.error(f"Event: {event}")
+                app.logger.error(f"Context: {context}")
+                app.logger.error(f"Exception: {str(e)}")
+                app.logger.error(traceback.print_exc())
+                subsegment = recorder.current_subsegment
+                if subsegment:
+                    subsegment.put_annotation('service', app.name)
+                    subsegment.add_exception(e, traceback.extract_stack())
+            except Exception:
+                return {
+                    'headers': {},
+                    'multiValueHeaders': {},
+                    'statusCode': 500,
+                    'body': "Exception in microservice, see logs in XRay"
+                }

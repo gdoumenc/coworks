@@ -1,0 +1,71 @@
+locals {
+    {% if environment_variable_files %}
+    environment_variables_{{ resource_name }} = [
+        for envars_string in data.local_file.environment_variables_files_{{ resource_name }}: jsondecode(envars_string.content)
+    ]
+    {% endif %}
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# LAMBDA
+# ---------------------------------------------------------------------------------------------------------------------
+
+data "aws_s3_bucket_object" "{{ resource_name }}-b64sha256" {
+  bucket = local.{{ resource_name }}_bucket
+  key = "${local.{{ resource_name }}_key}.b64sha256"
+}
+
+{% if environment_variable_files %}
+data "local_file" "environment_variables_files_{{ resource_name }}" {
+  for_each = {for envar_file in {{ environment_variable_files | tojson }}: envar_file => "../${envar_file}"}
+  filename = each.value
+}
+{% endif %}
+
+resource "aws_lambda_function" "{{ resource_name }}" {
+  count = local.when_stage
+  function_name = "{{ resource_name }}-${terraform.workspace}"
+  s3_bucket = local.{{ resource_name }}_bucket
+  s3_key = local.{{ resource_name }}_key
+  source_code_hash =  data.aws_s3_bucket_object.{{ resource_name }}-b64sha256.body
+  role = local.{{ resource_name }}_role_arn
+  handler = "{{ module_file }}.{{ handler }}"
+  {% if layers %}
+  layers = local.{{ resource_name }}_layer_arns
+  {% endif %}
+  runtime = local.{{ resource_name }}_python
+  timeout = {{ timeout }}
+  memory_size = {{ memory_size }}
+  {% if environment_variable_files != [] %}
+  environment {
+    variables = merge({{ environment_variables | tojson }},[for item in local.environment_variables_{{ resource_name }}: merge(item,local.environment_variables_{{ resource_name }}...)][0], {"WORKSPACE":"{{ workspace }}"})
+  }
+  {% else %}
+  environment {
+    variables = {"WORKSPACE":"{{ workspace }}"}
+  }
+  {% endif %}
+  tracing_config {
+    mode = "Active"
+  }
+  vpc_config {
+    security_group_ids = local.{{ resource_name }}_security_group_ids
+    subnet_ids = local.{{ resource_name }}_subnet_ids
+  }
+  tags = local.{{ resource_name }}_tags
+}
+
+data "aws_lambda_function" "{{ resource_name }}" {
+  count = {{ 'local.when_default' if step == "update" else 0}}
+  function_name = "{{ resource_name }}-{{ workspace }}"
+}
+
+resource "aws_lambda_permission" "{{ resource_name }}" {
+  count = local.when_stage
+  statement_id = "AllowExecutionFromAPIGateway"
+  action = "lambda:InvokeFunction"
+  function_name = local.{{ resource_name }}_lambda_function_name
+  principal = "apigateway.amazonaws.com"
+  source_arn = "${join("", data.aws_api_gateway_rest_api.{{ resource_name }}.*.execution_arn)}/*/*"
+  depends_on = [aws_lambda_function.{{ resource_name }}]
+}
