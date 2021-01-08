@@ -19,22 +19,26 @@ class XRayContextManager:
 
                     def captured(_view_function, *args, **kwargs):
                         subsegment = recorder.current_subsegment()
-                        subsegment.put_metadata('event', event, LAMBDA_NAMESPACE)
-                        subsegment.put_metadata('context', context, LAMBDA_NAMESPACE)
-                        subsegment.put_annotation('service', app.name)
-                        subsegment.put_metadata('query_params', app.current_request.query_params, COWORKS_NAMESPACE)
-                        if app.current_request.raw_body:
-                            subsegment.put_metadata('json_body', app.current_request.json_body, COWORKS_NAMESPACE)
+                        if subsegment:
+                            subsegment.put_metadata('event', event, LAMBDA_NAMESPACE)
+                            subsegment.put_metadata('context', context, LAMBDA_NAMESPACE)
+                            subsegment.put_annotation('service', app.name)
+                            subsegment.put_metadata('query_params', app.current_request.query_params, COWORKS_NAMESPACE)
+                            if app.current_request.raw_body:
+                                subsegment.put_metadata('json_body', app.current_request.json_body, COWORKS_NAMESPACE)
                         response = _view_function(*args, **kwargs)
-                        subsegment.put_metadata('response', response, COWORKS_NAMESPACE)
+                        if subsegment:
+                            subsegment.put_metadata('response', response, COWORKS_NAMESPACE)
                         return response
 
                     def captured_entry(_cws_function, *args, **kwargs):
                         subsegment = recorder.current_subsegment()
-                        subsegment.put_metadata('args', args, COWORKS_NAMESPACE)
-                        subsegment.put_metadata('kwargs', kwargs, COWORKS_NAMESPACE)
+                        if subsegment:
+                            subsegment.put_metadata('args', args, COWORKS_NAMESPACE)
+                            subsegment.put_metadata('kwargs', kwargs, COWORKS_NAMESPACE)
                         response = _cws_function(*args, **kwargs)
-                        subsegment.put_metadata('response', response, COWORKS_NAMESPACE)
+                        if subsegment:
+                            subsegment.put_metadata('response', response, COWORKS_NAMESPACE)
                         return response
 
                     wrapped_fun = update_wrapper(partial(captured, view_function), view_function)

@@ -13,7 +13,10 @@ from .. import Blueprint
 
 
 class Odoo(Blueprint, Boto3Mixin):
-    def __init__(self, url_env_var_name='URL', dbname_env_var_name='DBNAME', user_env_var_name='USER', passwd_env_var_name='PASSWD', **kwargs):
+    """Odoo blueprint."""
+
+    def __init__(self, url_env_var_name='URL', dbname_env_var_name='DBNAME', user_env_var_name='USER',
+                 passwd_env_var_name='PASSWD', **kwargs):
         super().__init__(**kwargs)
         self.url = self.dbname = self.user = self.passwd = None
         self.url_env_var_name = url_env_var_name
@@ -24,23 +27,27 @@ class Odoo(Blueprint, Boto3Mixin):
 
     def get(self):
         """Check the connection."""
-        self.connect()
-        return "connected"
+        try:
+            self.connect()
+            return "connected"
+        except Exception as e:
+            return str(e), 404
 
     def get_model(self, model: str, searched_field: str, searched_value, fields=None, ensure_one=False, **kwargs):
         """Returns the list of objects or the object which searched_field is equal to the searched_value."""
+        filters = [[(searched_field, '=', searched_value)]] if searched_field else [[]]
         fields = fields or ['id']
-        results = self.search(model, [[(searched_field, '=', searched_value)]], fields=fields, **kwargs)
+        results = self.search(model, filters, fields=fields, ensure_one=ensure_one, **kwargs)
         return results
 
-    def get_fields(self, model, searched_field, searched_value, returned_fields=None):
+    def get_fields(self, model, searched_field, searched_value, fields=None):
         """Returns the value of the object which searched_field is equal to the searched_value."""
-        returned_fields = returned_fields or ['id']
-        return self.get_model(model, searched_field, searched_value, fields=returned_fields, ensure_one=True)
+        fields = fields or ['id']
+        return self.get_model(model, searched_field, searched_value, fields=fields, ensure_one=True)
 
-    def get_field(self, model, searched_field, searched_value, returned_field='id'):
+    def get_field(self, model, searched_field, searched_value, fields='id'):
         """Returns the value of the object which searched_field is equal to the searched_value."""
-        return self.get_model(model, searched_field, searched_value, fields=[returned_field], ensure_one=True)[0]
+        return self.get_model(model, searched_field, searched_value, fields=[fields], ensure_one=True)[0]
 
     def get_id(self, model, searched_field, searched_value):
         """Returns the id of the object which searched_field is equal to the searched_value."""
@@ -65,7 +72,8 @@ class Odoo(Blueprint, Boto3Mixin):
         try:
             subsegment = xray_recorder.current_subsegment()
             if subsegment:
-                subsegment.put_metadata("connection", f"Connection parameters: {self.url}, {self.dbname}, {self.user}, {self.passwd}")
+                subsegment.put_metadata("connection",
+                                        f"Connection parameters: {self.url}, {self.dbname}, {self.user}, {self.passwd}")
 
             # initialize xml connection to odoo
             common = client.ServerProxy(f'{self.url}/xmlrpc/2/common')

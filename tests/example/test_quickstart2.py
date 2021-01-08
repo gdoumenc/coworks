@@ -1,6 +1,5 @@
 import threading
 import time
-from unittest.mock import MagicMock
 
 import pytest
 import requests
@@ -11,11 +10,6 @@ from coworks.cws.runner import ThreadedLocalServer
 from coworks.utils import import_attr
 
 
-
-import pytest
-
-
-@pytest.mark.wip
 class TestClass:
 
     def test_run_quickstart2(self, monkeypatch, s3_session, example_dir):

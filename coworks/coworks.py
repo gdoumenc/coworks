@@ -142,7 +142,7 @@ class TechMicroService(CoworksMixin, Chalice):
             for blueprint in self.iter_blueprints():
                 blueprint.deferred_init(workspace)
 
-    def register_blueprint(self, blueprint: Blueprint, url_prefix=None, authorizer=None, hide_routes=False):
+    def register_blueprint(self, blueprint: Blueprint, url_prefix='', authorizer=None, hide_routes=False):
         """ Register a :class:`Blueprint` on the microservice.
 
         :param blueprint: blueprint to register.
