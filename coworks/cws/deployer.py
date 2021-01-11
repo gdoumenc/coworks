@@ -11,11 +11,11 @@ from typing import List
 import boto3
 import click
 
-from coworks import TechMicroService
-from coworks.config import CORSConfig
 from .command import CwsCommand, CwsCommandError
 from .writer import CwsTemplateWriter
 from .zip import CwsZipArchiver
+from ..config import CORSConfig
+from ..coworks import TechMicroService
 
 UID_SEP = '_'
 

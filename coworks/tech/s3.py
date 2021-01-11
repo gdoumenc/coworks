@@ -2,11 +2,10 @@ import json
 
 from chalice import BadRequestError, NotFoundError
 
-from ..coworks import TechMicroService
-from ..mixins import Boto3Mixin
+from ..coworks import TechMicroService, aws
 
 
-class S3MicroService(Boto3Mixin, TechMicroService):
+class S3MicroService(aws.Boto3Mixin, TechMicroService):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

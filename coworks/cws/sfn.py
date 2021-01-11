@@ -1,12 +1,12 @@
 import json
 import os
 import pathlib
-import click
 from abc import ABC, abstractmethod
 
+import click
 import yaml
 
-from coworks.cws.writer import CwsWriter, CwsWriterError, CwsTemplateWriter
+from .writer import CwsWriter, CwsWriterError
 
 INITIAL_STATE_NAME = "Init"
 LAMBDA_ERROR_FALLBACK = "MicroServiceErrorFallback"
@@ -27,7 +27,7 @@ class CwsSFNTranslater(CwsWriter):
 
     def _export_header(self, **options):
         ...
-    
+
     def _export_content(self, *, project_dir, module, **options):
         module_path = module.split('.')
         step_functions = {}
@@ -286,9 +286,11 @@ class TechState(PassState):
         try:
             res = self.get_or_raise(tech_data, 'service')
             if kwargs.get('customer'):
-                self.state['Resource'] = f"arn:aws:lambda:eu-west-1:{kwargs['account_number']}:function:{res}-{kwargs.get('customer')}-{workspace}"
+                self.state[
+                    'Resource'] = f"arn:aws:lambda:eu-west-1:{kwargs['account_number']}:function:{res}-{kwargs.get('customer')}-{workspace}"
             else:
-                self.state['Resource'] = f"arn:aws:lambda:eu-west-1:{kwargs['account_number']}:function:{res}-{workspace}"
+                self.state[
+                    'Resource'] = f"arn:aws:lambda:eu-west-1:{kwargs['account_number']}:function:{res}-{workspace}"
             self.state["InputPath"] = f"$"
             result_path = tech_data.get('result_path')
             self.state["ResultPath"] = result_path if result_path else f"$.{self.slug}.result"

@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import aws_xray_sdk.core as aws_xray_sdk
 import requests
 
-from coworks import mixins
+from coworks import aws
 from coworks.cws.runner import ThreadedLocalServer
 from coworks.utils import import_attr
 
@@ -24,7 +24,7 @@ class MockedXRaySession():
 class TestClass:
 
     def test_run_first(self, monkeypatch, s3_session, example_dir):
-        monkeypatch.setattr(mixins, "AwsS3Session", s3_session)
+        monkeypatch.setattr(aws, "AwsS3Session", s3_session)
         monkeypatch.setattr(aws_xray_sdk, "xray_recorder", MockedXRaySession())
         app = import_attr('first', 'app', cwd=example_dir)
         port = ThreadedLocalServer.unused_tcp_port()
@@ -43,7 +43,7 @@ class TestClass:
         assert response.text == "Stored value 1.\n"
 
     def test_export_first(self, monkeypatch, s3_session, example_dir):
-        monkeypatch.setattr(mixins, "AwsS3Session", s3_session)
+        monkeypatch.setattr(aws, "AwsS3Session", s3_session)
         app = import_attr('first', 'app', cwd=example_dir)
         output = io.StringIO()
         app.execute('export', project_dir=example_dir, module='first', workspace='dev', output=output)

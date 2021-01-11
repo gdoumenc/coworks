@@ -1,3 +1,4 @@
+import datetime
 from dataclasses import dataclass
 
 from aws_xray_sdk.core import xray_recorder
@@ -25,11 +26,22 @@ class SimpleOdooMicroService(TechMicroService):
             autoescape=select_autoescape(['html', 'xml'], default_for_string=True)
         )
 
-    def get_invoices(self):
-        invoices = self.entry('/model/{0}/{1}/{2}').call_get('account.invoice', "id", 3329, fields=['id', 'name', 'amount_untaxed'],
-                                                             limit=5000)
+    @property
+    def invoices(self):
+        domain = [("date_invoice", '=', datetime.date.today().strftime("%Y-%m-%d"))]
+        return self.entry('/model/{0}/{1}').call_get('account.invoice', domain,
+                                                     fields=['id', 'name', 'amount_untaxed'],
+                                                     limit=5000)
         # invoices = self.entry_get('/model', 'account.invoice', "id", 3329, fields=['id', 'name'], limit=5000)
-        return jsonify(invoices)
+
+    def get_invoices(self):
+        return jsonify(self.invoices)
+
+    def get_table(self):
+        template_filename = 'table.j2'
+        template = self.jinja_env.get_template(template_filename)
+        headers = {'Content-Type': 'text/html; charset=utf-8'}
+        return template.render({'invoices': self.invoices}), 200, headers
 
     def get_dashboard(self):
         template_filename = 'dashboard.j2'

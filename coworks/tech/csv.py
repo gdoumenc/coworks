@@ -5,14 +5,14 @@ from datetime import datetime
 from typing import Union, List
 
 from ..coworks import TechMicroService
-from coworks.mixins import Boto3Mixin, AwsS3Session
+from ..coworks import aws
 
 
-class CSVMicroService(TechMicroService, Boto3Mixin):
+class CSVMicroService(TechMicroService, aws.Boto3Mixin):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.aws_s3_session = AwsS3Session()
+        self.aws_s3_session = aws.AwsS3Session()
 
     def upload_to_s3(self, file_obj, bucket, expiration=3600):
         """ Upload a file to s3 and return a presigned url to download it """

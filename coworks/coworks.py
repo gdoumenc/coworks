@@ -10,8 +10,9 @@ from chalice import Chalice, Blueprint as ChaliceBlueprint
 from chalice.app import AuthRequest
 from requests_toolbelt.multipart import MultipartEncoder
 
+from . import aws
 from .config import Config
-from .mixins import Entry, CoworksMixin, AwsSFNSession
+from .mixins import Entry, CoworksMixin
 from .utils import class_auth_methods
 
 
@@ -188,14 +189,14 @@ class TechMicroService(CoworksMixin, Chalice):
 
     def execute(self, command, *, project_dir, module=None, service=None, workspace, output=None, error=None,
                 **options):
-        from .cws.client import CwsOptions, ProjectConfig
+        from .cws.client import CwsOptions
         from .cws.error import CwsCommandError
 
         """Executes a coworks command."""
         if type(command) is str:
             module = __name__ if module is None else module
             service = self.name if service is None else service
-            cws_options = CwsOptions({"project_dir":project_dir, 'module':module, 'service': service})
+            cws_options = CwsOptions({"project_dir": project_dir, 'module': module, 'service': service})
 
             service_config = cws_options.get_service_config(module, service, workspace)
             cmd = service_config.get_command(command, self)
@@ -336,8 +337,8 @@ class BizFactory(TechMicroService):
     @property
     def sfn_client(self):
         if self.__sfn_client__ is None:
-            session = AwsSFNSession(profile_name=self.aws_profile, env_var_access_key="AWS_RUN_ACCESS_KEY_ID",
-                                    env_var_secret_key="AWS_RUN_SECRET_KEY", env_var_region="AWS_RUN_REGION")
+            session = aws.AwsSFNSession(profile_name=self.aws_profile, env_var_access_key="AWS_RUN_ACCESS_KEY_ID",
+                                        env_var_secret_key="AWS_RUN_SECRET_KEY", env_var_region="AWS_RUN_REGION")
             self.__sfn_client__ = session.client
         return self.__sfn_client__
 

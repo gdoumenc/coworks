@@ -1,6 +1,6 @@
 import click
 
-from coworks.cws.command import CwsCommand, CwsCommandError
+from .command import CwsCommand, CwsCommandError
 
 
 class CwsInformant(CwsCommand):

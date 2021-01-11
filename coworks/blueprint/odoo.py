@@ -2,7 +2,7 @@ import os
 import time
 from http.client import BadStatusLine
 from pyexpat import ExpatError
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Optional
 from xmlrpc import client
 from xmlrpc.client import Fault, ProtocolError
 
@@ -33,9 +33,13 @@ class Odoo(Blueprint, Boto3Mixin):
         except Exception as e:
             return str(e), 404
 
-    def get_model(self, model: str, searched_field: str, searched_value, fields=None, ensure_one=False, **kwargs):
+    def get_model(self, model: str, searched_field_or_domain: Union[str, List[Tuple[str, str, any]]],
+                  searched_value = None, fields: Optional[List[str]] = None, ensure_one=False, **kwargs):
         """Returns the list of objects or the object which searched_field is equal to the searched_value."""
-        filters = [[(searched_field, '=', searched_value)]] if searched_field else [[]]
+        if type(searched_field_or_domain) is list:
+            filters = [searched_field_or_domain]
+        else:
+            filters = [[(searched_field_or_domain, '=', searched_value)]] if searched_field_or_domain else [[]]
         fields = fields or ['id']
         results = self.search(model, filters, fields=fields, ensure_one=ensure_one, **kwargs)
         return results

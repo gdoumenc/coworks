@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 
 import click
 
-from coworks import TechMicroService
 from .error import CwsCommandError
+from ..coworks import TechMicroService
 
 
 class CwsCommand(click.Command, ABC):
