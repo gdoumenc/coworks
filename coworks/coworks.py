@@ -189,14 +189,14 @@ class TechMicroService(CoworksMixin, Chalice):
 
     def execute(self, command, *, project_dir, module=None, service=None, workspace, output=None, error=None,
                 **options):
-        from .cws.client import CwsOptions
+        from .cws.client import CwsClientOptions
         from .cws.error import CwsCommandError
 
         """Executes a coworks command."""
         if type(command) is str:
             module = __name__ if module is None else module
             service = self.name if service is None else service
-            cws_options = CwsOptions({"project_dir": project_dir, 'module': module, 'service': service})
+            cws_options = CwsClientOptions({"project_dir": project_dir, 'module': module, 'service': service})
 
             service_config = cws_options.get_service_config(module, service, workspace)
             cmd = service_config.get_command(command, self)

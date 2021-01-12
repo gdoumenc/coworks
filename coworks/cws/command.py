@@ -1,5 +1,6 @@
 import sys
 from abc import ABC, abstractmethod
+from collections import defaultdict
 
 import click
 
@@ -7,12 +8,45 @@ from .error import CwsCommandError
 from ..coworks import TechMicroService
 
 
+class CwsClientCommandOptions:
+
+    def __init__(self, client_options, execution_context):
+        self.client_options = client_options
+        self.execution_context = execution_context
+
+    def get(self, option, default_value=None):
+        return self.client_options.get(option, default_value)
+
+    def pop(self, option, default_value):
+        """Removes from client option and all command options."""
+        value = self.client_options.pop(option, default_value)
+        for execution_params in self.execution_context.values():
+            for command, command_options in execution_params:
+                command_options.pop(option, None)
+        return value
+
+
+class CwsMultiCommands:
+    def __init__(self):
+        self.client_options = None
+        self.execution_context = defaultdict(list)
+
+    def append(self, client_options, command, command_options):
+        if self.client_options is None:
+            self.client_options = CwsClientCommandOptions(client_options, self.execution_context)
+        self.execution_context[type(command)].append((command, command_options))
+
+    def items(self):
+        for command_class, execution_params in self.execution_context.items():
+            yield command_class, execution_params
+
+
 class CwsCommand(click.Command, ABC):
 
     @classmethod
-    def multi_execute(cls, project_dir, workspace, client_options, execution_params):
-        for command, options in execution_params:
-            command.execute(**options)
+    def multi_execute(cls, project_dir, workspace, client_options, execution_context):
+        for command, command_options in execution_context:
+            command.execute(**command_options)
 
     def __init__(self, app: TechMicroService = None, *, name):
         super().__init__(name, callback=self._execute)

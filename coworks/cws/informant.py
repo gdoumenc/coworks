@@ -7,11 +7,11 @@ class CwsInformant(CwsCommand):
     """Command to get information on the project's microservices and teir deployment."""
 
     @classmethod
-    def multi_execute(cls, project_dir, workspace, client_options, execution_params):
-        for command, options in execution_params:
-            command.print_module_info(**options)
-            if options['env']:
-                command.print_env_vars(**options)
+    def multi_execute(cls, project_dir, workspace, client_options, execution_context):
+        for command, command_options in execution_context:
+            command.print_module_info(**command_options)
+            if command_options['env']:
+                command.print_env_vars(**command_options)
 
     def __init__(self, app=None, name='info'):
         super().__init__(app, name=name)
