@@ -10,8 +10,9 @@ Version 0.4
 First released 2021-01-6
 
 * Global project configuration file.
+* Middleware renamed as Context Manager.
 * Deployer command using terraform.
-* Context manager defined.
+* Samples defined.
 
 Version 0.3
 ^^^^^^^^^^^

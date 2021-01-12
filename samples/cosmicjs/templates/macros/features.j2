@@ -1,0 +1,36 @@
+{% macro features(features, feature_ids) -%}
+
+    {% if features.visible %}
+        <!-- Features -->
+        <section id="features">
+            <div class="container">
+                <header>
+                    <h2>{{ features.header_h2 }}</h2>
+                </header>
+                <div class="row aln-center">
+                    {% for ref in features.references if ref.slug in feature_ids %}
+                        <div class="col-4 col-6-medium col-12-small">
+
+                            <!-- Feature -->
+                            <section>
+                                <a href="#" class="image featured"><img src="https://cdn.cosmicjs.com/{{ ref.image }}"
+                                                                        alt="{{ ref.title_h2 }}"/></a>
+                                <header>
+                                    <h3>{{ ref.title_h2 }}</h3>
+                                </header>
+                                {{ ref.content }}
+                            </section>
+
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="col-12">
+                <ul class="actions">
+                    <li><a href="#" class="button icon solid fa-file">{{ features.button }}</a></li>
+                </ul>
+            </div>
+        </section>
+    {% endif %}
+
+{%- endmacro %}

@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 from aws_xray_sdk import core as xray_core
 
-from coworks.cws.fixture import local_server_factory as factory
+from tests.fixture import local_server_factory as factory
 from tests.mockup import email_mock, smtp_mock
 
 

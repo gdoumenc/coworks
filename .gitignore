@@ -3,12 +3,15 @@ coworks.egg-info/
 build/
 dist/
 
+# Samples
+**/*.secret.json
+samples/**/terraform
+
 # Example
-**/example/.sconsign.dblite
-**/example/.terraform*
-**/example/Pipfile.lock
-**/example/*.zip
-**/example/*.tf*
+tests/example/.sconsign.dblite
+tests/example/terraform
+tests/example/Pipfile.lock
+tests/example/*.zip
 
 # Dev tools
 .idea/

@@ -87,17 +87,6 @@ def as_list(var):
     return [var]
 
 
-def begin_xray_subsegment(subsegment_name):
-    if xray_recorder.in_segment().segment is not None:
-        return xray_recorder.begin_subsegment(subsegment_name)
-    return None
-
-
-def end_xray_subsegment():
-    if xray_recorder.in_subsegment().subsegment is not None:
-        return xray_recorder.end_subsegment()
-
-
 def get_system_info():
     python_info = f"python {sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}"
     platform_system = platform.system().lower()

@@ -1,0 +1,18 @@
+version: ">=1"
+services:
+  - module: website
+    services:
+      - service: app
+commands:
+  run:
+    class: coworks.cws.runner.CwsRunner
+  deploy:
+    class: coworks.cws.deployer.CwsTerraformDeployer
+    project_name: cms
+    profile_name: fpr-customer
+    bucket: coworks-microservice
+    ignore:
+      - assets
+      - images
+    customer: yopp
+    layers: [arn:aws:lambda:eu-west-1:935392763270:layer:coworks-0_3_3]

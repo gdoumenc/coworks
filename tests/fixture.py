@@ -3,8 +3,8 @@ import os
 import pytest
 
 from coworks import TechMicroService
-from .runner import ThreadedLocalServer
-from ..config import DEFAULT_PROJECT_DIR, DEFAULT_WORKSPACE
+from coworks.cws.runner import ThreadedLocalServer
+from coworks.config import DEFAULT_PROJECT_DIR, DEFAULT_WORKSPACE
 
 
 @pytest.fixture

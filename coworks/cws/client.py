@@ -1,5 +1,4 @@
 import sys
-from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass, asdict
 from logging import getLogger, WARNING
@@ -7,6 +6,7 @@ from logging import getLogger, WARNING
 import anyconfig
 import click
 
+from .command import CwsMultiCommands
 from .error import CwsClientError
 from ..config import DEFAULT_PROJECT_DIR, DEFAULT_WORKSPACE
 from ..utils import import_attr, get_system_info
@@ -32,28 +32,27 @@ def invoke(ctx):
     try:
         args = ctx.args
         protected_args = ctx.protected_args
-        client_options = {}
-
         command_name = protected_args[0] if protected_args else None
 
-        cws_options = CwsOptions(ctx.params)
+        # get project options
+        cws_options = CwsClientOptions(ctx.params)
         if not cws_options.services:
             sys.stderr.write(str("Nothing to execute as no service defined."))
             sys.exit(1)
 
         # Iterates over the declared services in project configuration file
-        commands_to_be_executed = defaultdict(list)
+        commands_to_be_executed = CwsMultiCommands()
         for module, service in cws_options.services:
             ctx.args = list(args)
             ctx.protected_args = protected_args
-            service_config = cws_options.get_service_config(module, service, cws_options.workspace)
 
-            # Get command from the microservice
-            handler = get_handler(cws_options.project_dir, module, service)
+            # Get command from the microservice description
+            handler = cws_options.get_handler(module, service)
+            service_config = cws_options.get_service_config(module, service)
             command = service_config.get_command(command_name, handler)
             if not command:
                 raise CwsClientError(f"Undefined command {command_name}.\n")
-            service_options = service_config.get_command_options(command_name)
+            command_options = service_config.get_command_options(command_name)
 
             # Get user defined options and convert them in right types
             client_options, _, cmd_opts = command.make_parser(ctx).parse_args(ctx.args)
@@ -61,14 +60,17 @@ def invoke(ctx):
                 cmd_opt = next(x for x in cmd_opts if x.name == opt_key)
                 client_options[opt_key] = cmd_opt.type(opt_value)
 
-            execution_params = {**service_options, **client_options}
-            command.make_context(command.name, execution_params)
-            commands_to_be_executed[type(command)].append((command, execution_params))
+            # Adds command and global options
+            options = {**command_options, **client_options}
+            command.make_context(command.name, options)
+            commands_to_be_executed.append(client_options, command, options)
 
         # Executes all commands
-        for command_class, execution_params in commands_to_be_executed.items():
-            command_class.multi_execute(cws_options.project_dir, cws_options.workspace, client_options,
-                                        execution_params)
+        project_dir = cws_options.project_dir
+        workspace = cws_options.workspace
+        client_options = commands_to_be_executed.client_options
+        for command_class, execution_context in commands_to_be_executed.items():
+            command_class.multi_execute(project_dir, workspace, client_options, execution_context)
     except CwsClientError as client_err:
         sys.stderr.write(f"Error in command: {client_err.msg}")
         sys.exit(1)
@@ -81,13 +83,13 @@ client.invoke = invoke
 
 
 @dataclass
-class CwsOptions:
+class CwsClientOptions:
     """Client options defined from click command."""
     project_dir: str
     workspace: str
     module: str
     service: str
-    config_file:str
+    config_file: str
 
     def __init__(self, params):
         self.project_dir = params.get('project_dir')
@@ -104,7 +106,20 @@ class CwsOptions:
             return [(self.module, self.service)]
         return self.project_config.all_services(self.module)
 
-    def get_service_config(self, module, service, workspace):
+    def get_handler(self, module, service):
+        # Load microservice handler
+        try:
+            return import_attr(module, service, cwd=self.project_dir)
+        except AttributeError as e:
+            raise CwsClientError(f"Module '{module}' has no microservice {service} : {str(e)}\n")
+        except ModuleNotFoundError as e:
+            raise CwsClientError(f"The module '{module}' is not defined in {self.project_dir} : {str(e)}\n")
+        except Exception as e:
+            raise CwsClientError(f"Error {e} when loading module '{module}'\n")
+
+    def get_service_config(self, module, service, workspace=None):
+        """Returns the microserrvice's configuration."""
+        workspace = workspace or self.workspace
         return ServiceConfig(self.project_config, module, service, workspace)
 
 
@@ -233,18 +248,6 @@ class ServiceConfig:
 
 def main():
     return client(obj={})
-
-
-def get_handler(project_dir, module, service):
-    # Load microservice handler
-    try:
-        return import_attr(module, service, cwd=project_dir)
-    except AttributeError as e:
-        raise CwsClientError(f"Module '{module}' has no microservice {service} : {str(e)}\n")
-    except ModuleNotFoundError as e:
-        raise CwsClientError(f"The module '{module}' is not defined in {project_dir} : {str(e)}\n")
-    except Exception as e:
-        raise CwsClientError(f"Error {e} when loading module '{module}'\n")
 
 
 if __name__ == "__main__":

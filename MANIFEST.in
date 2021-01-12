@@ -1,3 +1,4 @@
 graft docs/img
 graft coworks/cws/templates
 prune tests
+prune samples

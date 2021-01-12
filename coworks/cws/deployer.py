@@ -11,11 +11,11 @@ from typing import List
 import boto3
 import click
 
-from coworks import TechMicroService
-from coworks.config import CORSConfig
 from .command import CwsCommand, CwsCommandError
 from .writer import CwsTemplateWriter
 from .zip import CwsZipArchiver
+from ..config import CORSConfig
+from ..coworks import TechMicroService
 
 UID_SEP = '_'
 
@@ -65,15 +65,21 @@ class CwsTerraformDeployer(CwsCommand):
     WRITER_CMD = 'export'
 
     @classmethod
-    def multi_execute(cls, project_dir, workspace, client_options, execution_params):
-        create = client_options.get('create')
+    def multi_execute(cls, project_dir, workspace, client_options, execution_context):
+        terraform = Terraform()
+        output = client_options.pop('output', False)
 
-        # if one command is dry all are dry
+        if output:
+            cls._terraform_output_local(terraform)
+            return
+
+        # If one command is dry all are dry
         dry = client_options.get('dry') or client_options.get('stop') is not None
-        for command, options in execution_params:
+        for command, options in execution_context:
             dry = dry or options['dry']
 
-        # Validate create option choice
+        # Validates create option choice
+        create = client_options.pop('create', False)
         if create:
             prompts = chain(["Are you sure you want to (re)create the API [yN]?:"], repeat("Answer [yN]: "))
             replies = map(input, prompts)
@@ -83,15 +89,14 @@ class CwsTerraformDeployer(CwsCommand):
 
         # Transfert zip file to S3 (to be done on each service)
         key = None
-        for command, options in execution_params:
+        for command, options in execution_context:
             print(f"Uploading zip to S3")
             key = options.pop('key') or f"{cls.bucket_key(command, options)}/archive.zip"
             ignore = options.pop('ignore') or ['terraform', '.terraform']
             command.app.execute(cls.ZIP_CMD, key=key, ignore=ignore, **options)
 
         # Generates terraform files (create step)
-        terraform = Terraform()
-        for command, options in execution_params:
+        for command, options in execution_context:
             debug = client_options.get('debug') or options['debug']
             profile_name = client_options.get('profile_name') or options['profile_name']
             aws_region = boto3.Session(profile_name=profile_name).region_name
@@ -109,7 +114,7 @@ class CwsTerraformDeployer(CwsCommand):
             cls._terraform_apply_local(terraform, workspace, msg)
 
         # Generates terraform files (update step)
-        for command, options in execution_params:
+        for command, options in execution_context:
             debug = client_options.get('debug') or options['debug']
             profile_name = client_options.get('profile_name') or options['profile_name']
             aws_region = boto3.Session(profile_name=profile_name).region_name
@@ -125,9 +130,7 @@ class CwsTerraformDeployer(CwsCommand):
         if not dry:
             cls._terraform_apply_local(terraform, workspace, ["Update API routes", f"Deploy API {workspace}"])
 
-        terraform = Terraform()
-        out = terraform.output_local("default")
-        print(f"terraform output : {out}")
+        cls._terraform_output_local(terraform)
 
     def __init__(self, app=None, name='deploy'):
         self.zip_cmd = self.add_zip_command(app)
@@ -151,6 +154,7 @@ class CwsTerraformDeployer(CwsCommand):
             click.option('--create', '-c', is_flag=True, help="May create or recreate the API."),
             click.option('--layers', '-l', multiple=True),
             click.option('--memory_size', default=128),
+            click.option('--output', '-o', is_flag=True, help="Print terraform output values."),
             click.option('--stop', type=click.Choice(['create', 'update']), help="Stop the terraform generation"),
             click.option('--timeout', default=30),
         ]
@@ -158,6 +162,11 @@ class CwsTerraformDeployer(CwsCommand):
     @classmethod
     def bucket_key(cls, command, options):
         return command.app.name
+
+    @staticmethod
+    def _terraform_output_local(terraform):
+        out = terraform.output_local("default")
+        print(f"terraform output : {out}")
 
     @staticmethod
     def _terraform_apply_local(terraform, workspace, traces):

@@ -1,25 +1,19 @@
 import threading
 import time
-from unittest.mock import MagicMock
 
 import pytest
 import requests
 
-from coworks import mixins
+from coworks import aws
 from coworks.cws.command import CwsCommandError
 from coworks.cws.runner import ThreadedLocalServer
 from coworks.utils import import_attr
 
 
-
-import pytest
-
-
-@pytest.mark.wip
 class TestClass:
 
     def test_run_quickstart2(self, monkeypatch, s3_session, example_dir):
-        monkeypatch.setattr(mixins, "AwsS3Session", s3_session)
+        monkeypatch.setattr(aws, "AwsS3Session", s3_session)
         app = import_attr('quickstart2', 'app', cwd=example_dir)
         port = ThreadedLocalServer.unused_tcp_port()
         server = threading.Thread(target=run_server_quickstart, args=(app, port, example_dir), daemon=True)
@@ -33,7 +27,7 @@ class TestClass:
         assert response.text == "Simple microservice ready.\n"
 
     def test_zip_quickstart2(self, monkeypatch, s3_session, example_dir):
-        monkeypatch.setattr(mixins, "AwsS3Session", s3_session)
+        monkeypatch.setattr(aws, "AwsS3Session", s3_session)
         app = import_attr('quickstart2', 'app', cwd=example_dir)
         with pytest.raises(CwsCommandError):
             app.execute('zip', project_dir=example_dir, module='quickstart2', workspace='dev')

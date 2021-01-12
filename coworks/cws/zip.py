@@ -8,12 +8,12 @@ from shutil import copytree, ignore_patterns, make_archive
 
 import click
 
-from coworks.mixins import Boto3Mixin, AwsS3Session
 from .command import CwsCommand
 from .error import CwsCommandError
+from .. import aws
 
 
-class CwsZipArchiver(CwsCommand, Boto3Mixin):
+class CwsZipArchiver(CwsCommand, aws.Boto3Mixin):
     """
     This command uploads project source folder as a zip file on a S3 bucket.
     Uploads also the hash code of this file to be able to determined code changes (used by terraform as a trigger).
@@ -35,7 +35,7 @@ class CwsZipArchiver(CwsCommand, Boto3Mixin):
         ]
 
     def _execute(self, *, project_dir, module, bucket, key, profile_name, module_name, dry, debug, ignore, **options):
-        aws_s3_session = AwsS3Session(profile_name=profile_name)
+        aws_s3_session = aws.AwsS3Session(profile_name=profile_name)
         module_name = module_name or []
 
         key = key if key else f"{module}-{self.app.name}"
