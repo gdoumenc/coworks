@@ -1,0 +1,85 @@
+{% extends "base.j2" %}
+{% from 'home/products.j2' import products as products_ %}
+{% from 'home/references.j2' import references as references_ %}
+{% from 'home/banners.j2' import banners as banners_ %}
+{% from 'home/posts.j2' import posts as posts_ %}
+{% from 'home/excerpts.j2' import excerpts as excerpts_ %}
+{% from 'home/notes.j2' import notes as notes_ %}
+
+{% block head %}
+    <h1 id="logo"><a href="/">{{ home.title_h1 }}</a></h1>
+    <h2>{{ home.subtitle_h2 }}</h2>
+{% endblock %}
+
+{% block content %}
+    {% include 'home/carousel.j2' %}
+    {{ products_(home.products, product_ids) }}
+    {{ banners_(home.banners, banner_ids) }}
+    {{ references_(home.references, reference_ids) }}
+
+
+    <!-- Main -->
+    <section id="main">
+        <div class="container">
+            <div class="row">
+
+                <div class="col-8 col-12-medium">
+                    {{ posts_(home.posts, post_ids) }}
+                </div>
+
+                <div class="col-4 col-12-medium">
+                    {{ excerpts_(home.excerpts, post_ids) }}
+                    {{ notes_(home.notes, post_ids) }}
+                </div>
+
+            </div>
+        </div>
+    </section>
+{% endblock %}
+
+{% block footer %}
+    {#    <section id="footer">#}
+    {#                <div class="col-6 col-12-medium">#}
+    {#                    <section>#}
+    {#                        <p>Erat lorem ipsum veroeros consequat magna tempus lorem ipsum consequat Phaselamet#}
+    {#                            mollis tortor congue. Sed quis mauris sit amet magna accumsan tristique. Curabitur#}
+    {#                            leo nibh, rutrum eu malesuada.</p>#}
+    {#                        <div class="row">#}
+    {#                            <div class="col-6 col-12-small">#}
+    {#                                <ul class="icons">#}
+    {#                                    <li class="icon solid fa-home">#}
+    {#                                        1234 Somewhere Road<br/>#}
+    {#                                        Nashville, TN 00000<br/>#}
+    {#                                        USA#}
+    {#                                    </li>#}
+    {#                                    <li class="icon solid fa-phone">#}
+    {#                                        (000) 000-0000#}
+    {#                                    </li>#}
+    {#                                    <li class="icon solid fa-envelope">#}
+    {#                                        <a href="#">info@untitled.tld</a>#}
+    {#                                    </li>#}
+    {#                                </ul>#}
+    {#                            </div>#}
+    {#                            <div class="col-6 col-12-small">#}
+    {#                                <ul class="icons">#}
+    {#                                    <li class="icon brands fa-twitter">#}
+    {#                                        <a href="#">@untitled</a>#}
+    {#                                    </li>#}
+    {#                                    <li class="icon brands fa-instagram">#}
+    {#                                        <a href="#">instagram.com/untitled</a>#}
+    {#                                    </li>#}
+    {#                                    <li class="icon brands fa-dribbble">#}
+    {#                                        <a href="#">dribbble.com/untitled</a>#}
+    {#                                    </li>#}
+    {#                                    <li class="icon brands fa-facebook-f">#}
+    {#                                        <a href="#">facebook.com/untitled</a>#}
+    {#                                    </li>#}
+    {#                                </ul>#}
+    {#                            </div>#}
+    {#                        </div>#}
+    {#                    </section>#}
+    {#                </div>#}
+    {#            </div>#}
+    {#        </div>#}
+    {#    </section>#}
+{% endblock %}

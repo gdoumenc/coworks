@@ -42,6 +42,7 @@ class CwsRunner(CwsCommand):
         # chalice.cli package is not defined in deployment
         from .factory import CwsFactory
 
+        # "AWS_XRAY_SDK_ENABLED": False
         ms = self.app
         os.environ['WORKSPACE'] = workspace
         ms.config.load_environment_variables(project_dir)

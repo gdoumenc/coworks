@@ -15,4 +15,5 @@ commands:
       - assets
       - images
     customer: yopp
-    layers: [arn:aws:lambda:eu-west-1:935392763270:layer:coworks-0_3_3]
+
+    layers: [arn:aws:lambda:eu-west-1:935392763270:layer:coworks-0_4_1]

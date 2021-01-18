@@ -1,3 +1,5 @@
+{% from 'base/menu.j2' import menu as menu_ %}
+
 <!DOCTYPE HTML>
 <!--
 	Strongly Typed by HTML5 UP
@@ -9,14 +11,25 @@
     <title>{{ title_h1 }}</title>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no"/>
+    <link href="https://unpkg.com/tailwindcss@^2/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ assets_url }}/assets/css/main.css"/>
 </head>
 <body class="homepage is-preload">
 <div id="page-wrapper">
 
     <!-- Header -->
-    {% block head %}
-    {% endblock %}
+    <section id="header">
+        <div class="container">
+
+            {% block head %}
+            {% endblock %}
+
+            <!-- Nav -->
+            {{ menu_(products, references, posts) }}
+
+        </div>
+    </section>
+
 
     <!-- Content -->
     {% block content %}
@@ -36,6 +49,7 @@
 </div>
 
 <!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/gh/alpinejs/alpine@v2.x.x/dist/alpine.min.js" defer></script>
 <script src="{{ assets_url }}/assets/js/jquery.min.js"></script>
 <script src="{{ assets_url }}/assets/js/jquery.dropotron.min.js"></script>
 <script src="{{ assets_url }}/assets/js/browser.min.js"></script>

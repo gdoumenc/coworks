@@ -13,14 +13,18 @@ class CosmicCmsClient:
     def get_home(self):
         response = self.object('home')
         home = {k: v for d in response['metafields'] for k, v in self.to_dict(d).items()}
-        response = self.objects('references')
-        references = [self.to_dict(d) for d in response]
-        response = self.objects('banners')
-        banners = [self.to_dict(d) for d in response]
-        response = self.objects('posts')
-        posts = [self.to_dict(d) for d in response]
+        product_objects = self.objects('products')
+        products = [self.to_dict(d) for d in product_objects]
+        reference_objects = self.objects('references')
+        references = [self.to_dict(d) for d in reference_objects]
+        banner_objects = self.objects('banners')
+        banners = [self.to_dict(d) for d in banner_objects]
+        post_objects = self.objects('posts')
+        posts = [self.to_dict(d) for d in post_objects]
         return {
             'home': home,
+            'products': products,
+            'product_ids': [obj['slug'] for obj in products],
             'references': references,
             'reference_ids': [obj['slug'] for obj in references],
             'banners': banners,
@@ -28,6 +32,10 @@ class CosmicCmsClient:
             'posts': posts,
             'post_ids': [obj['slug'] for obj in posts],
         }
+
+    def get_slug(self, slug):
+        response = self.object(slug)
+        return {k: v for d in response['metafields'] for k, v in self.to_dict(d).items()}
 
     def object(self, slug: str):
         """Get a specific object according its object-type and filters set in filter_metadata param."""

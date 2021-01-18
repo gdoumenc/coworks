@@ -5,7 +5,7 @@ from coworks.config import Config as CwsConfig
 
 @dataclass
 class Config(CwsConfig):
-    environment_variables_file: str = "env_variables/vars.json"
+    environment_variables_file: str = "vars.json"
 
 
 @dataclass

@@ -1,0 +1,29 @@
+{% extends "base.j2" %}
+
+{% block head %}
+    <h1>{{ title_h1 }}</h1>
+
+    <div class="col-12 col-12-medium">
+        {{ presentation }}
+    </div>
+
+{% endblock %}
+
+{% block content %}
+
+    <section id="main">
+        <div class="container">
+            <div class="row">
+
+                <div class="col-8 col-12-medium">
+                    <img src="https://cdn.cosmicjs.com/{{ image }}" alt="{{ title_h1 }}"/>
+                </div>
+
+                <div class="col-12 col-12-medium">
+                    {{ content }}
+                </div>
+
+            </div>
+        </div>
+    </section>
+{% endblock %}

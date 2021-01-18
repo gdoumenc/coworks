@@ -1,0 +1,45 @@
+{% macro menu(products, references, posts) -%}
+
+    <nav id="nav">
+        <ul>
+            <li><a class="icon solid fa-home" href="/"><span>Présentation</span></a></li>
+            {% if products %}
+                <li>
+                    <a href="#" class="icon fa-chart-bar"><span>Savoir-faire</span></a>
+                    <ul>
+                        {% for prod in products %}
+                            <li><a href="{{ prod.slug }}">{{ prod.title_h1 }}</a></li>
+                        {% endfor %}
+                    </ul>
+                </li>
+            {% endif %}
+            {#            {% if references %}#}
+            {#                <li>#}
+            {#                    <a href="#" class="icon fa-chart-bar"><span>Références</span></a>#}
+            {#                    <ul>#}
+            {#                        {% for ref in references %}#}
+            {#                            <li><a href="#">{{ ref.title_h2 }}</a></li>#}
+            {#                        {% endfor %}#}
+            {#                    </ul>#}
+            {#                </li>#}
+            {#            {% endif %}#}
+            {% if posts %}
+                <li>
+                    <a href="#" class="icon fa-chart-bar"><span>News</span></a>
+                    <ul>
+                        {% for post in posts %}
+                            <li><a href="#">{{ post.title_h2 }}</a></li>
+                        {% endfor %}
+                    </ul>
+                </li>
+            {% endif %}
+            <li>
+                <a href="/form" class="icon fa-chart-bar"><span>Nous contacter</span></a>
+            </li>
+            {#            <li><a class="icon solid fa-cog" href="left-sidebar.html"><span>Left Sidebar</span></a></li>#}
+            {#            <li><a class="icon solid fa-retweet" href="right-sidebar.html"><span>Right Sidebar</span></a></li>#}
+            {#            <li><a class="icon solid fa-sitemap" href="no-sidebar.html"><span>No Sidebar</span></a></li>#}
+        </ul>
+    </nav>
+
+{%- endmacro %}

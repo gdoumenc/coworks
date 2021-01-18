@@ -2,10 +2,11 @@
 coworks.egg-info/
 build/
 dist/
+**/.terraform
+**/*.tfstate*
 
 # Samples
 **/*.secret.json
-samples/**/terraform
 
 # Example
 tests/example/.sconsign.dblite
