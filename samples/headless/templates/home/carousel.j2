@@ -1,50 +1,62 @@
-<div class="bg-teal-100 h-screen flex flex-col justify-center items-center">
+<style>
+    .carousel-open:checked + .carousel-item {
+        position: static;
+        opacity: 100;
+    }
 
-    <div class="max-w-4xl mx-auto relative"
-         x-data='{ activeSlide: 1, slides: [
-         "https://cdn.cosmicjs.com/b33930d0-51f1-11eb-9dee-df51ce912356-habillage-linaire-2.png",
-         "https://imgix.cosmicjs.com/9b7bca30-446c-11eb-b5f1-77009cd6d567-Capture-PAN.PNG"
-         ] }'
-    >
-        <!-- Slides -->
-        <template x-for="slide in slides" :key="slide">
-            <div x-show="activeSlide === slide"
-                 class="p-24 font-bold text-5xl h-64 flex items-center bg-teal-500 text-white rounded-lg">
-                <img :src="slide"/>
+    .carousel-item {
+        -webkit-transition: opacity 0.6s ease-out;
+        transition: opacity 0.6s ease-out;
+    }
+
+    #carousel-1:checked ~ .control-1,
+    #carousel-2:checked ~ .control-2,
+    #carousel-3:checked ~ .control-3 {
+        display: block;
+    }
+
+    .carousel-indicators {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        position: absolute;
+        bottom: 2%;
+        left: 0;
+        right: 0;
+        text-align: center;
+        z-index: 10;
+    }
+
+    #carousel-1:checked ~ .control-1 ~ .carousel-indicators li:nth-child(1) .carousel-bullet,
+    #carousel-2:checked ~ .control-2 ~ .carousel-indicators li:nth-child(2) .carousel-bullet,
+    #carousel-3:checked ~ .control-3 ~ .carousel-indicators li:nth-child(3) .carousel-bullet {
+        color: #2b6cb0; /*Set to match the Tailwind colour you want the active one to be */
+    }
+</style>
+<div class="carousel relative shadow-2xl bg-white">
+    <div class="carousel-inner relative overflow-hidden w-full">
+        <!--Slide 1-->
+        <input class="carousel-open" type="radio" id="carousel-1" name="carousel" aria-hidden="true" hidden="">
+        <div class="carousel-item absolute opacity-0" style="height:50vh;">
+            <div class="block h-full w-2/4 bg-indigo-500 text-white text-5xl text-center m-auto">
+                <img src="https://cdn.cosmicjs.com/b33930d0-51f1-11eb-9dee-df51ce912356-habillage-linaire-2.png"/>
             </div>
-        </template>
-
-{#        <!-- Prev/Next Arrows -->#}
-{#        <div class="absolute inset-0 flex">#}
-{#            <div class="flex items-center justify-start w-1/2">#}
-{#                <button#}
-{#                        class="bg-teal-100 text-teal-500 hover:text-orange-500 font-bold hover:shadow-lg rounded-full w-12 h-12 -ml-6"#}
-{#                        x-on:click="activeSlide = activeSlide === 1 ? slides.length : activeSlide - 1">#}
-{#                    &#8592;#}
-{#                </button>#}
-{#            </div>#}
-{#            <div class="flex items-center justify-end w-1/2">#}
-{#                <button#}
-{#                        class="bg-teal-100 text-teal-500 hover:text-orange-500 font-bold hover:shadow rounded-full w-12 h-12 -mr-6"#}
-{#                        x-on:click="activeSlide = activeSlide === slides.length ? 1 : activeSlide + 1">#}
-{#                    &#8594;#}
-{#                </button>#}
-{#            </div>#}
-{#        </div>#}
-
-        <!-- Buttons -->
-        <div class="absolute w-full flex items-center justify-center px-4">
-            <template x-for="slide in slides" :key="slide">
-                <button
-                        class="flex-1 w-4 h-2 mt-4 mx-2 mb-0 rounded-full overflow-hidden transition-colors duration-200 ease-out hover:bg-teal-600 hover:shadow-lg"
-                        :class="{
-              'bg-orange-600': activeSlide === slide,
-              'bg-teal-300': activeSlide !== slide
-          }"
-                        x-on:click="activeSlide = slide"
-                ></button>
-            </template>
         </div>
-    </div>
+{#        <label for="carousel-3"#}
+{#               class="prev control-1 w-10 h-10 ml-2 md:ml-10 absolute cursor-pointer hidden text-3xl font-bold text-black hover:text-white rounded-full bg-white hover:bg-blue-700 leading-tight text-center z-10 inset-y-0 left-0 my-auto">‹</label>#}
+        <label for="carousel-2"
+               class="next control-1 w-10 h-10 mr-2 md:mr-10 absolute cursor-pointer hidden text-3xl font-bold text-black hover:text-white rounded-full bg-white hover:bg-blue-700 leading-tight text-center z-10 inset-y-0 right-0 my-auto">›</label>
 
+        <!--Slide 2-->
+        <input class="carousel-open" type="radio" id="carousel-2" name="carousel" aria-hidden="true" hidden="">
+        <div class="carousel-item absolute opacity-0" style="height:50vh;">
+            <div class="block h-full w-2/4 bg-indigo-500 text-white text-5xl text-center m-auto">
+                <img src="https://imgix.cosmicjs.com/9b7bca30-446c-11eb-b5f1-77009cd6d567-Capture-PAN.PNG"/>
+            </div>
+        </div>
+        <label for="carousel-1"
+               class="prev control-2 w-10 h-10 ml-2 md:ml-10 absolute cursor-pointer hidden text-3xl font-bold text-black hover:text-white rounded-full bg-white hover:bg-blue-700 leading-tight text-center z-10 inset-y-0 left-0 my-auto">‹</label>
+{#        <label for="carousel-3"#}
+{#               class="next control-2 w-10 h-10 mr-2 md:mr-10 absolute cursor-pointer hidden text-3xl font-bold text-black hover:text-white rounded-full bg-white hover:bg-blue-700 leading-tight text-center z-10 inset-y-0 right-0 my-auto">›</label>#}
+    </div>
 </div>
