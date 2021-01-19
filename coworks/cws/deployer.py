@@ -65,7 +65,7 @@ class CwsTerraformDeployer(CwsCommand):
     WRITER_CMD = 'export'
 
     @classmethod
-    def multi_execute(cls, project_dir, workspace, client_options, execution_context):
+    def multi_execute(cls, project_dir, workspace, client_options, execution_context, **_internal_options):
         terraform = Terraform()
         output = client_options.pop('output', False)
 

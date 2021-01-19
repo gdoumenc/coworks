@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 from coworks import TechMicroService
-from coworks.cws.runner import CwsRunner, run_with_reloader
+from coworks.cws.runner import CwsRunner
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from config import DevConfig, LocalConfig
@@ -80,4 +80,4 @@ app = WebsiteMicroService(configs=[LocalConfig(), DevConfig()])
 CwsRunner(app)
 
 if __name__ == '__main__':
-    run_with_reloader(app, project_dir='.', module='website', workspace='local')
+    app.execute("run", project_dir='.', module='website', workspace='local')

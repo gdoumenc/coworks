@@ -42,7 +42,6 @@ class CwsRunner(CwsCommand):
         # chalice.cli package is not defined in deployment
         from .factory import CwsFactory
 
-        # "AWS_XRAY_SDK_ENABLED": False
         ms = self.app
         os.environ['WORKSPACE'] = workspace
         ms.config.load_environment_variables(project_dir)
@@ -53,6 +52,9 @@ class CwsRunner(CwsCommand):
             logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')
 
         if autoreload:
+            if not options['_from_cws']:
+                sys.argv = [sys.executable, sys.argv[0]]
+
             class _ThreadedLocalServer(ThreadedLocalServer):
 
                 def __init__(self):
@@ -105,9 +107,3 @@ class ThreadedLocalServer(Thread):
         with contextlib.closing(socket.socket()) as sock:
             sock.bind(('localhost', 0))
             return sock.getsockname()[1]
-
-
-def run_with_reloader(app, **kwargs):
-    kwargs.setdefault('autoreload', True)
-    sys.argv = [sys.executable, sys.argv[0]]
-    app.execute('run', **kwargs)

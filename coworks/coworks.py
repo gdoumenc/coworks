@@ -118,7 +118,7 @@ class TechMicroService(CoworksMixin, Chalice):
 
     def get_config(self, workspace):
         for conf in self.configs:
-            if conf.workspace == workspace:
+            if conf.is_valid_for(workspace):
                 return conf
         return self.configs[0]
 

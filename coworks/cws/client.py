@@ -70,7 +70,7 @@ def invoke(ctx):
         workspace = cws_options.workspace
         client_options = commands_to_be_executed.client_options
         for command_class, execution_context in commands_to_be_executed.items():
-            command_class.multi_execute(project_dir, workspace, client_options, execution_context)
+            command_class.multi_execute(project_dir, workspace, client_options, execution_context, _from_cws=True)
     except CwsClientError as client_err:
         sys.stderr.write(f"Error in command: {client_err.msg}")
         sys.exit(1)

@@ -49,6 +49,9 @@ class Config:
     content_type: Tuple[str] = ('multipart/form-data', 'application/json', 'text/plain')
     data: dict = None
 
+    def is_valid_for(self, workspace):
+        return self.workspace == workspace
+
     def existing_environment_variables_files(self, project_dir):
         """Returns a list containing the paths to environment variables files that actually exist """
         environment_variables_file = as_list(self.environment_variables_file)
