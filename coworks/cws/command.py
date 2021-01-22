@@ -1,8 +1,9 @@
-import sys
+import pprint
 from abc import ABC, abstractmethod
 from collections import defaultdict
 
 import click
+import sys
 
 from .error import CwsCommandError
 from ..coworks import TechMicroService
@@ -24,6 +25,16 @@ class CwsClientCommandOptions:
             for command, command_options in execution_params:
                 command_options.pop(option, None)
         return value
+
+    def __repr__(self):
+        str = "client options:"
+        str += pprint.saferepr(self.client_options) + '\n'
+        for execution_params in self.execution_context.values():
+            for command, command_options in execution_params:
+                str += f"command options for {command.app.name} : "
+                str += pprint.saferepr(command_options)
+                str += '\n'
+        return str
 
 
 class CwsMultiCommands:

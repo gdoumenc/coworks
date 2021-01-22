@@ -8,7 +8,7 @@ from ..coworks import TechMicroService
 from ..coworks import aws
 
 
-class CSVMicroService(TechMicroService, aws.Boto3Mixin):
+class CSVMicroService(TechMicroService):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

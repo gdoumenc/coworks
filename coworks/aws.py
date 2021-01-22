@@ -7,7 +7,7 @@ from coworks.error import CwsError
 
 class Boto3Mixin:
 
-    def __init__(self, service='s3', profile_name=None, env_var_access_key='aws_access_key_id',
+    def __init__(self, service, profile_name=None, env_var_access_key='aws_access_key_id',
                  env_var_secret_key='aws_secret_access_key', env_var_region='aws_region',
                  **kwargs):
         super().__init__(**kwargs)
@@ -64,18 +64,23 @@ class Boto3Mixin:
                 try:
                     self.__session__ = boto3.Session(access_key, secret_key, region_name=region_name)
                 except Exception:
-                    raise CwsError(
-                        f"Cannot create session for key {access_key}, secret {secret_key} and region {region_name}.")
+                    raise CwsError(f"Cannot create session for key {access_key}, secret {secret_key} in {region_name}.")
         return self.__session__
 
 
 class AwsS3Session(Boto3Mixin):
 
     def __init__(self, **kwargs):
-        super().__init__(service='s3', **kwargs)
+        super().__init__('s3', **kwargs)
+
+
+class ApiGatewaySession(Boto3Mixin):
+
+    def __init__(self, **kwargs):
+        super().__init__('apigateway', **kwargs)
 
 
 class AwsSFNSession(Boto3Mixin):
 
     def __init__(self, **kwargs):
-        super().__init__(service='stepfunctions', **kwargs)
+        super().__init__('stepfunctions', **kwargs)
