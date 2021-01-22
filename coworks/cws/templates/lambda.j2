@@ -1,7 +1,7 @@
 locals {
     {% if environment_variable_files %}
-    environment_variables_{{ resource_name }} = [
-        for envars_string in data.local_file.environment_variables_files_{{ resource_name }}: jsondecode(envars_string.content)
+    {{ resource_name }}_environment_variables = [
+        for envars_string in data.local_file.{{ resource_name }}_environment_variables_files: jsondecode(envars_string.content)
     ]
     {% endif %}
 }
@@ -11,19 +11,21 @@ locals {
 # ---------------------------------------------------------------------------------------------------------------------
 
 data "aws_s3_bucket_object" "{{ resource_name }}-b64sha256" {
+  provider = aws.{{ resource_name }}
   bucket = local.{{ resource_name }}_bucket
   key = "${local.{{ resource_name }}_key}.b64sha256"
 }
 
 {% if environment_variable_files %}
-data "local_file" "environment_variables_files_{{ resource_name }}" {
+data "local_file" "{{ resource_name }}_environment_variables_files" {
   for_each = {for envar_file in {{ environment_variable_files | tojson }}: envar_file => "../${envar_file}"}
   filename = each.value
 }
 {% endif %}
 
 resource "aws_lambda_function" "{{ resource_name }}" {
-  count = local.when_stage
+  provider = aws.{{ resource_name }}
+  count = local.{{ resource_name }}_when_stage
   function_name = "{{ resource_name }}-${terraform.workspace}"
   s3_bucket = local.{{ resource_name }}_bucket
   s3_key = local.{{ resource_name }}_key
@@ -38,7 +40,7 @@ resource "aws_lambda_function" "{{ resource_name }}" {
   memory_size = {{ memory_size }}
   {% if environment_variable_files != [] %}
   environment {
-    variables = merge({{ environment_variables | tojson }},[for item in local.environment_variables_{{ resource_name }}: merge(item,local.environment_variables_{{ resource_name }}...)][0], {"WORKSPACE":"{{ workspace }}"})
+    variables = merge({{ environment_variables | tojson }},[for item in local.{{ resource_name }}_environment_variables: merge(item,local.{{ resource_name }}_environment_variables...)][0], {"WORKSPACE":"{{ workspace }}"})
   }
   {% else %}
   environment {
@@ -56,12 +58,14 @@ resource "aws_lambda_function" "{{ resource_name }}" {
 }
 
 data "aws_lambda_function" "{{ resource_name }}" {
-  count = {{ 'local.when_default' if step == "update" else 0}}
+  provider = aws.{{ resource_name }}
+  count = {{ 'local.{}_when_default'.format(resource_name) if step == "update" else 0}}
   function_name = "{{ resource_name }}-{{ workspace }}"
 }
 
 resource "aws_lambda_permission" "{{ resource_name }}" {
-  count = local.when_stage
+  provider = aws.{{ resource_name }}
+  count = local.{{ resource_name }}_when_stage
   statement_id = "AllowExecutionFromAPIGateway"
   action = "lambda:InvokeFunction"
   function_name = local.{{ resource_name }}_lambda_function_name
