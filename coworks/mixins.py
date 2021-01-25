@@ -13,7 +13,7 @@ from requests_toolbelt.multipart import MultipartDecoder
 
 from coworks import aws
 from coworks.error import CwsError
-from .utils import HTTP_METHODS, class_auth_methods, class_http_methods, trim_underscores, make_absolute
+from .utils import HTTP_METHODS, class_auth_methods, class_cws_methods, make_absolute, path_join
 
 
 class EntryPoint:
@@ -67,11 +67,11 @@ class CoworksMixin:
         self.handle_exception_funcs = []
 
         self.aws_s3_sfn_data_session = aws.AwsS3Session(env_var_access_key="AWS_RUN_ACCESS_KEY_ID",
-                                                    env_var_secret_key="AWS_RUN_SECRET_KEY",
-                                                    env_var_region="AWS_RUN_REGION")
+                                                        env_var_secret_key="AWS_RUN_SECRET_KEY",
+                                                        env_var_region="AWS_RUN_REGION")
         self.aws_s3_form_data_session = aws.AwsS3Session(env_var_access_key="AWS_FORM_DATA_ACCESS_KEY_ID",
-                                                     env_var_secret_key="AWS_FORM_DATA_SECRET_KEY",
-                                                     env_var_region="AWS_FORM_DATA_REGION")
+                                                         env_var_secret_key="AWS_FORM_DATA_SECRET_KEY",
+                                                         env_var_region="AWS_FORM_DATA_REGION")
 
     def before_first_activation(self, f):
         """Registers a function to be run before the first activation of the microservice.
@@ -119,56 +119,47 @@ class CoworksMixin:
         self.handle_exception_funcs.append(f)
         return f
 
-    def _init_routes(self, app, *, url_prefix='', authorizer=None, hide_routes=None):
+    def _init_routes(self, app, *, url_prefix='', hide_routes=None):
         """ Creates all routes for a microservice.
         :param authorizer is the default global authorization function.
         :param hide_routes list of routes to be hidden.
         """
 
         # Global authorization function may be redefined
-        if authorizer is not None:
-            auth = authorizer
-        else:
-            auth_fun = app.config.auth if app.config.auth else class_auth_methods(self)
-            auth = self._create_auth_proxy(auth_fun) if auth_fun else None
+        auth_fun = app.config.auth if app.config.auth else class_auth_methods(app)
+        auth = self._create_auth_proxy(auth_fun) if auth_fun else None
 
         # Adds entrypoints
-        methods = class_http_methods(self)
-        for method, func in methods:
-
-            # Get function's route
-            if func.__name__ == method:
-                route = f"{url_prefix}"
-            else:
-                name = func.__name__[len(method) + 1:]
-                name = trim_underscores(name)  # to allow several functions with same route but different args
-                name = name.replace('_', '/')
-                route = f"{url_prefix}/{name}" if url_prefix else f"{name}"
-            entry_path = route
+        methods = class_cws_methods(self)
+        for fun in methods:
+            method = getattr(fun, '__CWS_METHOD')
+            path = getattr(fun, '__CWS_PATH')
+            entry_path = route = path_join(url_prefix, path)
 
             # Get parameters
-            args = inspect.getfullargspec(func).args[1:]
-            defaults = inspect.getfullargspec(func).defaults
-            varkw = inspect.getfullargspec(func).varkw
+            args = inspect.getfullargspec(fun).args[1:]
+            defaults = inspect.getfullargspec(fun).defaults
+            varkw = inspect.getfullargspec(fun).varkw
             if defaults:
                 len_defaults = len(defaults)
                 for index, arg in enumerate(args[:-len_defaults]):
-                    entry_path = entry_path + f"/{{{arg}}}" if entry_path else f"{{{arg}}}"
-                    route = route + f"/{{_{index}}}" if route else f"{{_{index}}}"
+                    entry_path = path_join(entry_path, f"/{{_{arg}}}")
+                    route = path_join(route, f"/{{_{index}}}")
                 kwarg_keys = args[-len_defaults:]
             else:
                 for index, arg in enumerate(args):
-                    entry_path = entry_path + f"/{{{arg}}}" if entry_path else f"{{{arg}}}"
-                    route = route + f"/{{_{index}}}" if route else f"{{_{index}}}"
+                    entry_path = path_join(entry_path, f"/{{_{arg}}}")
+                    route = path_join(route, f"/{{_{index}}}")
                 kwarg_keys = {}
 
-            proxy = self._create_rest_proxy(func, kwarg_keys, args, varkw)
+            proxy = self._create_rest_proxy(fun, kwarg_keys, args, varkw)
 
-            # Creates the entry (TODO: autorization may be redefined with decorator)
-            route = make_absolute(route)
-            app.entries[entry_path][method.upper()] = EntryPoint(self, auth, func)
-            if not hide_routes and not getattr(func, '__cws_hidden', False):
-                app.route(f"{route}", methods=[method.upper()], authorizer=auth, cors=app.config.cors,
+            # Creates the entry
+            if method in app.entries[entry_path]:
+                raise CwsError(f"The method {method} is already defined for the route {make_absolute(entry_path)}")
+            app.entries[entry_path][method] = EntryPoint(self, auth, fun)
+            if not hide_routes and not getattr(fun, '__CWS_HIDDEN', False):
+                app.route(f"{make_absolute(route)}", methods=[method], authorizer=auth, cors=app.config.cors,
                           content_types=list(app.config.content_type))(proxy)
 
     def _create_auth_proxy(self, auth_method):

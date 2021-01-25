@@ -6,7 +6,7 @@ from unittest.mock import Mock, MagicMock
 import pytest
 import yaml
 
-from coworks import BizFactory
+from coworks import BizFactory, entry
 from coworks.cws.sfn import StepFunction, TechState, CwsSFNTranslater
 from coworks.cws.writer import CwsWriterError
 from tests.src.coworks.tech_ms import S3MockTechMS
@@ -28,15 +28,19 @@ class TestStepFunction(StepFunction):
 
 class TechMS(S3MockTechMS):
 
+    @entry
     def get_test(self):
         return "get"
 
+    @entry
     def get_params(self, value, other):
         return f"get {value} and {other}"
 
+    @entry
     def get_params_(self, value=1, other=2):
         return f"get {value} and {other}"
 
+    @entry
     def post_params(self, value=1, other=2):
         return f"get {value} and {other}"
 

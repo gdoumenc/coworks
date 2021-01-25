@@ -1,12 +1,11 @@
-import urllib.parse
-
 import json
+import urllib.parse
 from json import JSONDecodeError
 
 import jinja2
 from chalice import NotFoundError
 
-from coworks import TechMicroService
+from coworks import TechMicroService, entry
 
 
 class JinjaRenderMicroService(TechMicroService):
@@ -28,6 +27,7 @@ class JinjaRenderMicroService(TechMicroService):
             env.filters.update(**self.filters)
         return env
 
+    @entry
     def post_render(self, template_to_render_name, templates=None, context=None):
         """ render the template named template_to_render_name using templates sources given in templates
             pass templates as files of a multipart/form-data body
@@ -59,6 +59,7 @@ class JinjaRenderMicroService(TechMicroService):
                 print(e)
             return {"render": render}
 
+    @entry
     def get_render_(self, template):
         """ render template which content is given in url
         pass jinja context in query_params """
@@ -71,4 +72,3 @@ class JinjaRenderMicroService(TechMicroService):
         template = env.get_template('index.html')
         render = template.render(**context)
         return {"render": render}
-

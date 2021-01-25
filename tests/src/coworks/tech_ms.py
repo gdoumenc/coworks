@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 from chalice import Response
 
-from coworks import TechMicroService
+from coworks import TechMicroService, entry
 
 
 class TechMS(TechMicroService):
@@ -23,6 +23,7 @@ class S3MockTechMS(TechMicroService):
 
 class SimpleMS(TechMS):
 
+    @entry
     def get(self):
         """Root access."""
         return "get"
@@ -31,29 +32,37 @@ class SimpleMS(TechMS):
         """Not recognized."""
         return "get1"
 
+    @entry
     def get_content(self):
         return "get content"
 
+    @entry
     def get__content(self, value):
         return f"get content with {value}"
 
+    @entry
     def get_content__(self, value, other):
         return f"get content with {value} and {other}"
 
+    @entry
     def post_content(self, other="none"):
         return f"post content without value but {other}"
 
+    @entry
     def post_content_(self, value, other="none"):
         return f"post content with {value} and {other}"
 
     # **param
+    @entry
     def get_kwparam1(self, value=0):
         return f"get **param with only {value}"
 
+    @entry
     def get_kwparam2(self, value=0, **kwargs):
         return f"get **param with {value} and {list(kwargs.keys())}"
 
     # composed path
+    @entry
     def get_extended_content(self):
         return "hello world"
 
@@ -61,35 +70,45 @@ class SimpleMS(TechMS):
 class ParamMS(TechMS):
     value = "123"
 
+    @entry
     def get(self, str):
         return str
 
+    @entry
     def get_concat(self, str1, str2):
         return str1 + str2
 
+    @entry
     def get_value(self):
         return self.value
 
+    @entry
     def put_value(self, value=None):
         self.value = value
         return self.value
 
+    @entry
     def get_param(self, str1, param1='default1', param2='default2'):
         return str1 + str(param1) + param2
 
 
 class TupleReturnedMS(TechMS):
+    @entry
     def get(self):
         return 'ok', 200
 
+    @entry
     def get_json(self):
         return {'value': 'ok'}, 200
 
+    @entry
     def get_resp(self, str):
         return Response(body=str, status_code=200)
 
+    @entry
     def get_error(self, str):
         return str, 300
 
+    @entry
     def get_tuple(self, str):
         return (str, 200, {'x-test': 'true'})
