@@ -160,7 +160,7 @@ resource "aws_api_gateway_integration" "{{ resource_name }}_null_integration" {
         response_parameters = {
         {%- for k,v in entry.cors.get_access_control_headers().items() %}
           "method.response.header.{{ k }}" = "'{{ v }}'",
-        {% endfor -%}
+        {%- endfor %}
         }
         status_code = 200
         response_templates = {
@@ -189,7 +189,10 @@ resource "aws_api_gateway_integration" "{{ resource_name }}_null_integration" {
         response_parameters = {
           "method.response.header.Access-Control-Allow-Headers" = true,
           "method.response.header.Access-Control-Allow-Methods" = true,
-          "method.response.header.Access-Control-Allow-Origin" = true
+          "method.response.header.Access-Control-Allow-Origin" = true,
+          {%- if 'Access-Control-Max-Age' in entry.cors.get_access_control_headers() %}
+          "method.response.header.Access-Control-Max-Age" = true,
+          {%- endif %}
         }
 
         depends_on = [
