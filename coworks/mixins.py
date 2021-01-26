@@ -119,7 +119,7 @@ class CoworksMixin:
         self.handle_exception_funcs.append(f)
         return f
 
-    def _init_routes(self, app, *, url_prefix='', hide_routes=None):
+    def _init_routes(self, app, *, url_prefix='', hide_routes=False):
         """ Creates all routes for a microservice.
         :param authorizer is the default global authorization function.
         :param hide_routes list of routes to be hidden.
@@ -132,6 +132,9 @@ class CoworksMixin:
         # Adds entrypoints
         methods = class_cws_methods(self)
         for fun in methods:
+            if hide_routes is True or getattr(fun, '__CWS_HIDDEN', False):
+                continue
+
             method = getattr(fun, '__CWS_METHOD')
             path = getattr(fun, '__CWS_PATH')
             entry_path = route = path_join(url_prefix, path)
@@ -143,22 +146,22 @@ class CoworksMixin:
             if defaults:
                 len_defaults = len(defaults)
                 for index, arg in enumerate(args[:-len_defaults]):
-                    entry_path = path_join(entry_path, f"/{{_{arg}}}")
+                    entry_path = path_join(entry_path, f"/{{{arg}}}")
                     route = path_join(route, f"/{{_{index}}}")
                 kwarg_keys = args[-len_defaults:]
             else:
                 for index, arg in enumerate(args):
-                    entry_path = path_join(entry_path, f"/{{_{arg}}}")
+                    entry_path = path_join(entry_path, f"/{{{arg}}}")
                     route = path_join(route, f"/{{_{index}}}")
                 kwarg_keys = {}
 
             proxy = self._create_rest_proxy(fun, kwarg_keys, args, varkw)
 
             # Creates the entry
-            if method in app.entries[entry_path]:
-                raise CwsError(f"The method {method} is already defined for the route {make_absolute(entry_path)}")
-            app.entries[entry_path][method] = EntryPoint(self, auth, fun)
-            if not hide_routes and not getattr(fun, '__CWS_HIDDEN', False):
+            if hide_routes is False or (type(hide_routes) is list and entry_path not in hide_routes):
+                if method in app.entries[entry_path]:
+                    raise CwsError(f"The method {method} is already defined for the route {make_absolute(entry_path)}")
+                app.entries[entry_path][method] = EntryPoint(self, auth, fun)
                 app.route(f"{make_absolute(route)}", methods=[method], authorizer=auth, cors=app.config.cors,
                           content_types=list(app.config.content_type))(proxy)
 
