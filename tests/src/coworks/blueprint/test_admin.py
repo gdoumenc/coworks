@@ -52,13 +52,13 @@ class TestClass:
                 "signature": "()"
             }
         }
-        assert routes["/content/{_0}"] == {
+        assert routes["/content/{value}"] == {
             "POST": {
                 "doc": "Add content.",
                 "signature": "(value, other=none)"
             }
         }
-        assert routes["/contentannotated/{_0}"] == {
+        assert routes["/contentannotated/{value}"] == {
             "POST": {
                 "doc": "Add content.",
                 "signature": "(value:<class 'int'>, other:<class 'str'>=none)"
@@ -70,7 +70,7 @@ class TestClass:
                 "signature": "(pretty=False)"
             }
         }
-        assert routes["/list/{_0}"] == {
+        assert routes["/list/{values}"] == {
             "GET": {
                 "doc": 'Tests list param.',
                 "signature": "(values:[<class 'int'>])"

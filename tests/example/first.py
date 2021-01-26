@@ -37,7 +37,4 @@ CwsTerraformDeployer(app, name='deploy')
 XRayContextManager(app, xray_recorder)
 
 if __name__ == '__main__':
-    from coworks.blueprint import Admin
-
-    app.register_blueprint(Admin(), url_prefix='/admin')
     app.execute('run', project_dir='.', module='quickstart3', workspace='dev')
