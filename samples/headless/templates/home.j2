@@ -7,12 +7,17 @@
 {% from 'home/notes.j2' import notes as notes_ %}
 
 {% block head %}
-    <h1 id="logo"><a href="/">{{ home.title_h1 }}</a></h1>
+    <h1 id="logo">
+        {% if home.logo %}
+        <img src="https://imgix.cosmicjs.com/{{ home.logo }}" alt="logo morassuti" title="logo morassuti"/>
+        {% endif %}
+        {{ home.title_h1 }}
+    </h1>
     <h2>{{ home.subtitle_h2 }}</h2>
 {% endblock %}
 
 {% block content %}
-    {% include 'home/carousel.j2' %}
+{#    {% include 'home/carousel.j2' %}#}
     {{ products_(home.products, product_ids) }}
     {{ banners_(home.banners, banner_ids) }}
     {{ references_(home.references, reference_ids) }}

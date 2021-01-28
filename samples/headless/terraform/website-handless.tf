@@ -3,6 +3,7 @@
 
 
 provider "aws" {
+  alias = "website-handless"
   profile = "fpr-customer"
   region = "eu-west-1"
 }
@@ -12,15 +13,15 @@ provider "aws" {
 # ---------------------------------------------------------------------------------------------------------------------
 
 locals {
-    when_default = terraform.workspace == "default" ? 1 : 0
-    when_stage = terraform.workspace != "default" ? 1 : 0
+  website-handless_when_default = terraform.workspace == "default" ? 1 : 0
+  website-handless_when_stage = terraform.workspace != "default" ? 1 : 0
 }
 
 locals {
   website-handless_bucket = "coworks-microservice"
   website-handless_key = "website-handless/archive.zip"
   website-handless_python = "python3.7"
-  website-handless_role_arn = join("", aws_iam_role.microservice.*.arn, data.aws_iam_role.microservice.*.arn)
+  website-handless_role_arn = join("", aws_iam_role.website-handless_microservice.*.arn, data.aws_iam_role.website-handless_microservice.*.arn)
   website-handless_security_group_ids = []
   website-handless_vpc_id = []
   website-handless_subnet_ids = []
@@ -32,7 +33,8 @@ locals {
 
 
 data "aws_lambda_layer_version" "website-handless" {
-  for_each = {for layer_name in ["arn:aws:lambda:eu-west-1:935392763270:layer:coworks-0_4_1"]: layer_name => layer_name}
+  provider = aws.website-handless
+  for_each = {for layer_name in ["arn:aws:lambda:eu-west-1:935392763270:layer:coworks-dev"]: layer_name => layer_name}
   layer_name = each.value
 }
 locals {
@@ -41,8 +43,9 @@ locals {
 
 
 
-resource "aws_iam_role" "microservice" {
-  count = local.when_default
+resource "aws_iam_role" "website-handless_microservice" {
+  provider = aws.website-handless
+  count = local.website-handless_when_default
   name = "website-handless_microservice_role"
 
   assume_role_policy = <<EOF
@@ -70,32 +73,37 @@ EOF
   }
 }
 
-resource "aws_iam_role_policy_attachment" "s3" {
-  count = local.when_default
-  role = join("", aws_iam_role.microservice.*.name)
+resource "aws_iam_role_policy_attachment" "website-handless_s3" {
+  provider = aws.website-handless
+  count = local.website-handless_when_default
+  role = join("", aws_iam_role.website-handless_microservice.*.name)
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
 }
 
-resource "aws_iam_role_policy_attachment" "cloud_watch" {
-  count = local.when_default
-  role = join("", aws_iam_role.microservice.*.name)
+resource "aws_iam_role_policy_attachment" "website-handless_cloud_watch" {
+  provider = aws.website-handless
+  count = local.website-handless_when_default
+  role = join("", aws_iam_role.website-handless_microservice.*.name)
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
 }
 
-resource "aws_iam_role_policy_attachment" "xray" {
-  count = local.when_default
-  role = join("", aws_iam_role.microservice.*.name)
+resource "aws_iam_role_policy_attachment" "website-handless_xray" {
+  provider = aws.website-handless
+  count = local.website-handless_when_default
+  role = join("", aws_iam_role.website-handless_microservice.*.name)
   policy_arn = "arn:aws:iam::aws:policy/AWSXrayFullAccess"
 }
 
-resource "aws_iam_role_policy_attachment" "step_functions" {
-  count = local.when_default
-  role = join("", aws_iam_role.microservice.*.name)
+resource "aws_iam_role_policy_attachment" "website-handless_step_functions" {
+  provider = aws.website-handless
+  count = local.website-handless_when_default
+  role = join("", aws_iam_role.website-handless_microservice.*.name)
   policy_arn = "arn:aws:iam::aws:policy/AWSStepFunctionsFullAccess"
 }
 
-data "aws_iam_role" "microservice" {
-  count = local.when_stage
+data "aws_iam_role" "website-handless_microservice" {
+  provider = aws.website-handless
+  count = local.website-handless_when_stage
   name = "website-handless_microservice_role"
 }
 
@@ -112,7 +120,8 @@ locals {
 # ---------------------------------------------------------------------------------------------------------------------
 
 resource "aws_api_gateway_rest_api" "website-handless" {
-  count = local.when_default
+  provider = aws.website-handless
+  count = local.website-handless_when_default
   name = "website-handless"
   description = ""
   
@@ -124,12 +133,14 @@ resource "aws_api_gateway_rest_api" "website-handless" {
 }
 
 data "aws_api_gateway_rest_api" "website-handless" {
-  count = local.when_stage
+  provider = aws.website-handless
+  count = local.website-handless_when_stage
   name = "website-handless"
 }
 
 resource "aws_api_gateway_authorizer" "website-handless" {
-  count = local.when_default
+  provider = aws.website-handless
+  count = 0
   name = "website-handless-auth"
   rest_api_id = local.website-handless_api_id
   authorizer_uri = local.website-handless_lambda_uri
@@ -137,20 +148,23 @@ resource "aws_api_gateway_authorizer" "website-handless" {
 
 # since at least one integration in needed to create api deployment we create an empty resource to prevent terraform from failing the first time we deploy the microservice
 resource "aws_api_gateway_resource" "website-handless_null_resource" {
-  count = 0
+  provider = aws.website-handless
+  count = local.website-handless_when_default
   path_part = "null_resource"
   parent_id = local.website-handless_api_root_id
   rest_api_id = local.website-handless_api_id
 }
 resource "aws_api_gateway_method" "website-handless_null_method" {
-  count = 0
+  provider = aws.website-handless
+  count = local.website-handless_when_default
   rest_api_id = local.website-handless_api_id
   resource_id = join("", aws_api_gateway_resource.website-handless_null_resource.*.id)
   http_method = "GET"
   authorization = "NONE"
 }
 resource "aws_api_gateway_integration" "website-handless_null_integration" {
-  count = 0
+  provider = aws.website-handless
+  count = local.website-handless_when_default
   rest_api_id = local.website-handless_api_id
   resource_id = join("", aws_api_gateway_resource.website-handless_null_resource.*.id)
   http_method = join("", aws_api_gateway_method.website-handless_null_method.*.http_method)
@@ -161,7 +175,8 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
     
       resource "aws_api_gateway_method" "website-handless___GET" {
-        count = local.when_default
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
         resource_id = local.website-handless_api_root_id
         http_method = "GET"
@@ -171,7 +186,8 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
       }
 
       resource "aws_api_gateway_integration" "website-handless___GET" {
-        count = local.when_default
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
         resource_id = local.website-handless_api_root_id
         http_method = join("", aws_api_gateway_method.website-handless___GET.*.http_method)
@@ -183,7 +199,8 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
     
       resource "aws_api_gateway_method" "website-handless___OPTIONS" {
-        count = local.when_default
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
         resource_id = local.website-handless_api_root_id
         http_method = "OPTIONS"
@@ -191,7 +208,8 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
       }
 
       resource "aws_api_gateway_integration" "website-handless___OPTIONS" {
-        count = local.when_default
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
         resource_id = local.website-handless_api_root_id
         http_method = join("", aws_api_gateway_method.website-handless___OPTIONS.*.http_method)
@@ -202,11 +220,16 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
       }
 
       resource "aws_api_gateway_integration_response" "website-handless___OPTIONS" {
-        count = local.when_default
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
         resource_id = local.website-handless_api_root_id
         http_method =  join("", aws_api_gateway_method.website-handless___OPTIONS.*.http_method)
-        response_parameters = {}
+        response_parameters = {
+          "method.response.header.Access-Control-Allow-Origin" = "'*'",
+          "method.response.header.Access-Control-Allow-Headers" = "'Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key'",
+          "method.response.header.Access-Control-Max-Age" = "'600'",
+        }
         status_code = 200
         response_templates = {
           "application/json": "{}"
@@ -218,7 +241,8 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
       }
 
       resource "aws_api_gateway_method_response" "website-handless___OPTIONS" {
-        count = local.when_default
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
         resource_id = local.website-handless_api_root_id
         http_method = join("", aws_api_gateway_method.website-handless___OPTIONS.*.http_method)
@@ -229,7 +253,8 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
         response_parameters = {
           "method.response.header.Access-Control-Allow-Headers" = true,
           "method.response.header.Access-Control-Allow-Methods" = true,
-          "method.response.header.Access-Control-Allow-Origin" = true
+          "method.response.header.Access-Control-Allow-Origin" = true,
+          "method.response.header.Access-Control-Max-Age" = true,
         }
 
         depends_on = [
@@ -237,95 +262,9 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
         ]
       }
     
-    resource "aws_api_gateway_resource" "website-handless____0" {
-      count = local.when_default
-      rest_api_id = local.website-handless_api_id
-      
-      parent_id = local.website-handless_api_root_id
-      
-      path_part = "{_0}"
-    }
-  
-    
-      resource "aws_api_gateway_method" "website-handless____0_GET" {
-        count = local.when_default
-        rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless____0[0].id
-        http_method = "GET"
-        
-        authorization = "NONE"
-        
-      }
-
-      resource "aws_api_gateway_integration" "website-handless____0_GET" {
-        count = local.when_default
-        rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless____0[0].id
-        http_method = join("", aws_api_gateway_method.website-handless____0_GET.*.http_method)
-        integration_http_method = "POST"
-        type = "AWS_PROXY"
-        uri = local.website-handless_lambda_uri
-      }
-    
-
-    
-      resource "aws_api_gateway_method" "website-handless____0_OPTIONS" {
-        count = local.when_default
-        rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless____0[0].id
-        http_method = "OPTIONS"
-        authorization = "NONE"
-      }
-
-      resource "aws_api_gateway_integration" "website-handless____0_OPTIONS" {
-        count = local.when_default
-        rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless____0[0].id
-        http_method = join("", aws_api_gateway_method.website-handless____0_OPTIONS.*.http_method)
-        type = "MOCK"
-        request_templates = {
-          "application/json" = "{ \"statusCode\": 200 }"
-        }
-      }
-
-      resource "aws_api_gateway_integration_response" "website-handless____0_OPTIONS" {
-        count = local.when_default
-        rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless____0[0].id
-        http_method =  join("", aws_api_gateway_method.website-handless____0_OPTIONS.*.http_method)
-        response_parameters = {}
-        status_code = 200
-        response_templates = {
-          "application/json": "{}"
-        }
-        depends_on = [
-          aws_api_gateway_integration.website-handless____0_OPTIONS,
-          aws_api_gateway_method_response.website-handless____0_OPTIONS,
-        ]
-      }
-
-      resource "aws_api_gateway_method_response" "website-handless____0_OPTIONS" {
-        count = local.when_default
-        rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless____0[0].id
-        http_method = join("", aws_api_gateway_method.website-handless____0_OPTIONS.*.http_method)
-        status_code = 200
-        response_models = {
-          "application/json" = "Empty"
-        }
-        response_parameters = {
-          "method.response.header.Access-Control-Allow-Headers" = true,
-          "method.response.header.Access-Control-Allow-Methods" = true,
-          "method.response.header.Access-Control-Allow-Origin" = true
-        }
-
-        depends_on = [
-          aws_api_gateway_method.website-handless____0_OPTIONS,
-        ]
-      }
-    
     resource "aws_api_gateway_resource" "website-handless___assets" {
-      count = local.when_default
+      provider = aws.website-handless
+      count = 0
       rest_api_id = local.website-handless_api_id
       
       parent_id = local.website-handless_api_root_id
@@ -333,40 +272,44 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
       path_part = "assets"
     }
   
-    resource "aws_api_gateway_resource" "website-handless___assets_css" {
-      count = local.when_default
+    resource "aws_api_gateway_resource" "website-handless___assets__0" {
+      provider = aws.website-handless
+      count = 0
       rest_api_id = local.website-handless_api_id
       
       parent_id = aws_api_gateway_resource.website-handless___assets[0].id
       
-      path_part = "css"
-    }
-  
-    resource "aws_api_gateway_resource" "website-handless___assets_css__0" {
-      count = local.when_default
-      rest_api_id = local.website-handless_api_id
-      
-      parent_id = aws_api_gateway_resource.website-handless___assets_css[0].id
-      
       path_part = "{_0}"
     }
   
+    resource "aws_api_gateway_resource" "website-handless___assets__0__1" {
+      provider = aws.website-handless
+      count = 0
+      rest_api_id = local.website-handless_api_id
+      
+      parent_id = aws_api_gateway_resource.website-handless___assets__0[0].id
+      
+      path_part = "{_1}"
+    }
+  
     
-      resource "aws_api_gateway_method" "website-handless___assets_css__0_GET" {
-        count = local.when_default
+      resource "aws_api_gateway_method" "website-handless___assets__0__1_GET" {
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___assets_css__0[0].id
+        resource_id = aws_api_gateway_resource.website-handless___assets__0__1[0].id
         http_method = "GET"
         
         authorization = "NONE"
         
       }
 
-      resource "aws_api_gateway_integration" "website-handless___assets_css__0_GET" {
-        count = local.when_default
+      resource "aws_api_gateway_integration" "website-handless___assets__0__1_GET" {
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___assets_css__0[0].id
-        http_method = join("", aws_api_gateway_method.website-handless___assets_css__0_GET.*.http_method)
+        resource_id = aws_api_gateway_resource.website-handless___assets__0__1[0].id
+        http_method = join("", aws_api_gateway_method.website-handless___assets__0__1_GET.*.http_method)
         integration_http_method = "POST"
         type = "AWS_PROXY"
         uri = local.website-handless_lambda_uri
@@ -374,46 +317,54 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
     
 
     
-      resource "aws_api_gateway_method" "website-handless___assets_css__0_OPTIONS" {
-        count = local.when_default
+      resource "aws_api_gateway_method" "website-handless___assets__0__1_OPTIONS" {
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___assets_css__0[0].id
+        resource_id = aws_api_gateway_resource.website-handless___assets__0__1[0].id
         http_method = "OPTIONS"
         authorization = "NONE"
       }
 
-      resource "aws_api_gateway_integration" "website-handless___assets_css__0_OPTIONS" {
-        count = local.when_default
+      resource "aws_api_gateway_integration" "website-handless___assets__0__1_OPTIONS" {
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___assets_css__0[0].id
-        http_method = join("", aws_api_gateway_method.website-handless___assets_css__0_OPTIONS.*.http_method)
+        resource_id = aws_api_gateway_resource.website-handless___assets__0__1[0].id
+        http_method = join("", aws_api_gateway_method.website-handless___assets__0__1_OPTIONS.*.http_method)
         type = "MOCK"
         request_templates = {
           "application/json" = "{ \"statusCode\": 200 }"
         }
       }
 
-      resource "aws_api_gateway_integration_response" "website-handless___assets_css__0_OPTIONS" {
-        count = local.when_default
+      resource "aws_api_gateway_integration_response" "website-handless___assets__0__1_OPTIONS" {
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___assets_css__0[0].id
-        http_method =  join("", aws_api_gateway_method.website-handless___assets_css__0_OPTIONS.*.http_method)
-        response_parameters = {}
+        resource_id = aws_api_gateway_resource.website-handless___assets__0__1[0].id
+        http_method =  join("", aws_api_gateway_method.website-handless___assets__0__1_OPTIONS.*.http_method)
+        response_parameters = {
+          "method.response.header.Access-Control-Allow-Origin" = "'*'",
+          "method.response.header.Access-Control-Allow-Headers" = "'Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key'",
+          "method.response.header.Access-Control-Max-Age" = "'600'",
+        }
         status_code = 200
         response_templates = {
           "application/json": "{}"
         }
         depends_on = [
-          aws_api_gateway_integration.website-handless___assets_css__0_OPTIONS,
-          aws_api_gateway_method_response.website-handless___assets_css__0_OPTIONS,
+          aws_api_gateway_integration.website-handless___assets__0__1_OPTIONS,
+          aws_api_gateway_method_response.website-handless___assets__0__1_OPTIONS,
         ]
       }
 
-      resource "aws_api_gateway_method_response" "website-handless___assets_css__0_OPTIONS" {
-        count = local.when_default
+      resource "aws_api_gateway_method_response" "website-handless___assets__0__1_OPTIONS" {
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___assets_css__0[0].id
-        http_method = join("", aws_api_gateway_method.website-handless___assets_css__0_OPTIONS.*.http_method)
+        resource_id = aws_api_gateway_resource.website-handless___assets__0__1[0].id
+        http_method = join("", aws_api_gateway_method.website-handless___assets__0__1_OPTIONS.*.http_method)
         status_code = 200
         response_models = {
           "application/json" = "Empty"
@@ -421,48 +372,43 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
         response_parameters = {
           "method.response.header.Access-Control-Allow-Headers" = true,
           "method.response.header.Access-Control-Allow-Methods" = true,
-          "method.response.header.Access-Control-Allow-Origin" = true
+          "method.response.header.Access-Control-Allow-Origin" = true,
+          "method.response.header.Access-Control-Max-Age" = true,
         }
 
         depends_on = [
-          aws_api_gateway_method.website-handless___assets_css__0_OPTIONS,
+          aws_api_gateway_method.website-handless___assets__0__1_OPTIONS,
         ]
       }
     
-    resource "aws_api_gateway_resource" "website-handless___assets_css_images" {
-      count = local.when_default
+    resource "aws_api_gateway_resource" "website-handless___assets__0__1__2" {
+      provider = aws.website-handless
+      count = 0
       rest_api_id = local.website-handless_api_id
       
-      parent_id = aws_api_gateway_resource.website-handless___assets_css[0].id
+      parent_id = aws_api_gateway_resource.website-handless___assets__0__1[0].id
       
-      path_part = "images"
-    }
-  
-    resource "aws_api_gateway_resource" "website-handless___assets_css_images__0" {
-      count = local.when_default
-      rest_api_id = local.website-handless_api_id
-      
-      parent_id = aws_api_gateway_resource.website-handless___assets_css_images[0].id
-      
-      path_part = "{_0}"
+      path_part = "{_2}"
     }
   
     
-      resource "aws_api_gateway_method" "website-handless___assets_css_images__0_GET" {
-        count = local.when_default
+      resource "aws_api_gateway_method" "website-handless___assets__0__1__2_GET" {
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___assets_css_images__0[0].id
+        resource_id = aws_api_gateway_resource.website-handless___assets__0__1__2[0].id
         http_method = "GET"
         
         authorization = "NONE"
         
       }
 
-      resource "aws_api_gateway_integration" "website-handless___assets_css_images__0_GET" {
-        count = local.when_default
+      resource "aws_api_gateway_integration" "website-handless___assets__0__1__2_GET" {
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___assets_css_images__0[0].id
-        http_method = join("", aws_api_gateway_method.website-handless___assets_css_images__0_GET.*.http_method)
+        resource_id = aws_api_gateway_resource.website-handless___assets__0__1__2[0].id
+        http_method = join("", aws_api_gateway_method.website-handless___assets__0__1__2_GET.*.http_method)
         integration_http_method = "POST"
         type = "AWS_PROXY"
         uri = local.website-handless_lambda_uri
@@ -470,46 +416,54 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
     
 
     
-      resource "aws_api_gateway_method" "website-handless___assets_css_images__0_OPTIONS" {
-        count = local.when_default
+      resource "aws_api_gateway_method" "website-handless___assets__0__1__2_OPTIONS" {
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___assets_css_images__0[0].id
+        resource_id = aws_api_gateway_resource.website-handless___assets__0__1__2[0].id
         http_method = "OPTIONS"
         authorization = "NONE"
       }
 
-      resource "aws_api_gateway_integration" "website-handless___assets_css_images__0_OPTIONS" {
-        count = local.when_default
+      resource "aws_api_gateway_integration" "website-handless___assets__0__1__2_OPTIONS" {
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___assets_css_images__0[0].id
-        http_method = join("", aws_api_gateway_method.website-handless___assets_css_images__0_OPTIONS.*.http_method)
+        resource_id = aws_api_gateway_resource.website-handless___assets__0__1__2[0].id
+        http_method = join("", aws_api_gateway_method.website-handless___assets__0__1__2_OPTIONS.*.http_method)
         type = "MOCK"
         request_templates = {
           "application/json" = "{ \"statusCode\": 200 }"
         }
       }
 
-      resource "aws_api_gateway_integration_response" "website-handless___assets_css_images__0_OPTIONS" {
-        count = local.when_default
+      resource "aws_api_gateway_integration_response" "website-handless___assets__0__1__2_OPTIONS" {
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___assets_css_images__0[0].id
-        http_method =  join("", aws_api_gateway_method.website-handless___assets_css_images__0_OPTIONS.*.http_method)
-        response_parameters = {}
+        resource_id = aws_api_gateway_resource.website-handless___assets__0__1__2[0].id
+        http_method =  join("", aws_api_gateway_method.website-handless___assets__0__1__2_OPTIONS.*.http_method)
+        response_parameters = {
+          "method.response.header.Access-Control-Allow-Origin" = "'*'",
+          "method.response.header.Access-Control-Allow-Headers" = "'Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key'",
+          "method.response.header.Access-Control-Max-Age" = "'600'",
+        }
         status_code = 200
         response_templates = {
           "application/json": "{}"
         }
         depends_on = [
-          aws_api_gateway_integration.website-handless___assets_css_images__0_OPTIONS,
-          aws_api_gateway_method_response.website-handless___assets_css_images__0_OPTIONS,
+          aws_api_gateway_integration.website-handless___assets__0__1__2_OPTIONS,
+          aws_api_gateway_method_response.website-handless___assets__0__1__2_OPTIONS,
         ]
       }
 
-      resource "aws_api_gateway_method_response" "website-handless___assets_css_images__0_OPTIONS" {
-        count = local.when_default
+      resource "aws_api_gateway_method_response" "website-handless___assets__0__1__2_OPTIONS" {
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___assets_css_images__0[0].id
-        http_method = join("", aws_api_gateway_method.website-handless___assets_css_images__0_OPTIONS.*.http_method)
+        resource_id = aws_api_gateway_resource.website-handless___assets__0__1__2[0].id
+        http_method = join("", aws_api_gateway_method.website-handless___assets__0__1__2_OPTIONS.*.http_method)
         status_code = 200
         response_models = {
           "application/json" = "Empty"
@@ -517,304 +471,18 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
         response_parameters = {
           "method.response.header.Access-Control-Allow-Headers" = true,
           "method.response.header.Access-Control-Allow-Methods" = true,
-          "method.response.header.Access-Control-Allow-Origin" = true
+          "method.response.header.Access-Control-Allow-Origin" = true,
+          "method.response.header.Access-Control-Max-Age" = true,
         }
 
         depends_on = [
-          aws_api_gateway_method.website-handless___assets_css_images__0_OPTIONS,
-        ]
-      }
-    
-    resource "aws_api_gateway_resource" "website-handless___assets_js" {
-      count = local.when_default
-      rest_api_id = local.website-handless_api_id
-      
-      parent_id = aws_api_gateway_resource.website-handless___assets[0].id
-      
-      path_part = "js"
-    }
-  
-    resource "aws_api_gateway_resource" "website-handless___assets_js__0" {
-      count = local.when_default
-      rest_api_id = local.website-handless_api_id
-      
-      parent_id = aws_api_gateway_resource.website-handless___assets_js[0].id
-      
-      path_part = "{_0}"
-    }
-  
-    
-      resource "aws_api_gateway_method" "website-handless___assets_js__0_GET" {
-        count = local.when_default
-        rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___assets_js__0[0].id
-        http_method = "GET"
-        
-        authorization = "NONE"
-        
-      }
-
-      resource "aws_api_gateway_integration" "website-handless___assets_js__0_GET" {
-        count = local.when_default
-        rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___assets_js__0[0].id
-        http_method = join("", aws_api_gateway_method.website-handless___assets_js__0_GET.*.http_method)
-        integration_http_method = "POST"
-        type = "AWS_PROXY"
-        uri = local.website-handless_lambda_uri
-      }
-    
-
-    
-      resource "aws_api_gateway_method" "website-handless___assets_js__0_OPTIONS" {
-        count = local.when_default
-        rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___assets_js__0[0].id
-        http_method = "OPTIONS"
-        authorization = "NONE"
-      }
-
-      resource "aws_api_gateway_integration" "website-handless___assets_js__0_OPTIONS" {
-        count = local.when_default
-        rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___assets_js__0[0].id
-        http_method = join("", aws_api_gateway_method.website-handless___assets_js__0_OPTIONS.*.http_method)
-        type = "MOCK"
-        request_templates = {
-          "application/json" = "{ \"statusCode\": 200 }"
-        }
-      }
-
-      resource "aws_api_gateway_integration_response" "website-handless___assets_js__0_OPTIONS" {
-        count = local.when_default
-        rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___assets_js__0[0].id
-        http_method =  join("", aws_api_gateway_method.website-handless___assets_js__0_OPTIONS.*.http_method)
-        response_parameters = {}
-        status_code = 200
-        response_templates = {
-          "application/json": "{}"
-        }
-        depends_on = [
-          aws_api_gateway_integration.website-handless___assets_js__0_OPTIONS,
-          aws_api_gateway_method_response.website-handless___assets_js__0_OPTIONS,
-        ]
-      }
-
-      resource "aws_api_gateway_method_response" "website-handless___assets_js__0_OPTIONS" {
-        count = local.when_default
-        rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___assets_js__0[0].id
-        http_method = join("", aws_api_gateway_method.website-handless___assets_js__0_OPTIONS.*.http_method)
-        status_code = 200
-        response_models = {
-          "application/json" = "Empty"
-        }
-        response_parameters = {
-          "method.response.header.Access-Control-Allow-Headers" = true,
-          "method.response.header.Access-Control-Allow-Methods" = true,
-          "method.response.header.Access-Control-Allow-Origin" = true
-        }
-
-        depends_on = [
-          aws_api_gateway_method.website-handless___assets_js__0_OPTIONS,
-        ]
-      }
-    
-    resource "aws_api_gateway_resource" "website-handless___assets_webfonts" {
-      count = local.when_default
-      rest_api_id = local.website-handless_api_id
-      
-      parent_id = aws_api_gateway_resource.website-handless___assets[0].id
-      
-      path_part = "webfonts"
-    }
-  
-    resource "aws_api_gateway_resource" "website-handless___assets_webfonts__0" {
-      count = local.when_default
-      rest_api_id = local.website-handless_api_id
-      
-      parent_id = aws_api_gateway_resource.website-handless___assets_webfonts[0].id
-      
-      path_part = "{_0}"
-    }
-  
-    
-      resource "aws_api_gateway_method" "website-handless___assets_webfonts__0_GET" {
-        count = local.when_default
-        rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___assets_webfonts__0[0].id
-        http_method = "GET"
-        
-        authorization = "NONE"
-        
-      }
-
-      resource "aws_api_gateway_integration" "website-handless___assets_webfonts__0_GET" {
-        count = local.when_default
-        rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___assets_webfonts__0[0].id
-        http_method = join("", aws_api_gateway_method.website-handless___assets_webfonts__0_GET.*.http_method)
-        integration_http_method = "POST"
-        type = "AWS_PROXY"
-        uri = local.website-handless_lambda_uri
-      }
-    
-
-    
-      resource "aws_api_gateway_method" "website-handless___assets_webfonts__0_OPTIONS" {
-        count = local.when_default
-        rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___assets_webfonts__0[0].id
-        http_method = "OPTIONS"
-        authorization = "NONE"
-      }
-
-      resource "aws_api_gateway_integration" "website-handless___assets_webfonts__0_OPTIONS" {
-        count = local.when_default
-        rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___assets_webfonts__0[0].id
-        http_method = join("", aws_api_gateway_method.website-handless___assets_webfonts__0_OPTIONS.*.http_method)
-        type = "MOCK"
-        request_templates = {
-          "application/json" = "{ \"statusCode\": 200 }"
-        }
-      }
-
-      resource "aws_api_gateway_integration_response" "website-handless___assets_webfonts__0_OPTIONS" {
-        count = local.when_default
-        rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___assets_webfonts__0[0].id
-        http_method =  join("", aws_api_gateway_method.website-handless___assets_webfonts__0_OPTIONS.*.http_method)
-        response_parameters = {}
-        status_code = 200
-        response_templates = {
-          "application/json": "{}"
-        }
-        depends_on = [
-          aws_api_gateway_integration.website-handless___assets_webfonts__0_OPTIONS,
-          aws_api_gateway_method_response.website-handless___assets_webfonts__0_OPTIONS,
-        ]
-      }
-
-      resource "aws_api_gateway_method_response" "website-handless___assets_webfonts__0_OPTIONS" {
-        count = local.when_default
-        rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___assets_webfonts__0[0].id
-        http_method = join("", aws_api_gateway_method.website-handless___assets_webfonts__0_OPTIONS.*.http_method)
-        status_code = 200
-        response_models = {
-          "application/json" = "Empty"
-        }
-        response_parameters = {
-          "method.response.header.Access-Control-Allow-Headers" = true,
-          "method.response.header.Access-Control-Allow-Methods" = true,
-          "method.response.header.Access-Control-Allow-Origin" = true
-        }
-
-        depends_on = [
-          aws_api_gateway_method.website-handless___assets_webfonts__0_OPTIONS,
-        ]
-      }
-    
-    resource "aws_api_gateway_resource" "website-handless___config" {
-      count = local.when_default
-      rest_api_id = local.website-handless_api_id
-      
-      parent_id = local.website-handless_api_root_id
-      
-      path_part = "config"
-    }
-  
-    resource "aws_api_gateway_resource" "website-handless___config__0" {
-      count = local.when_default
-      rest_api_id = local.website-handless_api_id
-      
-      parent_id = aws_api_gateway_resource.website-handless___config[0].id
-      
-      path_part = "{_0}"
-    }
-  
-    
-      resource "aws_api_gateway_method" "website-handless___config__0_GET" {
-        count = local.when_default
-        rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___config__0[0].id
-        http_method = "GET"
-        
-        authorization = "NONE"
-        
-      }
-
-      resource "aws_api_gateway_integration" "website-handless___config__0_GET" {
-        count = local.when_default
-        rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___config__0[0].id
-        http_method = join("", aws_api_gateway_method.website-handless___config__0_GET.*.http_method)
-        integration_http_method = "POST"
-        type = "AWS_PROXY"
-        uri = local.website-handless_lambda_uri
-      }
-    
-
-    
-      resource "aws_api_gateway_method" "website-handless___config__0_OPTIONS" {
-        count = local.when_default
-        rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___config__0[0].id
-        http_method = "OPTIONS"
-        authorization = "NONE"
-      }
-
-      resource "aws_api_gateway_integration" "website-handless___config__0_OPTIONS" {
-        count = local.when_default
-        rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___config__0[0].id
-        http_method = join("", aws_api_gateway_method.website-handless___config__0_OPTIONS.*.http_method)
-        type = "MOCK"
-        request_templates = {
-          "application/json" = "{ \"statusCode\": 200 }"
-        }
-      }
-
-      resource "aws_api_gateway_integration_response" "website-handless___config__0_OPTIONS" {
-        count = local.when_default
-        rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___config__0[0].id
-        http_method =  join("", aws_api_gateway_method.website-handless___config__0_OPTIONS.*.http_method)
-        response_parameters = {}
-        status_code = 200
-        response_templates = {
-          "application/json": "{}"
-        }
-        depends_on = [
-          aws_api_gateway_integration.website-handless___config__0_OPTIONS,
-          aws_api_gateway_method_response.website-handless___config__0_OPTIONS,
-        ]
-      }
-
-      resource "aws_api_gateway_method_response" "website-handless___config__0_OPTIONS" {
-        count = local.when_default
-        rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___config__0[0].id
-        http_method = join("", aws_api_gateway_method.website-handless___config__0_OPTIONS.*.http_method)
-        status_code = 200
-        response_models = {
-          "application/json" = "Empty"
-        }
-        response_parameters = {
-          "method.response.header.Access-Control-Allow-Headers" = true,
-          "method.response.header.Access-Control-Allow-Methods" = true,
-          "method.response.header.Access-Control-Allow-Origin" = true
-        }
-
-        depends_on = [
-          aws_api_gateway_method.website-handless___config__0_OPTIONS,
+          aws_api_gateway_method.website-handless___assets__0__1__2_OPTIONS,
         ]
       }
     
     resource "aws_api_gateway_resource" "website-handless___form" {
-      count = local.when_default
+      provider = aws.website-handless
+      count = 0
       rest_api_id = local.website-handless_api_id
       
       parent_id = local.website-handless_api_root_id
@@ -824,7 +492,8 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
   
     
       resource "aws_api_gateway_method" "website-handless___form_GET" {
-        count = local.when_default
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___form[0].id
         http_method = "GET"
@@ -834,7 +503,8 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
       }
 
       resource "aws_api_gateway_integration" "website-handless___form_GET" {
-        count = local.when_default
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___form[0].id
         http_method = join("", aws_api_gateway_method.website-handless___form_GET.*.http_method)
@@ -846,7 +516,8 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
     
       resource "aws_api_gateway_method" "website-handless___form_OPTIONS" {
-        count = local.when_default
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___form[0].id
         http_method = "OPTIONS"
@@ -854,7 +525,8 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
       }
 
       resource "aws_api_gateway_integration" "website-handless___form_OPTIONS" {
-        count = local.when_default
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___form[0].id
         http_method = join("", aws_api_gateway_method.website-handless___form_OPTIONS.*.http_method)
@@ -865,11 +537,16 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
       }
 
       resource "aws_api_gateway_integration_response" "website-handless___form_OPTIONS" {
-        count = local.when_default
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___form[0].id
         http_method =  join("", aws_api_gateway_method.website-handless___form_OPTIONS.*.http_method)
-        response_parameters = {}
+        response_parameters = {
+          "method.response.header.Access-Control-Allow-Origin" = "'*'",
+          "method.response.header.Access-Control-Allow-Headers" = "'Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key'",
+          "method.response.header.Access-Control-Max-Age" = "'600'",
+        }
         status_code = 200
         response_templates = {
           "application/json": "{}"
@@ -881,7 +558,8 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
       }
 
       resource "aws_api_gateway_method_response" "website-handless___form_OPTIONS" {
-        count = local.when_default
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___form[0].id
         http_method = join("", aws_api_gateway_method.website-handless___form_OPTIONS.*.http_method)
@@ -892,7 +570,8 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
         response_parameters = {
           "method.response.header.Access-Control-Allow-Headers" = true,
           "method.response.header.Access-Control-Allow-Methods" = true,
-          "method.response.header.Access-Control-Allow-Origin" = true
+          "method.response.header.Access-Control-Allow-Origin" = true,
+          "method.response.header.Access-Control-Max-Age" = true,
         }
 
         depends_on = [
@@ -900,40 +579,44 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
         ]
       }
     
-    resource "aws_api_gateway_resource" "website-handless___images" {
-      count = local.when_default
+    resource "aws_api_gateway_resource" "website-handless___product" {
+      provider = aws.website-handless
+      count = 0
       rest_api_id = local.website-handless_api_id
       
       parent_id = local.website-handless_api_root_id
       
-      path_part = "images"
+      path_part = "product"
     }
   
-    resource "aws_api_gateway_resource" "website-handless___images__0" {
-      count = local.when_default
+    resource "aws_api_gateway_resource" "website-handless___product__0" {
+      provider = aws.website-handless
+      count = 0
       rest_api_id = local.website-handless_api_id
       
-      parent_id = aws_api_gateway_resource.website-handless___images[0].id
+      parent_id = aws_api_gateway_resource.website-handless___product[0].id
       
       path_part = "{_0}"
     }
   
     
-      resource "aws_api_gateway_method" "website-handless___images__0_GET" {
-        count = local.when_default
+      resource "aws_api_gateway_method" "website-handless___product__0_GET" {
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___images__0[0].id
+        resource_id = aws_api_gateway_resource.website-handless___product__0[0].id
         http_method = "GET"
         
         authorization = "NONE"
         
       }
 
-      resource "aws_api_gateway_integration" "website-handless___images__0_GET" {
-        count = local.when_default
+      resource "aws_api_gateway_integration" "website-handless___product__0_GET" {
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___images__0[0].id
-        http_method = join("", aws_api_gateway_method.website-handless___images__0_GET.*.http_method)
+        resource_id = aws_api_gateway_resource.website-handless___product__0[0].id
+        http_method = join("", aws_api_gateway_method.website-handless___product__0_GET.*.http_method)
         integration_http_method = "POST"
         type = "AWS_PROXY"
         uri = local.website-handless_lambda_uri
@@ -941,46 +624,54 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
     
 
     
-      resource "aws_api_gateway_method" "website-handless___images__0_OPTIONS" {
-        count = local.when_default
+      resource "aws_api_gateway_method" "website-handless___product__0_OPTIONS" {
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___images__0[0].id
+        resource_id = aws_api_gateway_resource.website-handless___product__0[0].id
         http_method = "OPTIONS"
         authorization = "NONE"
       }
 
-      resource "aws_api_gateway_integration" "website-handless___images__0_OPTIONS" {
-        count = local.when_default
+      resource "aws_api_gateway_integration" "website-handless___product__0_OPTIONS" {
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___images__0[0].id
-        http_method = join("", aws_api_gateway_method.website-handless___images__0_OPTIONS.*.http_method)
+        resource_id = aws_api_gateway_resource.website-handless___product__0[0].id
+        http_method = join("", aws_api_gateway_method.website-handless___product__0_OPTIONS.*.http_method)
         type = "MOCK"
         request_templates = {
           "application/json" = "{ \"statusCode\": 200 }"
         }
       }
 
-      resource "aws_api_gateway_integration_response" "website-handless___images__0_OPTIONS" {
-        count = local.when_default
+      resource "aws_api_gateway_integration_response" "website-handless___product__0_OPTIONS" {
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___images__0[0].id
-        http_method =  join("", aws_api_gateway_method.website-handless___images__0_OPTIONS.*.http_method)
-        response_parameters = {}
+        resource_id = aws_api_gateway_resource.website-handless___product__0[0].id
+        http_method =  join("", aws_api_gateway_method.website-handless___product__0_OPTIONS.*.http_method)
+        response_parameters = {
+          "method.response.header.Access-Control-Allow-Origin" = "'*'",
+          "method.response.header.Access-Control-Allow-Headers" = "'Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key'",
+          "method.response.header.Access-Control-Max-Age" = "'600'",
+        }
         status_code = 200
         response_templates = {
           "application/json": "{}"
         }
         depends_on = [
-          aws_api_gateway_integration.website-handless___images__0_OPTIONS,
-          aws_api_gateway_method_response.website-handless___images__0_OPTIONS,
+          aws_api_gateway_integration.website-handless___product__0_OPTIONS,
+          aws_api_gateway_method_response.website-handless___product__0_OPTIONS,
         ]
       }
 
-      resource "aws_api_gateway_method_response" "website-handless___images__0_OPTIONS" {
-        count = local.when_default
+      resource "aws_api_gateway_method_response" "website-handless___product__0_OPTIONS" {
+        provider = aws.website-handless
+        count = 0
         rest_api_id = local.website-handless_api_id
-        resource_id = aws_api_gateway_resource.website-handless___images__0[0].id
-        http_method = join("", aws_api_gateway_method.website-handless___images__0_OPTIONS.*.http_method)
+        resource_id = aws_api_gateway_resource.website-handless___product__0[0].id
+        http_method = join("", aws_api_gateway_method.website-handless___product__0_OPTIONS.*.http_method)
         status_code = 200
         response_models = {
           "application/json" = "Empty"
@@ -988,11 +679,319 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
         response_parameters = {
           "method.response.header.Access-Control-Allow-Headers" = true,
           "method.response.header.Access-Control-Allow-Methods" = true,
-          "method.response.header.Access-Control-Allow-Origin" = true
+          "method.response.header.Access-Control-Allow-Origin" = true,
+          "method.response.header.Access-Control-Max-Age" = true,
         }
 
         depends_on = [
-          aws_api_gateway_method.website-handless___images__0_OPTIONS,
+          aws_api_gateway_method.website-handless___product__0_OPTIONS,
+        ]
+      }
+    
+    resource "aws_api_gateway_resource" "website-handless___admin" {
+      provider = aws.website-handless
+      count = 0
+      rest_api_id = local.website-handless_api_id
+      
+      parent_id = local.website-handless_api_root_id
+      
+      path_part = "admin"
+    }
+  
+    resource "aws_api_gateway_resource" "website-handless___admin_context" {
+      provider = aws.website-handless
+      count = 0
+      rest_api_id = local.website-handless_api_id
+      
+      parent_id = aws_api_gateway_resource.website-handless___admin[0].id
+      
+      path_part = "context"
+    }
+  
+    
+      resource "aws_api_gateway_method" "website-handless___admin_context_GET" {
+        provider = aws.website-handless
+        count = 0
+        rest_api_id = local.website-handless_api_id
+        resource_id = aws_api_gateway_resource.website-handless___admin_context[0].id
+        http_method = "GET"
+        
+        authorization = "NONE"
+        
+      }
+
+      resource "aws_api_gateway_integration" "website-handless___admin_context_GET" {
+        provider = aws.website-handless
+        count = 0
+        rest_api_id = local.website-handless_api_id
+        resource_id = aws_api_gateway_resource.website-handless___admin_context[0].id
+        http_method = join("", aws_api_gateway_method.website-handless___admin_context_GET.*.http_method)
+        integration_http_method = "POST"
+        type = "AWS_PROXY"
+        uri = local.website-handless_lambda_uri
+      }
+    
+
+    
+      resource "aws_api_gateway_method" "website-handless___admin_context_OPTIONS" {
+        provider = aws.website-handless
+        count = 0
+        rest_api_id = local.website-handless_api_id
+        resource_id = aws_api_gateway_resource.website-handless___admin_context[0].id
+        http_method = "OPTIONS"
+        authorization = "NONE"
+      }
+
+      resource "aws_api_gateway_integration" "website-handless___admin_context_OPTIONS" {
+        provider = aws.website-handless
+        count = 0
+        rest_api_id = local.website-handless_api_id
+        resource_id = aws_api_gateway_resource.website-handless___admin_context[0].id
+        http_method = join("", aws_api_gateway_method.website-handless___admin_context_OPTIONS.*.http_method)
+        type = "MOCK"
+        request_templates = {
+          "application/json" = "{ \"statusCode\": 200 }"
+        }
+      }
+
+      resource "aws_api_gateway_integration_response" "website-handless___admin_context_OPTIONS" {
+        provider = aws.website-handless
+        count = 0
+        rest_api_id = local.website-handless_api_id
+        resource_id = aws_api_gateway_resource.website-handless___admin_context[0].id
+        http_method =  join("", aws_api_gateway_method.website-handless___admin_context_OPTIONS.*.http_method)
+        response_parameters = {
+          "method.response.header.Access-Control-Allow-Origin" = "'*'",
+          "method.response.header.Access-Control-Allow-Headers" = "'Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key'",
+          "method.response.header.Access-Control-Max-Age" = "'600'",
+        }
+        status_code = 200
+        response_templates = {
+          "application/json": "{}"
+        }
+        depends_on = [
+          aws_api_gateway_integration.website-handless___admin_context_OPTIONS,
+          aws_api_gateway_method_response.website-handless___admin_context_OPTIONS,
+        ]
+      }
+
+      resource "aws_api_gateway_method_response" "website-handless___admin_context_OPTIONS" {
+        provider = aws.website-handless
+        count = 0
+        rest_api_id = local.website-handless_api_id
+        resource_id = aws_api_gateway_resource.website-handless___admin_context[0].id
+        http_method = join("", aws_api_gateway_method.website-handless___admin_context_OPTIONS.*.http_method)
+        status_code = 200
+        response_models = {
+          "application/json" = "Empty"
+        }
+        response_parameters = {
+          "method.response.header.Access-Control-Allow-Headers" = true,
+          "method.response.header.Access-Control-Allow-Methods" = true,
+          "method.response.header.Access-Control-Allow-Origin" = true,
+          "method.response.header.Access-Control-Max-Age" = true,
+        }
+
+        depends_on = [
+          aws_api_gateway_method.website-handless___admin_context_OPTIONS,
+        ]
+      }
+    
+    resource "aws_api_gateway_resource" "website-handless___admin_proxy" {
+      provider = aws.website-handless
+      count = 0
+      rest_api_id = local.website-handless_api_id
+      
+      parent_id = aws_api_gateway_resource.website-handless___admin[0].id
+      
+      path_part = "proxy"
+    }
+  
+    
+      resource "aws_api_gateway_method" "website-handless___admin_proxy_GET" {
+        provider = aws.website-handless
+        count = 0
+        rest_api_id = local.website-handless_api_id
+        resource_id = aws_api_gateway_resource.website-handless___admin_proxy[0].id
+        http_method = "GET"
+        
+        authorization = "NONE"
+        
+      }
+
+      resource "aws_api_gateway_integration" "website-handless___admin_proxy_GET" {
+        provider = aws.website-handless
+        count = 0
+        rest_api_id = local.website-handless_api_id
+        resource_id = aws_api_gateway_resource.website-handless___admin_proxy[0].id
+        http_method = join("", aws_api_gateway_method.website-handless___admin_proxy_GET.*.http_method)
+        integration_http_method = "POST"
+        type = "AWS_PROXY"
+        uri = local.website-handless_lambda_uri
+      }
+    
+
+    
+      resource "aws_api_gateway_method" "website-handless___admin_proxy_OPTIONS" {
+        provider = aws.website-handless
+        count = 0
+        rest_api_id = local.website-handless_api_id
+        resource_id = aws_api_gateway_resource.website-handless___admin_proxy[0].id
+        http_method = "OPTIONS"
+        authorization = "NONE"
+      }
+
+      resource "aws_api_gateway_integration" "website-handless___admin_proxy_OPTIONS" {
+        provider = aws.website-handless
+        count = 0
+        rest_api_id = local.website-handless_api_id
+        resource_id = aws_api_gateway_resource.website-handless___admin_proxy[0].id
+        http_method = join("", aws_api_gateway_method.website-handless___admin_proxy_OPTIONS.*.http_method)
+        type = "MOCK"
+        request_templates = {
+          "application/json" = "{ \"statusCode\": 200 }"
+        }
+      }
+
+      resource "aws_api_gateway_integration_response" "website-handless___admin_proxy_OPTIONS" {
+        provider = aws.website-handless
+        count = 0
+        rest_api_id = local.website-handless_api_id
+        resource_id = aws_api_gateway_resource.website-handless___admin_proxy[0].id
+        http_method =  join("", aws_api_gateway_method.website-handless___admin_proxy_OPTIONS.*.http_method)
+        response_parameters = {
+          "method.response.header.Access-Control-Allow-Origin" = "'*'",
+          "method.response.header.Access-Control-Allow-Headers" = "'Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key'",
+          "method.response.header.Access-Control-Max-Age" = "'600'",
+        }
+        status_code = 200
+        response_templates = {
+          "application/json": "{}"
+        }
+        depends_on = [
+          aws_api_gateway_integration.website-handless___admin_proxy_OPTIONS,
+          aws_api_gateway_method_response.website-handless___admin_proxy_OPTIONS,
+        ]
+      }
+
+      resource "aws_api_gateway_method_response" "website-handless___admin_proxy_OPTIONS" {
+        provider = aws.website-handless
+        count = 0
+        rest_api_id = local.website-handless_api_id
+        resource_id = aws_api_gateway_resource.website-handless___admin_proxy[0].id
+        http_method = join("", aws_api_gateway_method.website-handless___admin_proxy_OPTIONS.*.http_method)
+        status_code = 200
+        response_models = {
+          "application/json" = "Empty"
+        }
+        response_parameters = {
+          "method.response.header.Access-Control-Allow-Headers" = true,
+          "method.response.header.Access-Control-Allow-Methods" = true,
+          "method.response.header.Access-Control-Allow-Origin" = true,
+          "method.response.header.Access-Control-Max-Age" = true,
+        }
+
+        depends_on = [
+          aws_api_gateway_method.website-handless___admin_proxy_OPTIONS,
+        ]
+      }
+    
+    resource "aws_api_gateway_resource" "website-handless___admin_routes" {
+      provider = aws.website-handless
+      count = 0
+      rest_api_id = local.website-handless_api_id
+      
+      parent_id = aws_api_gateway_resource.website-handless___admin[0].id
+      
+      path_part = "routes"
+    }
+  
+    
+      resource "aws_api_gateway_method" "website-handless___admin_routes_GET" {
+        provider = aws.website-handless
+        count = 0
+        rest_api_id = local.website-handless_api_id
+        resource_id = aws_api_gateway_resource.website-handless___admin_routes[0].id
+        http_method = "GET"
+        
+        authorization = "NONE"
+        
+      }
+
+      resource "aws_api_gateway_integration" "website-handless___admin_routes_GET" {
+        provider = aws.website-handless
+        count = 0
+        rest_api_id = local.website-handless_api_id
+        resource_id = aws_api_gateway_resource.website-handless___admin_routes[0].id
+        http_method = join("", aws_api_gateway_method.website-handless___admin_routes_GET.*.http_method)
+        integration_http_method = "POST"
+        type = "AWS_PROXY"
+        uri = local.website-handless_lambda_uri
+      }
+    
+
+    
+      resource "aws_api_gateway_method" "website-handless___admin_routes_OPTIONS" {
+        provider = aws.website-handless
+        count = 0
+        rest_api_id = local.website-handless_api_id
+        resource_id = aws_api_gateway_resource.website-handless___admin_routes[0].id
+        http_method = "OPTIONS"
+        authorization = "NONE"
+      }
+
+      resource "aws_api_gateway_integration" "website-handless___admin_routes_OPTIONS" {
+        provider = aws.website-handless
+        count = 0
+        rest_api_id = local.website-handless_api_id
+        resource_id = aws_api_gateway_resource.website-handless___admin_routes[0].id
+        http_method = join("", aws_api_gateway_method.website-handless___admin_routes_OPTIONS.*.http_method)
+        type = "MOCK"
+        request_templates = {
+          "application/json" = "{ \"statusCode\": 200 }"
+        }
+      }
+
+      resource "aws_api_gateway_integration_response" "website-handless___admin_routes_OPTIONS" {
+        provider = aws.website-handless
+        count = 0
+        rest_api_id = local.website-handless_api_id
+        resource_id = aws_api_gateway_resource.website-handless___admin_routes[0].id
+        http_method =  join("", aws_api_gateway_method.website-handless___admin_routes_OPTIONS.*.http_method)
+        response_parameters = {
+          "method.response.header.Access-Control-Allow-Origin" = "'*'",
+          "method.response.header.Access-Control-Allow-Headers" = "'Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key'",
+          "method.response.header.Access-Control-Max-Age" = "'600'",
+        }
+        status_code = 200
+        response_templates = {
+          "application/json": "{}"
+        }
+        depends_on = [
+          aws_api_gateway_integration.website-handless___admin_routes_OPTIONS,
+          aws_api_gateway_method_response.website-handless___admin_routes_OPTIONS,
+        ]
+      }
+
+      resource "aws_api_gateway_method_response" "website-handless___admin_routes_OPTIONS" {
+        provider = aws.website-handless
+        count = 0
+        rest_api_id = local.website-handless_api_id
+        resource_id = aws_api_gateway_resource.website-handless___admin_routes[0].id
+        http_method = join("", aws_api_gateway_method.website-handless___admin_routes_OPTIONS.*.http_method)
+        status_code = 200
+        response_models = {
+          "application/json" = "Empty"
+        }
+        response_parameters = {
+          "method.response.header.Access-Control-Allow-Headers" = true,
+          "method.response.header.Access-Control-Allow-Methods" = true,
+          "method.response.header.Access-Control-Allow-Origin" = true,
+          "method.response.header.Access-Control-Max-Age" = true,
+        }
+
+        depends_on = [
+          aws_api_gateway_method.website-handless___admin_routes_OPTIONS,
         ]
       }
     
@@ -1000,21 +999,22 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
 
 resource "aws_api_gateway_deployment" "website-handless" {
-  count = local.when_stage
+  provider = aws.website-handless
+  count = local.website-handless_when_stage
   rest_api_id = local.website-handless_api_id
 
   
-  triggers = {
-    timestamp = timestamp() 
-  }
   lifecycle {
-    create_before_destroy = true
+    ignore_changes = [
+      triggers,
+    ]
   }
   
 }
 
 resource "aws_api_gateway_stage" "website-handless" {
-  count = local.when_stage
+  provider = aws.website-handless
+  count = local.website-handless_when_stage
   stage_name = terraform.workspace
   rest_api_id = local.website-handless_api_id
   deployment_id = aws_api_gateway_deployment.website-handless[0].id
@@ -1033,8 +1033,8 @@ value = {
 
 locals {
     
-    environment_variables_website-handless = [
-        for envars_string in data.local_file.environment_variables_files_website-handless: jsondecode(envars_string.content)
+    website-handless_environment_variables = [
+        for envars_string in data.local_file.website-handless_environment_variables_files: jsondecode(envars_string.content)
     ]
     
 }
@@ -1044,19 +1044,21 @@ locals {
 # ---------------------------------------------------------------------------------------------------------------------
 
 data "aws_s3_bucket_object" "website-handless-b64sha256" {
+  provider = aws.website-handless
   bucket = local.website-handless_bucket
   key = "${local.website-handless_key}.b64sha256"
 }
 
 
-data "local_file" "environment_variables_files_website-handless" {
-  for_each = {for envar_file in ["vars.json", "vars.secret.json"]: envar_file => "../${envar_file}"}
+data "local_file" "website-handless_environment_variables_files" {
+  for_each = {for envar_file in ["vars.secret.json"]: envar_file => "../${envar_file}"}
   filename = each.value
 }
 
 
 resource "aws_lambda_function" "website-handless" {
-  count = local.when_stage
+  provider = aws.website-handless
+  count = local.website-handless_when_stage
   function_name = "website-handless-${terraform.workspace}"
   s3_bucket = local.website-handless_bucket
   s3_key = local.website-handless_key
@@ -1071,7 +1073,7 @@ resource "aws_lambda_function" "website-handless" {
   memory_size = 128
   
   environment {
-    variables = merge({"ASSETS_URL": "https://d2ix7tgbgr2hm8.cloudfront.net"},[for item in local.environment_variables_website-handless: merge(item,local.environment_variables_website-handless...)][0], {"WORKSPACE":"dev"})
+    variables = merge({"ASSETS_URL": "https://draft.morassuti.com"},[for item in local.website-handless_environment_variables: merge(item,local.website-handless_environment_variables...)][0], {"WORKSPACE":"dev"})
   }
   
   tracing_config {
@@ -1085,12 +1087,14 @@ resource "aws_lambda_function" "website-handless" {
 }
 
 data "aws_lambda_function" "website-handless" {
-  count = local.when_default
+  provider = aws.website-handless
+  count = 0
   function_name = "website-handless-dev"
 }
 
 resource "aws_lambda_permission" "website-handless" {
-  count = local.when_stage
+  provider = aws.website-handless
+  count = local.website-handless_when_stage
   statement_id = "AllowExecutionFromAPIGateway"
   action = "lambda:InvokeFunction"
   function_name = local.website-handless_lambda_function_name

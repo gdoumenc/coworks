@@ -11,7 +11,6 @@
     <title>{{ title_h1 }}</title>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no"/>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ assets_url }}/assets/css/main.css"/>
 </head>
 <body class="homepage is-preload">
@@ -37,14 +36,13 @@
 
     <!-- Footer -->
     {% block footer %}
+        <div id="legal" class="container">
+            <ul class="links">
+                <li>&copy; MORASSUTI. All rights reserved.</li>
+                <li><a href="/form">Nous contacter</a></li>
+            </ul>
+        </div>
     {% endblock %}
-
-    <div id="legal" class="container">
-        <ul class="links">
-            <li>&copy; MORASSUTI. All rights reserved.</li>
-            <li>Design: <a href="http://html5up.net">HTML5 UP</a></li>
-        </ul>
-    </div>
 
 </div>
 

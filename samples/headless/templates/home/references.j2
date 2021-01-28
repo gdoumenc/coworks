@@ -9,11 +9,11 @@
                 </header>
                 <div class="row aln-center">
                     {% for ref in references.references if ref.slug in reference_ids %}
-                        <div class="col-4 col-6-medium col-12-small">
+                        <div class="col-2 col-3-medium col-6-small">
 
                             <!-- Feature -->
                             <section>
-                                <a href="#" class="image featured"><img src="https://cdn.cosmicjs.com/{{ ref.image }}"
+                                <a href="#" class="image featured"><img src="https://imgix.cosmicjs.com/{{ ref.image }}"
                                                                         alt="{{ ref.title_h2 }}"/></a>
                                 <header>
                                     <h3>{{ ref.title_h2 }}</h3>

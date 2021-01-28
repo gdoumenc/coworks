@@ -10,31 +10,10 @@ class CosmicCmsClient:
         self.bucket = os.getenv('COSMICJS_BUCKET')
         self.read_token = os.getenv('COSMICJS_READ_TOKEN')
 
-    def get_home(self):
-        response = self.object('home')
-        home = {k: v for d in response['metafields'] for k, v in self.to_dict(d).items()}
-        product_objects = self.objects('products')
-        products = [self.to_dict(d) for d in product_objects]
-        reference_objects = self.objects('references')
-        references = [self.to_dict(d) for d in reference_objects]
-        banner_objects = self.objects('banners')
-        banners = [self.to_dict(d) for d in banner_objects]
-        post_objects = self.objects('posts')
-        posts = [self.to_dict(d) for d in post_objects]
-        return {
-            'home': home,
-            'products': products,
-            'product_ids': [obj['slug'] for obj in products],
-            'references': references,
-            'reference_ids': [obj['slug'] for obj in references],
-            'banners': banners,
-            'banner_ids': [obj['slug'] for obj in banners],
-            'posts': posts,
-            'post_ids': [obj['slug'] for obj in posts],
-        }
-
-    def get_slug(self, slug):
+    def object_metafields(self, slug):
         response = self.object(slug)
+        if response is None:
+            return {}
         return {k: v for d in response['metafields'] for k, v in self.to_dict(d).items()}
 
     def object(self, slug: str):

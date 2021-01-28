@@ -7,9 +7,28 @@
                 <li>
                     <a href="#" class="icon fa-chart-bar"><span>Savoir-faire</span></a>
                     <ul>
-                        {% for prod in products %}
-                            <li><a href="{{ prod.slug }}">{{ prod.title_h1 }}</a></li>
+                        <li><a href="#">Nos produits</a>
+                            <ul>
+                                {% for prod in products if not prod.get('service') %}
+                                    <li><a href="/product/{{ prod.slug }}">{{ prod.title_h1 }}</a></li>
+                                {% endfor %}
+                            </ul>
+                        </li>
+                        <li><a href="#">Bien plus qu'un imprimeur</a>
+                            <ul>
+                                {% for serv in products if serv.get('service') and serv.slug != 'digital' %}
+                                    <li><a href="/product/{{ serv.slug }}">{{ serv.title_h1 }}</a></li>
+                                {% endfor %}
+                            </ul>
+                        </li>
+                        {% for serv in products if serv.slug == 'digital' %}
+                            <li><a href="{{ serv.slug }}">{{ serv.title_h1 }}</a></li>
                         {% endfor %}
+                        <li><a href="#">Actus</a>
+                            <ul>
+                                <li><a href="#">Bientôt...</a></li>
+                            </ul>
+                        </li>
                     </ul>
                 </li>
             {% endif %}
@@ -23,16 +42,16 @@
             {#                    </ul>#}
             {#                </li>#}
             {#            {% endif %}#}
-{#            {% if posts %}#}
-{#                <li>#}
-{#                    <a href="#" class="icon fa-chart-bar"><span>News</span></a>#}
-{#                    <ul>#}
-{#                        {% for post in posts %}#}
-{#                            <li><a href="#">{{ post.title_h2 }}</a></li>#}
-{#                        {% endfor %}#}
-{#                    </ul>#}
-{#                </li>#}
-{#            {% endif %}#}
+            {#            {% if posts %}#}
+            {#                <li>#}
+            {#                    <a href="#" class="icon fa-chart-bar"><span>News</span></a>#}
+            {#                    <ul>#}
+            {#                        {% for post in posts %}#}
+            {#                            <li><a href="#">{{ post.title_h2 }}</a></li>#}
+            {#                        {% endfor %}#}
+            {#                    </ul>#}
+            {#                </li>#}
+            {#            {% endif %}#}
             <li>
                 <a href="/form" class="icon fa-chart-bar"><span>Nous contacter</span></a>
             </li>
