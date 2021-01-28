@@ -140,7 +140,7 @@ data "aws_api_gateway_rest_api" "website-handless" {
 
 resource "aws_api_gateway_authorizer" "website-handless" {
   provider = aws.website-handless
-  count = 0
+  count = local.website-handless_when_default
   name = "website-handless-auth"
   rest_api_id = local.website-handless_api_id
   authorizer_uri = local.website-handless_lambda_uri
@@ -149,14 +149,14 @@ resource "aws_api_gateway_authorizer" "website-handless" {
 # since at least one integration in needed to create api deployment we create an empty resource to prevent terraform from failing the first time we deploy the microservice
 resource "aws_api_gateway_resource" "website-handless_null_resource" {
   provider = aws.website-handless
-  count = local.website-handless_when_default
+  count = 0
   path_part = "null_resource"
   parent_id = local.website-handless_api_root_id
   rest_api_id = local.website-handless_api_id
 }
 resource "aws_api_gateway_method" "website-handless_null_method" {
   provider = aws.website-handless
-  count = local.website-handless_when_default
+  count = 0
   rest_api_id = local.website-handless_api_id
   resource_id = join("", aws_api_gateway_resource.website-handless_null_resource.*.id)
   http_method = "GET"
@@ -164,7 +164,7 @@ resource "aws_api_gateway_method" "website-handless_null_method" {
 }
 resource "aws_api_gateway_integration" "website-handless_null_integration" {
   provider = aws.website-handless
-  count = local.website-handless_when_default
+  count = 0
   rest_api_id = local.website-handless_api_id
   resource_id = join("", aws_api_gateway_resource.website-handless_null_resource.*.id)
   http_method = join("", aws_api_gateway_method.website-handless_null_method.*.http_method)
@@ -176,7 +176,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
     
       resource "aws_api_gateway_method" "website-handless___GET" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = local.website-handless_api_root_id
         http_method = "GET"
@@ -187,7 +187,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_integration" "website-handless___GET" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = local.website-handless_api_root_id
         http_method = join("", aws_api_gateway_method.website-handless___GET.*.http_method)
@@ -200,7 +200,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
     
       resource "aws_api_gateway_method" "website-handless___OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = local.website-handless_api_root_id
         http_method = "OPTIONS"
@@ -209,7 +209,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_integration" "website-handless___OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = local.website-handless_api_root_id
         http_method = join("", aws_api_gateway_method.website-handless___OPTIONS.*.http_method)
@@ -221,7 +221,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_integration_response" "website-handless___OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = local.website-handless_api_root_id
         http_method =  join("", aws_api_gateway_method.website-handless___OPTIONS.*.http_method)
@@ -242,7 +242,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_method_response" "website-handless___OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = local.website-handless_api_root_id
         http_method = join("", aws_api_gateway_method.website-handless___OPTIONS.*.http_method)
@@ -264,7 +264,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
     
     resource "aws_api_gateway_resource" "website-handless___assets" {
       provider = aws.website-handless
-      count = 0
+      count = local.website-handless_when_default
       rest_api_id = local.website-handless_api_id
       
       parent_id = local.website-handless_api_root_id
@@ -274,7 +274,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
   
     resource "aws_api_gateway_resource" "website-handless___assets__0" {
       provider = aws.website-handless
-      count = 0
+      count = local.website-handless_when_default
       rest_api_id = local.website-handless_api_id
       
       parent_id = aws_api_gateway_resource.website-handless___assets[0].id
@@ -284,7 +284,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
   
     resource "aws_api_gateway_resource" "website-handless___assets__0__1" {
       provider = aws.website-handless
-      count = 0
+      count = local.website-handless_when_default
       rest_api_id = local.website-handless_api_id
       
       parent_id = aws_api_gateway_resource.website-handless___assets__0[0].id
@@ -295,7 +295,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
     
       resource "aws_api_gateway_method" "website-handless___assets__0__1_GET" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___assets__0__1[0].id
         http_method = "GET"
@@ -306,7 +306,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_integration" "website-handless___assets__0__1_GET" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___assets__0__1[0].id
         http_method = join("", aws_api_gateway_method.website-handless___assets__0__1_GET.*.http_method)
@@ -319,7 +319,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
     
       resource "aws_api_gateway_method" "website-handless___assets__0__1_OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___assets__0__1[0].id
         http_method = "OPTIONS"
@@ -328,7 +328,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_integration" "website-handless___assets__0__1_OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___assets__0__1[0].id
         http_method = join("", aws_api_gateway_method.website-handless___assets__0__1_OPTIONS.*.http_method)
@@ -340,7 +340,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_integration_response" "website-handless___assets__0__1_OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___assets__0__1[0].id
         http_method =  join("", aws_api_gateway_method.website-handless___assets__0__1_OPTIONS.*.http_method)
@@ -361,7 +361,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_method_response" "website-handless___assets__0__1_OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___assets__0__1[0].id
         http_method = join("", aws_api_gateway_method.website-handless___assets__0__1_OPTIONS.*.http_method)
@@ -383,7 +383,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
     
     resource "aws_api_gateway_resource" "website-handless___assets__0__1__2" {
       provider = aws.website-handless
-      count = 0
+      count = local.website-handless_when_default
       rest_api_id = local.website-handless_api_id
       
       parent_id = aws_api_gateway_resource.website-handless___assets__0__1[0].id
@@ -394,7 +394,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
     
       resource "aws_api_gateway_method" "website-handless___assets__0__1__2_GET" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___assets__0__1__2[0].id
         http_method = "GET"
@@ -405,7 +405,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_integration" "website-handless___assets__0__1__2_GET" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___assets__0__1__2[0].id
         http_method = join("", aws_api_gateway_method.website-handless___assets__0__1__2_GET.*.http_method)
@@ -418,7 +418,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
     
       resource "aws_api_gateway_method" "website-handless___assets__0__1__2_OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___assets__0__1__2[0].id
         http_method = "OPTIONS"
@@ -427,7 +427,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_integration" "website-handless___assets__0__1__2_OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___assets__0__1__2[0].id
         http_method = join("", aws_api_gateway_method.website-handless___assets__0__1__2_OPTIONS.*.http_method)
@@ -439,7 +439,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_integration_response" "website-handless___assets__0__1__2_OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___assets__0__1__2[0].id
         http_method =  join("", aws_api_gateway_method.website-handless___assets__0__1__2_OPTIONS.*.http_method)
@@ -460,7 +460,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_method_response" "website-handless___assets__0__1__2_OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___assets__0__1__2[0].id
         http_method = join("", aws_api_gateway_method.website-handless___assets__0__1__2_OPTIONS.*.http_method)
@@ -482,7 +482,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
     
     resource "aws_api_gateway_resource" "website-handless___form" {
       provider = aws.website-handless
-      count = 0
+      count = local.website-handless_when_default
       rest_api_id = local.website-handless_api_id
       
       parent_id = local.website-handless_api_root_id
@@ -493,7 +493,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
     
       resource "aws_api_gateway_method" "website-handless___form_GET" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___form[0].id
         http_method = "GET"
@@ -504,7 +504,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_integration" "website-handless___form_GET" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___form[0].id
         http_method = join("", aws_api_gateway_method.website-handless___form_GET.*.http_method)
@@ -517,7 +517,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
     
       resource "aws_api_gateway_method" "website-handless___form_OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___form[0].id
         http_method = "OPTIONS"
@@ -526,7 +526,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_integration" "website-handless___form_OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___form[0].id
         http_method = join("", aws_api_gateway_method.website-handless___form_OPTIONS.*.http_method)
@@ -538,7 +538,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_integration_response" "website-handless___form_OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___form[0].id
         http_method =  join("", aws_api_gateway_method.website-handless___form_OPTIONS.*.http_method)
@@ -559,7 +559,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_method_response" "website-handless___form_OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___form[0].id
         http_method = join("", aws_api_gateway_method.website-handless___form_OPTIONS.*.http_method)
@@ -581,7 +581,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
     
     resource "aws_api_gateway_resource" "website-handless___product" {
       provider = aws.website-handless
-      count = 0
+      count = local.website-handless_when_default
       rest_api_id = local.website-handless_api_id
       
       parent_id = local.website-handless_api_root_id
@@ -591,7 +591,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
   
     resource "aws_api_gateway_resource" "website-handless___product__0" {
       provider = aws.website-handless
-      count = 0
+      count = local.website-handless_when_default
       rest_api_id = local.website-handless_api_id
       
       parent_id = aws_api_gateway_resource.website-handless___product[0].id
@@ -602,7 +602,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
     
       resource "aws_api_gateway_method" "website-handless___product__0_GET" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___product__0[0].id
         http_method = "GET"
@@ -613,7 +613,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_integration" "website-handless___product__0_GET" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___product__0[0].id
         http_method = join("", aws_api_gateway_method.website-handless___product__0_GET.*.http_method)
@@ -626,7 +626,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
     
       resource "aws_api_gateway_method" "website-handless___product__0_OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___product__0[0].id
         http_method = "OPTIONS"
@@ -635,7 +635,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_integration" "website-handless___product__0_OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___product__0[0].id
         http_method = join("", aws_api_gateway_method.website-handless___product__0_OPTIONS.*.http_method)
@@ -647,7 +647,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_integration_response" "website-handless___product__0_OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___product__0[0].id
         http_method =  join("", aws_api_gateway_method.website-handless___product__0_OPTIONS.*.http_method)
@@ -668,7 +668,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_method_response" "website-handless___product__0_OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___product__0[0].id
         http_method = join("", aws_api_gateway_method.website-handless___product__0_OPTIONS.*.http_method)
@@ -690,7 +690,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
     
     resource "aws_api_gateway_resource" "website-handless___admin" {
       provider = aws.website-handless
-      count = 0
+      count = local.website-handless_when_default
       rest_api_id = local.website-handless_api_id
       
       parent_id = local.website-handless_api_root_id
@@ -700,7 +700,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
   
     resource "aws_api_gateway_resource" "website-handless___admin_context" {
       provider = aws.website-handless
-      count = 0
+      count = local.website-handless_when_default
       rest_api_id = local.website-handless_api_id
       
       parent_id = aws_api_gateway_resource.website-handless___admin[0].id
@@ -711,7 +711,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
     
       resource "aws_api_gateway_method" "website-handless___admin_context_GET" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___admin_context[0].id
         http_method = "GET"
@@ -722,7 +722,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_integration" "website-handless___admin_context_GET" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___admin_context[0].id
         http_method = join("", aws_api_gateway_method.website-handless___admin_context_GET.*.http_method)
@@ -735,7 +735,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
     
       resource "aws_api_gateway_method" "website-handless___admin_context_OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___admin_context[0].id
         http_method = "OPTIONS"
@@ -744,7 +744,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_integration" "website-handless___admin_context_OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___admin_context[0].id
         http_method = join("", aws_api_gateway_method.website-handless___admin_context_OPTIONS.*.http_method)
@@ -756,7 +756,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_integration_response" "website-handless___admin_context_OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___admin_context[0].id
         http_method =  join("", aws_api_gateway_method.website-handless___admin_context_OPTIONS.*.http_method)
@@ -777,7 +777,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_method_response" "website-handless___admin_context_OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___admin_context[0].id
         http_method = join("", aws_api_gateway_method.website-handless___admin_context_OPTIONS.*.http_method)
@@ -799,7 +799,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
     
     resource "aws_api_gateway_resource" "website-handless___admin_proxy" {
       provider = aws.website-handless
-      count = 0
+      count = local.website-handless_when_default
       rest_api_id = local.website-handless_api_id
       
       parent_id = aws_api_gateway_resource.website-handless___admin[0].id
@@ -810,7 +810,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
     
       resource "aws_api_gateway_method" "website-handless___admin_proxy_GET" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___admin_proxy[0].id
         http_method = "GET"
@@ -821,7 +821,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_integration" "website-handless___admin_proxy_GET" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___admin_proxy[0].id
         http_method = join("", aws_api_gateway_method.website-handless___admin_proxy_GET.*.http_method)
@@ -834,7 +834,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
     
       resource "aws_api_gateway_method" "website-handless___admin_proxy_OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___admin_proxy[0].id
         http_method = "OPTIONS"
@@ -843,7 +843,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_integration" "website-handless___admin_proxy_OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___admin_proxy[0].id
         http_method = join("", aws_api_gateway_method.website-handless___admin_proxy_OPTIONS.*.http_method)
@@ -855,7 +855,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_integration_response" "website-handless___admin_proxy_OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___admin_proxy[0].id
         http_method =  join("", aws_api_gateway_method.website-handless___admin_proxy_OPTIONS.*.http_method)
@@ -876,7 +876,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_method_response" "website-handless___admin_proxy_OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___admin_proxy[0].id
         http_method = join("", aws_api_gateway_method.website-handless___admin_proxy_OPTIONS.*.http_method)
@@ -898,7 +898,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
     
     resource "aws_api_gateway_resource" "website-handless___admin_routes" {
       provider = aws.website-handless
-      count = 0
+      count = local.website-handless_when_default
       rest_api_id = local.website-handless_api_id
       
       parent_id = aws_api_gateway_resource.website-handless___admin[0].id
@@ -909,7 +909,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
     
       resource "aws_api_gateway_method" "website-handless___admin_routes_GET" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___admin_routes[0].id
         http_method = "GET"
@@ -920,7 +920,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_integration" "website-handless___admin_routes_GET" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___admin_routes[0].id
         http_method = join("", aws_api_gateway_method.website-handless___admin_routes_GET.*.http_method)
@@ -933,7 +933,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
     
       resource "aws_api_gateway_method" "website-handless___admin_routes_OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___admin_routes[0].id
         http_method = "OPTIONS"
@@ -942,7 +942,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_integration" "website-handless___admin_routes_OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___admin_routes[0].id
         http_method = join("", aws_api_gateway_method.website-handless___admin_routes_OPTIONS.*.http_method)
@@ -954,7 +954,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_integration_response" "website-handless___admin_routes_OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___admin_routes[0].id
         http_method =  join("", aws_api_gateway_method.website-handless___admin_routes_OPTIONS.*.http_method)
@@ -975,7 +975,7 @@ resource "aws_api_gateway_integration" "website-handless_null_integration" {
 
       resource "aws_api_gateway_method_response" "website-handless___admin_routes_OPTIONS" {
         provider = aws.website-handless
-        count = 0
+        count = local.website-handless_when_default
         rest_api_id = local.website-handless_api_id
         resource_id = aws_api_gateway_resource.website-handless___admin_routes[0].id
         http_method = join("", aws_api_gateway_method.website-handless___admin_routes_OPTIONS.*.http_method)
@@ -1004,10 +1004,11 @@ resource "aws_api_gateway_deployment" "website-handless" {
   rest_api_id = local.website-handless_api_id
 
   
+  triggers = {
+    timestamp = timestamp() 
+  }
   lifecycle {
-    ignore_changes = [
-      triggers,
-    ]
+    create_before_destroy = true
   }
   
 }
@@ -1088,7 +1089,7 @@ resource "aws_lambda_function" "website-handless" {
 
 data "aws_lambda_function" "website-handless" {
   provider = aws.website-handless
-  count = 0
+  count = local.website-handless_when_default
   function_name = "website-handless-dev"
 }
 
