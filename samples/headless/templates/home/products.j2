@@ -1,4 +1,4 @@
-{% macro products(products, product_ids) -%}
+{% macro products(root, products, product_ids) -%}
     {% if products.visible %}
         <section id="features">
             <div class="container">
@@ -10,7 +10,7 @@
                         <div class="col-4 col-6-medium col-12-small">
 
                             <section>
-                                <a href="{{ prod.slug }}" class="image featured">
+                                <a href="{{ root }}/produit/{{ prod.slug }}" class="image featured">
                                     <img src="https://imgix.cosmicjs.com/{{ prod.image }}" alt="{{ prod.title_h1 }}"/>
                                 </a>
                                 <header>

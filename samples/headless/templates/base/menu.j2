@@ -1,8 +1,8 @@
-{% macro menu(products, references, posts) -%}
+{% macro menu(root, products, references, posts) -%}
 
     <nav id="nav">
         <ul>
-            <li><a class="icon solid fa-home" href="/"><span>Présentation</span></a></li>
+            <li><a class="icon solid fa-home" href="{{ root }}/"><span>Présentation</span></a></li>
             {% if products %}
                 <li>
                     <a href="#" class="icon fa-chart-bar"><span>Savoir-faire</span></a>
@@ -10,19 +10,19 @@
                         <li><a href="#">Nos produits</a>
                             <ul>
                                 {% for prod in products if not prod.get('service') %}
-                                    <li><a href="/product/{{ prod.slug }}">{{ prod.title_h1 }}</a></li>
+                                    <li><a href="{{ root }}/produit/{{ prod.slug }}">{{ prod.title_h1 }}</a></li>
                                 {% endfor %}
                             </ul>
                         </li>
                         <li><a href="#">Bien plus qu'un imprimeur</a>
                             <ul>
                                 {% for serv in products if serv.get('service') and serv.slug != 'digital' %}
-                                    <li><a href="/product/{{ serv.slug }}">{{ serv.title_h1 }}</a></li>
+                                    <li><a href="{{ root }}/produit/{{ serv.slug }}">{{ serv.title_h1 }}</a></li>
                                 {% endfor %}
                             </ul>
                         </li>
                         {% for serv in products if serv.slug == 'digital' %}
-                            <li><a href="{{ serv.slug }}">{{ serv.title_h1 }}</a></li>
+                            <li><a href="{{ root }}/produit/{{ serv.slug }}">{{ serv.title_h1 }}</a></li>
                         {% endfor %}
                         <li><a href="#">Actus</a>
                             <ul>

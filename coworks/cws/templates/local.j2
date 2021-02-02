@@ -21,17 +21,17 @@ locals {
   }
 }
 
-{% if layers %}
+{% if layers -%}
 data "aws_lambda_layer_version" "{{ resource_name }}" {
   provider = aws.{{ resource_name }}
   for_each = {for layer_name in [{% for  layer in layers %}"{{ layer }}"{% endfor %}]: layer_name => layer_name}
   layer_name = each.value
 }
+
 locals {
   {{ resource_name }}_layer_arns = [for layer in data.aws_lambda_layer_version.{{ resource_name }} : layer.arn]
 }
-{% endif %}
-
+{%- endif %}
 
 resource "aws_iam_role" "{{ resource_name }}_microservice" {
   provider = aws.{{ resource_name }}

@@ -10,6 +10,7 @@ class Config(CwsConfig):
 
 @dataclass
 class LocalConfig(Config):
+    root: str = ''
     workspace: str = 'local'
     environment_variables: dict = field(
         default_factory=lambda: {'ASSETS_URL': "", "AWS_XRAY_SDK_ENABLED": False}
@@ -18,6 +19,7 @@ class LocalConfig(Config):
 
 @dataclass
 class DevConfig(Config):
+    root: str = '/dev'
     workspace: str = 'dev'
     environment_variables: dict = field(
         default_factory=lambda: {'ASSETS_URL': "https://draft.morassuti.com"}

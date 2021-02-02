@@ -32,12 +32,17 @@ def invoke(ctx):
     try:
         args = ctx.args
         protected_args = ctx.protected_args
-        command_name = protected_args[0] if protected_args else None
+        if not protected_args:
+            sys.stderr.write(str("No command given.\n"))
+            client.main(['--help'])
+            sys.exit(1)
+        command_name = protected_args[0]
 
         # get project options
         cws_options = CwsClientOptions(ctx.params)
+        print(command_name)
         if not cws_options.services:
-            sys.stderr.write(str("Nothing to execute as no service defined."))
+            sys.stderr.write(str("Nothing to execute as no service defined.\n"))
             sys.exit(1)
 
         # Iterates over the declared services in project configuration file
@@ -72,10 +77,10 @@ def invoke(ctx):
         for command_class, execution_context in commands_to_be_executed.items():
             command_class.multi_execute(project_dir, workspace, client_options, execution_context, _from_cws=True)
     except CwsClientError as client_err:
-        sys.stderr.write(f"Error in command: {client_err.msg}")
+        sys.stderr.write(f"Error in command: {client_err.msg}\n")
         sys.exit(1)
     except Exception as e:
-        sys.stderr.write(f"Error in command: {str(e)}")
+        sys.stderr.write(f"Error in command: {str(e)}\n")
         sys.exit(1)
 
 
@@ -247,7 +252,7 @@ class ServiceConfig:
 
 
 def main():
-    return client(obj={})
+    return client()
 
 
 if __name__ == "__main__":

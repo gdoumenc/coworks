@@ -18,7 +18,7 @@
 
 {% block content %}
 {#    {% include 'home/carousel.j2' %}#}
-    {{ products_(home.products, product_ids) }}
+    {{ products_(root, home.products, product_ids) }}
     {{ banners_(home.banners, banner_ids) }}
     {{ references_(home.references, reference_ids) }}
 

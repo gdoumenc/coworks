@@ -8,7 +8,6 @@ from config import DevConfig, LocalConfig
 from cosmicjs import CosmicCmsClient
 from coworks import TechMicroService, entry
 from coworks.blueprint import Admin
-from coworks.cws.runner import CwsRunner
 
 
 class WebsiteMicroService(TechMicroService):
@@ -32,7 +31,7 @@ class WebsiteMicroService(TechMicroService):
         return self.render(template)
 
     @entry
-    def get_product(self, slug):
+    def get_produit(self, slug):
         template_filename = 'product.j2'
         template = self.jinja_env.get_template(template_filename)
         data = self.cosmic_client.object_metafields(slug)
@@ -81,7 +80,8 @@ class WebsiteMicroService(TechMicroService):
     def render(self, template, **data):
         assets_url = os.getenv('ASSETS_URL')
         headers = {'Content-Type': 'text/html; charset=utf-8'}
-        return template.render(assets_url=assets_url, **self.home, **data), 200, headers
+        root = self.config.root
+        return template.render(assets_url=assets_url, root=root, **self.home, **data), 200, headers
 
     @staticmethod
     def get_file_content(file: Path):
@@ -95,7 +95,6 @@ class WebsiteMicroService(TechMicroService):
 
 app = WebsiteMicroService(configs=[LocalConfig(), DevConfig()])
 app.register_blueprint(Admin(), url_prefix='admin')
-CwsRunner(app)
 
 if __name__ == '__main__':
     app.execute("run", project_dir='.', module='website', workspace='local')
