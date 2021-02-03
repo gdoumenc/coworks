@@ -10,7 +10,7 @@ install:
   - pip install pipenv
   - PIPENV_IGNORE_VIRTUALENVS=1 pipenv install --dev
 script:
-  - pipenv run coverage run -m pytest
-  - pipenv run coverage xml
+  - PIPENV_IGNORE_VIRTUALENVS=1 pipenv run coverage run -m pytest
+  - PIPENV_IGNORE_VIRTUALENVS=1 pipenv run coverage xml
 after_success:
   - codecov -t 25fa2252-9440-46fa-b8dd-337e9de2a046
