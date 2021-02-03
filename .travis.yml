@@ -1,16 +1,26 @@
 language: python
+git:
+  depth: false
 python:
   - "3.7"
   - "3.8"
   - "3.9"
+env:
+  - PIPENV_IGNORE_VIRTUALENVS=1
 before_install:
   - python --version
 install:
   - pip install -U pip
   - pip install pipenv
-  - PIPENV_IGNORE_VIRTUALENVS=1 pipenv install --dev
+  - pipenv install --dev
+jobs:
+  include:
+    - python: '3.8'
+      install: pipenv install coverage
+    - python: '3.9'
+      install: pipenv install coverage
 script:
-  - PIPENV_IGNORE_VIRTUALENVS=1 pipenv run coverage run -m pytest
-  - PIPENV_IGNORE_VIRTUALENVS=1 pipenv run coverage xml
+  - pipenv run coverage run -m pytest
+  - pipenv run coverage xml
 after_success:
   - codecov -t 25fa2252-9440-46fa-b8dd-337e9de2a046

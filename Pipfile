@@ -15,7 +15,6 @@ python_terraform = ">=0.10.1"
 
 [dev-packages]
 boto3-stubs = "*"
-coverage = "*"
 codecov = "*"
 hypothesis = "*"
 ipdb = "*"
