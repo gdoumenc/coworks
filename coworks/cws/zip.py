@@ -13,7 +13,7 @@ from .error import CwsCommandError
 from .. import aws
 
 
-class CwsZipArchiver(CwsCommand, aws.Boto3Mixin):
+class CwsZipArchiver(CwsCommand):
     """
     This command uploads project source folder as a zip file on a S3 bucket.
     Uploads also the hash code of this file to be able to determined code changes (used by terraform as a trigger).

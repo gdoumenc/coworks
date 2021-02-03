@@ -5,15 +5,7 @@ import os
 import platform
 import sys
 
-from aws_xray_sdk.core import xray_recorder
-
-HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch', 'options']
-
-
-def make_absolute(route):
-    if not route.startswith('/'):
-        route = '/' + route
-    return route
+HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
 
 
 def jsonify(result, pretty=False, indent=None, separators=None):
@@ -46,17 +38,11 @@ def class_auth_methods(obj):
     return None
 
 
-def class_http_methods(obj):
+def class_cws_methods(obj):
     """Returns the list of methods from the class."""
     methods = inspect.getmembers(obj.__class__, lambda x: inspect.isfunction(x))
 
-    res = []
-    for name, func in methods:
-        for method in HTTP_METHODS:
-            if name == method or name.startswith(f'{method}_'):
-                res.append((method, func))
-                break
-    return res
+    return [fun for _, fun in methods if hasattr(fun, '__CWS_METHOD')]
 
 
 def class_attribute(obj, name: str = None, defaut=None):
@@ -69,6 +55,19 @@ def class_attribute(obj, name: str = None, defaut=None):
 
     filtered = [a[1] for a in attributes if a[0] == name]
     return filtered[0] if filtered else defaut
+
+
+def path_join(*args):
+    """ Joins given arguments into an entry route.
+    Trailing but not leading slashes are stripped for each argument.
+    """
+
+    reduced = [x.lstrip('/').rstrip('/') for x in args if x]
+    return '/'.join([x for x in reduced if x])
+
+
+def make_absolute(route):
+    return '/' + path_join(route)
 
 
 def trim_underscores(name):

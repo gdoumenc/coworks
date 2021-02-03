@@ -9,18 +9,22 @@ from tests.src.coworks.tech_ms import *
 
 class DocumentedMS(TechMS):
 
+    @entry
     def get(self):
         """Root access."""
         return "get"
 
+    @entry
     def post_content(self, value, other="none"):
         """Add content."""
         return f"post_content {value}{other}"
 
+    @entry
     def post_contentannotated(self, value: int, other: str = "none"):
         """Add content."""
         return f"post_content {value}{other}"
 
+    @entry
     def get_list(self, values: [int]):
         """Tests list param."""
         return "ok"
@@ -28,6 +32,7 @@ class DocumentedMS(TechMS):
 
 class HiddenBlueprint(Blueprint):
 
+    @entry
     def get(self):
         """Test not in routes."""
         return "ok"
@@ -47,13 +52,13 @@ class TestClass:
                 "signature": "()"
             }
         }
-        assert routes["/content/{_0}"] == {
+        assert routes["/content/{value}"] == {
             "POST": {
                 "doc": "Add content.",
                 "signature": "(value, other=none)"
             }
         }
-        assert routes["/contentannotated/{_0}"] == {
+        assert routes["/contentannotated/{value}"] == {
             "POST": {
                 "doc": "Add content.",
                 "signature": "(value:<class 'int'>, other:<class 'str'>=none)"
@@ -62,17 +67,17 @@ class TestClass:
         assert routes["/admin/routes"] == {
             "GET": {
                 "doc": 'Returns the list of entrypoints with signature.',
-                "signature": "()"
+                "signature": "(pretty=False)"
             }
         }
-        assert routes["/list/{_0}"] == {
+        assert routes["/list/{values}"] == {
             "GET": {
                 "doc": 'Tests list param.',
                 "signature": "(values:[<class 'int'>])"
             }
         }
 
-    def test_documentation(self, local_server_factory):
+    def test_documentation_with_blueprints(self, local_server_factory):
         ms = DocumentedMS()
         ms.register_blueprint(Admin(), url_prefix="/admin")
         ms.register_blueprint(HiddenBlueprint(), url_prefix="/hidden", hide_routes=True)

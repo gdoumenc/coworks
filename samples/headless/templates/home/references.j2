@@ -1,19 +1,19 @@
-{% macro features(features, feature_ids) -%}
+{% macro references(references, reference_ids) -%}
 
-    {% if features.visible %}
-        <!-- Features -->
+    {% if references.visible %}
+        <!-- References -->
         <section id="features">
             <div class="container">
                 <header>
-                    <h2>{{ features.header_h2 }}</h2>
+                    <h2>{{ references.header_h2 }}</h2>
                 </header>
                 <div class="row aln-center">
-                    {% for ref in features.references if ref.slug in feature_ids %}
-                        <div class="col-4 col-6-medium col-12-small">
+                    {% for ref in references.references if ref.slug in reference_ids %}
+                        <div class="col-2 col-3-medium col-6-small">
 
                             <!-- Feature -->
                             <section>
-                                <a href="#" class="image featured"><img src="https://cdn.cosmicjs.com/{{ ref.image }}"
+                                <a href="#" class="image featured"><img src="https://imgix.cosmicjs.com/{{ ref.image }}"
                                                                         alt="{{ ref.title_h2 }}"/></a>
                                 <header>
                                     <h3>{{ ref.title_h2 }}</h3>
@@ -27,7 +27,7 @@
             </div>
             <div class="col-12">
                 <ul class="actions">
-                    <li><a href="#" class="button icon solid fa-file">{{ features.button }}</a></li>
+                    <li><a href="#" class="button icon solid fa-file">{{ references.button }}</a></li>
                 </ul>
             </div>
         </section>

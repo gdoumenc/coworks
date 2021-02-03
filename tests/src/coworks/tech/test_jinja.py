@@ -28,7 +28,7 @@ class TestClass:
         context.write(json.dumps({"world_name": "the world"}).encode())
         context.seek(0)
 
-        response = local_server.make_call(requests.post, f"/render/template.jinja",
+        response = local_server.make_call(requests.post, "/render/template.jinja",
                                           files={'templates': ('template.jinja', template, 'text/plain'),
                                                  'context': (None, context, 'application/json')})
         assert response.status_code == 200

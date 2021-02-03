@@ -1,8 +1,9 @@
-import sys
+import pprint
 from abc import ABC, abstractmethod
 from collections import defaultdict
 
 import click
+import sys
 
 from .error import CwsCommandError
 from ..coworks import TechMicroService
@@ -25,6 +26,16 @@ class CwsClientCommandOptions:
                 command_options.pop(option, None)
         return value
 
+    def __repr__(self):
+        str = "client options:"
+        str += pprint.saferepr(self.client_options) + '\n'
+        for execution_params in self.execution_context.values():
+            for command, command_options in execution_params:
+                str += f"command options for {command.app.name} : "
+                str += pprint.saferepr(command_options)
+                str += '\n'
+        return str
+
 
 class CwsMultiCommands:
     def __init__(self):
@@ -44,9 +55,9 @@ class CwsMultiCommands:
 class CwsCommand(click.Command, ABC):
 
     @classmethod
-    def multi_execute(cls, project_dir, workspace, client_options, execution_context):
+    def multi_execute(cls, project_dir, workspace, client_options, execution_context, **_internal_options):
         for command, command_options in execution_context:
-            command.execute(**command_options)
+            command.execute(**command_options, **_internal_options)
 
     def __init__(self, app: TechMicroService = None, *, name):
         super().__init__(name, callback=self._execute)
@@ -100,6 +111,7 @@ class CwsCommand(click.Command, ABC):
 
             ctx = self.make_context(self.name, options)
             ctx_options = {**options, 'output': output, 'error': error}
+            ctx_options.setdefault('_from_cws', False)
             ctx.params.update(project_dir=project_dir, module=module, service=service, workspace=workspace,
                               **ctx_options)
             self.invoke(ctx)

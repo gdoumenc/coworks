@@ -1,6 +1,7 @@
 import requests
 from chalice import AuthResponse
 
+from coworks import entry
 from coworks.config import Config
 from .blueprint.blueprint import BP
 from .tech_ms import SimpleMS
@@ -15,17 +16,19 @@ class AuthorizeAll(SimpleMS):
     def auth(self, auth_request):
         return True
 
+    @entry
     def get_product(self, ref):
         return ref
+
 
 class AuthorizeNothingExceptBP(SimpleMS):
 
     def __init__(self):
         super().__init__()
-        self.register_blueprint(BP(), url_prefix="/blueprint", authorizer=auth_external)
+        self.register_blueprint(BP(), url_prefix="/blueprint")
 
     def auth(self, auth_request):
-        return False
+        return ['/blueprint/*']
 
 
 class AuthorizeNothing(SimpleMS):
@@ -50,15 +53,15 @@ class AuthorizedMS(SimpleMS):
         return False
 
 
-class AuthorizedMS2(SimpleMS):
+class AuthorizedOnlyRootMS(SimpleMS):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.register_blueprint(BP(), url_prefix="/blueprint", authorizer=AuthorizedMS2.auth)
+        self.register_blueprint(BP(), url_prefix="/blueprint")
 
     def auth(self, auth_request):
         if auth_request.token == 'allow':
-            return AuthResponse(routes=['/'], principal_id='user')
+            return ['/']
         return False
 
 
@@ -93,15 +96,14 @@ class TestClass:
         assert response.text == 'get'
         response = local_server.make_call(requests.get, '/', headers={'authorization': 'refuse'})
         assert response.status_code == 403
-        response = local_server.make_call(requests.get, '/blueprint/test/3', headers={'authorization': 'allow'},
-                                          timeout=500)
+        response = local_server.make_call(requests.get, '/blueprint/test/3', headers={'authorization': 'allow'})
         assert response.status_code == 200
         assert response.text == 'blueprint test 3'
         response = local_server.make_call(requests.get, '/blueprint/test/3', headers={'authorization': 'refuse'})
         assert response.status_code == 403
 
     def test_authorized2(self, local_server_factory):
-        local_server = local_server_factory(AuthorizedMS2())
+        local_server = local_server_factory(AuthorizedOnlyRootMS())
         response = local_server.make_call(requests.get, '/', headers={'authorization': 'allow'})
         assert response.status_code == 200
         assert response.text == 'get'
@@ -153,4 +155,4 @@ class TestClass:
 
 
 def auth_external(self, auth_request):
-    return True if auth_request.token == 'allow' else False
+    return auth_request.token == 'allow'

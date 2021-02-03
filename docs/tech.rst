@@ -11,7 +11,12 @@ for other more complex microservices.
 Routing
 -------
 
-Routes are defined by function names in the microservice class.
+Routes are defined by decorated functions in the microservice class.
+
+The decorator is::
+
+    @entry
+
 The function names must follow the syntax below::
 
 	<request_method>_<associated_route>
@@ -26,6 +31,7 @@ The following function defines the GET method for the root of the microservice:
 
 .. code-block:: python
 
+    @entry
 	def get(self):
 		return "root"
 
@@ -33,6 +39,7 @@ The following function defines the GET method for the route ``/service/test``:
 
 .. code-block:: python
 
+    @entry
 	def get_service_test(self):
 		return "service test"
 
@@ -40,6 +47,7 @@ The following function defines the PUT method for the root of the microservice:
 
 .. code-block:: python
 
+    @entry
 	def put(self):
 		return "put"
 
@@ -54,6 +62,7 @@ You can define entrypoint function arguments as part of the URI:
 
 .. code-block:: python
 
+	@entry
 	def get_content(self, index):
 		return f"get content {index}"
 
@@ -66,6 +75,7 @@ You can have several positional parameters (ordered from the URL path):
 
 .. code-block:: python
 
+	@entry
 	def get_content(self, bucket, key1, key2, key3):
 		return f"get content of {bucket} with key {key1/key2/key3}"
 
@@ -77,12 +87,15 @@ You can also construct more complex routes from different parameters:
 
 .. code-block:: python
 
+	@entry
 	def get_content(self):
 		return "get content"
 
+	@entry
 	def get_content_(self, value):
 		return f"get content with {value}"
 
+	@entry
 	def get_content__(self, value, other):
 		return f"get content with {value} and {other}"
 
@@ -96,15 +109,19 @@ This is usefull for offering a CRUD microservice:
 
 .. code-block:: python
 
+	@entry
 	def get(self):
 		return "the list of instances of a model"
 
+	@entry
 	def get_(self, id):
 		return f"the instance with id {id}"
 
+	@entry
 	def put(self, data):
 		return f"creates a new instance with {data}"
 
+	@entry
 	def put_(self, id, data):
 		return f"modifies an instance identified by {id} with {data}"
 
@@ -125,6 +142,7 @@ In that case the value of those default parameters are defined by query paramete
 
 .. code-block:: python
 
+	@entry
 	def get_content(self, id=None, name=""):
 		return f"the instance with id {id} and/or name {name}"
 
@@ -153,6 +171,7 @@ parameters with a GET method will raise an error in execution.
 
 You can also use the ``**`` notation to get any values::
 
+	@entry
 	def get_content(self, **kwargs):
 		return f"here are all the parameters: {kwargs}"
 
@@ -209,6 +228,7 @@ Blueprints are defined in the same way as microservice classes.
 
 	class Admin(Blueprint):
 
+	    @entry
 		def get_context(self):
 			return self.current_request.to_dict()
 

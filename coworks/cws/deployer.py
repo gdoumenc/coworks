@@ -1,15 +1,15 @@
-import itertools
 import logging
-import sys
 from dataclasses import dataclass
-from itertools import chain, repeat
 from pathlib import Path
 from threading import Thread
-from time import sleep
 from typing import List
 
 import boto3
 import click
+import itertools
+import sys
+from itertools import chain, repeat
+from time import sleep
 
 from .command import CwsCommand, CwsCommandError
 from .writer import CwsTemplateWriter
@@ -65,10 +65,14 @@ class CwsTerraformDeployer(CwsCommand):
     WRITER_CMD = 'export'
 
     @classmethod
-    def multi_execute(cls, project_dir, workspace, client_options, execution_context):
+    def generate_common_files(cls, *args, **kwargs):
+        with open('terraform/default_provider.tf', 'w') as output:
+            print('provider "aws" {\nprofile = "fpr-customer"\nregion = "eu-west-1"\n}', file=output, flush=True)
+
+    @classmethod
+    def multi_execute(cls, project_dir, workspace, client_options, execution_context, **_internal_options):
         terraform = Terraform()
         output = client_options.pop('output', False)
-
         if output:
             cls._terraform_output_local(terraform)
             return
@@ -94,6 +98,9 @@ class CwsTerraformDeployer(CwsCommand):
             key = options.pop('key') or f"{cls.bucket_key(command, options)}/archive.zip"
             ignore = options.pop('ignore') or ['terraform', '.terraform']
             command.app.execute(cls.ZIP_CMD, key=key, ignore=ignore, **options)
+
+        # Generates default provider
+        cls.generate_common_files(project_dir, workspace, client_options, execution_context, **_internal_options)
 
         # Generates terraform files (create step)
         for command, options in execution_context:
@@ -130,6 +137,7 @@ class CwsTerraformDeployer(CwsCommand):
         if not dry:
             cls._terraform_apply_local(terraform, workspace, ["Update API routes", f"Deploy API {workspace}"])
 
+        # Traces output
         cls._terraform_output_local(terraform)
 
     def __init__(self, app=None, name='deploy'):

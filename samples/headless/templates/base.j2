@@ -1,3 +1,5 @@
+{% from 'base/menu.j2' import menu as menu_ %}
+
 <!DOCTYPE HTML>
 <!--
 	Strongly Typed by HTML5 UP
@@ -15,8 +17,18 @@
 <div id="page-wrapper">
 
     <!-- Header -->
-    {% block head %}
-    {% endblock %}
+    <section id="header">
+        <div class="container">
+
+            {% block head %}
+            {% endblock %}
+
+            <!-- Nav -->
+            {{ menu_(root, products, references, posts) }}
+
+        </div>
+    </section>
+
 
     <!-- Content -->
     {% block content %}
@@ -24,18 +36,18 @@
 
     <!-- Footer -->
     {% block footer %}
+        <div id="legal" class="container">
+            <ul class="links">
+                <li>&copy; MORASSUTI. All rights reserved.</li>
+                <li><a href="/form">Nous contacter</a></li>
+            </ul>
+        </div>
     {% endblock %}
-
-    <div id="legal" class="container">
-        <ul class="links">
-            <li>&copy; MORASSUTI. All rights reserved.</li>
-            <li>Design: <a href="http://html5up.net">HTML5 UP</a></li>
-        </ul>
-    </div>
 
 </div>
 
 <!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/gh/alpinejs/alpine@v2.x.x/dist/alpine.min.js" defer></script>
 <script src="{{ assets_url }}/assets/js/jquery.min.js"></script>
 <script src="{{ assets_url }}/assets/js/jquery.dropotron.min.js"></script>
 <script src="{{ assets_url }}/assets/js/browser.min.js"></script>

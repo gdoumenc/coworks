@@ -3,7 +3,7 @@ from collections import defaultdict
 
 import click
 
-from coworks import TechMicroService
+from coworks import TechMicroService, entry
 from coworks.config import Config
 from coworks.cws.command import CwsCommand
 from coworks.cws.runner import CwsRunner
@@ -40,21 +40,26 @@ class TechMS(TechMicroService):
         def init(workspace):
             self.init_value = 'test'
 
+    @entry
     def get(self, usage="test"):
         """Entrypoint for testing named parameter."""
         return f"Simple microservice for {usage}.\n"
 
+    @entry
     def get_value(self, index):
         """Entrypoint for testing positional parameter."""
         return f"{self.values[index]}\n"
 
+    @entry
     def put_value(self, index, value=0):
         self.values[index] = value
         return value
 
+    @entry
     def get_init(self):
         return f"Initial value is {self.init_value}.\n"
 
+    @entry
     def get_env(self):
         return f"Simple microservice for {os.getenv('test')}.\n"
 

@@ -23,6 +23,7 @@ class WithEnvMS(SimpleMS):
         def init(event, context):
             assert os.getenv("test") is not None
 
+    @entry
     def get(self):
         """Root access."""
         return os.getenv("test")

@@ -17,7 +17,7 @@ from ..version import __version__
 @click.version_option(version=__version__, message=f'%(prog)s %(version)s, {get_system_info()}')
 @click.option('-p', '--project-dir', default=DEFAULT_PROJECT_DIR,
               help=f"The project directory path (absolute or relative) [default to '{DEFAULT_PROJECT_DIR}'].")
-@click.option('-c', '--config_file', help="Configuration file path [path from project dir].")
+@click.option('-c', '--config-file', help="Configuration file path [path from project dir].")
 @click.option('-m', '--module', help="Filename of your microservice python source file.")
 @click.option('-s', '--service', help="Coworks application in the source file.")
 @click.option('-w', '--workspace', default=DEFAULT_WORKSPACE,
@@ -32,12 +32,16 @@ def invoke(ctx):
     try:
         args = ctx.args
         protected_args = ctx.protected_args
-        command_name = protected_args[0] if protected_args else None
+        if not protected_args:
+            sys.stderr.write(str("No command given.\n"))
+            client.main(['--help'])
+            sys.exit(1)
+        command_name = protected_args[0]
 
         # get project options
         cws_options = CwsClientOptions(ctx.params)
         if not cws_options.services:
-            sys.stderr.write(str("Nothing to execute as no service defined."))
+            sys.stderr.write(str("Nothing to execute as no service defined.\n"))
             sys.exit(1)
 
         # Iterates over the declared services in project configuration file
@@ -70,12 +74,12 @@ def invoke(ctx):
         workspace = cws_options.workspace
         client_options = commands_to_be_executed.client_options
         for command_class, execution_context in commands_to_be_executed.items():
-            command_class.multi_execute(project_dir, workspace, client_options, execution_context)
+            command_class.multi_execute(project_dir, workspace, client_options, execution_context, _from_cws=True)
     except CwsClientError as client_err:
-        sys.stderr.write(f"Error in command: {client_err.msg}")
+        sys.stderr.write(f"Error in command: {client_err.msg}\n")
         sys.exit(1)
     except Exception as e:
-        sys.stderr.write(f"Error in command: {str(e)}")
+        sys.stderr.write(f"Error in command: {str(e)}\n")
         sys.exit(1)
 
 
@@ -247,7 +251,7 @@ class ServiceConfig:
 
 
 def main():
-    return client(obj={})
+    return client()
 
 
 if __name__ == "__main__":

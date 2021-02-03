@@ -1,0 +1,28 @@
+{% macro products(root, products, product_ids) -%}
+    {% if products.visible %}
+        <section id="features">
+            <div class="container">
+                <header>
+                    <h2>{{ products.header_h2 }}</h2>
+                </header>
+                <div class="row aln-center">
+                    {% for prod in products.products if prod.slug in product_ids %}
+                        <div class="col-4 col-6-medium col-12-small">
+
+                            <section>
+                                <a href="{{ root }}/produit/{{ prod.slug }}" class="image featured">
+                                    <img src="https://imgix.cosmicjs.com/{{ prod.image }}" alt="{{ prod.title_h1 }}"/>
+                                </a>
+                                <header>
+                                    <h3>{{ prod.title_h1 }}</h3>
+                                </header>
+                            </section>
+
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+    {% endif %}
+
+{%- endmacro %}

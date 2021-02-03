@@ -67,11 +67,8 @@ class CwsTemplateWriter(CwsWriter):
         template_filenames = template or self.template_filenames
 
         # Get parameters for execution
-        try:
-            config = next(
-                (app_config for app_config in self.app.configs if app_config.workspace == workspace)
-            )
-        except StopIteration:
+        config = self.app.get_config(workspace)
+        if config is None:
             raise CwsCommandError("A workspace is mandatory in the python configuration for deploying.\n")
 
         environment_variable_files = [p.as_posix() for p in

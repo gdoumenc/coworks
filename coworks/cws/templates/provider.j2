@@ -1,4 +1,5 @@
 provider "aws" {
+  alias = "{{ resource_name }}"
   profile = "{{ profile_name }}"
   region = "{{ aws_region }}"
 }

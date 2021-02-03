@@ -12,8 +12,25 @@ from requests_toolbelt.multipart import MultipartEncoder
 
 from . import aws
 from .config import Config
-from .mixins import Entry, CoworksMixin
-from .utils import class_auth_methods
+from .mixins import Entry, CoworksMixin, HTTP_METHODS
+from .utils import trim_underscores
+
+
+def entry(fun):
+    """Decorator to create a microservice entrypoint from function name."""
+    name = fun.__name__.upper()
+    for method in HTTP_METHODS:
+        if name == method:
+            fun.__CWS_METHOD = method
+            fun.__CWS_PATH = ''
+            return fun
+        if name.startswith(f'{method}_'):
+            fun.__CWS_METHOD = method
+            name = fun.__name__[len(method) + 1:]
+            name = trim_underscores(name)  # to allow several functions with different args
+            fun.__CWS_PATH = name.replace('_', '/')
+            return fun
+    raise AttributeError(f"The function name {fun.__name__} doesn't start with a HTTP method name.")
 
 
 class Blueprint(CoworksMixin, ChaliceBlueprint):
@@ -118,7 +135,7 @@ class TechMicroService(CoworksMixin, Chalice):
 
     def get_config(self, workspace):
         for conf in self.configs:
-            if conf.workspace == workspace:
+            if conf.is_valid_for(workspace):
                 return conf
         return self.configs[0]
 
@@ -129,21 +146,14 @@ class TechMicroService(CoworksMixin, Chalice):
             # Set workspace config
             self.config = self.get_config(workspace)
 
-            # Initializes routes with the global authorization function
-            if self.config.auth:
-                self.__auth__ = self._create_auth_proxy(self.config.auth)
-            else:
-                auth_fun = class_auth_methods(self)
-                if auth_fun:
-                    self.__auth__ = self._create_auth_proxy(auth_fun)
-            self._init_routes(self, authorizer=self.__auth__)
-
+            # Initializes routes and defered initializations
+            self._init_routes(self)
             for deferred_init in self.deferred_inits:
                 deferred_init(workspace)
             for blueprint in self.iter_blueprints():
                 blueprint.deferred_init(workspace)
 
-    def register_blueprint(self, blueprint: Blueprint, url_prefix='', authorizer=None, hide_routes=False):
+    def register_blueprint(self, blueprint: Blueprint, url_prefix='', hide_routes=False):
         """ Register a :class:`Blueprint` on the microservice.
 
         :param blueprint: blueprint to register.
@@ -158,8 +168,7 @@ class TechMicroService(CoworksMixin, Chalice):
 
         def deferred(workspace):
             """Global authorization function for the blueprint may be redefined or is the service's one."""
-            auth = self._create_auth_proxy(authorizer) if authorizer else self.__auth__
-            blueprint._init_routes(self, url_prefix=url_prefix, authorizer=auth, hide_routes=hide_routes)
+            blueprint._init_routes(self, url_prefix=url_prefix, hide_routes=hide_routes)
             super(TechMicroService, self).register_blueprint(blueprint, url_prefix=url_prefix)
 
         self.deferred_inits.append(deferred)

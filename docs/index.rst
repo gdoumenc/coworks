@@ -24,25 +24,22 @@ composition of microservices (defined as ``class BizMicroService``) is performed
 
 Other AWS technologies are used for logging, administration, ...
 
-Documentation
--------------
+Technical documentation :
 
 * Get started: :ref:`installation`.
 * Quick overview: :ref:`tech_quickstart` then :ref:`biz_quickstart`.
 * The Command Line Interface :ref:`cli`.
+* Full documentation: :ref:`doc`.
 * At least :ref:`faq` if not enough...
 
-Using and derived from `Chalice <https://github.com/aws/chalice>`_ and some ideas from
-`Flask-Classy <https://github.com/apiguy/flask-classy/>`_.
-
-Other tools used:
+Using and derived from `Chalice <https://github.com/aws/chalice>`_. Other tools used:
 
 * `Click <https://github.com/pallets/click>`_ - Command Line Interface Creation Kit.
 * `Terraform <https://github.com/hashicorp/terraform>`_ - Infrastructure Configuration Management Tool.
 
 
 What does microservice mean in Coworks?
-****************************************
+---------------------------------------
 
 In short, the microservice architectural style is an approach to developing a single application as a suite of small services,
 each running in its own process and communicating with lightweight mechanisms.
@@ -79,17 +76,9 @@ Decentralized
 Smart endpoints
   Deriving directly from class methods.
 
+
 What are Coworks main benefits?
-*******************************
-
-Like any model of software architecture, it is very usefull to have complementary tools for programming, testing,
-documenting or deploying over it.
-
-The main advantage of using Coworks is its ability to defined tools around the microservices defined by code.
-Prédefined tools like `run` or `deploy` are provided, but you can redefined them or creates new ones like for
-documentation or testing.
-
-For more details, see: :ref:`command`.
+-------------------------------
 
 Two levels of microservice
 **************************
@@ -115,10 +104,58 @@ Distinction between ``TechMicroservice`` and ``BizMicroservice`` is based not on
 * A ``TechMicroservice`` is an independant microservice while a ``BizMicroservice`` is connected to event handlers (cron, notification, event, ...).
 * A ``TechMicroservice`` is more a handler pattern and ``BizMicroservice`` a reactor pattern.
 
+Code oriented tools
+*******************
 
+Like any model of software architecture, it is very usefull to have complementary tools for programming, testing,
+documenting or deploying over it.
+
+The main advantage of using Coworks is its ability to defined those tools, called `commands`, directly in
+the microservice code.
+Predefined commands like ``run`` or ``deploy`` are provided, but you can redefined them or creates new ones like for
+documentation or testing.
+
+For more details, see: :ref:`command`.
+
+Microservice architecture structuration
+***************************************
+
+The Coworks microservice architecture provides some best pratices for code organization and directory structure.
+Indeed it's so easy to start in serverless project, it's also easy to start moving the wrong direction.
+
+**API and Lambda organization**
+
+  With AWS API a single Lambda function handles a single HTTP verb/path combinaison. For Rest API it is better to have
+  a single lambda function to handle all HTTP verbs for a particular resource.
+
+  Coworks regroups all microservice entrypoints into one single class. And a class is the resource granularity
+  for the API.
+
+  For example, following the CRUD design :
+
+  .. figure:: ./img/resource_oriented.png
+    :width: 800px
+
+  The significant benefit of this architecture is that the number of Lambda functions is drastically reduced over a
+  one to one CRUD event mapping.
+
+**Configuration**
+
+  Coworks differenciates two kind of configurations:
+
+    * Automation and command configuraton
+    * Execution configuration
+
+  For those who are familiar with the Twelve-Factor App methodology, the Coworks configuration model correspond exactly
+  with the strict separation of config from code. More precisely:
+
+    * The project configuration file : *Use a declarative format for setup automation, to minimize time and cost for new developers joining the project*
+    * The environmant variables file : *Env vars are easy to change between deploys without changing any code*
+
+.. _doc:
 
 Documentation
-=============
+-------------
 
 .. toctree::
   :maxdepth: 2
@@ -139,14 +176,14 @@ Documentation
 
 
 Taking part in the project
-==========================
+--------------------------
 
 If you want to contribute to this project in any kind, your help will be very welcome.
 Don't hesitate to contact any project's member.
 
 
 Indices and tables
-==================
+------------------
 
 * :ref:`genindex`
 * :ref:`modindex`

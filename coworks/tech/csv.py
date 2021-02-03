@@ -4,11 +4,11 @@ import json
 from datetime import datetime
 from typing import Union, List
 
-from ..coworks import TechMicroService
+from ..coworks import TechMicroService, entry
 from ..coworks import aws
 
 
-class CSVMicroService(TechMicroService, aws.Boto3Mixin):
+class CSVMicroService(TechMicroService):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -28,6 +28,7 @@ class CSVMicroService(TechMicroService, aws.Boto3Mixin):
         except Exception as e:
             print(e)
 
+    @entry
     def post_format(self, content: str = "", title: Union[bool, List[str]] = True,
                     remove_rows: List[int] = None, remove_columns: List[int] = None,
                     delimiter: str = ',', upload_to_s3_bucket: str = None, s3_bucket_folder: str = None):

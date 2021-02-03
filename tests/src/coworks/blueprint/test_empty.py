@@ -1,11 +1,12 @@
 import requests
 
-from coworks import TechMicroService, Blueprint
+from coworks import Blueprint, entry
 from tests.src.coworks.tech_ms import TechMS
 
 
 class BP(Blueprint):
 
+    @entry
     def get(self):
         return f"blueprint test"
 

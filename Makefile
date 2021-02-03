@@ -3,10 +3,10 @@
 sdist:
 	pipenv run python setup.py sdist
 
-deploy: sdist
+deploy: clean sdist
 	pipenv run twine upload dist/*
 
-deploy-test: sdist
+deploy-test: clean sdist
 	pipenv run twine upload --repository testpypi dist/*
 
 clean:

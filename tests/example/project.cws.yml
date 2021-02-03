@@ -6,7 +6,7 @@ services:
       - service: project2
 commands:
   info:
-    class: coworks.cws.CwsInformant
+    class: coworks.cws.CwsDeclaredInformant
   test:
     class: example.TestCmd
     b: value

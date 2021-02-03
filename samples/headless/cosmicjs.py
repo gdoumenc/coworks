@@ -10,24 +10,11 @@ class CosmicCmsClient:
         self.bucket = os.getenv('COSMICJS_BUCKET')
         self.read_token = os.getenv('COSMICJS_READ_TOKEN')
 
-    def get_home(self):
-        response = self.object('home')
-        home = {k: v for d in response['metafields'] for k, v in self.to_dict(d).items()}
-        response = self.objects('references')
-        references = [self.to_dict(d) for d in response]
-        response = self.objects('banners')
-        banners = [self.to_dict(d) for d in response]
-        response = self.objects('posts')
-        posts = [self.to_dict(d) for d in response]
-        return {
-            'home': home,
-            'references': references,
-            'reference_ids': [obj['slug'] for obj in references],
-            'banners': banners,
-            'banner_ids': [obj['slug'] for obj in banners],
-            'posts': posts,
-            'post_ids': [obj['slug'] for obj in posts],
-        }
+    def object_metafields(self, slug):
+        response = self.object(slug)
+        if response is None:
+            return {}
+        return {k: v for d in response['metafields'] for k, v in self.to_dict(d).items()}
 
     def object(self, slug: str):
         """Get a specific object according its object-type and filters set in filter_metadata param."""
