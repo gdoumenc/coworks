@@ -40,7 +40,6 @@ def invoke(ctx):
 
         # get project options
         cws_options = CwsClientOptions(ctx.params)
-        print(command_name)
         if not cws_options.services:
             sys.stderr.write(str("Nothing to execute as no service defined.\n"))
             sys.exit(1)
