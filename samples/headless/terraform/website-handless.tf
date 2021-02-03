@@ -33,7 +33,7 @@ locals {
 
 data "aws_lambda_layer_version" "website-handless" {
   provider = aws.website-handless
-  for_each = {for layer_name in ["arn:aws:lambda:eu-west-1:935392763270:layer:coworks-dev"]: layer_name => layer_name}
+  for_each = {for layer_name in ["arn:aws:lambda:eu-west-1:935392763270:layer:coworks-0_5_0"]: layer_name => layer_name}
   layer_name = each.value
 }
 
