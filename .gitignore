@@ -4,11 +4,12 @@ build/
 dist/
 **/.terraform
 **/*.tfstate*
+Pipfile.lock
 
 # Samples
 **/*.secret.json
 
-# Example
+# Tests example
 tests/example/.sconsign.dblite
 tests/example/terraform
 tests/example/Pipfile.lock

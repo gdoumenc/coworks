@@ -25,7 +25,9 @@ class WebsiteMicroService(TechMicroService):
             self.cosmic_client = CosmicCmsClient()
 
     @entry
-    def get(self):
+    def get(self, token=None):
+        if token != 'test':
+            return 404
         template_filename = 'home.j2'
         template = self.jinja_env.get_template(template_filename)
         return self.render(template)
