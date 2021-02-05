@@ -9,7 +9,7 @@ import yaml
 from coworks import BizFactory, entry
 from coworks.cws.sfn import StepFunction, TechState, CwsSFNTranslater
 from coworks.cws.writer import CwsWriterError
-from tests.src.coworks.tech_ms import S3MockTechMS
+from tests.coworks.tech_ms import S3MockTechMS
 
 
 class TestStepFunction(StepFunction):
@@ -97,7 +97,7 @@ class TestClass:
         assert res['body'] == "get 7 and 8"
 
     def test_biz_empty(self):
-        biz = BizFactory('tests/src/coworks/biz/empty')
+        biz = BizFactory('tests/coworks/biz/empty')
         biz.create('test')
         translater = CwsSFNTranslater(biz)
         output = io.StringIO()
@@ -107,7 +107,7 @@ class TestClass:
 
     def test_biz_complete(self):
         """Tests the doc example."""
-        fact = BizFactory('tests/src/coworks/biz/complete')
+        fact = BizFactory('tests/coworks/biz/complete')
         fact.create('test')
         translater = CwsSFNTranslater(fact)
         output = io.StringIO()

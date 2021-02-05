@@ -5,8 +5,8 @@ services:
       - service: project1
       - service: project2
 commands:
-  info:
-    class: coworks.cws.CwsDeclaredInformant
+  inspect:
+    class: coworks.cws.CwsInspector
   test:
     class: example.TestCmd
     b: value

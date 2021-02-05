@@ -1,7 +1,7 @@
 import requests
 
 from coworks import Blueprint, entry
-from tests.src.coworks.tech_ms import TechMS
+from tests.coworks.tech_ms import TechMS
 
 
 class BP(Blueprint):

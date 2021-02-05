@@ -3,7 +3,7 @@ from unittest.mock import Mock
 import requests
 
 from coworks.context_manager import XRayContextManager
-from tests.src.coworks.tech_ms import *
+from tests.coworks.tech_ms import *
 
 
 def const_id(*args):

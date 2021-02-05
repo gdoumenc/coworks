@@ -19,7 +19,7 @@ from ..version import __version__
               help=f"The project directory path (absolute or relative) [default to '{DEFAULT_PROJECT_DIR}'].")
 @click.option('-c', '--config-file', help="Configuration file path [path from project dir].")
 @click.option('-m', '--module', help="Filename of your microservice python source file.")
-@click.option('-s', '--service', help="Coworks application in the source file.")
+@click.option('-s', '--service', help="Microservice variable name in the source file.")
 @click.option('-w', '--workspace', default=DEFAULT_WORKSPACE,
               help=f"Application stage [default to '{DEFAULT_WORKSPACE}'].")
 @click.pass_context

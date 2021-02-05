@@ -3,7 +3,7 @@ import re
 
 from coworks.config import Config, CORSConfig
 from coworks.cws.writer import CwsTemplateWriter
-from tests.src.coworks.tech_ms import SimpleMS
+from tests.coworks.tech_ms import SimpleMS
 
 
 

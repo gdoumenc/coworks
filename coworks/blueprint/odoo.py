@@ -1,18 +1,17 @@
+from pyexpat import ExpatError
+from xmlrpc import client
+
 import os
 import time
+from aws_xray_sdk.core import xray_recorder
 from http.client import BadStatusLine
-from pyexpat import ExpatError
 from typing import List, Tuple, Union, Optional
-from xmlrpc import client
 from xmlrpc.client import Fault, ProtocolError
 
-from aws_xray_sdk.core import xray_recorder
-
-from coworks.mixins import Boto3Mixin
 from .. import Blueprint
 
 
-class Odoo(Blueprint, Boto3Mixin):
+class Odoo(Blueprint):
     """Odoo blueprint."""
 
     def __init__(self, url_env_var_name='URL', dbname_env_var_name='DBNAME', user_env_var_name='USER',
@@ -34,7 +33,7 @@ class Odoo(Blueprint, Boto3Mixin):
             return str(e), 404
 
     def get_model(self, model: str, searched_field_or_domain: Union[str, List[Tuple[str, str, any]]],
-                  searched_value = None, fields: Optional[List[str]] = None, ensure_one=False, **kwargs):
+                  searched_value=None, fields: Optional[List[str]] = None, ensure_one=False, **kwargs):
         """Returns the list of objects or the object which searched_field is equal to the searched_value."""
         if type(searched_field_or_domain) is list:
             filters = [searched_field_or_domain]

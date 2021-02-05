@@ -9,7 +9,7 @@ from coworks.config import Config
 from coworks.cws.client import client
 from coworks.cws.runner import ThreadedLocalServer
 from coworks.utils import import_attr
-from .example import TechMS
+from tests.src.example import TechMS
 
 
 class TestClass:
@@ -72,7 +72,7 @@ class TestClass:
 
     def test_cmd_wrong_project_dir(self, example_dir, capsys):
         with pytest.raises(SystemExit) as pytest_wrapped_e:
-            client(prog_name='cws', args=['-p', 'tests/example', 'info'], obj={})
+            client(prog_name='cws', args=['-p', example_dir, 'inspect'], obj={})
         assert pytest_wrapped_e.type == SystemExit
         assert pytest_wrapped_e.value.code == 0
         captured = capsys.readouterr()

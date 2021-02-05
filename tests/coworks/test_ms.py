@@ -1,6 +1,6 @@
 import requests
 
-from tests.src.coworks.tech_ms import *
+from tests.coworks.tech_ms import *
 
 
 class TestClass:

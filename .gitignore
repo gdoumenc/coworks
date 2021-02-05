@@ -10,16 +10,15 @@ Pipfile.lock
 **/*.secret.json
 
 # Tests example
-tests/example/.sconsign.dblite
-tests/example/terraform
-tests/example/Pipfile.lock
+samples/docs/.sconsign.dblite
+samples/docs/terraform
+samples/docs/Pipfile.lock
 tests/example/*.zip
 
 # Dev tools
 .idea/
 **/__pycache__/
 **/*.http
-build/
 docs/_build/
 .pytest_cache/
 **/*.log

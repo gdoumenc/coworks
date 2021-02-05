@@ -4,7 +4,7 @@ import requests
 
 from coworks import Blueprint
 from coworks.blueprint import Admin
-from tests.src.coworks.tech_ms import *
+from tests.coworks.tech_ms import *
 
 
 class DocumentedMS(TechMS):

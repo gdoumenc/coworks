@@ -27,9 +27,7 @@ class SimpleMicroService(TechMicroService):
         return "Value stored.\n"
 
 
-CONFIG = Config(
-    workspace="dev"
-)
+CONFIG = Config(workspace="dev")
 
 app = SimpleMicroService(configs=[CONFIG])
 CwsRunner(app)
@@ -37,4 +35,4 @@ CwsTerraformDeployer(app, name='deploy')
 XRayContextManager(app, xray_recorder)
 
 if __name__ == '__main__':
-    app.execute('run', project_dir='.', module='quickstart3', workspace='dev')
+    app.execute('run')

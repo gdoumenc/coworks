@@ -1,17 +1,17 @@
+from collections import defaultdict
+
 import json
 import logging
 import os
-from collections import defaultdict
-from threading import Lock
-from typing import Dict, List, Union
-
 from chalice import AuthResponse, BadRequestError, Rate, Cron
 from chalice import Chalice, Blueprint as ChaliceBlueprint
 from chalice.app import AuthRequest
 from requests_toolbelt.multipart import MultipartEncoder
+from threading import Lock
+from typing import Dict, List, Union
 
 from . import aws
-from .config import Config
+from .config import Config, DEFAULT_PROJECT_DIR, DEFAULT_WORKSPACE
 from .mixins import Entry, CoworksMixin, HTTP_METHODS
 from .utils import trim_underscores
 
@@ -196,8 +196,8 @@ class TechMicroService(CoworksMixin, Chalice):
     def iter_blueprints(self):
         return self.blueprints.values()
 
-    def execute(self, command, *, project_dir, module=None, service=None, workspace, output=None, error=None,
-                **options):
+    def execute(self, command, *, project_dir=DEFAULT_PROJECT_DIR, module=None, service=None,
+                workspace=DEFAULT_WORKSPACE, output=None, error=None, **options):
         from .cws.client import CwsClientOptions
         from .cws.error import CwsCommandError
 

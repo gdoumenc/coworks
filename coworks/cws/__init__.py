@@ -1,4 +1,4 @@
 from .command import CwsCommand
-from .informant import CwsDeclaredInformant, CwsDeployedInformant
+from .inspector import CwsInspector
 from .runner import CwsRunner
 from .deployer import CwsTerraformDeployer

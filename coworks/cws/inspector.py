@@ -4,8 +4,8 @@ from .command import CwsCommand, CwsCommandError
 from .. import aws
 
 
-class CwsDeclaredInformant(CwsCommand):
-    """Command to get information on the project's microservices and teir deployment."""
+class CwsInspector(CwsCommand):
+    """Command to get information on a microservice."""
 
     @classmethod
     def multi_execute(cls, project_dir, workspace, client_options, execution_context, **_internal_options):
@@ -14,7 +14,7 @@ class CwsDeclaredInformant(CwsCommand):
             if command_options['env']:
                 command.print_env_vars(**command_options)
 
-    def __init__(self, app=None, name='info'):
+    def __init__(self, app=None, name='inspect'):
         super().__init__(app, name=name)
 
     @property
@@ -40,7 +40,7 @@ class CwsDeclaredInformant(CwsCommand):
                         print(f.read())
 
 
-class CwsDeployedInformant(CwsCommand):
+class CwsAWSInspector(CwsCommand):
     """Command to get information on the project's microservices and teir deployment."""
 
     @classmethod

@@ -1,8 +1,8 @@
 import requests
 from unittest.mock import Mock
 
-from tests.src.coworks.blueprint.blueprint import BP
-from tests.src.coworks.tech_ms import SimpleMS
+from tests.coworks.blueprint.blueprint import BP
+from tests.coworks.tech_ms import SimpleMS
 
 
 class TestClass:

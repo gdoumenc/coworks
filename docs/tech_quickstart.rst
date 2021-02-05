@@ -20,7 +20,7 @@ First try
 
 To create your first complete technical microservice, create a file ``first.py`` with the following content:
 
-.. literalinclude:: ../tests/example/quickstart1.py
+.. literalinclude:: ../tests/docs/quickstart1.py
 
 This first example defines a very simple microservice ``app`` with a simple ``GET`` entry ``/``
 (see :ref:`routing` for more details on entry)
@@ -49,7 +49,7 @@ Deploy the try
 For that purpose, we add the ``deploy`` command to the microservice defined with the use of ``terraform``
 (see `Terraform <https://www.terraform.io/>`_ for more details on Terraform).
 
-.. literalinclude:: ../tests/example/quickstart2.py
+.. literalinclude:: ../tests/docs/quickstart2.py
 
 We have to add a new function ``auth`` to define an authorizer (see :ref:`auth` for more details on authorizer).
 For this simple test, the authorizer validates all the routes by returning ``True``.
@@ -105,12 +105,12 @@ Full project
 
 To complete we had a more complex microservice using the XRay context manager :
 
-.. literalinclude:: ../tests/example/first.py
+.. literalinclude:: ../tests/docs/first.py
 
 To avoid specifying all the options for the command, a project configuration file may be defined.
 Let's define a very simple one:
 
-.. literalinclude:: ../tests/example/quickstart.cws.yml
+.. literalinclude:: ../tests/docs/quickstart.cws.yml
 
 A complete description of the syntax for the configuration project file is defined in.
 Then the comand may simply called by:
