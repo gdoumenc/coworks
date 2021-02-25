@@ -1,5 +1,8 @@
 locals {
   lambda_name = "{{ resource_name }}-{{ workspace }}"
+  {{ resource_name }}_lambda_name = join("", aws_lambda_function.{{ resource_name }}.*.function_name, data.aws_lambda_function.{{ resource_name }}.*.function_name)
+  {{ resource_name }}_lambda_arn = join("", aws_lambda_function.{{ resource_name }}.*.arn, data.aws_lambda_function.{{ resource_name }}.*.arn)
+  {{ resource_name }}_lambda_uri = join("", aws_lambda_function.{{ resource_name }}.*.invoke_arn, data.aws_lambda_function.{{ resource_name }}.*.invoke_arn)
   {%- if environment_variable_files %}
   {{ resource_name }}_environment_variables = [
     for envars_string in data.local_file.{{ resource_name }}_environment_variables_files: jsondecode(envars_string.content)
