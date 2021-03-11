@@ -8,8 +8,8 @@ class CwsInspector(CwsCommand):
     """Command to get information on a microservice."""
 
     @classmethod
-    def multi_execute(cls, project_dir, workspace, client_options, execution_context, **_internal_options):
-        for command, command_options in execution_context:
+    def multi_execute(cls, project_dir, workspace, execution_list):
+        for command, command_options in execution_list:
             command.print_module_info(**command_options)
             if command_options['env']:
                 command.print_env_vars(**command_options)
@@ -23,9 +23,6 @@ class CwsInspector(CwsCommand):
             *super().options,
             click.option('--env', '-e', is_flag=True, help="Show environment variables."),
         ]
-
-    def _execute(self, *, workspace, **options):
-        raise CwsCommandError("Not implemented")
 
     def print_module_info(self, *, module, service, **options):
         print(f"Microservice {service} defined in module {module}")
@@ -44,8 +41,8 @@ class CwsAWSInspector(CwsCommand):
     """Command to get information on the project's microservices and teir deployment."""
 
     @classmethod
-    def multi_execute(cls, project_dir, workspace, client_options, execution_context, **_internal_options):
-        for command, command_options in execution_context:
+    def multi_execute(cls, project_dir, workspace, execution_list):
+        for command, command_options in execution_list:
             profile_name = command_options['profile_name']
             aws_api_session = aws.ApiGatewaySession(profile_name=profile_name)
             paginator = aws_api_session.client.get_paginator('get_rest_apis')
@@ -63,9 +60,6 @@ class CwsAWSInspector(CwsCommand):
             click.option('--profile-name', '-p', required=True, help="AWS profile for APIGateway access."),
             click.option('--env', '-e', is_flag=True, help="Show environment variables."),
         ]
-
-    def _execute(self, *, workspace, **options):
-        raise CwsCommandError("Not implemented")
 
     def get_apis(self, service_name, paginator, page_size=10):
         rest_apis = paginator.paginate(PaginationConfig={'PageSize': page_size})

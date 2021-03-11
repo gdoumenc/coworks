@@ -20,11 +20,15 @@ class TestCmd(CwsCommand):
             click.option('--b')
         ]
 
-    def _execute(self, *, a, b, **options):
-        if a:
-            self.output.write(f"test command with a={a}")
-            self.output.write("/")
-        self.output.write(f"test command with b={b}")
+    @classmethod
+    def multi_execute(cls, project_dir, workspace, execution_list):
+        for command, options in execution_list:
+            a = options['a']
+            b = options['b']
+            if a:
+                command.output.write(f"test command with a={a}")
+                command.output.write("/")
+            command.output.write(f"test command with b={b}")
 
 
 class TechMS(TechMicroService):
@@ -75,8 +79,11 @@ TestCmd(tech_app, name='test')
 
 class RunnerMock(CwsRunner):
 
-    def _execute(self, *, project_dir, workspace, host, port, debug, **options):
-        assert type(port) is int
+    @classmethod
+    def multi_execute(cls, project_dir, workspace, execution_list):
+        for command, options in execution_list:
+            port = options['port']
+            assert type(port) is int
 
 
 project1 = TechMS()

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64px" height="64px" viewBox="0 0 64 64" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 41.2 (35397) - http://www.bohemiancoding.com/sketch -->
+    <title>BottleCrate</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="BottleCrate" stroke="#FFFFFF" stroke-width="2">
+            <g id="Page-1" transform="translate(9.000000, 10.000000)">
+                <path d="M0,34 L0,24 L46,24 L46,34 L0,34 Z M46,34 L46,44 L0,44 L0,34 L46,34 Z" id="Combined-Shape"></path>
+                <path d="M2,34 L44,34" id="Stroke-5"></path>
+                <path d="M3,29 L5,29" id="Stroke-8"></path>
+                <path d="M41,29 L43,29" id="Stroke-9"></path>
+                <path d="M3,39 L5,39" id="Stroke-10"></path>
+                <path d="M41,39 L43,39" id="Stroke-11"></path>
+                <path d="M18,24 L18,22 C18,18.406 14,16.874 14,15 C14,11.583 13,5.244 13,5 C13,4.383 14,4.167 14,3 C14,2.534 13,2.208 13,2 L13,1 C13,0.36 12,0 10,0 C8,0 7,0.36 7,1 L7,2 C6.562,2.208 6,2.534 6,3 C6,4.167 7,4.383 7,5 C7,5.244 6,11.583 6,15 C6,16.874 2,18.406 2,22 L2,24" id="Stroke-12"></path>
+                <path d="M31,24 L31,22 C31,18.406 27,16.874 27,15 C27,11.583 26,5.244 26,5 C26,4.383 27,4.167 27,3 C27,2.534 26,2.208 26,2 L26,1 C26,0.36 25,0 23,0 C21,0 20,0.36 20,1 L20,2 C19.562,2.208 19,2.534 19,3 C19,4.167 20,4.383 20,5 C20,5.244 19,11.583 19,15 C19,15.611 18.574,16.292 18,17.058" id="Stroke-14"></path>
+                <path d="M44,24 L44,22 C44,18.406 40,16.874 40,15 C40,11.583 39,5.244 39,5 C39,4.383 40,4.167 40,3 C40,2.534 39,2.208 39,2 L39,1 C39,0.36 38,0 36,0 C34,0 33,0.36 33,1 L33,2 C32.562,2.208 32,2.534 32,3 C32,4.167 33,4.383 33,5 C33,5.244 32,11.583 32,15 C32,15.611 31.574,16.292 31.001,17.058" id="Stroke-16"></path>
+            </g>
+        </g>
+    </g>
+</svg>

@@ -19,9 +19,6 @@ class CwsZipArchiver(CwsCommand):
     Uploads also the hash code of this file to be able to determined code changes (used by terraform as a trigger).
     """
 
-    def __init__(self, app=None, name='zip'):
-        super().__init__(app, name=name)
-
     @property
     def options(self):
         return [
@@ -34,7 +31,15 @@ class CwsZipArchiver(CwsCommand):
             click.option('--profile_name', '-p', required=True, help="AWS credential profile."),
         ]
 
-    def _execute(self, *, project_dir, module, bucket, key, profile_name, module_name, dry, debug, ignore, **options):
+    @classmethod
+    def multi_execute(cls, project_dir, workspace, execution_list):
+        for command, options in execution_list:
+            command._zip(**options)
+
+    def __init__(self, app=None, name='zip'):
+        super().__init__(app, name=name)
+
+    def _zip(self, *, project_dir, module, bucket, key, profile_name, module_name, dry, debug, ignore, **options):
         aws_s3_session = aws.AwsS3Session(profile_name=profile_name)
         module_name = module_name or []
 

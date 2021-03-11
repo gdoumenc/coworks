@@ -65,16 +65,15 @@ def invoke(ctx):
                 client_options[opt_key] = cmd_opt.type(opt_value)
 
             # Adds command and global options
-            options = {**command_options, **client_options}
+            options = {**command_options, **client_options, '_from_cws': True}
             command.make_context(command.name, options)
-            commands_to_be_executed.append(client_options, command, options)
+            commands_to_be_executed.append(command, options)
 
         # Executes all commands
         project_dir = cws_options.project_dir
         workspace = cws_options.workspace
-        client_options = commands_to_be_executed.client_options
-        for command_class, execution_context in commands_to_be_executed.items():
-            command_class.multi_execute(project_dir, workspace, client_options, execution_context, _from_cws=True)
+        for command_class, execution_list in commands_to_be_executed.items():
+            command_class.multi_execute(project_dir, workspace, execution_list)
     except CwsClientError as client_err:
         sys.stderr.write(f"Error in command: {client_err.msg}\n")
         sys.exit(1)

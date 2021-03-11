@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64px" height="64px" viewBox="0 0 64 64" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 41.2 (35397) - http://www.bohemiancoding.com/sketch -->
+    <title>FancyBottle</title>
+    <desc>Created with Sketch.</desc>
+    <defs>
+        <polygon id="path-1" points="0 48 20 48 20 0 0 0"></polygon>
+    </defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="FancyBottle">
+            <g id="Page-1" transform="translate(22.000000, 8.000000)">
+                <path d="M10,1 C12,1 14,1.36 14,2 L14,3 C14,3.491 15,4.534 15,5 C15,5.51 14,6.383 14,7 C14,7.244 15,13.583 15,17 C15,18.874 19,21.405 19,25 L19,44.999 C19,46.104 18.108,46.999 17.004,46.999 C14.744,47 11.218,47.001 10,46.998 L3,46.998 C1.896,46.998 1,46.103 1,44.998 L1,25 C1,21.405 5,18.874 5,17 C5,13.583 6,7.244 6,7 C6,6.383 5,5.51 5,5 C5,4.534 5.904,3.491 6,3 L6,2 C6,1.36 8,1 10,1 Z" id="Stroke-1" stroke="#FFFFFF" stroke-width="2"></path>
+                <mask id="mask-2" fill="white">
+                    <use xlink:href="#path-1"></use>
+                </mask>
+                <g id="Clip-4"></g>
+                <path d="M15,15 L13,15 C12.614,13.839 11.218,12.996 10,13 C8.783,13.004 7.386,13.836 7,15 L5,15.023" id="Stroke-5" stroke="#FFFFFF" stroke-width="2" mask="url(#mask-2)"></path>
+                <path d="M4,19 L7,19 C7.386,20.161 8.783,21.004 10,21 C11.218,20.996 12.614,20.164 13,19 L16,19" id="Stroke-6" stroke="#FFFFFF" stroke-width="2" mask="url(#mask-2)"></path>
+                <path d="M1.5,27 L18.5293864,27" id="Line" stroke="#FFFFFF" stroke-width="2" stroke-linecap="square"></path>
+                <path d="M1.5,40 L18.5293864,40" id="Line" stroke="#FFFFFF" stroke-width="2" stroke-linecap="square"></path>
+            </g>
+        </g>
+    </g>
+</svg>

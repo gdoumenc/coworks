@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64px" height="64px" viewBox="0 0 64 64" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 41.2 (35397) - http://www.bohemiancoding.com/sketch -->
+    <title>Pint</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Pint" stroke="#FFFFFF" stroke-width="2">
+            <g id="Page-1" transform="translate(20.000000, 9.000000)">
+                <path d="M24,7 L24,14 C24,21.625 20,27.5 20,32 C20,35.409 22,37.965 22,41 L22,44 C22,46.007 14.271,46 12,46 C9.729,46 2,46.007 2,44 L2,41 C2,37.965 4,35.409 4,32 C4,27.5 0,21.625 0,14 L0,7" id="Stroke-1"></path>
+                <path d="M7,29 C7,25.187 4,21.625 4,14 L4,12" id="Stroke-3"></path>
+                <path d="M18,40 C16.359,40.732 13.161,41 12,41 C10.839,41 7.641,40.731 6,40" id="Stroke-5"></path>
+                <path d="M14,13 L14,18.5 C14,19.881 15.119,21 16.5,21 C17.881,21 19,19.881 19,18.5 L19,11 C19,9.969 19.062,9 20,9 L24,9 L24,7 C24,3.962 21.537,2 18.5,2 C18.256,2 18.018,2.021 17.782,2.052 C16.773,0.802 15.231,0 13.5,0 C11.375,0 9.534,1.207 8.619,2.972 C7.732,2.36 6.658,2 5.5,2 C2.463,2 0,3.962 0,7 L0,9 L10,9 C12.281,9 14,10.844 14,13 Z" id="Stroke-7"></path>
+                <path d="M9.998,5.0586 C9.75,4.2396 9.262,3.5166 8.608,2.9806" id="Stroke-9"></path>
+            </g>
+        </g>
+    </g>
+</svg>

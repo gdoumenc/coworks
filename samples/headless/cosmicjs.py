@@ -50,4 +50,8 @@ class CosmicCmsClient:
             return {data['key']: {k: v for child in data['children'] for k, v in self.to_dict(child).items()}}
         if type_ == 'objects':
             return {data['key']: [self.to_dict(obj) for obj in data.get('objects', [])]}
+        if type_ == 'repeater':
+            return {data['key']: [self.to_dict(child) for child in data.get('children', [])]}
+        if type_ == 'repeating_item':
+            return {k: v for child in data['children'] for k, v in self.to_dict(child).items()}
         return {data['key']: data['value']}

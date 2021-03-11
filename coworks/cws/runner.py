@@ -15,10 +15,6 @@ from .command import CwsCommand
 
 
 class CwsRunner(CwsCommand):
-    def __init__(self, app=None, name='run'):
-        super().__init__(app, name=name)
-        xray_recorder.configure(context_missing="LOG_ERROR")
-
     @property
     def options(self):
         return [
@@ -28,48 +24,48 @@ class CwsRunner(CwsCommand):
             click.option('--debug', is_flag=True, help='Print debug logs to stderr.')
         ]
 
-    def _execute(self, *, project_dir, workspace, host, port, autoreload, debug, **options):
+    @classmethod
+    def multi_execute(cls, project_dir, workspace, execution_list):
         """ Runs the microservice in a local Chalice emulator.
-
-        :param host: the hostname to listen on.
-        :param port: the port of the webserver.
-        :param project_dir: to be able to import the microservice module.
-        :param debug: if given, enable or disable debug mode.
-        :param workspace: the workspace stagging run mode.
-        :return: None
         """
 
         # chalice.cli package is not defined in deployment
         from .factory import CwsFactory
 
-        ms = self.app
-        os.environ['WORKSPACE'] = workspace
-        ms.config.load_environment_variables(project_dir)
-        if ms.entries is None:
-            ms.deferred_init(workspace)
+        for command, options in execution_list:
+            os.environ['WORKSPACE'] = workspace
+            command.app.config.load_environment_variables(project_dir)
+            if command.app.entries is None:
+                command.app.deferred_init(workspace)
 
-        if debug:
-            logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')
+            debug = options['debug']
+            autoreload = options['autoreload']
+            if debug:
+                logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')
 
-        if autoreload:
-            if not options['_from_cws']:
-                sys.argv = [sys.executable, sys.argv[0]]
+            if autoreload:
+                if not options['_from_cws']:
+                    sys.argv = [sys.executable, sys.argv[0]]
 
-            class _ThreadedLocalServer(ThreadedLocalServer):
+                class _ThreadedLocalServer(ThreadedLocalServer):
 
-                def __init__(self):
-                    super().__init__()
-                    self._app_object = self
-                    self._config = Config()
-                    self._host = host
-                    self._port = port
-                    self._server = LocalDevServer(ms, self._config, self._host, self._port)
+                    def __init__(self):
+                        super().__init__()
+                        self._app_object = self
+                        self._config = Config()
+                        self._host = options['host']
+                        self._port = options['port']
+                        self._server = LocalDevServer(command.app, self._config, self._host, self._port)
 
-            rc = reloader.run_with_reloader(_ThreadedLocalServer, os.environ, project_dir)
-            sys.exit(rc)
-        else:
-            factory = CwsFactory(ms, project_dir, debug=debug)
-            run_local_server(factory, host, port, workspace)
+                rc = reloader.run_with_reloader(_ThreadedLocalServer, os.environ, project_dir)
+                sys.exit(rc)
+            else:
+                factory = CwsFactory(command.app, project_dir, debug=debug)
+                run_local_server(factory, options['host'], options['port'], workspace)
+
+    def __init__(self, app=None, name='run'):
+        super().__init__(app, name=name)
+        xray_recorder.configure(context_missing="LOG_ERROR")
 
 
 class ThreadedLocalServer(Thread):

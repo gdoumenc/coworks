@@ -1,9 +1,9 @@
 import pprint
+import sys
 from abc import ABC, abstractmethod
 from collections import defaultdict
 
 import click
-import sys
 
 from .error import CwsCommandError
 from ..coworks import TechMicroService
@@ -39,12 +39,9 @@ class CwsClientCommandOptions:
 
 class CwsMultiCommands:
     def __init__(self):
-        self.client_options = None
         self.execution_context = defaultdict(list)
 
-    def append(self, client_options, command, command_options):
-        if self.client_options is None:
-            self.client_options = CwsClientCommandOptions(client_options, self.execution_context)
+    def append(self, command, command_options):
         self.execution_context[type(command)].append((command, command_options))
 
     def items(self):
@@ -55,12 +52,18 @@ class CwsMultiCommands:
 class CwsCommand(click.Command, ABC):
 
     @classmethod
-    def multi_execute(cls, project_dir, workspace, client_options, execution_context, **_internal_options):
-        for command, command_options in execution_context:
-            command.execute(**command_options, **_internal_options)
+    @abstractmethod
+    def multi_execute(cls, project_dir, workspace, execution_list):
+        """ Main command execution function.
+         :param project_dir: Project directory where projet configuration file can be found.
+         :param workspace: Environment workspace.
+         :param execution_list: List of (command, command options from projet configuraion file).
+
+         Abstract method which must be redefined in any subclass. The content should be written in self.output.
+         """
 
     def __init__(self, app: TechMicroService = None, *, name):
-        super().__init__(name, callback=self._execute)
+        super().__init__(name, callback=self.__execute)
 
         # Trace interfaces.
         self.output = sys.stdout
@@ -162,11 +165,7 @@ class CwsCommand(click.Command, ABC):
         ctx.args = args
         return args
 
-    @abstractmethod
-    def _execute(self, **options):
-        """ Main command function.
-        :param options: Command options.
-        :return: None.
-
-        Abstract method which must be redefined in any subclass. The content should be written in self.output.
-        """
+    def __execute(self, **options):
+        project_dir = options['project_dir']
+        workspace = options['workspace']
+        self.multi_execute(project_dir=project_dir, workspace=workspace, execution_list=[(self, options)])

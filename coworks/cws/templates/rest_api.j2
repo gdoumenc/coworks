@@ -115,6 +115,7 @@ resource "aws_api_gateway_integration" "{{ resource_name }}_{{ res }}_{{ method 
     "application/json" = <<-EOT
       #set($allParams = $input.params())
       #set($headers = $allParams.get("header"))
+      #set($path = $allParams.get("path"))
       #set($queries = $allParams.get("querystring"))
       {
         "resource" : "$context.resourcePath",
@@ -137,7 +138,12 @@ resource "aws_api_gateway_integration" "{{ resource_name }}_{{ res }}_{{ method 
             ]#if($foreach.hasNext),#end
           #end
         },
-        "pathParameters": null,
+        "pathParameters": {
+          #foreach($key in $path.keySet())
+          "$key" : "$util.escapeJavaScript($path.get($key))"
+            #if($foreach.hasNext),#end
+          #end
+        },
         "stageVariables": null,
         "isBase64Encoded": false,
         "requestContext": {
@@ -207,6 +213,7 @@ resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ res }}_{
     "application/json" = <<-EOF
       #set($inputRoot = $input.path('$'))
       #set($context.responseOverride.status=$inputRoot.statusCode)
+      #set($context.responseOverride.header=$inputRoot.headers)
       $inputRoot.body
     EOF
   }

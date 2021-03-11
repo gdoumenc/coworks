@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64px" height="64px" viewBox="0 0 64 64" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 41.2 (35397) - http://www.bohemiancoding.com/sketch -->
+    <title>Tank</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" stroke-linecap="round">
+        <g id="Tank" stroke="#FFFFFF" stroke-width="2">
+            <g id="Page-1" transform="translate(9.000000, 9.000000)">
+                <path d="M1,40 L11,40" id="Stroke-1"></path>
+                <path d="M17,0 L17,9 C17,9 16.75,15.25 17,15 L17,23 L27,31 L27,40 L28,41 L28,46 L0,46 L0,41 L1,40 L1,31 L11,23 L11,15 L11,7" id="Stroke-3"></path>
+                <path d="M27,40 L22,40" id="Stroke-5"></path>
+                <path d="M45,36 L35,36" id="Stroke-7"></path>
+                <path d="M31,42 L46,42 L46,37 L45,36 L45,28.923 C45,27.707 44.448,26.559 43.499,25.799 L35,19 L35,14 C35,10.134 31.866,7 28,7 L22,7" id="Stroke-9"></path>
+                <path d="M23,24 L29,19 L29,15 C29,13.896 28.104,13 27,13 L17,13" id="Stroke-11"></path>
+                <path d="M11,27 L6,31" id="Stroke-13"></path>
+                <path d="M30,22 L27,25" id="Stroke-15"></path>
+                <path d="M8,13 L2,13" id="Stroke-17"></path>
+            </g>
+        </g>
+    </g>
+</svg>

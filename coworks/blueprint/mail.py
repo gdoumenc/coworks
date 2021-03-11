@@ -3,9 +3,10 @@ import smtplib
 from email.message import EmailMessage
 
 import requests
-from chalice import ChaliceViewError, BadRequestError
+from aws_xray_sdk.core import xray_recorder
+from chalice import BadRequestError
 
-from coworks import Blueprint, FileParam
+from coworks import Blueprint, FileParam, entry
 
 
 class Mail(Blueprint):
@@ -30,6 +31,8 @@ class Mail(Blueprint):
             if not self.smtp_passwd:
                 raise EnvironmentError(f'{env_passwd_var_name} not defined in environment.')
 
+    @entry
+    @xray_recorder.capture()
     def post_send(self, subject="", from_addr: str = None, to_addrs: [str] = None, cc_addrs: [str] = None,
                   bcc_addrs: [str] = None, body="",
                   attachments: [FileParam] = None, attachment_urls: dict = None, subtype="plain", starttls=True):
@@ -77,7 +80,7 @@ class Mail(Blueprint):
                         raise BadRequestError(f"Failed to download attachment, error {response.status_code}.")
 
         except Exception as e:
-            raise ChaliceViewError(f"Cannot create email message (Error: {str(e)}).")
+            raise BadRequestError(f"Cannot create email message (Error: {str(e)}).")
 
         # Send emails
         try:
@@ -91,4 +94,4 @@ class Mail(Blueprint):
         except smtplib.SMTPAuthenticationError:
             raise BadRequestError("Wrong username/password.")
         except Exception as e:
-            raise ChaliceViewError(f"Cannot send email message (Error: {str(e)}).")
+            raise BadRequestError(f"Cannot send email message (Error: {str(e)}).")

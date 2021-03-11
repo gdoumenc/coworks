@@ -10,12 +10,13 @@ cmd_mock = Mock()
 
 
 class MyCommand(CwsCommand):
-    def _execute(self, *, project_dir, **options):
+    def multi_execute(cls, project_dir, workspace, execution_list):
         cmd_mock()
-        assert project_dir == 'tests/cws'
-        assert options['module'] == 'test_cmd'
-        assert options['workspace'] == 'dev'
-        assert options['service'] == 'test'
+        for command, options in execution_list:
+            assert project_dir == 'tests/cws'
+            assert options['module'] == 'test_cmd'
+            assert options['workspace'] == 'dev'
+            assert options['service'] == 'test'
 
 
 class MyCommandWithOptions(MyCommand):
@@ -25,7 +26,8 @@ class MyCommandWithOptions(MyCommand):
         return [
             *super().options,
             click.option('--param', required=True),
-            click.option('--autre', required=True),
+            click.option('--other', required=True),
+            click.option('--nothing'),
         ]
 
 
@@ -55,4 +57,4 @@ class TestCommand:
         assert pytest_wrapped_e.value.msg == 'missing parameter: param'
 
         simple.execute('test_command_with_options', project_dir='tests/cws', module='test_cmd', workspace='dev',
-                       param='param')
+                       param='param', other='other')

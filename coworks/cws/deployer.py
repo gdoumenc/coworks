@@ -1,15 +1,15 @@
+import itertools
 import logging
+import sys
 from dataclasses import dataclass
+from itertools import chain, repeat
 from pathlib import Path
 from threading import Thread
+from time import sleep
 from typing import List
 
 import boto3
 import click
-import itertools
-import sys
-from itertools import chain, repeat
-from time import sleep
 
 from .command import CwsCommand, CwsCommandError
 from .writer import CwsTemplateWriter
@@ -64,48 +64,55 @@ class CwsTerraformDeployer(CwsCommand):
     ZIP_CMD = 'zip'
     WRITER_CMD = 'export'
 
-    @classmethod
-    def generate_common_files(cls, *args, **kwargs):
-        with open('terraform/default_provider.tf', 'w') as output:
-            print('provider "aws" {\nprofile = "fpr-customer"\nregion = "eu-west-1"\n}', file=output, flush=True)
+    @property
+    def options(self):
+        return [
+            *super().options,
+            *self.zip_cmd.options,
+            click.option('--binary_media_types'),
+            click.option('--create', '-c', is_flag=True, help="May create or recreate the API."),
+            click.option('--layers', '-l', multiple=True),
+            click.option('--memory_size', default=128),
+            click.option('--output', '-o', is_flag=True, help="Print terraform output values."),
+            click.option('--stop', type=click.Choice(['create', 'update']), help="Stop the terraform generation"),
+            click.option('--timeout', default=30),
+        ]
 
     @classmethod
-    def multi_execute(cls, project_dir, workspace, client_options, execution_context, **_internal_options):
+    def multi_execute(cls, project_dir, workspace, execution_list):
         terraform = Terraform()
-        output = client_options.pop('output', False)
-        if output:
-            cls._terraform_output_local(terraform)
-            return
 
-        # If one command is dry all are dry
-        dry = client_options.get('dry') or client_options.get('stop') is not None
-        for command, options in execution_context:
-            dry = dry or options['dry']
-
-        # Validates create option choice
-        create = client_options.pop('create', False)
-        if create:
-            prompts = chain(["Are you sure you want to (re)create the API [yN]?:"], repeat("Answer [yN]: "))
-            replies = map(input, prompts)
-            valid_response = next(filter(lambda x: x == 'y' or x == 'n' or x == '', replies))
-            if valid_response != 'y':
+        for command, options in execution_list:
+            output = options.pop('output', False)
+            if output:
+                cls._terraform_output_local(terraform)
                 return
+
+            # Validates create option choice
+            create = options.pop('create', False)
+            if create:
+                prompts = chain(["Are you sure you want to (re)create the API [yN]?:"], repeat("Answer [yN]: "))
+                replies = map(input, prompts)
+                valid_response = next(filter(lambda x: x == 'y' or x == 'n' or x == '', replies))
+                if valid_response != 'y':
+                    return
 
         # Transfert zip file to S3 (to be done on each service)
         key = None
-        for command, options in execution_context:
+        for command, options in execution_list:
             print(f"Uploading zip to S3")
             key = options.pop('key') or f"{cls.bucket_key(command, options)}/archive.zip"
             ignore = options.pop('ignore') or ['terraform', '.terraform']
             command.app.execute(cls.ZIP_CMD, key=key, ignore=ignore, **options)
 
         # Generates default provider
-        cls.generate_common_files(project_dir, workspace, client_options, execution_context, **_internal_options)
+        cls.generate_common_files(project_dir, workspace, execution_list)
 
         # Generates terraform files (create step)
-        for command, options in execution_context:
-            debug = client_options.get('debug') or options['debug']
-            profile_name = client_options.get('profile_name') or options['profile_name']
+        for command, options in execution_list:
+            debug = options['debug']
+            dry = options['dry']
+            profile_name = options.get('profile_name') or options['profile_name']
             aws_region = boto3.Session(profile_name=profile_name).region_name
 
             if not dry or options.get('stop') == 'create':
@@ -121,9 +128,10 @@ class CwsTerraformDeployer(CwsCommand):
             cls._terraform_apply_local(terraform, workspace, msg)
 
         # Generates terraform files (update step)
-        for command, options in execution_context:
-            debug = client_options.get('debug') or options['debug']
-            profile_name = client_options.get('profile_name') or options['profile_name']
+        for command, options in execution_list:
+            debug = options['debug']
+            dry = options['dry']
+            profile_name = options.get('profile_name') or options['profile_name']
             aws_region = boto3.Session(profile_name=profile_name).region_name
 
             if not dry or options.get('stop') == 'update':
@@ -140,6 +148,11 @@ class CwsTerraformDeployer(CwsCommand):
         # Traces output
         cls._terraform_output_local(terraform)
 
+    @classmethod
+    def generate_common_files(cls, *args, **kwargs):
+        with open('terraform/default_provider.tf', 'w') as output:
+            print('provider "aws" {\nprofile = "fpr-customer"\nregion = "eu-west-1"\n}', file=output, flush=True)
+
     def __init__(self, app=None, name='deploy'):
         self.zip_cmd = self.add_zip_command(app)
         self.writer_cmd = self.add_writer_command(app)
@@ -152,20 +165,6 @@ class CwsTerraformDeployer(CwsCommand):
     def add_writer_command(self, app):
         """Default writer command added if not already defined."""
         return app.commands.get(self.WRITER_CMD) or CwsTemplateWriter(app)
-
-    @property
-    def options(self):
-        return [
-            *super().options,
-            *self.zip_cmd.options,
-            click.option('--binary_media_types'),
-            click.option('--create', '-c', is_flag=True, help="May create or recreate the API."),
-            click.option('--layers', '-l', multiple=True),
-            click.option('--memory_size', default=128),
-            click.option('--output', '-o', is_flag=True, help="Print terraform output values."),
-            click.option('--stop', type=click.Choice(['create', 'update']), help="Stop the terraform generation"),
-            click.option('--timeout', default=30),
-        ]
 
     @classmethod
     def bucket_key(cls, command, options):
@@ -202,9 +201,6 @@ class CwsTerraformDeployer(CwsCommand):
             terraform.apply_local(workspace)
         finally:
             stop = True
-
-    def _execute(self, step=None, output=None, **options):
-        raise CwsCommandError("Not implemented")
 
 
 logging.getLogger("python_terraform").setLevel(logging.ERROR)

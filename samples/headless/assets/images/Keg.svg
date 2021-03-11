@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64px" height="64px" viewBox="0 0 64 64" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 41.2 (35397) - http://www.bohemiancoding.com/sketch -->
+    <title>Keg</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Keg" stroke="#FFFFFF" stroke-width="2">
+            <g id="Page-1" transform="translate(15.000000, 9.000000)">
+                <path d="M31.9995,5 C31.9995,7.761 25.2835,10 16.9995,10 C8.7155,10 1.9995,7.761 1.9995,5 C1.9995,2.239 8.7155,0 16.9995,0 C25.2835,0 31.9995,2.239 31.9995,5 Z" id="Stroke-1"></path>
+                <path d="M7.9995,9.0273 C7.3585,8.6573 6.9995,8.2423 6.9995,7.8033 C6.9995,6.2553 11.4765,5.0003 16.9995,5.0003 C22.5225,5.0003 26.9995,6.2553 26.9995,7.8033 C26.9995,8.2423 26.6405,8.6573 25.9995,9.0273" id="Stroke-3"></path>
+                <path d="M1.9995,14 L1.9995,5" id="Stroke-5"></path>
+                <path d="M10.9995,18.584 C5.7025,17.813 1.9995,16.05 1.9995,14 L-0.0005,16 L-0.0005,20 L1.9995,22 L1.9995,29" id="Stroke-7"></path>
+                <path d="M10.9995,33.584 C5.7025,32.813 1.9995,31.05 1.9995,29 L-0.0005,31 L-0.0005,35 L1.9995,37 L1.9995,41 C1.9995,43.761 8.7155,46 16.9995,46" id="Stroke-9"></path>
+                <path d="M31.9995,14 L31.9995,5" id="Stroke-11"></path>
+                <path d="M22.9995,18.584 C28.2965,17.813 31.9995,16.05 31.9995,14 L33.9995,16 L33.9995,20 L31.9995,22 L31.9995,29" id="Stroke-13"></path>
+                <path d="M22.9995,33.584 C28.2965,32.813 31.9995,31.05 31.9995,29 L33.9995,31 L33.9995,35 L31.9995,37 L31.9995,41 C31.9995,43.761 25.2835,46 16.9995,46" id="Stroke-15"></path>
+            </g>
+        </g>
+    </g>
+</svg>

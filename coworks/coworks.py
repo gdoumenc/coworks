@@ -1,14 +1,14 @@
-from collections import defaultdict
-
 import json
 import logging
 import os
+from collections import defaultdict
+from threading import Lock
+from typing import Dict, List, Union
+
 from chalice import AuthResponse, BadRequestError, Rate, Cron
 from chalice import Chalice, Blueprint as ChaliceBlueprint
 from chalice.app import AuthRequest
 from requests_toolbelt.multipart import MultipartEncoder
-from threading import Lock
-from typing import Dict, List, Union
 
 from . import aws
 from .config import Config, DEFAULT_PROJECT_DIR, DEFAULT_WORKSPACE
@@ -201,21 +201,20 @@ class TechMicroService(CoworksMixin, Chalice):
         from .cws.client import CwsClientOptions
         from .cws.error import CwsCommandError
 
-        """Executes a coworks command."""
+        # Executes a coworks command.
+        module = __name__ if module is None else module
+        service = self.name if service is None else service
+        cws_options = CwsClientOptions({"project_dir": project_dir, 'module': module, 'service': service})
+        service_config = cws_options.get_service_config(module, service, workspace)
         if type(command) is str:
-            module = __name__ if module is None else module
-            service = self.name if service is None else service
-            cws_options = CwsClientOptions({"project_dir": project_dir, 'module': module, 'service': service})
-
-            service_config = cws_options.get_service_config(module, service, workspace)
             cmd = service_config.get_command(command, self)
             if not cmd:
                 raise CwsCommandError(f"The command {command} was not added to the microservice {self.name}.\n")
-            command_options = service_config.get_command_options(command)
-            execution_params = {**command_options, **options}
-            cmd.execute(output=output, error=error, **execution_params)
         else:
-            command.execute(output=output, error=error, **options)
+            cmd = command
+        command_options = service_config.get_command_options(command)
+        execute_options = {**command_options, **options}
+        cmd.execute(output=output, error=error, **execute_options)
 
     def __call__(self, event, context):
         """Lambda handler."""
