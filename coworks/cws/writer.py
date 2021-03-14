@@ -18,6 +18,7 @@ class CwsWriter(CwsCommand):
     @property
     def options(self):
         return [
+            *super().options,
             click.option('-o', '--output'),
             click.option('--debug/--no-debug', default=False, help='Print debug logs to stderr.')
         ]

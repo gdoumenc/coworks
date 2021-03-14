@@ -93,7 +93,7 @@ It forces to accept API deletion ; this may happen on API modification so it is 
 The ``-l`` option is for adding a layer to this lambda function.
 
 In case you cannot use this layer, you can get the content file at
-`CoWorks Layers <https://coworks-layer.s3-eu-west-1.amazonaws.com/coworks-0.3.3.zip/>`_ and create a layer with it.
+`CoWorks Layers <https://coworks-layer.s3-eu-west-1.amazonaws.com/coworks-0.5.0.zip/>`_ and create a layer with it.
 
 Now we can try our first deployed microservice::
 

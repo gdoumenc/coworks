@@ -266,6 +266,10 @@ class TechMicroService(CoworksMixin, Chalice):
             else:
                 raise BadRequestError(f"Undefined content type {content_type} for Step Function call")
 
+        # Chalice accepts only string for body
+        if type(event['body']) is dict:
+            event['body'] = json.dumps(event['body'])
+
         self.logger.debug(f"Calling {self.name} with event {event}")
         res = super().__call__(event, context)
 

@@ -22,9 +22,10 @@ class CwsZipArchiver(CwsCommand):
     @property
     def options(self):
         return [
+            *super().options,
             click.option('--bucket', '-b', help="Bucket to upload sources zip file to", required=True),
-            click.option('--dry', is_flag=True, help="Doesn't perform upload."),
             click.option('--debug', is_flag=True, help="Print debug logs to stderr."),
+            click.option('--dry', is_flag=True, help="Doesn't perform upload."),
             click.option('--ignore', '-i', multiple=True, help="Ignore pattern."),
             click.option('--key', '-k', help="Sources zip file bucket's name."),
             click.option('--module-name', '-m', multiple=True, help="Python module added from current pyenv."),

@@ -24,14 +24,13 @@ class SimpleMicroService(TechMicroService):
     def post(self, value=None):
         if value is not None:
             self.value = value
-        return "Value stored.\n"
+        return f"Value stored ({value}).\n"
 
 
 CONFIG = Config(workspace="dev")
 
 app = SimpleMicroService(configs=[CONFIG])
 CwsRunner(app)
-CwsTerraformDeployer(app, name='deploy')
 XRayContextManager(app, xray_recorder)
 
 if __name__ == '__main__':

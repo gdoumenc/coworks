@@ -17,10 +17,6 @@ resource "aws_api_gateway_rest_api" "{{ resource_name }}" {
   binary_media_types = {{ binary_media_types | tojson }}
   {%- endif %}
   tags = local.{{ resource_name }}_tags
-
-  lifecycle {
-    prevent_destroy = {{ 'false' if create else 'true' }}
-  }
 }
 
 data "aws_api_gateway_rest_api" "{{ resource_name }}" {
@@ -127,7 +123,7 @@ resource "aws_api_gateway_integration" "{{ resource_name }}_{{ res }}_{{ method 
           #end
         },
         "multiValueHeaders": {},
-        "body" : #if($input.json('$')!='{}')$input.json('$')#{else}null#end,
+        "body" : $input.json('$'),
         "queryStringParameters": null,
         "multiValueQueryStringParameters": {
           #foreach($key in $method.request.multivaluequerystring.keySet())

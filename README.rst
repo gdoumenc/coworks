@@ -24,7 +24,7 @@ based on the `Chalice <https://github.com/aws/chalice>`__ microframework.
 The aim of this project, is to offer a very simplified experience of microservices over the awesome technologies of AWS.
 
 Each atomic microservice (Tech Microservice) is a simple python class deployed as serverless Lambda and
-composition of microservices (Biz Microservice) is performed over the Step Function product.
+can be called synchronously or asynchronously.
 
 You can get a quickstart on `TechMicroService <https://coworks.readthedocs.io/en/latest/tech_quickstart.html>`_ then
 continue with `BizMicroService <https://coworks.readthedocs.io/en/latest/biz_quickstart.html>`_

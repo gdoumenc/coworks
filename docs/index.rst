@@ -19,8 +19,10 @@ Introduction
 
 Coworks is a unified serverless microservices framework based on AWS technologies.
 
-Each atomic microservice (defined as ``class TechMicroService``) is a simple python class deployed as a serverless AWS Lambda, and
-composition of microservices (defined as ``class BizMicroService``) is performed over the AWS Step Function product.
+Each atomic microservice (defined as ``class TechMicroService``) is a simple python class deployed as a serverless
+AWS Lambda and can be called synchronously and asynchrously.
+
+Composition of microservices (defined as ``class BizMicroService``) is performed over the AWS Step Function product.
 
 Other AWS technologies are used for logging, administration, ...
 
