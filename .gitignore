@@ -8,10 +8,9 @@ Pipfile.lock
 
 # Samples
 **/*.secret.json
+samples/*/terraform
 
 # Tests example
-samples/docs/.sconsign.dblite
-samples/docs/terraform
 samples/docs/Pipfile.lock
 tests/example/*.zip
 

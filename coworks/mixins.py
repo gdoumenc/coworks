@@ -1,14 +1,14 @@
+import traceback
+
 import cgi
 import inspect
 import io
 import json
-import traceback
 import urllib
-from functools import update_wrapper, partial
-
 from aws_xray_sdk.core import xray_recorder
 from botocore.exceptions import BotoCoreError
-from chalice import AuthResponse, BadRequestError, Response
+from chalice import AuthResponse, Response
+from functools import update_wrapper, partial
 from requests_toolbelt.multipart import MultipartDecoder
 
 from coworks import aws
@@ -121,7 +121,6 @@ class CoworksMixin:
 
     def _init_routes(self, app, *, url_prefix='', hide_routes=False):
         """ Creates all routes for a microservice.
-        :param authorizer is the default global authorization function.
         :param hide_routes list of routes to be hidden.
         """
 
@@ -174,11 +173,11 @@ class CoworksMixin:
                 if subsegment:
                     subsegment.put_metadata('result', auth)
             except Exception as e:
-                self.logger.info(f"Exception : {str(e)}")
+                self.log.info(f"Exception : {str(e)}")
                 traceback.print_exc()
                 if subsegment:
                     subsegment.add_exception(e, traceback.extract_stack())
-                raise BadRequestError(str(e))
+                return Response(body=str(e), status_code=500)
 
             if type(auth) is bool:
                 if auth:
@@ -207,7 +206,8 @@ class CoworksMixin:
                 def check_param_expected_in_lambda(param_name):
                     """Alerts when more parameters than expected are defined in request."""
                     if param_name not in kwarg_keys and varkw is None:
-                        raise BadRequestError(f"TypeError: got an unexpected keyword argument '{param_name}'")
+                        err_msg = f"TypeError: got an unexpected keyword argument '{param_name}'"
+                        return Response(body=err_msg, status_code=400)
 
                 def add_param(param_name, param_value):
                     check_param_expected_in_lambda(param_name)
@@ -223,31 +223,35 @@ class CoworksMixin:
                 if kwarg_keys or varkw:
                     params = {}
                     if req.raw_body:  # POST request
-                        content_type = req.headers['content-type']
-                        if content_type.startswith('multipart/form-data'):
-                            try:
-                                multipart_decoder = MultipartDecoder(req.raw_body, content_type)
-                                for part in multipart_decoder.parts:
-                                    name, content = self._get_multipart_content(part)
-                                    add_param(name, content)
-                            except Exception as e:
-                                raise CwsError(str(e))
-                            kwargs = dict(**kwargs, **params)
-                        elif content_type.startswith('application/x-www-form-urlencoded'):
-                            params = urllib.parse.parse_qs(req.raw_body.decode("utf-8"))
-                            kwargs = dict(**kwargs, **params)
-                        elif content_type.startswith('application/json'):
-                            if hasattr(req.json_body, 'items'):
-                                params = {}
-                                for k, v in req.json_body.items():
-                                    add_param(k, v)
+                        try:
+                            content_type = req.headers['content-type']
+                            if content_type.startswith('multipart/form-data'):
+                                try:
+                                    multipart_decoder = MultipartDecoder(req.raw_body, content_type)
+                                    for part in multipart_decoder.parts:
+                                        name, content = self._get_multipart_content(part)
+                                        add_param(name, content)
+                                except Exception as e:
+                                    return Response(body=str(e), status_code=400)
                                 kwargs = dict(**kwargs, **params)
-                            else:
+                            elif content_type.startswith('application/x-www-form-urlencoded'):
+                                params = urllib.parse.parse_qs(req.raw_body.decode("utf-8"))
+                                kwargs = dict(**kwargs, **params)
+                            elif content_type.startswith('application/json'):
+                                if hasattr(req.json_body, 'items'):
+                                    params = {}
+                                    for k, v in req.json_body.items():
+                                        add_param(k, v)
+                                    kwargs = dict(**kwargs, **params)
+                                else:
+                                    kwargs[kwarg_keys[0]] = req.json_body
+                            elif content_type.startswith('text/plain'):
                                 kwargs[kwarg_keys[0]] = req.json_body
-                        elif content_type.startswith('text/plain'):
-                            kwargs[kwarg_keys[0]] = req.json_body
-                        else:
-                            BadRequestError(f"Cannot manage content type {content_type} for {self}")
+                            else:
+                                err = f"Cannot manage content type {content_type} for {self}"
+                                return Response(body=err, status_code=400)
+                        except Exception as e:
+                            return Response(body=str(e), status_code=400)
 
                     else:  # GET request
 
@@ -257,8 +261,9 @@ class CoworksMixin:
                             add_param(k, value if len(value) > 1 else value[0])
                         kwargs = dict(**kwargs, **params)
                 else:
-                    if not args and (req.raw_body or req.query_params):
-                        raise BadRequestError(f"TypeError: got an unexpected arguments")
+                    if not args and (req.json_body or req.query_params):
+                        err = f"TypeError: got an unexpected arguments (body: {req.raw_body}, query: {req.query_params}"
+                        return Response(body=err, status_code=400)
 
                 # chalice is changing class for local server for threading reason (why not mixin..?)
                 self_class = self.__class__
@@ -268,8 +273,9 @@ class CoworksMixin:
                 resp = func(self, **kwargs)
                 self.__class__ = self_class
                 return _convert_response(resp)
-
-            except Exception as e:
+            except TypeError as e:
+                return Response(body=str(e), status_code=400)
+            except Exception:
                 subsegment = xray_recorder.current_subsegment()
                 if subsegment:
                     subsegment.add_error_flag()
@@ -337,7 +343,7 @@ class CoworksMixin:
                 path = _part.get('path')
                 return filename, path, mime_type
             else:
-                raise BadRequestError(f"Undefined mime type {mime_type}")
+                return Response(body=f"Undefined mime type {mime_type}", status_code=400)
 
         parts = []
         for name, part in form_data.items():
@@ -393,12 +399,9 @@ def _convert_response(resp):
             elif type(resp[1]) is dict:
                 return Response(body=resp[0], status_code=200, headers=resp[1])
             else:
-                raise BadRequestError("Internal error (wrong result type)")
+                return Response(body="Internal error (wrong result type)", status_code=500)
         else:
             return Response(body=resp[0], status_code=resp[1], headers=resp[2])
-
-    elif not isinstance(resp, Response):
-        return Response(body=resp)
 
     return resp
 

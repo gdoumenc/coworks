@@ -19,7 +19,7 @@ class TestClass:
         with pytest.raises(Exception) as execinfo:
             fact.create('test', At(5, 10))
         assert len(fact.trigger_sources) == 1
-        assert str(execinfo.value.args[0]) == 'BadRequestError: Biz microservice test already defined for step_function'
+        assert str(execinfo.value.args[0]) == 'Biz microservice test already defined for step_function'
         fact.create('test2', At(5, 10, day_of_week='*'))
         assert len(fact.trigger_sources) == 2
         assert fact.trigger_sources[1]['name'] == 'step_function-test2'

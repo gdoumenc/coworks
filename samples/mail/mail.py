@@ -28,7 +28,7 @@ class MailMicroService(TechMicroService):
                                              to_addrs='gdoumenc@fpr-coworks.com')
 
 
-app = MailMicroService(configs=[LocalConfig(), DevConfig()])
+app = MailMicroService(name="sample-mail-microservice", configs=[LocalConfig(), DevConfig()])
 app.register_blueprint(Admin(), url_prefix='admin')
 app.register_blueprint(Mail('SMTP_SERVER', 'SMTP_LOGIN', 'SMTP_PASSWD'))
 XRayContextManager(app, xray_recorder)

@@ -29,7 +29,7 @@ class SimpleMicroService(TechMicroService):
 
 CONFIG = Config(workspace="dev")
 
-app = SimpleMicroService(configs=[CONFIG])
+app = SimpleMicroService(name="sample-first-microservice", configs=[CONFIG])
 CwsRunner(app)
 XRayContextManager(app, xray_recorder)
 

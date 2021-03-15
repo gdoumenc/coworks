@@ -91,6 +91,9 @@ resource "aws_api_gateway_method" "{{ resource_name }}_{{ res }}_{{ method }}" {
   authorization = "CUSTOM"
   authorizer_id = aws_api_gateway_authorizer.{{ resource_name }}[0].id
   {%- endif %}
+  request_parameters = {
+    "method.request.header.InvocationType" = false
+  }
 }
 resource "aws_api_gateway_integration" "{{ resource_name }}_{{ res }}_{{ method }}" {
   provider = aws.{{ resource_name }}
@@ -106,7 +109,9 @@ resource "aws_api_gateway_integration" "{{ resource_name }}_{{ res }}_{{ method 
   type = "AWS"
   uri = local.{{ resource_name }}_lambda_uri
   passthrough_behavior = "NEVER"
-  request_parameters = {}
+  request_parameters = {
+    "integration.request.header.X-Amz-Invocation-Type" = "method.request.header.InvocationType"
+  }
   request_templates  = {
     "application/json" = <<-EOT
       #set($allParams = $input.params())
@@ -324,7 +329,16 @@ resource "aws_api_gateway_deployment" "{{ resource_name }}" {
   description = "{{ workspace }}: at ${timestamp()}"
 }
 
+resource "aws_cloudwatch_log_group" "{{ resource_name }}" {
+  provider = aws.{{ resource_name }}
+  count = local.{{ resource_name }}_when_stage
+  name = "API-Gateway-Execution-Logs_${local.{{ resource_name }}_api_id}/{{ workspace }}"
+  retention_in_days = 7
+}
+
 resource "aws_api_gateway_stage" "{{ resource_name }}" {
+  depends_on = [aws_cloudwatch_log_group.{{ resource_name }}]
+
   provider = aws.{{ resource_name }}
   count = local.{{ resource_name }}_when_stage
   stage_name = "{{ workspace }}"
@@ -339,6 +353,6 @@ resource "aws_api_gateway_stage" "{{ resource_name }}" {
 
 output "{{ resource_name }}" {
   value = {
-    "id" = terraform.workspace == "default" ? aws_api_gateway_rest_api.{{ resource_name }}[0].id : ""
+    "api_id" = terraform.workspace == "default" ? aws_api_gateway_rest_api.{{ resource_name }}[0].id : ""
   }
 }

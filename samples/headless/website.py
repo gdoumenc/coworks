@@ -13,7 +13,7 @@ from coworks.blueprint import Admin
 class WebsiteMicroService(TechMicroService):
 
     def __init__(self, env=None, **kwargs):
-        super().__init__(name="website-headless", **kwargs)
+        super().__init__(name="sample-headless-microservice", **kwargs)
         self.jinja_env = env or Environment(
             loader=FileSystemLoader("templates"),
             autoescape=select_autoescape(['html', 'xml'], default_for_string=True)

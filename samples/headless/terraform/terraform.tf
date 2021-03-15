@@ -40,7 +40,7 @@ resource "aws_cloudfront_distribution" "coworks-headless" {
 
   origin {
     origin_id = "API-${local.samples_bucket}/${local.sample_name}"
-    domain_name = "${local.website-headless_api_id}.execute-api.eu-west-1.amazonaws.com"
+    domain_name = "${local.sample-headless-microservice_api_id}.execute-api.eu-west-1.amazonaws.com"
     origin_path = "/prod"
     custom_origin_config {
       http_port = 80

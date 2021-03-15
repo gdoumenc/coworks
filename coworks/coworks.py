@@ -5,13 +5,14 @@ from collections import defaultdict
 from threading import Lock
 from typing import Dict, List, Union
 
-from chalice import AuthResponse, BadRequestError, Rate, Cron
+from chalice import AuthResponse, Response, Rate, Cron
 from chalice import Chalice, Blueprint as ChaliceBlueprint
 from chalice.app import AuthRequest
 from requests_toolbelt.multipart import MultipartEncoder
 
 from . import aws
 from .config import Config, DEFAULT_PROJECT_DIR, DEFAULT_WORKSPACE
+from .error import CwsError
 from .mixins import Entry, CoworksMixin, HTTP_METHODS
 from .utils import trim_underscores
 
@@ -91,8 +92,6 @@ class TechMicroService(CoworksMixin, Chalice):
         """
         name = name or self.__class__.__name__.lower()
 
-        self.logger = self.create_logger(name, **kwargs)
-
         self.configs = configs or [Config()]
         if type(self.configs) is not list:
             self.configs = [configs]
@@ -125,13 +124,6 @@ class TechMicroService(CoworksMixin, Chalice):
     @property
     def ms_type(self):
         return 'tech'
-
-    @staticmethod
-    def create_logger(name, **kwargs):
-        logger = logging.getLogger(name)
-        if 'debug' in kwargs:
-            logger.setLevel(logging.INFO)
-        return logger
 
     def get_config(self, workspace):
         for conf in self.configs:
@@ -235,7 +227,7 @@ class TechMicroService(CoworksMixin, Chalice):
 
         # authorization call
         if event.get('type') == 'TOKEN':
-            self.logger.debug(f"Calling {self.name} for authorization")
+            self.log.debug(f"Calling {self.name} for authorization")
 
             route = event.get('methodArn').split('/', 3)[-1]
             try:
@@ -244,44 +236,46 @@ class TechMicroService(CoworksMixin, Chalice):
             except:
                 pass
 
-            self.logger.debug(f"Undefined authorization method for {self.name} ")
+            self.log.debug(f"Undefined authorization method for {self.name} ")
             request = AuthRequest(event['type'], event['authorizationToken'], event['methodArn'])
             return AuthResponse(routes=[], principal_id='user').to_dict(request)
 
         # step function call
         if event.get('type') == 'CWS_SFN':
             if self.debug:
-                self.logger.debug(f"Calling {self.name} by step function")
+                self.log.debug(f"Calling {self.name} by step function")
 
             self.sfn_call = True
             content_type = event['headers']['Content-Type']
             if content_type == 'application/json':
                 body = event.get('body')
-                event['body'] = json.dumps(self._get_data_on_s3(body)) if body else body
+                event['body'] = json.dumps(self._get_data_on_s3(body)) if body else json.dumps(body)
             elif content_type == 'multipart/form-data':
                 if event.get('form-data'):
                     multi_parts = MultipartEncoder(self._set_multipart_content(event.get('form-data')))
                     event['headers']['Content-Type'] = multi_parts.content_type
                     event['body'] = multi_parts.to_string()
             else:
-                raise BadRequestError(f"Undefined content type {content_type} for Step Function call")
+                err_msg = f"Undefined content type {content_type} for Step Function call"
+                return Response(body=err_msg, status_code=400)
 
         # Chalice accepts only string for body
         if type(event['body']) is dict:
             event['body'] = json.dumps(event['body'])
 
-        self.logger.debug(f"Calling {self.name} with event {event}")
+        self.log.debug(f"Calling {self.name} with event {event}")
         res = super().__call__(event, context)
 
         if self.sfn_call:
             if res['statusCode'] < 200 or res['statusCode'] >= 300:
-                raise BadRequestError(f"Status code is {res['statusCode']} : {res['body']}")
+                err_msg = f"Status code is {res['statusCode']} : {res['body']}"
+                return Response(body=err_msg, status_code=400)
             try:
                 res['body'] = self._set_data_on_s3(json.loads(res['body']))
             except json.JSONDecodeError:
                 pass
 
-        self.logger.debug(f"Call {self.name} returns {res}")
+        self.log.debug(f"Call {self.name} returns {res}")
         return res
 
     def deferred(self, f):
@@ -366,7 +360,8 @@ class BizFactory(TechMicroService):
 
                 next_token = res.get('nextToken')
                 if next_token is None:
-                    raise BadRequestError(f"Undefined step function : {self.sfn_name}")
+                    err_msg = f"Undefined step function : {self.sfn_name}"
+                    return Response(body=err_msg, status_code=400)
 
                 res = self.sfn_client.list_state_machines(nextToken=next_token)
         return self.__sfn_arn__
@@ -383,7 +378,7 @@ class BizFactory(TechMicroService):
         """Creates a biz microservice. If the trigger is not defined the microservice can only be triggered manually."""
 
         if biz_name in self.biz:
-            raise BadRequestError(f"Biz microservice {biz_name} already defined for {self.sfn_name}")
+            raise CwsError(f"Biz microservice {biz_name} already defined for {self.sfn_name}")
 
         self.biz[biz_name] = BizMicroService(self, trigger, configs, name=biz_name, **kwargs)
         return self.biz[biz_name]
