@@ -2,9 +2,10 @@ import base64
 import functools
 import hashlib
 import importlib
+import sysconfig
 import tempfile
 from pathlib import Path
-from shutil import copytree, ignore_patterns, make_archive
+from shutil import copyfile, copytree, ignore_patterns, make_archive
 
 import click
 
@@ -28,7 +29,7 @@ class CwsZipArchiver(CwsCommand):
             click.option('--dry', is_flag=True, help="Doesn't perform upload."),
             click.option('--ignore', '-i', multiple=True, help="Ignore pattern."),
             click.option('--key', '-k', help="Sources zip file bucket's name."),
-            click.option('--module-name', '-m', multiple=True, help="Python module added from current pyenv."),
+            click.option('--module_name', '-m', multiple=True, help="Python module added from current pyenv."),
             click.option('--profile_name', '-p', required=True, help="AWS credential profile."),
         ]
 
@@ -61,9 +62,13 @@ class CwsZipArchiver(CwsCommand):
             copytree(project_dir, str(tmp_path / 'filtered_dir'),
                      ignore=full_ignore_patterns('*cws.yml', 'env_variables*'))
             for name in module_name:
-                mod = importlib.import_module(name)
-                module_path = Path(mod.__file__).resolve().parent
-                copytree(module_path, str(tmp_path / f'filtered_dir/{name}'), ignore=full_ignore_patterns())
+                if name.endswith(".py"):
+                    file_path = Path(sysconfig.get_path('purelib')) / name
+                    copyfile(file_path, str(tmp_path / f'filtered_dir/{name}'))
+                else:
+                    mod = importlib.import_module(name)
+                    module_path = Path(mod.__file__).resolve().parent
+                    copytree(module_path, str(tmp_path / f'filtered_dir/{name}'), ignore=full_ignore_patterns())
             module_archive = make_archive(str(tmp_path / 'sources'), 'zip', str(tmp_path / 'filtered_dir'))
 
             # Uploads archive on S3

@@ -351,8 +351,6 @@ resource "aws_api_gateway_stage" "{{ resource_name }}" {
 # OUTPUT
 # ---------------------------------------------------------------------------------------------------------------------
 
-output "{{ resource_name }}" {
-  value = {
-    "api_id" = terraform.workspace == "default" ? aws_api_gateway_rest_api.{{ resource_name }}[0].id : ""
-  }
+output "{{ resource_name }}_id" {
+  value = terraform.workspace == "default" ? aws_api_gateway_rest_api.{{ resource_name }}[0].id : ""
 }

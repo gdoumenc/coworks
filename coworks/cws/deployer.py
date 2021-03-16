@@ -113,7 +113,7 @@ class CwsTerraformDeployer(CwsTerraformCommand):
         for command, options in execution_list:
             print(f"Uploading zip to S3")
             module_name = options.pop('module_name')
-            ignore = options.pop('ignore') or ['terraform', '.terraform']
+            ignore = options.pop('ignore') or ['.*', 'terraform']
             command.app.execute(cls.ZIP_CMD, ignore=ignore, module_name=module_name, **options)
 
         # Generates default provider
