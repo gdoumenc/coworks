@@ -23,6 +23,8 @@ class TestCmd(CwsCommand):
     @classmethod
     def multi_execute(cls, project_dir, workspace, execution_list):
         for command, options in execution_list:
+            assert command.app is not None
+            assert command.app.config is not None
             a = options['a']
             b = options['b']
             if a:

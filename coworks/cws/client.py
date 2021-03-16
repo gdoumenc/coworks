@@ -43,6 +43,8 @@ def invoke(ctx):
         if not cws_options.services:
             sys.stderr.write(str("Nothing to execute as no service defined.\n"))
             sys.exit(1)
+        project_dir = cws_options.project_dir
+        workspace = cws_options.workspace
 
         # Iterates over the declared services in project configuration file
         commands_to_be_executed = CwsMultiCommands()
@@ -52,6 +54,7 @@ def invoke(ctx):
 
             # Get command from the microservice description
             handler = cws_options.get_handler(module, service)
+            handler.deferred_init(workspace)
             service_config = cws_options.get_service_config(module, service)
             command = service_config.get_command(command_name, handler)
             if not command:
@@ -70,8 +73,6 @@ def invoke(ctx):
             commands_to_be_executed.append(command, options)
 
         # Executes all commands
-        project_dir = cws_options.project_dir
-        workspace = cws_options.workspace
         for command_class, execution_list in commands_to_be_executed.items():
             command_class.multi_execute(project_dir, workspace, execution_list)
     except CwsClientError as client_err:
