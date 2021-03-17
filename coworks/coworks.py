@@ -1,5 +1,4 @@
 import json
-import logging
 import os
 from collections import defaultdict
 from threading import Lock
@@ -265,6 +264,9 @@ class TechMicroService(CoworksMixin, Chalice):
 
         self.log.debug(f"Calling {self.name} with event {event}")
         res = super().__call__(event, context)
+        workspace = os.getenv('WORKSPACE')
+        if workspace:
+            res['headers']['x-cws-workspace'] = workspace
 
         if self.sfn_call:
             if res['statusCode'] < 200 or res['statusCode'] >= 300:
