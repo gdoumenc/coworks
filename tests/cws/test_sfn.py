@@ -65,7 +65,6 @@ class TestClass:
         assert res['statusCode'] == 200
         assert res['body'] == "get 1 and 2"
 
-    @pytest.mark.wip
     def test_kwargs_params(self):
         tech = TechMS()
 

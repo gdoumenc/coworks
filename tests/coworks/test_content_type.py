@@ -64,36 +64,3 @@ class TestClass:
         assert response.status_code == 200
         assert response.text == "post hello world, {'key': 'value'} and ['f1.csv', 'f2.txt', 'f3.j2']"
 
-    def test_sfn_arg_params(self):
-        """step function call."""
-        tech = TechMS()
-        tech.aws_s3_form_data_session = session
-        form_data = {
-            'text': {'content': "hello world"},
-            'context': {'content': {'key': 'value'}, 'mime_type': 'application/json'},
-            'files': [
-                {'filename': 'f1.csv', 'content': 'some,data', 'mime_type': 'text/plain'},
-                {'filename': 'f2.txt', 'content': 'content2', 'mime_type': 'text/plain'},
-                {'filename': 'f3.j2', 'path': 'bucket/key', 'mime_type': 'text/s3'},
-            ],
-        }
-        data = {'post': '/params', 'form-data': form_data}
-        call = TechState.get_call_data(None, data)
-        response = tech(call, {})
-        assert response['statusCode'] == 200
-        assert response['body'] == "post hello world, {'key': 'value'} and ['f1.csv', 'f2.txt', 'f3.j2']"
-
-    def test_sfn_simple_arg_params(self):
-        """simplified step function call."""
-        tech = TechMS()
-        tech.aws_s3_form_data_session = session
-        form_data = {
-            'text': "hello world",
-            'context': {'json': True},
-            'files': {'s3': 'bucket/key'},
-        }
-        data = {'post': '/params', 'form-data': form_data}
-        call = TechState.get_call_data(None, data)
-        response = tech(call, {})
-        assert response['statusCode'] == 200
-        assert response['body'] == "post hello world, True and ['key']"

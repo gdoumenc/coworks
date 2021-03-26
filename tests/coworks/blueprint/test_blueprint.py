@@ -36,7 +36,7 @@ class TestClass:
         init_bp = InitBP()
         ms.register_blueprint(init_bp, url_prefix="/prefix")
         local_server = local_server_factory(ms)
-        response = local_server.make_call(requests.get, '/prefix/test/3')
+        response = local_server.make_call(requests.get, '/prefix/test/3',timeout=5000)
         assert response.status_code == 200
         assert response.text == 'blueprint test 3'
         init_bp.do_before_first_activation.assert_called_once()

@@ -1,23 +1,23 @@
+from dataclasses import dataclass
+
+import boto3
+import click
 import itertools
 import logging
 import sys
 from abc import ABC
-from dataclasses import dataclass
 from itertools import chain, repeat
 from pathlib import Path
 from threading import Thread
 from time import sleep
 from typing import List
 
-import boto3
-import click
-
+from coworks.aws import AwsS3Session
+from coworks.coworks import Entry
 from .command import CwsCommand, CwsCommandError
 from .writer import CwsTemplateWriter
 from .zip import CwsZipArchiver
-from .. import aws
 from ..config import CORSConfig
-from ..coworks import TechMicroService
 
 UID_SEP = '_'
 
@@ -53,7 +53,7 @@ class CwsTerraformCommand(CwsCommand, ABC):
                 print(msg)
             output = str(Path(terraform.working_dir) / f"{app.name}.tf")
             app.execute(cls.WRITER_CMD, template=["terraform.j2"], output=output, aws_region=aws_region,
-                        step=step, key=key, entries=_entries(app), **options)
+                        step=step, key=key, resources=terraform_resources(app), **options)
 
 
 class CwsTerraformDeployer(CwsTerraformCommand):
@@ -204,7 +204,7 @@ class CwsTerraformDestroyer(CwsTerraformCommand):
         super().__init__(app, name=name)
 
     def rm_zip(self, *, module, bucket, key, profile_name, dry, debug, **options):
-        aws_s3_session = aws.AwsS3Session(profile_name=profile_name)
+        aws_s3_session = AwsS3Session(profile_name=profile_name)
 
         # Removes zip file from S3
         key = key if key else f"{module}-{self.app.name}"
@@ -287,11 +287,10 @@ class Terraform:
 
 
 @dataclass
-class TerraformEntry:
-    app: TechMicroService
+class TerraformResource:
     parent_uid: str
     path: str
-    methods: List[str]
+    entries: List[Entry]
     cors: CORSConfig
 
     @property
@@ -300,7 +299,7 @@ class TerraformEntry:
             return f"{path.replace('{', '').replace('}', '')}"
 
         if self.path is None:
-            return UID_SEP
+            return ''
 
         last = remove_brackets(self.path)
         return f"{self.parent_uid}{UID_SEP}{last}" if self.parent_uid else last
@@ -311,40 +310,42 @@ class TerraformEntry:
 
     @property
     def parent_is_root(self):
-        return self.parent_uid == UID_SEP
+        return self.parent_uid == ''
 
     def __repr__(self):
-        return f"{self.uid}:{self.methods}"
+        return f"{self.uid}:{self.entries}"
 
 
-def _entries(app):
-    """Returns the list of flatten path (prev, last, keys)."""
-    all_pathes_id = {}
+def terraform_resources(app):
+    """Returns the list of flatten path (prev, last, entry)."""
+    resources = {}
 
-    def add_entry(previous, last, meth):
-        entry = TerraformEntry(app, previous, last, meth, app.config.cors)
-        uid = entry.uid
-        if uid not in all_pathes_id:
-            all_pathes_id[uid] = entry
-        if all_pathes_id[uid].methods is None:
-            all_pathes_id[uid].methods = meth
+    def add_entries(previous, last, entries: List[Entry]):
+        ter_entry = TerraformResource(previous, last, entries, app.config.cors)
+        uid = ter_entry.uid
+        if uid not in resources:
+            resources[uid] = ter_entry
+        if resources[uid].entries is None:
+            resources[uid].entries = entries
         return uid
 
-    for route, methods in app.routes.items():
-        previous_uid = UID_SEP
-        splited_route = route[1:].split('/')
+    for route, entries in app.entries.items():
+        previous_uid = ''
+        if route.startswith('/'):
+            route = route[1:]
+        splited_route = route.split('/')
 
         # special root case
         if splited_route == ['']:
-            add_entry(None, None, methods.keys())
+            add_entries(None, None, entries)
             continue
 
         # creates intermediate resources
         last_path = splited_route[-1:][0]
         for prev in splited_route[:-1]:
-            previous_uid = add_entry(previous_uid, prev, None)
+            previous_uid = add_entries(previous_uid, prev, entries)
 
         # set entry keys for last entry
-        add_entry(previous_uid, last_path, methods.keys())
+        add_entries(previous_uid, last_path, entries)
 
-    return all_pathes_id
+    return resources

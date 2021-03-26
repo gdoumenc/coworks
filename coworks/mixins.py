@@ -11,37 +11,9 @@ from chalice import AuthResponse, Response
 from functools import update_wrapper, partial
 from requests_toolbelt.multipart import MultipartDecoder
 
-from coworks import aws
-from coworks.error import CwsError
-from .utils import HTTP_METHODS, class_auth_methods, class_cws_methods, make_absolute, path_join
-
-
-class EntryPoint:
-    """An entry point is an API entry defined on a component, with a specific authorization function and
-    is response function."""
-
-    def __init__(self, component, auth, fun):
-        self.component = component
-        self.auth = auth
-        self.fun = fun
-
-
-class Entry(dict):
-
-    @property
-    def authorizer(self):
-        for method in HTTP_METHODS:
-            m = self.get(method.upper())
-            if m:
-                return m.auth
-
-    def call_get(self, *args, **kwargs):
-        method = self["GET"]
-        return method.fun(method.component, *args, **kwargs)
-
-    def call_post(self, *args, **kwargs):
-        method = self["POST"]
-        return method.fun(method.component, *args, **kwargs)
+from .aws import AwsS3Session
+from .error import CwsError
+from .utils import class_auth_methods, class_cws_methods, make_absolute, path_join
 
 
 class CoworksMixin:
@@ -66,12 +38,12 @@ class CoworksMixin:
         # To register a function, use the :meth:`handle_exception` decorator.
         self.handle_exception_funcs = []
 
-        self.aws_s3_sfn_data_session = aws.AwsS3Session(env_var_access_key="AWS_RUN_ACCESS_KEY_ID",
-                                                        env_var_secret_key="AWS_RUN_SECRET_KEY",
-                                                        env_var_region="AWS_RUN_REGION")
-        self.aws_s3_form_data_session = aws.AwsS3Session(env_var_access_key="AWS_FORM_DATA_ACCESS_KEY_ID",
-                                                         env_var_secret_key="AWS_FORM_DATA_SECRET_KEY",
-                                                         env_var_region="AWS_FORM_DATA_REGION")
+        self.aws_s3_sfn_data_session = AwsS3Session(env_var_access_key="AWS_RUN_ACCESS_KEY_ID",
+                                                    env_var_secret_key="AWS_RUN_SECRET_KEY",
+                                                    env_var_region="AWS_RUN_REGION")
+        self.aws_s3_form_data_session = AwsS3Session(env_var_access_key="AWS_FORM_DATA_ACCESS_KEY_ID",
+                                                     env_var_secret_key="AWS_FORM_DATA_SECRET_KEY",
+                                                     env_var_region="AWS_FORM_DATA_REGION")
 
     def before_first_activation(self, f):
         """Registers a function to be run before the first activation of the microservice.
@@ -158,9 +130,13 @@ class CoworksMixin:
 
             # Creates the entry
             if hide_routes is False or (type(hide_routes) is list and entry_path not in hide_routes):
+                if app.entries is None:
+                    app.entries = {}
+                if entry_path not in app.entries:
+                    app.entries[entry_path] = {}
                 if method in app.entries[entry_path]:
                     raise CwsError(f"The method {method} is already defined for the route {make_absolute(entry_path)}")
-                app.entries[entry_path][method] = EntryPoint(self, auth, fun)
+                app.add_entry(entry_path, method, auth, fun)
                 app.route(f"{make_absolute(route)}", methods=[method], authorizer=auth, cors=app.config.cors,
                           content_types=list(app.config.content_type))(proxy)
 

@@ -135,11 +135,11 @@ class TestClass:
         local_server = local_server_factory(ms)
         response = local_server.make_call(requests.get, '/', headers={'authorization': 'allow'})
         assert response.status_code == 200
-        assert ms.entry('/').authorizer
+        assert ms.entry('/')['GET'].auth
         assert response.status_code == 200
         response = local_server.make_call(requests.get, '/blueprint/test/3', headers={'authorization': 'allow'})
         assert response.status_code == 200
-        assert ms.entry('/blueprint/test/3').authorizer
+        assert ms.entry('/blueprint/test/3')['GET'].auth
 
     def test_entries(self, local_server_factory):
         ms = AuthorizeAll()

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Any
 
 from coworks.config import Config as CwsConfig
 
@@ -12,6 +13,7 @@ class Config(CwsConfig):
 class LocalConfig(Config):
     root: str = ''
     workspace: str = 'local'
+    auth: Any = lambda _, __: True
 
 
 @dataclass

@@ -12,7 +12,7 @@ commands:
     profile_name: fpr-customer
     bucket: coworks-microservice
     customer: yopp
-    layers: [arn:aws:lambda:eu-west-1:935392763270:layer:coworks-0_5_1]
+    layers: [arn:aws:lambda:eu-west-1:935392763270:layer:coworks-dev]
   destroy:
     class: coworks.cws.deployer.CwsTerraformDestroyer
     profile_name: fpr-customer
