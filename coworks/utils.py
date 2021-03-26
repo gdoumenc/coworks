@@ -4,6 +4,7 @@ import json
 import os
 import platform
 import sys
+from functools import partial
 
 HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
 
@@ -34,7 +35,10 @@ def class_auth_methods(obj):
 
     for name, func in methods:
         if name == 'auth':
-            return func
+            function_is_static = isinstance(inspect.getattr_static(obj.__class__, func.__name__), staticmethod)
+            if function_is_static:
+                return func
+            return partial(func, obj)
     return None
 
 

@@ -1,14 +1,14 @@
-import traceback
-
 import cgi
 import inspect
 import io
 import json
+import traceback
 import urllib
+from functools import update_wrapper, partial
+
 from aws_xray_sdk.core import xray_recorder
 from botocore.exceptions import BotoCoreError
 from chalice import AuthResponse, Response
-from functools import update_wrapper, partial
 from requests_toolbelt.multipart import MultipartDecoder
 
 from .aws import AwsS3Session
@@ -98,7 +98,7 @@ class CoworksMixin:
 
         # Global authorization function may be redefined
         auth_fun = app.config.auth if app.config.auth else class_auth_methods(app)
-        auth = self._create_auth_proxy(auth_fun) if auth_fun else None
+        auth = self._create_auth_proxy(app, auth_fun) if auth_fun else None
 
         # Adds entrypoints
         methods = class_cws_methods(self)
@@ -140,20 +140,20 @@ class CoworksMixin:
                 app.route(f"{make_absolute(route)}", methods=[method], authorizer=auth, cors=app.config.cors,
                           content_types=list(app.config.content_type))(proxy)
 
-    def _create_auth_proxy(self, auth_method):
+    def _create_auth_proxy(self, app, auth_method):
 
         def proxy(auth_activation):
             subsegment = xray_recorder.current_subsegment()
             try:
-                auth = auth_method(self, auth_activation)
+                auth = auth_method(auth_activation)
                 if subsegment:
                     subsegment.put_metadata('result', auth)
             except Exception as e:
-                self.log.info(f"Exception : {str(e)}")
+                app.log.info(f"Exception : {str(e)}")
                 traceback.print_exc()
                 if subsegment:
                     subsegment.add_exception(e, traceback.extract_stack())
-                return Response(body=str(e), status_code=500)
+                return AuthResponse(routes=[], principal_id='user')
 
             if type(auth) is bool:
                 if auth:

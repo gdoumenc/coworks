@@ -44,4 +44,4 @@ def every_sample():
 
 
 if __name__ == '__main__':
-    app.execute("run", project_dir='.', module='mail', workspace='local')
+    app.execute("run", project_dir='.', module='mail', workspace='dev')
