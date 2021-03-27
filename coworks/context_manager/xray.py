@@ -8,8 +8,7 @@ COWORKS_NAMESPACE = 'coworks'
 class XRayContextManager:
 
     def __init__(self, app, recorder):
-        if app.debug:
-            app.log.debug("initializing xray context manager")
+        app.log.debug("initializing xray context manager")
 
         @app.before_first_activation
         def capture_routes(event, context):

@@ -13,7 +13,6 @@ class MailMicroService(TechMicroService):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.debug = True
 
         @self.before_activation
         def check_env_vars(event, context):
@@ -25,7 +24,7 @@ class MailMicroService(TechMicroService):
 
     @entry
     def get(self):
-        return app.blueprints['mail'].post_send(subject='test get entry', body='test',
+        return app.blueprints['mail'].post_send(subject='test get entry', body='Manual test',
                                                 from_addr='gdoumenc@fpr-coworks.com',
                                                 to_addrs='gdoumenc@fpr-coworks.com')
 
@@ -36,10 +35,12 @@ app.register_blueprint(Mail('SMTP_SERVER', 'SMTP_LOGIN', 'SMTP_PASSWD'))
 XRayContextManager(app, xray_recorder)
 
 
-@app.schedule('rate(1 minute)')
-def every_sample():
+@app.schedule('rate(1 hour)')
+@app.schedule('cron(15 12 * * ? *)', name="daily")
+def every_sample(name):
     """Mail sent every minute for testing."""
-    app.blueprints['mail'].post_send(subject='test event bridge', body='test', from_addr='gdoumenc@fpr-coworks.com',
+    app.blueprints['mail'].post_send(subject='test event bridge', body=f"Made by {name}",
+                                     from_addr='gdoumenc@fpr-coworks.com',
                                      to_addrs='gdoumenc@fpr-coworks.com')
 
 

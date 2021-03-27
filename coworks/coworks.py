@@ -1,6 +1,7 @@
 import json
 import os
 from dataclasses import dataclass
+from functools import wraps
 from typing import Callable
 from typing import Dict, List, Union, Optional
 
@@ -42,10 +43,11 @@ class Entry:
 
 
 @dataclass
-class ScheduledEntry:
-    """An scheduled entry is an EventBridge entry defined on a microservice, with the schedule expression,
+class ScheduleEntry:
+    """An schedule entry is an EventBridge entry defined on a microservice, with the schedule expression,
     its description and its response function."""
 
+    name: str
     exp: str
     desc: str
     fun: Callable
@@ -128,7 +130,7 @@ class TechMicroService(CoworksMixin, Chalice):
         self._got_first_activation = False
 
         self.entries: Optional[Dict[str, Dict[str, Entry]]] = None
-        self.scheduled_entries: Dict[str, ScheduledEntry] = {}
+        self.schedule_entries: Dict[str, ScheduleEntry] = {}
         self.sfn_call = False
 
     @property
@@ -180,7 +182,7 @@ class TechMicroService(CoworksMixin, Chalice):
         self.deferred_inits.append(deferred)
 
     # noinspection PyMethodOverriding
-    def schedule(self, exp, *, workspaces=None, name=None, description=None):
+    def schedule(self, exp, *, name=None, description=None, workspaces=None):
         """Registers a function to be run before the first activation of the microservice.
 
         May be used as a decorator.
@@ -189,9 +191,10 @@ class TechMicroService(CoworksMixin, Chalice):
         """
 
         def decorator(f):
-            event_name = name if name else f.__name__
+            schedule_name = name if name else exp
             desc = description if description else f.__doc__
-            self.scheduled_entries[event_name] = ScheduledEntry(exp, desc, f)
+            self.schedule_entries[f"{hash(exp)}"] = ScheduleEntry(schedule_name, exp, desc, f)
+            return wraps(f)(decorator)
 
         return decorator
 
@@ -270,13 +273,13 @@ class TechMicroService(CoworksMixin, Chalice):
             request = AuthRequest(event['type'], event['authorizationToken'], event['methodArn'])
             return AuthResponse(routes=[], principal_id='user').to_dict(request)
 
-        # step function call
-        if event.get('type') == 'CWS_EVENT':
+        # schedule event call
+        if event.get('type') == 'CWS_SCHEDULE_EVENT':
             self.log.debug(f"Calling {self.name} by event bridge function")
 
-            event_name = event.get('name')
-            entry = self.scheduled_entries[event_name]
-            return entry.fun()
+            entry_name = event.get('entry_name')
+            schedule_name = event.get('schedule_name')
+            return self.schedule_entries[entry_name].fun(event.get(schedule_name))
 
         # Chalice accepts only string for body
         if type(event['body']) is dict:

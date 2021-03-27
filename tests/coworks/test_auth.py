@@ -154,5 +154,5 @@ class TestClass:
         assert ms.entry('/product/TRANSPORT') is not None
 
 
-def auth_external(self, auth_request):
+def auth_external(auth_request):
     return auth_request.token == 'allow'
