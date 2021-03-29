@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+	<meta charset="utf-8">
+	<title>Icons</title>
+	<link href="https://fonts.googleapis.com/css?family=Catamaran:800" rel="stylesheet">
+	<style type="text/css">
+
+		* {
+			-webkit-transition: all 300ms ease-in-out;
+			   -moz-transition: all 300ms ease-in-out;
+					transition: all 300ms ease-in-out;
+		}
+		
+		body {
+			background: #1b1d1e;
+			margin: 0;
+			padding: 0;
+			text-shadow: 1px 1px 1px rgba(0,0,0,.004);
+
+			-webkit-font-smoothing: antialiased;
+			-moz-osx-font-smoothing: grayscale;
+		}
+
+		h2 {
+			font-family: 'Catamaran', sans-serif;
+			text-transform: uppercase;
+			letter-spacing: 4px;
+			color: #cbb27c;
+			font-size: 14px;
+			font-weight: 800;
+		}
+
+		div {
+			text-align: center;
+			border: 1px solid rgba(255, 255, 255, 0.05);
+			border-left: 0;
+			border-top: 0;
+			width: 25%;
+			box-sizing: border-box;
+			display: inline-block;
+			padding: 50px;
+			margin: 0;
+			float: left;
+		}
+
+		.svg path {
+			stroke: #fff; /* Change colour of icons here */
+		}
+
+		div:hover {
+			background: #cbb27c;
+		}
+
+		div:hover h2 {
+			color: #fff;
+		}
+
+		div:hover .svg path {
+			stroke: #1b1d1e;
+		}
+
+	</style>
+  <body>
+	
+	<div>
+		<img src="images/Hops.svg" class="svg" alt="Hops" />
+		<h2>Hops</h2>
+	</div>
+
+	<div>
+		<img src="images/Chalice.svg" class="svg" alt="Chalice" />
+		<h2>Chalice</h2>
+	</div>
+
+	<div>
+		<img src="images/Tankard.svg" class="svg" alt="Tankard" />
+		<h2>Tankard</h2>
+	</div>
+
+	<div>
+		<img src="images/Mill.svg" class="svg" alt="Mill" />
+		<h2>Mill</h2>
+	</div>
+
+	<div>		
+		<img src="images/Badge.svg" class="svg" alt="Badge" />
+		<h2>Badge</h2>
+	</div>
+
+	<div>		
+		<img src="images/BottleCrate.svg" class="svg" alt="BottleCrate" />
+		<h2>Bottle Crate</h2>
+	</div>
+
+	<div>				
+		<img src="images/Keg.svg" class="svg" alt="Keg" />
+		<h2>Keg</h2>
+	</div>
+
+	<div>				
+		<img src="images/Barrel.svg" class="svg" alt="Barrel" />
+		<h2>Barrel</h2>
+	</div>
+
+	<div>				
+		<img src="images/Bottle.svg" class="svg" alt="Bottle" />
+		<h2>Bottle</h2>
+	</div>
+
+	<div>							
+		<img src="images/Sign.svg" class="svg" alt="Sign" />
+		<h2>Sign</h2>
+	</div>
+
+	<div>							
+		<img src="images/BarrelSide.svg" class="svg" alt="BarrelSide" />
+		<h2>Barrel Side</h2>
+	</div>
+
+	<div>							
+		<img src="images/Can.svg" class="svg" alt="Can" />
+		<h2>Can</h2>
+	</div>
+
+	<div>							
+		<img src="images/SixPack.svg" class="svg" alt="SixPack" />
+		<h2>Six pack</h2>
+	</div>
+
+	<div>							
+		<img src="images/Pint.svg" class="svg" alt="Pint" />
+		<h2>Pint</h2>
+	</div>
+
+	<div>							
+		<img src="images/Tank.svg" class="svg" alt="Tank" />
+		<h2>Tank</h2>
+	</div>
+
+	<div>							
+		<img src="images/3DSixPack.svg" class="svg" alt="3DSixPack" />
+		<h2>3D Six Pack</h2>
+	</div>
+
+	<div>							
+		<img src="images/FancyBottle.svg" class="svg" alt="FancyBottle" />
+		<h2>Fancy bottle</h2>
+	</div>
+
+	<div>							
+		<img src="images/Sun.svg" class="svg" alt="Sun" />
+		<h2>Sun</h2>
+	</div>
+
+	<div>									
+		<img src="images/Wheat.svg" class="svg" alt="Wheat" />
+		<h2>Wheat</h2>
+	</div>
+
+	<script src="https://code.jquery.com/jquery-3.1.1.min.js" integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8=" crossorigin="anonymous"></script>
+	<script type="text/javascript">
+		(function($) {
+			"use strict";
+
+				// Change SVG colour
+				jQuery('img.svg').each(function(){
+					var $img = jQuery(this);
+					var imgID = $img.attr('id');
+					var imgClass = $img.attr('class');
+					var imgURL = $img.attr('src');
+
+					jQuery.get(imgURL, function(data) {
+						// Get the SVG tag, ignore the rest
+						var $svg = jQuery(data).find('svg');
+
+						// Add replaced image's ID to the new SVG
+						if(typeof imgID !== 'undefined') {
+							$svg = $svg.attr('id', imgID);
+						}
+						// Add replaced image's classes to the new SVG
+						if(typeof imgClass !== 'undefined') {
+							$svg = $svg.attr('class', imgClass+' replaced-svg');
+						}
+
+						// Remove any invalid XML tags as per http://validator.w3.org
+						$svg = $svg.removeAttr('xmlns:a');
+
+						// Replace image with new SVG
+						$img.replaceWith($svg);
+
+					}, 'xml');
+
+				});
+
+		})(jQuery);
+	</script>
+
+  </body>
+</html>

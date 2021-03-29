@@ -3,19 +3,16 @@
 Commands
 ========
 
-Coworks allows you to extends the ``cws`` applications with commands. This powerfull extension is very usefull
+Coworks allows you to extend the ``cws`` application with commands. This powerfull extension is very usefull
 for complex deployment, testing or documentation.
 
-As explained before, the microservice architecture needs to be completed by tools. The cws command line ``cws`` is
+As explained before, the microservice architecture needs to be completed by tools. The ``cws`` command line is
 the interface for that purpose.
 
 .. _cli:
 
 CWS : Command Line Interface
 ----------------------------
-
-cws
-^^^
 
 ``cws`` is a command-line shell program that provides convenience and productivity
 features to help user to :
@@ -37,40 +34,48 @@ To view a list of the available commands at any time, just run `cws` with no arg
 
     Options:
       --version               Show the version and exit.
-      -p, --project-dir TEXT  The project directory path (absolute or relative).
-                              Defaults to CWD
+      -p, --project-dir TEXT  The project directory path (absolute or relative)
+                              [default to '.'].
 
+      -c, --config-file TEXT  Configuration file path [path from project dir].
       -m, --module TEXT       Filename of your microservice python source file.
-      -s, --service TEXT      Coworks application in the source file.
-      -w, --workspace TEXT    Application stage.
+      -s, --service TEXT      Microservice variable name in the source file.
+      -w, --workspace TEXT    Application stage [default to 'dev'].
       --help                  Show this message and exit.
 
 As you can see, no global command are defined.
 This is because the command are added to service and then depends on your code.
 
-Try another simple command from the coworks directory::
+The options ``-p (project_dir)`` is mandatory if the ``cws`` command is not issued in the source folder.
 
-    $ cws -p tests/example info
+The options ``-m (module)`` and ``-s (service)`` are mandatory for launching
+any command from the ``cws`` if a configuration project is not defined in the source folder.
+
+At last the optional option ``-w (workspace)`` which default value is ``dev`` defines execution stage.
+
+Example of a simple command from the coworks directory::
+
+    $ cws -p samples/headless info
     microservice project1 defined in tests/example/example.py
     microservice project2 defined in tests/example/example.py
 
-And complete description ::
+And to get complete command description::
 
-    $ cws -p tests/example info --help
+    $ cws -p samples/headless info --help
 
 
-Predefined Coworks Commands
----------------------------
+Predefined Commands
+-------------------
 
 Let see some predefined commands before explaining how to create new ones.
 
-The "info" command
-^^^^^^^^^^^^^^^^^^
+The "inspect" command
+^^^^^^^^^^^^^^^^^^^^^
 
-The first simple command is the microservice descriptor defined by the ``CwsDescriptor`` class.
+The first simple command is the microservice descriptor defined by the ``CwsInspector`` class.
 It allows you to get simple informations on microservices defined in your project.
 
-To add the command ``info`` to the service ``service`` defined in module ``module`` in the project directory ``src``::
+To add the command ``inspect`` to the service ``service`` defined in module ``module`` in the project directory ``src``::
 
     ... src/module.py ...
 
@@ -81,20 +86,14 @@ Then you can call this command from the ``cws`` application::
 
 	$ cws -p src -m module -s service info
 
-**Notice**: The options ``-p (project_dir)`` , ``-m (module)`` and ``-s (service)`` are mandatory for launching
-any command from the ``cws`` application.
-
-**Notice**: There is also another client option ``-w (workspace)`` but its default value is ``dev`` and may be not
-defined as optional.
-
 Another way to add this command to any microservice is using the project configuration file described below.
 
 
 The "run" command
 ^^^^^^^^^^^^^^^^^
 
-A more complete command is the local runner defined by the ``CwsRunner`` class. It allows you to test your microservice
-as a local service on your computer (as seen in the quickstart).
+A more complete command is the local runner defined by the ``CwsRunner`` command class.
+It allows you to test your microservice as a local service on your computer (as seen in the quickstart).
 
 As defined previously, you can add the command by::
 
@@ -108,14 +107,16 @@ And then you can call this command from the ``cws`` application::
 	$ cws -p src -m module -s service run
 
 
-But this way, it is not easy to debug, so you can also run you microservice in a classical way of python application:
+But this way, it is not easy to debug in your IDE, so you can also run you microservice
+in a classical way of python application:
 
 .. code-block:: python
 
     if __name__ == '__main__':
         app.execute('run', project_dir='.', workspace='dev')
 
-**Notice**: In this case the ``service`` and ``module`` options are not needed and ``workspace`` is still optional.
+**Notice**: In this case the ``service`` option is not needed,
+the ``module`` option is used only for trace and the ``workspace`` option is still optional.
 
 You can add more options for testing such as changing the port or the stage::
 

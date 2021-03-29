@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64px" height="64px" viewBox="0 0 64 64" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 41.2 (35397) - http://www.bohemiancoding.com/sketch -->
+    <title>Hops</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Hops" stroke="#FFFFFF" stroke-width="2">
+            <g transform="translate(14.000000, 9.000000)">
+                <path d="M3,24 C1.833,27.667 2.708,31.792 5,34 C9.997,32.624 11.895,29.977 14,26" id="Stroke-1"></path>
+                <path d="M7,33 C6.375,37.458 9.031,39.937 11,42 C13.048,41.436 13.906,40.125 15,38" id="Stroke-3"></path>
+                <path d="M18,27.082 C20.542,26.583 25,23.833 25,20 C29.3,24.166 32.417,24.041 36,24.082 C36,13.125 27.941,6 18,6 C8.059,6 0,13.125 0,24.082 C3.583,24.041 6.7,24.166 11,20 C11,23.833 15.458,26.583 18,27.082 Z" id="Stroke-5"></path>
+                <path d="M33,24 C34.167,27.667 33.292,31.792 31,34 C26.003,32.624 24.105,29.977 22,26" id="Stroke-7"></path>
+                <path d="M25,31 C25,35.331 21.9,38.875 18,40 C14.1,38.875 11,35.331 11,31" id="Stroke-9"></path>
+                <path d="M29,33 C29.625,37.458 26.969,39.937 25,42 C22.952,41.436 22.094,40.125 21,38" id="Stroke-11"></path>
+                <path d="M23,40.9648 C22.063,44.1248 20.219,46.2188 18,46.9998 C15.781,46.2188 13.937,44.1248 13,40.9648" id="Stroke-13"></path>
+                <path d="M18,-7.10542736e-15 L18,6" id="Stroke-15"></path>
+            </g>
+        </g>
+    </g>
+</svg>

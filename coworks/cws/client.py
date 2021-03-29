@@ -19,7 +19,7 @@ from ..version import __version__
               help=f"The project directory path (absolute or relative) [default to '{DEFAULT_PROJECT_DIR}'].")
 @click.option('-c', '--config-file', help="Configuration file path [path from project dir].")
 @click.option('-m', '--module', help="Filename of your microservice python source file.")
-@click.option('-s', '--service', help="Coworks application in the source file.")
+@click.option('-s', '--service', help="Microservice variable name in the source file.")
 @click.option('-w', '--workspace', default=DEFAULT_WORKSPACE,
               help=f"Application stage [default to '{DEFAULT_WORKSPACE}'].")
 @click.pass_context
@@ -43,6 +43,8 @@ def invoke(ctx):
         if not cws_options.services:
             sys.stderr.write(str("Nothing to execute as no service defined.\n"))
             sys.exit(1)
+        project_dir = cws_options.project_dir
+        workspace = cws_options.workspace
 
         # Iterates over the declared services in project configuration file
         commands_to_be_executed = CwsMultiCommands()
@@ -52,6 +54,7 @@ def invoke(ctx):
 
             # Get command from the microservice description
             handler = cws_options.get_handler(module, service)
+            handler.deferred_init(workspace)
             service_config = cws_options.get_service_config(module, service)
             command = service_config.get_command(command_name, handler)
             if not command:
@@ -65,16 +68,13 @@ def invoke(ctx):
                 client_options[opt_key] = cmd_opt.type(opt_value)
 
             # Adds command and global options
-            options = {**command_options, **client_options}
+            options = {**command_options, **client_options, '_from_cws': True}
             command.make_context(command.name, options)
-            commands_to_be_executed.append(client_options, command, options)
+            commands_to_be_executed.append(command, options)
 
         # Executes all commands
-        project_dir = cws_options.project_dir
-        workspace = cws_options.workspace
-        client_options = commands_to_be_executed.client_options
-        for command_class, execution_context in commands_to_be_executed.items():
-            command_class.multi_execute(project_dir, workspace, client_options, execution_context, _from_cws=True)
+        for command_class, execution_list in commands_to_be_executed.items():
+            command_class.multi_execute(project_dir, workspace, execution_list)
     except CwsClientError as client_err:
         sys.stderr.write(f"Error in command: {client_err.msg}\n")
         sys.exit(1)

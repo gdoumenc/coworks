@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64px" height="64px" viewBox="0 0 64 64" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 41.2 (35397) - http://www.bohemiancoding.com/sketch -->
+    <title>Wheat</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" stroke-linecap="round">
+        <g id="Wheat" stroke="#FFFFFF" stroke-width="2">
+            <g id="Page-1" transform="translate(22.000000, 9.000000)">
+                <path d="M20,6 L20,13.89 C20,15.974 18.919,17.908 17.145,19 L10,23" id="Stroke-1"></path>
+                <path d="M20,21 L20,23 C20,25.084 18.919,27.018 17.145,28.11 L10,32.11 L10,25.11" id="Stroke-3"></path>
+                <path d="M20,30.1103 L20,32.1103 C20,34.1933 18.919,36.1283 17.145,37.2193 L10,41.2193 L10,34.2193" id="Stroke-5"></path>
+                <path d="M0,6 L0,13.89 C0,15.974 1.081,17.908 2.855,19 L10,23" id="Stroke-7"></path>
+                <path d="M0,21 L0,23 C0,25.084 1.081,27.018 2.855,28.11 L10,32.11 L10,25.11" id="Stroke-9"></path>
+                <path d="M0,30.1103 L0,32.1103 C0,34.1933 1.081,36.1283 2.855,37.2193 L10,41.2193 L10,34.2193" id="Stroke-11"></path>
+                <path d="M5.999,16 C5.999,20.26 9.999,23 9.999,23 C9.999,23 14,20.26 14,16 C14,11.74 9.999,9 9.999,9 C9.999,9 5.999,11.74 5.999,16 Z" id="Stroke-13"></path>
+                <path d="M10,0 L10,9" id="Stroke-15"></path>
+                <path d="M10,23 L10,45.22" id="Stroke-17"></path>
+                <path d="M5,3 L5,9" id="Stroke-19"></path>
+                <path d="M15,3 L15,9" id="Stroke-21"></path>
+            </g>
+        </g>
+    </g>
+</svg>

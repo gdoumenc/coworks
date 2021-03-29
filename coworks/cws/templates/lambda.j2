@@ -1,5 +1,7 @@
 locals {
-  lambda_name = "{{ resource_name }}-{{ workspace }}"
+  {{ resource_name }}_lambda_name = "{{ resource_name }}-{{ workspace }}"
+  {{ resource_name }}_lambda_arn = join("", aws_lambda_function.{{ resource_name }}.*.arn, data.aws_lambda_function.{{ resource_name }}.*.arn)
+  {{ resource_name }}_lambda_uri = join("", aws_lambda_function.{{ resource_name }}.*.invoke_arn, data.aws_lambda_function.{{ resource_name }}.*.invoke_arn)
   {%- if environment_variable_files %}
   {{ resource_name }}_environment_variables = [
     for envars_string in data.local_file.{{ resource_name }}_environment_variables_files: jsondecode(envars_string.content)
@@ -27,7 +29,7 @@ data "local_file" "{{ resource_name }}_environment_variables_files" {
 resource "aws_lambda_function" "{{ resource_name }}" {
   provider = aws.{{ resource_name }}
   count = local.{{ resource_name }}_when_stage
-  function_name = local.lambda_name
+  function_name = local.{{ resource_name }}_lambda_name
   s3_bucket = local.{{ resource_name }}_bucket
   s3_key = local.{{ resource_name }}_key
   source_code_hash =  data.aws_s3_bucket_object.{{ resource_name }}-b64sha256.body
@@ -56,12 +58,16 @@ resource "aws_lambda_function" "{{ resource_name }}" {
     subnet_ids = local.{{ resource_name }}_subnet_ids
   }
   tags = local.{{ resource_name }}_tags
+
+  depends_on = [
+    aws_cloudwatch_log_group.lambda_{{ resource_name }},
+  ]
 }
 
 data "aws_lambda_function" "{{ resource_name }}" {
   provider = aws.{{ resource_name }}
   count = {{ 'local.{}_when_default'.format(resource_name) if step == "update" else 0}}
-  function_name = local.lambda_name
+  function_name = local.{{ resource_name }}_lambda_name
 }
 
 resource "aws_lambda_permission" "{{ resource_name }}" {
@@ -69,8 +75,15 @@ resource "aws_lambda_permission" "{{ resource_name }}" {
   count = local.{{ resource_name }}_when_stage
   statement_id = "AllowExecutionFromAPIGateway"
   action = "lambda:InvokeFunction"
-  function_name = local.lambda_name
+  function_name = local.{{ resource_name }}_lambda_name
   principal = "apigateway.amazonaws.com"
   source_arn = "${join("", data.aws_api_gateway_rest_api.{{ resource_name }}.*.execution_arn)}/*/*"
   depends_on = [aws_lambda_function.{{ resource_name }}]
+}
+
+resource "aws_cloudwatch_log_group" "lambda_{{ resource_name }}" {
+  provider = aws.{{ resource_name }}
+  count = local.{{ resource_name }}_when_stage
+  name = "/aws/lambda/${local.{{ resource_name }}_lambda_name}"
+  retention_in_days = 7
 }

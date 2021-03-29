@@ -5,10 +5,15 @@
 locals {
   samples_bucket = "coworks-samples"
   sample_name = "website-headless"
+  acm_certificate_arn = "arn:aws:acm:us-east-1:935392763270:certificate/c4138445-fd83-4e2e-82ac-aa7a62bce0c8"
+  cdn_domains = [
+    "brasserie-des-alpages.fr", "www.brasserie-des-alpages.fr",
+    "brasseriedesalpages.fr", "www.brasseriedesalpages.fr"
+  ]
 }
 
 resource "aws_s3_bucket_object" "assets" {
-  for_each = fileset(path.module, "../{assets,images}/**")
+  for_each = fileset(path.module, "../assets/**")
   bucket = local.samples_bucket
   key = format("${local.sample_name}/%s", trimprefix(each.value, "../"))
   source = each.key
@@ -28,15 +33,15 @@ resource "aws_cloudfront_distribution" "coworks-headless" {
   count = terraform.workspace == "default" ? 1 : 0
 
   origin {
-    domain_name = "${local.samples_bucket}.s3.amazonaws.com"
     origin_id = "S3-${local.samples_bucket}/${local.sample_name}"
+    domain_name = "${local.samples_bucket}.s3.amazonaws.com"
     origin_path = "/${local.sample_name}"
   }
 
   origin {
-    domain_name = "${aws_api_gateway_rest_api.website-handless[0].id}.execute-api.eu-west-1.amazonaws.com"
     origin_id = "API-${local.samples_bucket}/${local.sample_name}"
-    origin_path = "/dev"
+    domain_name = "${local.sample-headless-microservice_api_id}.execute-api.eu-west-1.amazonaws.com"
+    origin_path = "/prod"
     custom_origin_config {
       http_port = 80
       https_port = 443
@@ -45,7 +50,7 @@ resource "aws_cloudfront_distribution" "coworks-headless" {
     }
   }
 
-  aliases = ["*.morassuti.com", "morassuti.com"]
+  aliases = local.cdn_domains
   price_class = "PriceClass_All"
   enabled = true
   is_ipv6_enabled = true
@@ -71,7 +76,7 @@ resource "aws_cloudfront_distribution" "coworks-headless" {
   }
 
   dynamic "ordered_cache_behavior" {
-    for_each = ["assets", "images"]
+    for_each = ["assets"]
     content {
       allowed_methods = ["GET", "HEAD"]
       cached_methods = ["GET", "HEAD"]
@@ -93,7 +98,7 @@ resource "aws_cloudfront_distribution" "coworks-headless" {
   }
 
   viewer_certificate {
-    acm_certificate_arn = "arn:aws:acm:us-east-1:935392763270:certificate/7907fef7-23c3-4ae2-900c-59fd8389ce95"
+    acm_certificate_arn = local.acm_certificate_arn
     ssl_support_method = "sni-only"
   }
 
@@ -102,7 +107,7 @@ resource "aws_cloudfront_distribution" "coworks-headless" {
     Name = local.sample_name
     Creator = "terraform"
     Target = "bucket"
-    Stage = "all"
+    Stage = terraform.workspace
   }
 }
 

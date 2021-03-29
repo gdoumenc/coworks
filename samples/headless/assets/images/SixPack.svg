@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64px" height="64px" viewBox="0 0 64 64" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 41.2 (35397) - http://www.bohemiancoding.com/sketch -->
+    <title>SixPack</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="SixPack" stroke="#FFFFFF" stroke-width="2">
+            <g id="Page-1" transform="translate(9.000000, 12.000000)">
+                <path d="M19,19 L19,16.48 C19,13.75 15.994,12.551 15.994,11.127 C15.994,8.532 15,4.113 15,3.928 C15,3.459 16,2.742 16,1.855 L15.5,1 C15.5,0.447 15.127,0 14.667,0 L10.333,0 C9.873,0 9.5,0.447 9.5,1 L9,1.855 C9,2.742 10,3.459 10,3.928 C10,4.113 9.006,8.532 9.006,11.127 C9.006,12.551 6,13.75 6,16.48 L6,19 L19,19 Z" id="Stroke-1"></path>
+                <path d="M30,19 L30,16.48 C30,13.75 26.994,12.551 26.994,11.127 C26.994,8.532 26,4.113 26,3.928 C26,3.459 27,2.742 27,1.855 L26.5,1 C26.5,0.447 26.127,0 25.667,0 L21.333,0 C20.873,0 20.5,0.447 20.5,1 L20,1.855 C20,2.742 21,3.459 21,3.928 C21,4.113 20.006,8.532 20.006,11.127 C20.006,11.746 19.438,12.322 18.797,13" id="Stroke-3"></path>
+                <path d="M41,19 L41,16.48 C41,13.75 37.994,12.551 37.994,11.127 C37.994,8.532 37,4.113 37,3.928 C37,3.459 38,2.742 38,1.855 L37.5,1 C37.5,0.447 37.127,0 36.667,0 L32.333,0 C31.873,0 31.5,0.447 31.5,1 L31,1.855 C31,2.742 32,3.459 32,3.928 C32,4.113 31.006,8.532 31.006,11.127 C31.006,11.746 30.438,12.322 29.797,13" id="Stroke-5"></path>
+                <path d="M0.5,19 L46.5,19" id="Line"></path>
+                <path d="M0.5,38 L46.5,38" id="Line"></path>
+                <path d="M46,19 L46,38" id="Line" stroke-linecap="square"></path>
+                <path d="M1,19 L1,38" id="Line" stroke-linecap="square"></path>
+                <path d="M31,6 L27,6" id="Stroke-15"></path>
+                <path d="M20,6 L16,6" id="Stroke-16"></path>
+                <path d="M9.5,6 L2,6" id="Line" stroke-linecap="square"></path>
+                <path d="M4,13 L2,13" id="Line" stroke-linecap="square"></path>
+                <path d="M45,13 L43,13" id="Line" stroke-linecap="square"></path>
+                <path d="M2,6 L2,13" id="Line" stroke-linecap="square"></path>
+                <path d="M1.95532227,13.1628418 L1.16381836,17.2001953" id="Line" stroke-linecap="square"></path>
+                <path d="M45.8313599,13 L45,17.2285767" id="Path" stroke-linecap="square" transform="translate(45.415680, 15.114288) scale(-1, 1) translate(-45.415680, -15.114288) "></path>
+                <path d="M45,6 L38,6" id="Line" stroke-linecap="square"></path>
+                <path d="M45,6 L45,13" id="Line" stroke-linecap="square"></path>
+            </g>
+        </g>
+    </g>
+</svg>

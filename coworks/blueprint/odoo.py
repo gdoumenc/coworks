@@ -1,18 +1,17 @@
+from pyexpat import ExpatError
+from xmlrpc import client
+
 import os
 import time
+from aws_xray_sdk.core import xray_recorder
 from http.client import BadStatusLine
-from pyexpat import ExpatError
 from typing import List, Tuple, Union, Optional
-from xmlrpc import client
 from xmlrpc.client import Fault, ProtocolError
 
-from aws_xray_sdk.core import xray_recorder
-
-from coworks.mixins import Boto3Mixin
-from .. import Blueprint
+from .. import Blueprint, entry
 
 
-class Odoo(Blueprint, Boto3Mixin):
+class Odoo(Blueprint):
     """Odoo blueprint."""
 
     def __init__(self, url_env_var_name='URL', dbname_env_var_name='DBNAME', user_env_var_name='USER',
@@ -25,6 +24,7 @@ class Odoo(Blueprint, Boto3Mixin):
         self.passwd_env_var_name = passwd_env_var_name
         self.api_uid = None
 
+    @entry
     def get(self):
         """Check the connection."""
         try:
@@ -33,8 +33,9 @@ class Odoo(Blueprint, Boto3Mixin):
         except Exception as e:
             return str(e), 404
 
+    @entry
     def get_model(self, model: str, searched_field_or_domain: Union[str, List[Tuple[str, str, any]]],
-                  searched_value = None, fields: Optional[List[str]] = None, ensure_one=False, **kwargs):
+                  searched_value=None, fields: Optional[List[str]] = None, ensure_one=False, **kwargs):
         """Returns the list of objects or the object which searched_field is equal to the searched_value."""
         if type(searched_field_or_domain) is list:
             filters = [searched_field_or_domain]
@@ -44,15 +45,18 @@ class Odoo(Blueprint, Boto3Mixin):
         results = self.search(model, filters, fields=fields, ensure_one=ensure_one, **kwargs)
         return results
 
+    @entry
     def get_fields(self, model, searched_field, searched_value, fields=None):
         """Returns the value of the object which searched_field is equal to the searched_value."""
         fields = fields or ['id']
         return self.get_model(model, searched_field, searched_value, fields=fields, ensure_one=True)
 
+    @entry
     def get_field(self, model, searched_field, searched_value, fields='id'):
         """Returns the value of the object which searched_field is equal to the searched_value."""
         return self.get_model(model, searched_field, searched_value, fields=[fields], ensure_one=True)[0]
 
+    @entry
     def get_id(self, model, searched_field, searched_value):
         """Returns the id of the object which searched_field is equal to the searched_value."""
         return self.get_field(model, searched_field, searched_value)
@@ -107,6 +111,7 @@ class Odoo(Blueprint, Boto3Mixin):
         except Exception as e:
             raise
 
+    @xray_recorder.capture()
     def search(self, model, filters: List[List[tuple]], *, fields=None, offset=None, limit=None, order=None,
                ensure_one: bool = False) -> Union[Tuple[str, int], dict, List[dict]]:
         options = {}
@@ -122,9 +127,11 @@ class Odoo(Blueprint, Boto3Mixin):
         except Exception as e:
             return str(e), 404
 
+    @xray_recorder.capture()
     def create(self, model, data: dict):
         return self.execute_kw(model, 'create', [self._replace_tuple(data)])
 
+    @xray_recorder.capture()
     def write(self, model, _id, data: dict):
         return self.execute_kw(model, 'write', [[_id], self._replace_tuple(data)])
 

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64px" height="64px" viewBox="0 0 64 64" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 41.2 (35397) - http://www.bohemiancoding.com/sketch -->
+    <title>Mill</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Mill" stroke="#FFFFFF" stroke-width="2">
+            <g id="Page-1" transform="translate(9.000000, 9.000000)">
+                <path d="M24.7285,33.7598 C31.3555,29.2858 39.0775,27.8908 46.5335,30.1388" id="Stroke-1"></path>
+                <path d="M29.7588,36.6577 C35.0488,34.1127 40.9008,33.6587 46.5348,35.6177" id="Stroke-3"></path>
+                <path d="M34.334,40.6938 C38.3,39.5568 42.5,39.7408 46.533,41.4118" id="Stroke-5"></path>
+                <path d="M0.5352,45 C8.2162,40.132 17.4282,40.177 25.1072,45.047" id="Stroke-7"></path>
+                <path d="M0.5352,34.0332 C13.2652,27.8662 28.1072,31.5352 38.3252,45.0422" id="Stroke-9"></path>
+                <path d="M0.5352,39.3354 C10.9842,33.5544 22.6482,35.4574 31.9402,45.0434" id="Stroke-11"></path>
+                <path d="M10.5352,20 L10.5352,25" id="Stroke-13" stroke-linejoin="round"></path>
+                <path d="M7.5352,27.1 L23.5352,27.1 L23.5352,27 L7.5352,27 L7.5352,27.1 Z M13.5352,26 L13.5352,22 L17.5352,22 L17.5352,26 L13.5352,26 Z" id="Combined-Shape"></path>
+                <path d="M20.5352,25 L20.5352,20" id="Stroke-17" stroke-linejoin="round"></path>
+                <path d="M19.5195,11.0151 L16.5455,8.0411 L24.5355,0.0001 L27.5355,3.0001 L19.5195,11.0151 Z M6.5195,24.0151 L3.5455,21.0411 L11.5355,13.0001 L14.5355,16.0001 L6.5195,24.0151 Z M11.5605,11.0151 L14.5355,8.0411 L6.5455,0.0001 L3.5455,3.0001 L11.5605,11.0151 Z M24.5605,24.0151 L27.5355,21.0411 L19.5455,13.0001 L16.5455,16.0001 L24.5605,24.0151 Z" id="Combined-Shape" stroke-linejoin="round"></path>
+                <path d="M18.5352,9 L12.5352,15" id="Stroke-27" stroke-linejoin="round"></path>
+                <path d="M18.5352,15 L12.5352,9" id="Stroke-29" stroke-linejoin="round"></path>
+                <path d="M10.5352,31 L10.5352,27" id="Stroke-33"></path>
+                <path d="M20.5352,27 L20.5352,32" id="Stroke-35"></path>
+            </g>
+        </g>
+    </g>
+</svg>

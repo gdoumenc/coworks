@@ -1,0 +1,28 @@
+
+# ---------------------------------------------------------------------------------------------------------------------
+# EVENT BRIDGE
+# ---------------------------------------------------------------------------------------------------------------------
+
+{% for name, entry in app.schedule_entries.items() %}
+resource "aws_cloudwatch_event_rule" "{{ resource_name }}_{{ name }}" {
+  provider = aws.{{ resource_name }}
+  count = local.{{ resource_name }}_when_stage
+  name = "{{ resource_name }}_{{ name }}-{{ workspace }}"
+  description = "{{ entry.desc }}"
+  schedule_expression = "{{ entry.exp }}"
+  tags = local.{{ resource_name }}_tags
+}
+resource "aws_cloudwatch_event_target" "{{ resource_name }}_{{ name }}" {
+  provider = aws.{{ resource_name }}
+  count = local.{{ resource_name }}_when_stage
+  rule = aws_cloudwatch_event_rule.{{ resource_name }}_{{ name }}[0].name
+  arn = local.sample-mail-microservice_lambda_arn
+  input = <<-EOT
+  {
+    "type":"CWS_SCHEDULE_EVENT",
+    "entry_name":"{{ name }}",
+    "schedule_name":"{{ entry.name }}"
+  }
+  EOT
+}
+{% endfor %}

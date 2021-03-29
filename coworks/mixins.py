@@ -8,40 +8,12 @@ from functools import update_wrapper, partial
 
 from aws_xray_sdk.core import xray_recorder
 from botocore.exceptions import BotoCoreError
-from chalice import AuthResponse, BadRequestError, Response
+from chalice import AuthResponse, Response
 from requests_toolbelt.multipart import MultipartDecoder
 
-from coworks import aws
-from coworks.error import CwsError
-from .utils import HTTP_METHODS, class_auth_methods, class_cws_methods, make_absolute, path_join
-
-
-class EntryPoint:
-    """An entry point is an API entry defined on a component, with a specific authorization function and
-    is response function."""
-
-    def __init__(self, component, auth, fun):
-        self.component = component
-        self.auth = auth
-        self.fun = fun
-
-
-class Entry(dict):
-
-    @property
-    def authorizer(self):
-        for method in HTTP_METHODS:
-            m = self.get(method.upper())
-            if m:
-                return m.auth
-
-    def call_get(self, *args, **kwargs):
-        method = self["GET"]
-        return method.fun(method.component, *args, **kwargs)
-
-    def call_post(self, *args, **kwargs):
-        method = self["POST"]
-        return method.fun(method.component, *args, **kwargs)
+from .aws import AwsS3Session
+from .error import CwsError
+from .utils import class_auth_methods, class_cws_methods, make_absolute, path_join
 
 
 class CoworksMixin:
@@ -66,12 +38,12 @@ class CoworksMixin:
         # To register a function, use the :meth:`handle_exception` decorator.
         self.handle_exception_funcs = []
 
-        self.aws_s3_sfn_data_session = aws.AwsS3Session(env_var_access_key="AWS_RUN_ACCESS_KEY_ID",
-                                                        env_var_secret_key="AWS_RUN_SECRET_KEY",
-                                                        env_var_region="AWS_RUN_REGION")
-        self.aws_s3_form_data_session = aws.AwsS3Session(env_var_access_key="AWS_FORM_DATA_ACCESS_KEY_ID",
-                                                         env_var_secret_key="AWS_FORM_DATA_SECRET_KEY",
-                                                         env_var_region="AWS_FORM_DATA_REGION")
+        self.aws_s3_sfn_data_session = AwsS3Session(env_var_access_key="AWS_RUN_ACCESS_KEY_ID",
+                                                    env_var_secret_key="AWS_RUN_SECRET_KEY",
+                                                    env_var_region="AWS_RUN_REGION")
+        self.aws_s3_form_data_session = AwsS3Session(env_var_access_key="AWS_FORM_DATA_ACCESS_KEY_ID",
+                                                     env_var_secret_key="AWS_FORM_DATA_SECRET_KEY",
+                                                     env_var_region="AWS_FORM_DATA_REGION")
 
     def before_first_activation(self, f):
         """Registers a function to be run before the first activation of the microservice.
@@ -121,13 +93,12 @@ class CoworksMixin:
 
     def _init_routes(self, app, *, url_prefix='', hide_routes=False):
         """ Creates all routes for a microservice.
-        :param authorizer is the default global authorization function.
         :param hide_routes list of routes to be hidden.
         """
 
         # Global authorization function may be redefined
         auth_fun = app.config.auth if app.config.auth else class_auth_methods(app)
-        auth = self._create_auth_proxy(auth_fun) if auth_fun else None
+        auth = self._create_auth_proxy(app, auth_fun) if auth_fun else None
 
         # Adds entrypoints
         methods = class_cws_methods(self)
@@ -159,26 +130,30 @@ class CoworksMixin:
 
             # Creates the entry
             if hide_routes is False or (type(hide_routes) is list and entry_path not in hide_routes):
+                if app.entries is None:
+                    app.entries = {}
+                if entry_path not in app.entries:
+                    app.entries[entry_path] = {}
                 if method in app.entries[entry_path]:
                     raise CwsError(f"The method {method} is already defined for the route {make_absolute(entry_path)}")
-                app.entries[entry_path][method] = EntryPoint(self, auth, fun)
+                app.add_entry(entry_path, method, auth, fun)
                 app.route(f"{make_absolute(route)}", methods=[method], authorizer=auth, cors=app.config.cors,
                           content_types=list(app.config.content_type))(proxy)
 
-    def _create_auth_proxy(self, auth_method):
+    def _create_auth_proxy(self, app, auth_method):
 
         def proxy(auth_activation):
             subsegment = xray_recorder.current_subsegment()
             try:
-                auth = auth_method(self, auth_activation)
+                auth = auth_method(auth_activation)
                 if subsegment:
                     subsegment.put_metadata('result', auth)
             except Exception as e:
-                self.logger.info(f"Exception : {str(e)}")
+                app.log.info(f"Exception : {str(e)}")
                 traceback.print_exc()
                 if subsegment:
                     subsegment.add_exception(e, traceback.extract_stack())
-                raise BadRequestError(str(e))
+                return AuthResponse(routes=[], principal_id='user')
 
             if type(auth) is bool:
                 if auth:
@@ -207,7 +182,8 @@ class CoworksMixin:
                 def check_param_expected_in_lambda(param_name):
                     """Alerts when more parameters than expected are defined in request."""
                     if param_name not in kwarg_keys and varkw is None:
-                        raise BadRequestError(f"TypeError: got an unexpected keyword argument '{param_name}'")
+                        err_msg = f"TypeError: got an unexpected keyword argument '{param_name}'"
+                        return Response(body=err_msg, status_code=400)
 
                 def add_param(param_name, param_value):
                     check_param_expected_in_lambda(param_name)
@@ -223,31 +199,35 @@ class CoworksMixin:
                 if kwarg_keys or varkw:
                     params = {}
                     if req.raw_body:  # POST request
-                        content_type = req.headers['content-type']
-                        if content_type.startswith('multipart/form-data'):
-                            try:
-                                multipart_decoder = MultipartDecoder(req.raw_body, content_type)
-                                for part in multipart_decoder.parts:
-                                    name, content = self._get_multipart_content(part)
-                                    add_param(name, content)
-                            except Exception as e:
-                                raise CwsError(str(e))
-                            kwargs = dict(**kwargs, **params)
-                        elif content_type.startswith('application/x-www-form-urlencoded'):
-                            params = urllib.parse.parse_qs(req.raw_body.decode("utf-8"))
-                            kwargs = dict(**kwargs, **params)
-                        elif content_type.startswith('application/json'):
-                            if hasattr(req.json_body, 'items'):
-                                params = {}
-                                for k, v in req.json_body.items():
-                                    add_param(k, v)
+                        try:
+                            content_type = req.headers['content-type']
+                            if content_type.startswith('multipart/form-data'):
+                                try:
+                                    multipart_decoder = MultipartDecoder(req.raw_body, content_type)
+                                    for part in multipart_decoder.parts:
+                                        name, content = self._get_multipart_content(part)
+                                        add_param(name, content)
+                                except Exception as e:
+                                    return Response(body=str(e), status_code=400)
                                 kwargs = dict(**kwargs, **params)
-                            else:
+                            elif content_type.startswith('application/x-www-form-urlencoded'):
+                                params = urllib.parse.parse_qs(req.raw_body.decode("utf-8"))
+                                kwargs = dict(**kwargs, **params)
+                            elif content_type.startswith('application/json'):
+                                if hasattr(req.json_body, 'items'):
+                                    params = {}
+                                    for k, v in req.json_body.items():
+                                        add_param(k, v)
+                                    kwargs = dict(**kwargs, **params)
+                                else:
+                                    kwargs[kwarg_keys[0]] = req.json_body
+                            elif content_type.startswith('text/plain'):
                                 kwargs[kwarg_keys[0]] = req.json_body
-                        elif content_type.startswith('text/plain'):
-                            kwargs[kwarg_keys[0]] = req.json_body
-                        else:
-                            BadRequestError(f"Cannot manage content type {content_type} for {self}")
+                            else:
+                                err = f"Cannot manage content type {content_type} for {self}"
+                                return Response(body=err, status_code=400)
+                        except Exception as e:
+                            return Response(body=str(e), status_code=400)
 
                     else:  # GET request
 
@@ -257,8 +237,9 @@ class CoworksMixin:
                             add_param(k, value if len(value) > 1 else value[0])
                         kwargs = dict(**kwargs, **params)
                 else:
-                    if not args and (req.raw_body or req.query_params):
-                        raise BadRequestError(f"TypeError: got an unexpected arguments")
+                    if not args and (req.json_body or req.query_params):
+                        err = f"TypeError: got an unexpected arguments (body: {req.raw_body}, query: {req.query_params}"
+                        return Response(body=err, status_code=400)
 
                 # chalice is changing class for local server for threading reason (why not mixin..?)
                 self_class = self.__class__
@@ -268,8 +249,9 @@ class CoworksMixin:
                 resp = func(self, **kwargs)
                 self.__class__ = self_class
                 return _convert_response(resp)
-
-            except Exception as e:
+            except TypeError as e:
+                return Response(body=str(e), status_code=400)
+            except Exception:
                 subsegment = xray_recorder.current_subsegment()
                 if subsegment:
                     subsegment.add_error_flag()
@@ -337,7 +319,7 @@ class CoworksMixin:
                 path = _part.get('path')
                 return filename, path, mime_type
             else:
-                raise BadRequestError(f"Undefined mime type {mime_type}")
+                return Response(body=f"Undefined mime type {mime_type}", status_code=400)
 
         parts = []
         for name, part in form_data.items():
@@ -393,12 +375,9 @@ def _convert_response(resp):
             elif type(resp[1]) is dict:
                 return Response(body=resp[0], status_code=200, headers=resp[1])
             else:
-                raise BadRequestError("Internal error (wrong result type)")
+                return Response(body="Internal error (wrong result type)", status_code=500)
         else:
             return Response(body=resp[0], status_code=resp[1], headers=resp[2])
-
-    elif not isinstance(resp, Response):
-        return Response(body=resp)
 
     return resp
 

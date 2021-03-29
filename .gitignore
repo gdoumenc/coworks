@@ -4,21 +4,20 @@ build/
 dist/
 **/.terraform
 **/*.tfstate*
+Pipfile.lock
 
 # Samples
 **/*.secret.json
+samples/*/terraform
 
-# Example
-tests/example/.sconsign.dblite
-tests/example/terraform
-tests/example/Pipfile.lock
+# Tests example
+samples/docs/Pipfile.lock
 tests/example/*.zip
 
 # Dev tools
 .idea/
 **/__pycache__/
 **/*.http
-build/
 docs/_build/
 .pytest_cache/
 **/*.log

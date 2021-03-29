@@ -1,7 +1,7 @@
 locals {
+  {{ resource_name }}_api_arn = join("", aws_api_gateway_rest_api.{{ resource_name }}.*.arn, data.aws_api_gateway_rest_api.{{ resource_name }}.*.arn)
   {{ resource_name }}_api_id = join("", aws_api_gateway_rest_api.{{ resource_name }}.*.id, data.aws_api_gateway_rest_api.{{ resource_name }}.*.id)
   {{ resource_name }}_api_root_id = join("", aws_api_gateway_rest_api.{{ resource_name }}.*.root_resource_id, data.aws_api_gateway_rest_api.{{ resource_name }}.*.root_resource_id)
-  {{ resource_name }}_lambda_uri = join("", aws_lambda_function.{{ resource_name }}.*.invoke_arn, data.aws_lambda_function.{{ resource_name }}.*.invoke_arn)
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -17,10 +17,6 @@ resource "aws_api_gateway_rest_api" "{{ resource_name }}" {
   binary_media_types = {{ binary_media_types | tojson }}
   {%- endif %}
   tags = local.{{ resource_name }}_tags
-
-  lifecycle {
-    prevent_destroy = {{ 'false' if create else 'true' }}
-  }
 }
 
 data "aws_api_gateway_rest_api" "{{ resource_name }}" {
@@ -32,133 +28,243 @@ data "aws_api_gateway_rest_api" "{{ resource_name }}" {
 resource "aws_api_gateway_authorizer" "{{ resource_name }}" {
   provider = aws.{{ resource_name }}
   count = {{ "local.{}_when_default".format(resource_name) if step == "update" else 0 }}
-  name = "{{ resource_name }}-auth"
+  name = "{{ resource_name }}-auth-{{ workspace }}"
   rest_api_id = local.{{ resource_name }}_api_id
   authorizer_uri = local.{{ resource_name }}_lambda_uri
 }
 
 # since at least one integration in needed to create api deployment we create an empty resource to prevent terraform from failing the first time we deploy the microservice
-resource "aws_api_gateway_resource" "{{ resource_name }}_null_resource" {
+resource "aws_api_gateway_resource" "{{ resource_name }}_null" {
   provider = aws.{{ resource_name }}
   count = {{ "local.{}_when_default".format(resource_name) if step == "create" else 0 }}
   path_part = "null_resource"
   parent_id = local.{{ resource_name }}_api_root_id
   rest_api_id = local.{{ resource_name }}_api_id
 }
-
-resource "aws_api_gateway_method" "{{ resource_name }}_null_method" {
+resource "aws_api_gateway_method" "{{ resource_name }}_null" {
   provider = aws.{{ resource_name }}
   count = {{ "local.{}_when_default".format(resource_name) if step == "create" else 0 }}
   rest_api_id = local.{{ resource_name }}_api_id
-  resource_id = join("", aws_api_gateway_resource.{{ resource_name }}_null_resource.*.id)
+  resource_id = join("", aws_api_gateway_resource.{{ resource_name }}_null.*.id)
   http_method = "GET"
   authorization = "NONE"
 }
-
-resource "aws_api_gateway_integration" "{{ resource_name }}_null_integration" {
+resource "aws_api_gateway_integration" "{{ resource_name }}_null" {
   provider = aws.{{ resource_name }}
   count = {{ "local.{}_when_default".format(resource_name) if step == "create" else 0 }}
   rest_api_id = local.{{ resource_name }}_api_id
-  resource_id = join("", aws_api_gateway_resource.{{ resource_name }}_null_resource.*.id)
-  http_method = join("", aws_api_gateway_method.{{ resource_name }}_null_method.*.http_method)
+  resource_id = join("", aws_api_gateway_resource.{{ resource_name }}_null.*.id)
+  http_method = join("", aws_api_gateway_method.{{ resource_name }}_null.*.http_method)
   integration_http_method = "GET"
   type = "MOCK"
 }
 
-{%- for res, entry in entries.items() %}
-  {% if entry.path %}
-resource "aws_api_gateway_resource" "{{ resource_name }}_{{ res }}" {
+{%- for uid, resource in resources.items() %}
+  {% if resource.path %}
+resource "aws_api_gateway_resource" "{{ resource_name }}_{{ uid }}" {
   provider = aws.{{ resource_name }}
   count = {{ "local.{}_when_default".format(resource_name) if step == "update" else 0 }}
   rest_api_id = local.{{ resource_name }}_api_id
-  {%- if entry.parent_is_root %}
+  {%- if resource.parent_is_root %}
   parent_id = local.{{ resource_name }}_api_root_id
   {%- else %}
-  parent_id = aws_api_gateway_resource.{{ resource_name }}_{{ entry.parent_uid }}[0].id
+  parent_id = aws_api_gateway_resource.{{ resource_name }}_{{ resource.parent_uid }}[0].id
   {%- endif %}
-  path_part = "{{ entry.path }}"
+  path_part = "{{ resource.path }}"
 }
   {% endif %}
-  {%- if entry.methods %}
-    {%- for method in entry.methods %}
-resource "aws_api_gateway_method" "{{ resource_name }}_{{ res }}_{{ method }}" {
+  {%- if resource.entries %}
+    {%- for method, entry in resource.entries.items() %}
+resource "aws_api_gateway_method" "{{ resource_name }}_{{ uid }}_{{ method }}" {
   provider = aws.{{ resource_name }}
   count = {{ "local.{}_when_default".format(resource_name) if step == "update" else 0 }}
   rest_api_id = local.{{ resource_name }}_api_id
-  {%- if entry.is_root %}
+  {%- if resource.is_root %}
   resource_id = local.{{ resource_name }}_api_root_id
   {%- else %}
-  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ res }}[0].id
+  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
   {%- endif %}
   http_method = "{{ method }}"
-  {%- if True %}
-  authorization = "NONE"
-  {%- else %}
+  {%- if entry.auth %}
   authorization = "CUSTOM"
   authorizer_id = aws_api_gateway_authorizer.{{ resource_name }}[0].id
+  {%- else %}
+  authorization = "NONE"
   {%- endif %}
+  request_parameters = {
+    "method.request.header.InvocationType" = false
+  }
 }
-
-resource "aws_api_gateway_integration" "{{ resource_name }}_{{ res }}_{{ method }}" {
+resource "aws_api_gateway_integration" "{{ resource_name }}_{{ uid }}_{{ method }}" {
   provider = aws.{{ resource_name }}
   count = {{ "local.{}_when_default".format(resource_name) if step == "update" else 0 }}
   rest_api_id = local.{{ resource_name }}_api_id
-  {%- if entry.is_root %}
+  {%- if resource.is_root %}
   resource_id = local.{{ resource_name }}_api_root_id
   {%- else %}
-  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ res }}[0].id
+  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
   {%- endif %}
-  http_method = join("", aws_api_gateway_method.{{ resource_name }}_{{ res }}_{{ method }}.*.http_method)
+  http_method = join("", aws_api_gateway_method.{{ resource_name }}_{{ uid }}_{{ method }}.*.http_method)
   integration_http_method = "POST"
-  type = "AWS_PROXY"
+  type = "AWS"
   uri = local.{{ resource_name }}_lambda_uri
+  passthrough_behavior = "NEVER"
+  request_parameters = {
+    "integration.request.header.X-Amz-Invocation-Type" = "method.request.header.InvocationType"
+  }
+  request_templates  = {
+    "application/json" = <<-EOT
+      #set($allParams = $input.params())
+      #set($headers = $allParams.get("header"))
+      #set($path = $allParams.get("path"))
+      #set($queries = $allParams.get("querystring"))
+      {
+        "type" : "LAMBDA",
+        "resource" : "$context.resourcePath",
+        "path" : "$context.resourcePath",
+        "httpMethod": "$context.httpMethod",
+        "headers": {
+          #foreach($key in $headers.keySet())
+          "$key" : "$util.escapeJavaScript($headers.get($key))"#if($foreach.hasNext),#end
+          #end
+        },
+        "multiValueHeaders": {},
+        "body" : $input.json('$'),
+        "queryStringParameters": null,
+        "multiValueQueryStringParameters": {
+          #foreach($key in $method.request.multivaluequerystring.keySet())
+          "$key" : [
+            #foreach($val in $method.request.multivaluequerystring.get($key))
+           "$val"#if($foreach.hasNext),#end
+            #end
+            ]#if($foreach.hasNext),#end
+          #end
+        },
+        "pathParameters": {
+          #foreach($key in $path.keySet())
+          "$key" : "$util.escapeJavaScript($path.get($key))"
+            #if($foreach.hasNext),#end
+          #end
+        },
+        "stageVariables": null,
+        "isBase64Encoded": false,
+        "requestContext": {
+          "httpMethod": "$context.httpMethod",
+          "resourceId": "$context.resourceId",
+          "resourcePath": "$context.resourcePath",
+          "extendedRequestId": "$context.extendedRequestId",
+          "requestTime": "$context.requestTime",
+          "path": "$context.path",
+          "accountId": "$context.accountId",
+          "protocol": "$context.protocol",
+          "stage": "$context.stage",
+          "domainPrefix": "$context.domainPrefix",
+          "requestTimeEpoch": $context.requestTimeEpoch,
+          "requestId": "$context.requestId",
+          "domainName": "$context.domainName",
+          "apiId": "$context.apiId"
+        },
+        "params" : {
+          #foreach($type in $allParams.keySet())
+          #set($params = $allParams.get($type))
+          "$type" : {
+            #foreach($paramName in $params.keySet())
+            "$paramName" : "$util.escapeJavaScript($params.get($paramName))"
+              #if($foreach.hasNext),#end
+            #end
+          }
+          #if($foreach.hasNext),#end
+          #end
+        },
+        "context" : {
+          #foreach($key in $context.keySet())
+          "$key" : "$util.escapeJavaScript($context.get($key))"
+          #if($foreach.hasNext),#end
+          #end
+        }
+      }
+    EOT
+  }
 }
-    {%- endfor %}
-
-    {# Preflighted requests in CORS #}
-
-    {%- if entry.cors %}
-resource "aws_api_gateway_method" "{{ resource_name }}_{{ res }}_OPTIONS" {
+resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_{{ method }}_response_200" {
   provider = aws.{{ resource_name }}
   count = {{ "local.{}_when_default".format(resource_name) if step == "update" else 0 }}
   rest_api_id = local.{{ resource_name }}_api_id
-  {%- if entry.is_root %}
+  {%- if resource.is_root %}
   resource_id = local.{{ resource_name }}_api_root_id
   {%- else %}
-  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ res }}[0].id
+  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
+  {%- endif %}
+  http_method = join("", aws_api_gateway_method.{{ resource_name }}_{{ uid }}_{{ method }}.*.http_method)
+  status_code = "200"
+}
+resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_{{ method }}_response_200" {
+  provider = aws.{{ resource_name }}
+  count = {{ "local.{}_when_default".format(resource_name) if step == "update" else 0 }}
+  rest_api_id = local.{{ resource_name }}_api_id
+  {%- if resource.is_root %}
+  resource_id = local.{{ resource_name }}_api_root_id
+  {%- else %}
+  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
+  {%- endif %}
+  http_method = join("", aws_api_gateway_method.{{ resource_name }}_{{ uid }}_{{ method }}.*.http_method)
+  status_code = join("", aws_api_gateway_method_response.{{ resource_name }}_{{ uid }}_{{ method }}_response_200.*.status_code)
+
+  # Transforms the backend JSON response to XML
+  response_templates = {
+    "application/json" = <<-EOF
+      #set($inputRoot = $input.path('$'))
+      #set($context.responseOverride.status=$inputRoot.statusCode)
+      #set($context.responseOverride.header=$inputRoot.headers)
+      $inputRoot.body
+    EOF
+  }
+}    {%- endfor %}
+
+{#     Preflighted requests in CORS #}
+
+    {%- if resource.cors %}
+resource "aws_api_gateway_method" "{{ resource_name }}_{{ uid }}_OPTIONS" {
+  provider = aws.{{ resource_name }}
+  count = {{ "local.{}_when_default".format(resource_name) if step == "update" else 0 }}
+  rest_api_id = local.{{ resource_name }}_api_id
+  {%- if resource.is_root %}
+  resource_id = local.{{ resource_name }}_api_root_id
+  {%- else %}
+  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
   {%- endif %}
   http_method = "OPTIONS"
   authorization = "NONE"
 }
 
-resource "aws_api_gateway_integration" "{{ resource_name }}_{{ res }}_OPTIONS" {
+resource "aws_api_gateway_integration" "{{ resource_name }}_{{ uid }}_OPTIONS" {
   provider = aws.{{ resource_name }}
   count = {{ "local.{}_when_default".format(resource_name) if step == "update" else 0 }}
   rest_api_id = local.{{ resource_name }}_api_id
-  {%- if entry.is_root %}
+  {%- if resource.is_root %}
   resource_id = local.{{ resource_name }}_api_root_id
   {% else %}
-  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ res }}[0].id
+  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
   {% endif -%}
-  http_method = join("", aws_api_gateway_method.{{ resource_name }}_{{ res }}_OPTIONS.*.http_method)
+  http_method = join("", aws_api_gateway_method.{{ resource_name }}_{{ uid }}_OPTIONS.*.http_method)
   type = "MOCK"
   request_templates = {
     "application/json" = "{ \"statusCode\": 200 }"
   }
 }
 
-resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ res }}_OPTIONS" {
+resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_OPTIONS" {
   provider = aws.{{ resource_name }}
   count = {{ "local.{}_when_default".format(resource_name) if step == "update" else 0 }}
   rest_api_id = local.{{ resource_name }}_api_id
-  {%- if entry.is_root %}
+  {%- if resource.is_root %}
   resource_id = local.{{ resource_name }}_api_root_id
   {%- else %}
-  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ res }}[0].id
+  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
   {%- endif %}
-  http_method =  join("", aws_api_gateway_method.{{ resource_name }}_{{ res }}_OPTIONS.*.http_method)
+  http_method =  join("", aws_api_gateway_method.{{ resource_name }}_{{ uid }}_OPTIONS.*.http_method)
   response_parameters = {
-  {%- for k,v in entry.cors.get_access_control_headers().items() %}
+  {%- for k,v in resource.cors.get_access_control_headers().items() %}
     "method.response.header.{{ k }}" = "'{{ v }}'",
   {%- endfor %}
   }
@@ -167,21 +273,21 @@ resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ res }}_O
     "application/json": "{}"
   }
   depends_on = [
-    aws_api_gateway_integration.{{ resource_name }}_{{ res }}_OPTIONS,
-    aws_api_gateway_method_response.{{ resource_name }}_{{ res }}_OPTIONS,
+    aws_api_gateway_integration.{{ resource_name }}_{{ uid }}_OPTIONS,
+    aws_api_gateway_method_response.{{ resource_name }}_{{ uid }}_OPTIONS,
   ]
 }
 
-resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ res }}_OPTIONS" {
+resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_OPTIONS" {
   provider = aws.{{ resource_name }}
   count = {{ "local.{}_when_default".format(resource_name) if step == "update" else 0 }}
   rest_api_id = local.{{ resource_name }}_api_id
-  {%- if entry.is_root %}
+  {%- if resource.is_root %}
   resource_id = local.{{ resource_name }}_api_root_id
   {%- else %}
-  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ res }}[0].id
+  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
   {%- endif %}
-  http_method = join("", aws_api_gateway_method.{{ resource_name }}_{{ res }}_OPTIONS.*.http_method)
+  http_method = join("", aws_api_gateway_method.{{ resource_name }}_{{ uid }}_OPTIONS.*.http_method)
   status_code = 200
   response_models = {
     "application/json" = "Empty"
@@ -190,12 +296,12 @@ resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ res }}_OPTION
     "method.response.header.Access-Control-Allow-Headers" = true,
     "method.response.header.Access-Control-Allow-Methods" = true,
     "method.response.header.Access-Control-Allow-Origin" = true,
-    {%- if 'Access-Control-Max-Age' in entry.cors.get_access_control_headers() %}
+    {%- if 'Access-Control-Max-Age' in resource.cors.get_access_control_headers() %}
     "method.response.header.Access-Control-Max-Age" = true,
     {%- endif %}
   }
   depends_on = [
-    aws_api_gateway_method.{{ resource_name }}_{{ res }}_OPTIONS,
+    aws_api_gateway_method.{{ resource_name }}_{{ uid }}_OPTIONS,
   ]
 }
     {% endif -%}
@@ -224,7 +330,16 @@ resource "aws_api_gateway_deployment" "{{ resource_name }}" {
   description = "{{ workspace }}: at ${timestamp()}"
 }
 
+resource "aws_cloudwatch_log_group" "api_{{ resource_name }}" {
+  provider = aws.{{ resource_name }}
+  count = local.{{ resource_name }}_when_stage
+  name = "API-Gateway-Execution-Logs_${local.{{ resource_name }}_api_id}/{{ workspace }}"
+  retention_in_days = 7
+}
+
 resource "aws_api_gateway_stage" "{{ resource_name }}" {
+  depends_on = [aws_cloudwatch_log_group.api_{{ resource_name }}]
+
   provider = aws.{{ resource_name }}
   count = local.{{ resource_name }}_when_stage
   stage_name = "{{ workspace }}"
@@ -237,8 +352,6 @@ resource "aws_api_gateway_stage" "{{ resource_name }}" {
 # OUTPUT
 # ---------------------------------------------------------------------------------------------------------------------
 
-output "{{ resource_name }}" {
-  value = {
-    "id" = terraform.workspace == "default" ? aws_api_gateway_rest_api.{{ resource_name }}[0].id : ""
-  }
+output "{{ resource_name }}_id" {
+  value = terraform.workspace == "default" ? aws_api_gateway_rest_api.{{ resource_name }}[0].id : ""
 }

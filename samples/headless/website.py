@@ -13,7 +13,7 @@ from coworks.blueprint import Admin
 class WebsiteMicroService(TechMicroService):
 
     def __init__(self, env=None, **kwargs):
-        super().__init__(name="website-handless", **kwargs)
+        super().__init__(name="sample-headless-microservice", **kwargs)
         self.jinja_env = env or Environment(
             loader=FileSystemLoader("templates"),
             autoescape=select_autoescape(['html', 'xml'], default_for_string=True)
@@ -28,23 +28,11 @@ class WebsiteMicroService(TechMicroService):
     def get(self):
         template_filename = 'home.j2'
         template = self.jinja_env.get_template(template_filename)
-        return self.render(template)
-
-    @entry
-    def get_produit(self, slug):
-        template_filename = 'product.j2'
-        template = self.jinja_env.get_template(template_filename)
-        data = self.cosmic_client.object_metafields(slug)
-        return self.render(template, **data)
+        return self.render(template, **self.home)
 
     @entry
     def get_assets(self, folder, filename):
         file = Path.cwd() / 'assets' / folder / filename
-        return self.get_file_content(file)
-
-    @entry
-    def get_assets_(self, folder, subfolder, filename):
-        file = Path.cwd() / 'assets' / folder / subfolder / filename
         return self.get_file_content(file)
 
     @entry
@@ -56,32 +44,18 @@ class WebsiteMicroService(TechMicroService):
     @property
     def home(self):
         response = self.cosmic_client.object('home')
-        home = {k: v for d in response['metafields'] for k, v in self.cosmic_client.to_dict(d).items()}
-        product_objects = self.cosmic_client.objects('products')
-        products = [self.cosmic_client.to_dict(d) for d in product_objects]
-        reference_objects = self.cosmic_client.objects('references')
-        references = [self.cosmic_client.to_dict(d) for d in reference_objects]
-        banner_objects = self.cosmic_client.objects('banners')
-        banners = [self.cosmic_client.to_dict(d) for d in banner_objects]
-        post_objects = self.cosmic_client.objects('posts')
-        posts = [self.cosmic_client.to_dict(d) for d in post_objects]
+        home = {k: v for field in response['metafields'] for k, v in self.cosmic_client.to_dict(field).items()}
         return {
-            'home': home,
-            'products': products,
-            'product_ids': [obj['slug'] for obj in products],
-            'references': references,
-            'reference_ids': [obj['slug'] for obj in references],
-            'banners': banners,
-            'banner_ids': [obj['slug'] for obj in banners],
-            'posts': posts,
-            'post_ids': [obj['slug'] for obj in posts],
+            'carousel': home.get('carousel'),
+            'sections': home.get('sections'),
+            'footer': home.get('footer'),
         }
 
     def render(self, template, **data):
         assets_url = os.getenv('ASSETS_URL')
         headers = {'Content-Type': 'text/html; charset=utf-8'}
         root = self.config.root
-        return template.render(assets_url=assets_url, root=root, **self.home, **data), 200, headers
+        return template.render(assets_url=assets_url, root=root, **data), 200, headers
 
     @staticmethod
     def get_file_content(file: Path):
@@ -97,4 +71,11 @@ app = WebsiteMicroService(configs=[LocalConfig(), DevConfig()])
 app.register_blueprint(Admin(), url_prefix='admin')
 
 if __name__ == '__main__':
-    app.execute("run", project_dir='.', module='website', workspace='local')
+    import sys
+
+    if len(sys.argv) < 2:
+        print("Command arg missing")
+    elif sys.argv[1] == "run":
+        app.execute("run", project_dir='.', module='website', workspace='local', service='app', auto_reload=True)
+    elif sys.argv[1] == "deploy":
+        app.execute("deploy", project_dir='.', module='website', workspace='prod', service='app')

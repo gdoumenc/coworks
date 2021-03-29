@@ -8,7 +8,7 @@ COWORKS_NAMESPACE = 'coworks'
 class XRayContextManager:
 
     def __init__(self, app, recorder):
-        app.logger.info("initializing xray middleware")
+        app.log.debug("initializing xray context manager")
 
         @app.before_first_activation
         def capture_routes(event, context):
@@ -50,16 +50,16 @@ class XRayContextManager:
                         wrapped_fun = update_wrapper(partial(captured_entry, cws_function), cws_function)
                         entry.view_function.__cws_func__ = recorder.capture(cws_function.__name__)(wrapped_fun)
             except Exception:
-                print("Cannot set xray context manager : are you using xray_recorder?")
+                app.log.error("Cannot set xray context manager : are you using xray_recorder?")
                 raise
 
         @app.handle_exception
         def capture_exception(event, context, e):
             try:
-                app.logger.error(f"Event: {event}")
-                app.logger.error(f"Context: {context}")
-                app.logger.error(f"Exception: {str(e)}")
-                app.logger.error(traceback.print_exc())
+                app.log.error(f"Event: {event}")
+                app.log.error(f"Context: {context}")
+                app.log.error(f"Exception: {str(e)}")
+                app.log.error(traceback.print_exc())
                 subsegment = recorder.current_subsegment
                 if subsegment:
                     subsegment.put_annotation('service', app.name)

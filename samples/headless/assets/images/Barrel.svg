@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64px" height="64px" viewBox="0 0 64 64" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 41.2 (35397) - http://www.bohemiancoding.com/sketch -->
+    <title>Barrel</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Barrel" stroke="#FFFFFF" stroke-width="2">
+            <g id="Page-1" transform="translate(10.000000, 9.000000)">
+                <path d="M39,22 C39,31.389 31.389,39 22,39 C12.611,39 5,31.389 5,22 C5,12.611 12.611,5 22,5 C31.389,5 39,12.611 39,22 Z" id="Stroke-1"></path>
+                <path d="M44,22 C44,34.15 34.15,44 22,44 C9.85,44 0,34.15 0,22 C0,9.85 9.85,0 22,0 C34.15,0 44,9.85 44,22 Z" id="Stroke-3"></path>
+                <path d="M15,6 L15,38" id="Stroke-5"></path>
+                <path d="M29,6 L29,38" id="Stroke-7"></path>
+                <path d="M22,0 L22,5" id="Stroke-9"></path>
+                <path d="M39,22 L44,22" id="Stroke-11"></path>
+                <path d="M4,22 L0,22" id="Stroke-13"></path>
+                <path d="M22,39 L22,44" id="Stroke-15"></path>
+                <path d="M38,8 L35,11" id="Stroke-17"></path>
+                <path d="M6,8 L9,11" id="Stroke-19"></path>
+                <path d="M8,38 L11,35" id="Stroke-21"></path>
+                <path d="M36,38 L33,35" id="Stroke-23"></path>
+                <path d="M25,30 C25,31.657 23.657,33 22,33 C20.343,33 19,31.657 19,30 C19,28.343 20.343,27 22,27 C23.657,27 25,28.343 25,30 Z" id="Stroke-25"></path>
+                <path d="M4,36 L4,46" id="Line" stroke-linecap="square"></path>
+                <path d="M12,43 L12,46" id="Line" stroke-linecap="square"></path>
+                <path d="M12,46 L5,46" id="Line" stroke-linecap="square"></path>
+                <path d="M39,36 L39,46" id="Line" stroke-linecap="square" transform="translate(39.500000, 41.000000) scale(-1, 1) translate(-39.500000, -41.000000) "></path>
+                <path d="M31,42 L31,46" id="Line" stroke-linecap="square" transform="translate(31.500000, 44.000000) scale(-1, 1) translate(-31.500000, -44.000000) "></path>
+                <path d="M39,46 L32,46" id="Line" stroke-linecap="square" transform="translate(35.500000, 46.000000) scale(-1, 1) translate(-35.500000, -46.000000) "></path>
+            </g>
+        </g>
+    </g>
+</svg>

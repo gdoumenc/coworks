@@ -369,7 +369,7 @@ class TechState(PassState):
                 "Accept-Encoding": "gzip,deflate",
                 "Content-Type": content_type
             },
-            "body": body if body else None,
+            "body": body if body else {},
             "form-data": TechState.validate_form_data(form_data) if form_data else None,
             "stageVariables": None,
         }
