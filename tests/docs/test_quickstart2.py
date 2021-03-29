@@ -29,11 +29,24 @@ class TestClass:
     def test_zip_quickstart2(self, monkeypatch, s3_session, samples_docs_dir):
         monkeypatch.setattr(aws, "AwsS3Session", s3_session)
         app = import_attr('quickstart2', 'app', cwd=samples_docs_dir)
+
+        # without hash
         with pytest.raises(CwsCommandError):
             app.execute('zip', project_dir=samples_docs_dir, module='quickstart2', workspace='dev')
         app.execute('zip', project_dir=samples_docs_dir, module='quickstart2', workspace='dev',
                     profile_name='profile', bucket='bucket')
-        assert len(s3_session.mock.method_calls) == 2
+        assert len(s3_session.mock.method_calls) == 1
+        name, params, _ = s3_session.mock.method_calls[0]
+        assert name == 'client.upload_fileobj'
+        assert params[1] == 'bucket'
+        assert params[2] == 'quickstart2-simplemicroservice'
+
+        # with hash
+        with pytest.raises(CwsCommandError):
+            app.execute('zip', project_dir=samples_docs_dir, module='quickstart2', workspace='dev')
+        app.execute('zip', project_dir=samples_docs_dir, module='quickstart2', workspace='dev',
+                    profile_name='profile', bucket='bucket', hash=True)
+        assert len(s3_session.mock.method_calls) == 1 + 2
         name, params, _ = s3_session.mock.method_calls[0]
         assert name == 'client.upload_fileobj'
         assert params[1] == 'bucket'

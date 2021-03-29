@@ -330,7 +330,7 @@ resource "aws_api_gateway_deployment" "{{ resource_name }}" {
   description = "{{ workspace }}: at ${timestamp()}"
 }
 
-resource "aws_cloudwatch_log_group" "{{ resource_name }}" {
+resource "aws_cloudwatch_log_group" "api_{{ resource_name }}" {
   provider = aws.{{ resource_name }}
   count = local.{{ resource_name }}_when_stage
   name = "API-Gateway-Execution-Logs_${local.{{ resource_name }}_api_id}/{{ workspace }}"
@@ -338,7 +338,7 @@ resource "aws_cloudwatch_log_group" "{{ resource_name }}" {
 }
 
 resource "aws_api_gateway_stage" "{{ resource_name }}" {
-  depends_on = [aws_cloudwatch_log_group.{{ resource_name }}]
+  depends_on = [aws_cloudwatch_log_group.api_{{ resource_name }}]
 
   provider = aws.{{ resource_name }}
   count = local.{{ resource_name }}_when_stage

@@ -4,9 +4,9 @@ import re
 from dataclasses import dataclass
 from json import JSONDecodeError
 from pathlib import Path
-from typing import Callable, Union, List, Tuple, Any
+from typing import Callable, Union, List, Tuple
 
-from chalice import CORSConfig as ChaliceCORSConfig
+from chalice import CORSConfig as ChaliceCORSConfig, AuthResponse
 from chalice.app import AuthRequest as ChaliceAuthRequest
 
 from .mixins import CoworksMixin
@@ -44,7 +44,7 @@ class Config:
     workspace: str = DEFAULT_WORKSPACE
     environment_variables_file: Union[str, List[str]] = None
     environment_variables: Union[dict, List[dict]] = None
-    auth: Callable[[CoworksMixin, AuthRequest], Any] = None
+    auth: Callable[[CoworksMixin, AuthRequest], Union[bool, list, AuthResponse]] = None
     cors: CORSConfig = CORSConfig(allow_origin='')
     content_type: Tuple[str] = ('multipart/form-data', 'application/json', 'text/plain')
     data: dict = None

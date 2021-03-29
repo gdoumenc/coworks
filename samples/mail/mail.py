@@ -29,16 +29,16 @@ class MailMicroService(TechMicroService):
                                                 to_addrs='gdoumenc@fpr-coworks.com')
 
 
-app = MailMicroService(name="sample-mail-microservice", configs=[LocalConfig(), DevConfig()])
+app = MailMicroService(name="sample-mail-microservice", debug=True, configs=[LocalConfig(), DevConfig()])
 app.register_blueprint(Admin(), url_prefix='admin')
 app.register_blueprint(Mail('SMTP_SERVER', 'SMTP_LOGIN', 'SMTP_PASSWD'))
 XRayContextManager(app, xray_recorder)
 
 
-@app.schedule('rate(1 hour)')
-@app.schedule('cron(15 12 * * ? *)', name="daily")
+@app.schedule('rate(1 hour)', name='hourly', description="Mail sent every hour for testing.")
+@app.schedule('cron(00 15 * * ? *)', name="daily", description="Mail sent at 3pm for testing.")
 def every_sample(name):
-    """Mail sent every minute for testing."""
+    """This doc string will serve as schedule event description if not defined."""
     app.blueprints['mail'].post_send(subject='test event bridge', body=f"Made by {name}",
                                      from_addr='gdoumenc@fpr-coworks.com',
                                      to_addrs='gdoumenc@fpr-coworks.com')

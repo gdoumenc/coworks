@@ -1,16 +1,16 @@
-from dataclasses import dataclass
-
-import boto3
-import click
 import itertools
 import logging
 import sys
 from abc import ABC
+from dataclasses import dataclass
 from itertools import chain, repeat
 from pathlib import Path
 from threading import Thread
 from time import sleep
 from typing import List
+
+import boto3
+import click
 
 from coworks.aws import AwsS3Session
 from coworks.coworks import Entry
@@ -114,7 +114,8 @@ class CwsTerraformDeployer(CwsTerraformCommand):
             print(f"Uploading zip to S3")
             module_name = options.pop('module_name')
             ignore = options.pop('ignore') or ['.*', 'terraform']
-            command.app.execute(cls.ZIP_CMD, ignore=ignore, module_name=module_name, **options)
+            options.pop('hash')  # forces hash file
+            command.app.execute(cls.ZIP_CMD, ignore=ignore, module_name=module_name, hash=True, **options)
 
         # Generates default provider
         cls.generate_common_terraform_files()

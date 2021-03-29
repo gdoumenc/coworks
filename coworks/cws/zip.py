@@ -27,6 +27,7 @@ class CwsZipArchiver(CwsCommand):
             click.option('--bucket', '-b', help="Bucket to upload sources zip file to", required=True),
             click.option('--debug', is_flag=True, help="Print debug logs to stderr."),
             click.option('--dry', is_flag=True, help="Doesn't perform upload."),
+            click.option('--hash', is_flag=True, help="Upload also hash code content."),
             click.option('--ignore', '-i', multiple=True, help="Ignore pattern."),
             click.option('--key', '-k', help="Sources zip file bucket's name."),
             click.option('--module_name', '-m', multiple=True, help="Python module added from current pyenv."),
@@ -41,7 +42,7 @@ class CwsZipArchiver(CwsCommand):
     def __init__(self, app=None, name='zip'):
         super().__init__(app, name=name)
 
-    def _zip(self, *, project_dir, module, bucket, key, profile_name, module_name, dry, debug, ignore, **options):
+    def _zip(self, *, project_dir, module, bucket, key, profile_name, module_name, hash, dry, debug, ignore, **options):
         aws_s3_session = aws.AwsS3Session(profile_name=profile_name)
         module_name = module_name or []
 
@@ -87,19 +88,20 @@ class CwsZipArchiver(CwsCommand):
                     raise CwsCommandError(str(e))
 
             # Creates hash value
-            with tmp_path.with_name('b64sha256_file').open('wb') as b64sha256_file:
-                b64sha256_file.write(b64sha256)
+            if hash:
+                with tmp_path.with_name('b64sha256_file').open('wb') as b64sha256_file:
+                    b64sha256_file.write(b64sha256)
 
-            # Uploads archive hash value to bucket
-            with tmp_path.with_name('b64sha256_file').open('rb') as b64sha256_file:
-                try:
-                    if not dry:
-                        if debug:
-                            print(f"Upoad sources hash...")
-                        aws_s3_session.client.upload_fileobj(b64sha256_file, bucket, f"{key}.b64sha256",
-                                                             ExtraArgs={'ContentType': 'text/plain'})
-                        if debug:
-                            print(f"Successfully uploaded sources hash at s3://{bucket}/{key}.b64sha256")
-                except Exception as e:
-                    print(f"Failed to upload archive hash on S3 : {e}")
-                    raise CwsCommandError(str(e))
+                # Uploads archive hash value to bucket
+                with tmp_path.with_name('b64sha256_file').open('rb') as b64sha256_file:
+                    try:
+                        if not dry:
+                            if debug:
+                                print(f"Upoad sources hash...")
+                            aws_s3_session.client.upload_fileobj(b64sha256_file, bucket, f"{key}.b64sha256",
+                                                                 ExtraArgs={'ContentType': 'text/plain'})
+                            if debug:
+                                print(f"Successfully uploaded sources hash at s3://{bucket}/{key}.b64sha256")
+                    except Exception as e:
+                        print(f"Failed to upload archive hash on S3 : {e}")
+                        raise CwsCommandError(str(e))

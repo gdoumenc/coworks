@@ -135,23 +135,23 @@ class TestClass:
         local_server = local_server_factory(ms)
         response = local_server.make_call(requests.get, '/', headers={'authorization': 'allow'})
         assert response.status_code == 200
-        assert ms.entry('/')['GET'].auth
+        assert ms._entry('/', 'GET').auth
         assert response.status_code == 200
         response = local_server.make_call(requests.get, '/blueprint/test/3', headers={'authorization': 'allow'})
         assert response.status_code == 200
-        assert ms.entry('/blueprint/test/3')['GET'].auth
+        assert ms._entry('/blueprint/test/3', 'GET').auth
 
     def test_entries(self, local_server_factory):
         ms = AuthorizeAll()
         local_server = local_server_factory(ms)
         response = local_server.make_call(requests.get, '/', headers={'authorization': 'allow'})
         assert response.status_code == 200
-        assert ms.entry('wrong') is None
-        assert ms.entry('content') is not None
-        assert ms.entry('content/value') is not None
-        assert ms.entry('content/value/other') is not None
-        assert ms.entry('content/value/other/wrong') is None
-        assert ms.entry('/product/TRANSPORT') is not None
+        assert ms._entry('wrong', 'GET') is None
+        assert ms._entry('content', 'GET') is not None
+        assert ms._entry('content/value', 'GET') is not None
+        assert ms._entry('content/value/other', 'GET') is not None
+        assert ms._entry('content/value/other/wrong', 'GET') is None
+        assert ms._entry('/product/TRANSPORT', 'GET') is not None
 
 
 def auth_external(auth_request):

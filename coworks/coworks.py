@@ -1,3 +1,4 @@
+import re
 import json
 import os
 from dataclasses import dataclass
@@ -14,6 +15,8 @@ from .config import Config, DEFAULT_PROJECT_DIR, DEFAULT_WORKSPACE
 from .error import CwsError
 from .mixins import CoworksMixin
 from .utils import trim_underscores, HTTP_METHODS
+
+ENTRY_REGEXP = '[^0-9a-zA-Z_]'
 
 
 def entry(fun):
@@ -193,33 +196,14 @@ class TechMicroService(CoworksMixin, Chalice):
         def decorator(f):
             schedule_name = name if name else exp
             desc = description if description else f.__doc__
-            self.schedule_entries[f"{hash(exp)}"] = ScheduleEntry(schedule_name, exp, desc, f)
+            entry_key = re.sub(ENTRY_REGEXP, '', exp)
+            self.schedule_entries[f"{f.__name__}_{entry_key}"] = ScheduleEntry(schedule_name, exp, desc, f)
             return wraps(f)(decorator)
 
         return decorator
 
     def add_entry(self, path, method, auth, fun):
         self.entries[path][method] = Entry(auth, fun)
-
-    def entry(self, path):
-        """Finds the entry corresponding to the route."""
-        pathes = [x for x in path.split('/') if x]
-        for entry, result in self.entries.items():
-            entry_pathes = [x for x in entry.split('/') if x]
-            if len(pathes) != len(entry_pathes):
-                continue
-
-            found = True
-            for index, path in enumerate(entry_pathes):
-                if index < len(pathes):
-                    if path.startswith('{') or path == pathes[index]:
-                        continue
-                found = False
-                break
-
-            if found:
-                return result
-        return None
 
     def execute(self, command, *, project_dir=DEFAULT_PROJECT_DIR, module=None, service=None,
                 workspace=DEFAULT_WORKSPACE, output=None, error=None, **options):
@@ -258,50 +242,11 @@ class TechMicroService(CoworksMixin, Chalice):
     def handler(self, event, context):
         """Main microservice entry point."""
 
-        # authorization call
         if event.get('type') == 'TOKEN':
-            self.log.debug(f"Calling {self.name} for authorization")
-
-            try:
-                route = event.get('methodArn').split('/', 3)[-1]
-                authorizer = self.entry(f'/{route}').auth
-                return authorizer(event, context)
-            except:
-                pass
-
-            self.log.debug(f"Undefined authorization method for {self.name} ")
-            request = AuthRequest(event['type'], event['authorizationToken'], event['methodArn'])
-            return AuthResponse(routes=[], principal_id='user').to_dict(request)
-
-        # schedule event call
+            return self._token_handler(event, context)
         if event.get('type') == 'CWS_SCHEDULE_EVENT':
-            self.log.debug(f"Calling {self.name} by event bridge function")
-
-            entry_name = event.get('entry_name')
-            schedule_name = event.get('schedule_name')
-            return self.schedule_entries[entry_name].fun(event.get(schedule_name))
-
-        # Chalice accepts only string for body
-        if type(event['body']) is dict:
-            event['body'] = json.dumps(event['body'])
-
-        self.log.debug(f"Calling {self.name} with event {event}")
-        res = super().__call__(event, context)
-        workspace = os.getenv('WORKSPACE')
-        if workspace:
-            res['headers']['x-cws-workspace'] = workspace
-
-        if self.sfn_call:
-            if res['statusCode'] < 200 or res['statusCode'] >= 300:
-                err_msg = f"Status code is {res['statusCode']} : {res['body']}"
-                return Response(body=err_msg, status_code=400)
-            try:
-                res['body'] = self._set_data_on_s3(json.loads(res['body']))
-            except json.JSONDecodeError:
-                pass
-
-        self.log.debug(f"Call {self.name} returns {res}")
-        return res
+            return self._schedule_event_handler(event, context)
+        return self._api_handler(event, context)
 
     def deferred(self, f):
         """Registers a function to be run once the microservice will be initialized.
@@ -346,6 +291,71 @@ class TechMicroService(CoworksMixin, Chalice):
             resp = func(event, context, exc)
             if resp is not None:
                 return resp
+
+    def _entry(self, path: str, method: str) -> Optional[Entry]:
+        """Finds the entry corresponding to the route."""
+        pathes = [x for x in path.split('/') if x]
+        for entry, result in self.entries.items():
+            entry_pathes = [x for x in entry.split('/') if x]
+            if len(pathes) != len(entry_pathes):
+                continue
+
+            found = True
+            for index, path in enumerate(entry_pathes):
+                if index < len(pathes):
+                    if path.startswith('{') or path == pathes[index]:
+                        continue
+                found = False
+                break
+
+            if found:
+                return result[method]
+        return None
+
+    def _token_handler(self, event, context):
+        """Authorization handler."""
+        self.log.debug(f"Calling {self.name} for authorization")
+
+        try:
+            *_, method, route = event.get('methodArn').split('/', 3)
+            authorizer = self._entry(f'/{route}', method).auth
+            return authorizer(event, context)
+        except Exception as e:
+            self.log.debug(f"Error in authorization handler for {self.name} : {e}")
+            request = AuthRequest(event['type'], event['authorizationToken'], event['methodArn'])
+            return AuthResponse(routes=[], principal_id='user').to_dict(request)
+
+    def _schedule_event_handler(self, event, context):
+        """Schedule event handler."""
+        self.log.debug(f"Calling {self.name} by event bridge")
+
+        try:
+            entry_name = event.get('entry_name')
+            schedule_name = event.get('schedule_name')
+            return self.schedule_entries[entry_name].fun(event.get(schedule_name))
+        except Exception as e:
+            self.log.debug(f"Error in schedule event handler for {self.name} : {e}")
+            raise
+
+    def _api_handler(self, event, context):
+        """API rest handler."""
+        self.log.debug(f"Calling {self.name} by api")
+
+        try:
+            # Chalice accepts only string for body
+            if type(event['body']) is dict:
+                event['body'] = json.dumps(event['body'])
+
+            res = super().__call__(event, context)
+            workspace = os.getenv('WORKSPACE')
+            if workspace:
+                res['headers']['x-cws-workspace'] = workspace
+
+            self.log.debug(f"Call {self.name} returns {res}")
+            return res
+        except Exception as e:
+            self.log.debug(f"Error in api handler for {self.name} : {e}")
+            raise
 
 
 class BizFactory(TechMicroService):
@@ -449,7 +459,7 @@ class BizMicroService(TechMicroService):
         try:
             default_data = next(c.data for c in self.configs if c.workspace == workspace)
         except StopIteration:
-            self.logger.debug(f"No configuration found for workspace {workspace} in {self.configs}")
+            self.log.debug(f"No configuration found for workspace {workspace} in {self.configs}")
             default_data = {}
         except KeyError:
             default_data = {}
