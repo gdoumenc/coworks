@@ -58,6 +58,10 @@ resource "aws_lambda_function" "{{ resource_name }}" {
     subnet_ids = local.{{ resource_name }}_subnet_ids
   }
   tags = local.{{ resource_name }}_tags
+
+  depends_on = [
+    aws_cloudwatch_log_group.lambda_{{ resource_name }},
+  ]
 }
 
 data "aws_lambda_function" "{{ resource_name }}" {
@@ -80,6 +84,6 @@ resource "aws_lambda_permission" "{{ resource_name }}" {
 resource "aws_cloudwatch_log_group" "lambda_{{ resource_name }}" {
   provider = aws.{{ resource_name }}
   count = local.{{ resource_name }}_when_stage
-  name = local.{{ resource_name }}_lambda_name
+  name = "/aws/lambda/${local.{{ resource_name }}_lambda_name}"
   retention_in_days = 7
 }

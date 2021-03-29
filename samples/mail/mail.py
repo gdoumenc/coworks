@@ -40,8 +40,7 @@ XRayContextManager(app, xray_recorder)
 def every_sample(name):
     """This doc string will serve as schedule event description if not defined."""
     app.blueprints['mail'].post_send(subject='test event bridge', body=f"Made by {name}",
-                                     from_addr='gdoumenc@fpr-coworks.com',
-                                     to_addrs='gdoumenc@fpr-coworks.com')
+                                     from_addr='gdoumenc@fpr-coworks.com', to_addrs='gdoumenc@fpr-coworks.com')
 
 
 if __name__ == '__main__':

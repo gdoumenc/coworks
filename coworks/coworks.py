@@ -198,7 +198,7 @@ class TechMicroService(CoworksMixin, Chalice):
             desc = description if description else f.__doc__
             entry_key = re.sub(ENTRY_REGEXP, '', exp)
             self.schedule_entries[f"{f.__name__}_{entry_key}"] = ScheduleEntry(schedule_name, exp, desc, f)
-            return wraps(f)(decorator)
+            return f
 
         return decorator
 
@@ -331,8 +331,7 @@ class TechMicroService(CoworksMixin, Chalice):
 
         try:
             entry_name = event.get('entry_name')
-            schedule_name = event.get('schedule_name')
-            return self.schedule_entries[entry_name].fun(event.get(schedule_name))
+            return self.schedule_entries[entry_name].fun(event.get('schedule_name'))
         except Exception as e:
             self.log.debug(f"Error in schedule event handler for {self.name} : {e}")
             raise
