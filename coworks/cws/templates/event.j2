@@ -16,7 +16,7 @@ resource "aws_cloudwatch_event_target" "{{ resource_name }}_{{ name }}" {
   provider = aws.{{ resource_name }}
   count = local.{{ resource_name }}_when_stage
   rule = aws_cloudwatch_event_rule.{{ resource_name }}_{{ name }}[0].name
-  arn = local.sample-mail-microservice_lambda_arn
+  arn = local.{{ resource_name }}_lambda_arn
   input = <<-EOT
   {
     "type":"CWS_SCHEDULE_EVENT",

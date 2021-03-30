@@ -148,7 +148,7 @@ class TechMicroService(CoworksMixin, Chalice):
         for conf in self.configs:
             if conf.is_valid_for(workspace):
                 return conf
-        return self.configs[0]
+        return Config()
 
     def deferred_init(self, workspace):
         if self.entries is None:

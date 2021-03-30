@@ -40,16 +40,14 @@ class CORSConfig(ChaliceCORSConfig):
 class Config:
     """ Configuration class for deployment."""
 
-    version: str = ""
     workspace: str = DEFAULT_WORKSPACE
-    environment_variables_file: Union[str, List[str]] = None
+    environment_variables_file: Union[str, List[str]] = 'vars.json'
     environment_variables: Union[dict, List[dict]] = None
     auth: Callable[[CoworksMixin, AuthRequest], Union[bool, list, AuthResponse]] = None
     cors: CORSConfig = CORSConfig(allow_origin='')
     content_type: Tuple[str] = ('multipart/form-data', 'application/json', 'text/plain')
-    data: dict = None
 
-    def is_valid_for(self, workspace):
+    def is_valid_for(self, workspace) -> bool:
         return self.workspace == workspace
 
     def existing_environment_variables_files(self, project_dir):
@@ -104,3 +102,14 @@ class Config:
         except Exception as e:
             print(type(e))
             raise FileNotFoundError(f"Error when loading environment variables files {str(e)}.\n")
+
+
+class ProdConfig(Config):
+    """ Production configuration have workspace's name corresponding to version's name."""
+
+    def __init__(self, pattern=r"v[1-9]+", **kwargs):
+        super().__init__(**kwargs)
+        self.pattern = pattern
+
+    def is_valid_for(self, workspace):
+        return re.match(self.pattern, workspace) is not None
