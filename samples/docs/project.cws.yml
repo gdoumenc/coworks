@@ -1,7 +1,7 @@
-version: ">=11"
+version: 2
 services:
   - module: first
-    service: app
+    services: app
 commands:
   deploy:
     class: coworks.cws.deployer.CwsTerraformDeployer

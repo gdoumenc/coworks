@@ -5,7 +5,6 @@ from datetime import datetime
 from typing import Union, List
 
 from ..coworks import TechMicroService, entry
-from ..coworks import aws
 
 
 class CSVMicroService(TechMicroService):

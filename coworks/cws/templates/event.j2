@@ -3,11 +3,12 @@
 # EVENT BRIDGE
 # ---------------------------------------------------------------------------------------------------------------------
 
-{% for name, entry in app.schedule_entries.items() %}
+{%- if app.schedule_entries %}
+{%- for name, entry in app.schedule_entries.items() %}
 resource "aws_cloudwatch_event_rule" "{{ resource_name }}_{{ name }}" {
   provider = aws.{{ resource_name }}
   count = local.{{ resource_name }}_when_stage
-  name = "{{ resource_name }}_{{ name }}-{{ workspace }}"
+  name = "{{ name }}-{{ workspace }}-{{ resource_name }}"
   description = "{{ entry.desc }}"
   schedule_expression = "{{ entry.exp }}"
   tags = local.{{ resource_name }}_tags
@@ -26,3 +27,4 @@ resource "aws_cloudwatch_event_target" "{{ resource_name }}_{{ name }}" {
   EOT
 }
 {% endfor %}
+{%- endif %}

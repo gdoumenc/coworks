@@ -1,16 +1,16 @@
+from dataclasses import dataclass
+
+import boto3
+import click
 import itertools
 import logging
 import sys
 from abc import ABC
-from dataclasses import dataclass
 from itertools import chain, repeat
 from pathlib import Path
 from threading import Thread
 from time import sleep
 from typing import List
-
-import boto3
-import click
 
 from coworks.aws import AwsS3Session
 from coworks.coworks import Entry
@@ -20,6 +20,36 @@ from .zip import CwsZipArchiver
 from ..config import CORSConfig
 
 UID_SEP = '_'
+
+
+@dataclass
+class TerraformResource:
+    parent_uid: str
+    path: str
+    entries: List[Entry]
+    cors: CORSConfig
+
+    @property
+    def uid(self):
+        def remove_brackets(path):
+            return f"{path.replace('{', '').replace('}', '')}"
+
+        if self.path is None:
+            return ''
+
+        last = remove_brackets(self.path)
+        return f"{self.parent_uid}{UID_SEP}{last}" if self.parent_uid else last
+
+    @property
+    def is_root(self):
+        return self.path is None
+
+    @property
+    def parent_is_root(self):
+        return self.parent_uid == ''
+
+    def __repr__(self):
+        return f"{self.uid}:{self.entries}"
 
 
 class CwsTerraformCommand(CwsCommand, ABC):
@@ -42,7 +72,7 @@ class CwsTerraformCommand(CwsCommand, ABC):
         return app.commands.get(self.WRITER_CMD) or CwsTemplateWriter(app)
 
     @classmethod
-    def generate_terraform_files(cls, step, app, terraform, msg, key, **options):
+    def generate_terraform_files(cls, step, app, terraform, filename, msg, **options):
         debug = options['debug']
         dry = options['dry']
         profile_name = options['profile_name']
@@ -51,9 +81,44 @@ class CwsTerraformCommand(CwsCommand, ABC):
         if not dry or options.get('stop') == step:
             if debug:
                 print(msg)
-            output = str(Path(terraform.working_dir) / f"{app.name}.tf")
+            output = str(Path(terraform.working_dir) / filename)
             app.execute(cls.WRITER_CMD, template=["terraform.j2"], output=output, aws_region=aws_region,
-                        step=step, key=key, resources=terraform_resources(app), **options)
+                        step=step, resources=cls.terraform_resources(app), **options)
+
+    @staticmethod
+    def terraform_resources(app):
+        """Returns the list of flatten path (prev, last, entry)."""
+        resources = {}
+
+        def add_entries(previous, last, entries: List[Entry]):
+            ter_entry = TerraformResource(previous, last, entries, app.config.cors)
+            uid = ter_entry.uid
+            if uid not in resources:
+                resources[uid] = ter_entry
+            if resources[uid].entries is None:
+                resources[uid].entries = entries
+            return uid
+
+        for route, entries in app.entries.items():
+            previous_uid = ''
+            if route.startswith('/'):
+                route = route[1:]
+            splited_route = route.split('/')
+
+            # special root case
+            if splited_route == ['']:
+                add_entries(None, None, entries)
+                continue
+
+            # creates intermediate resources
+            last_path = splited_route[-1:][0]
+            for prev in splited_route[:-1]:
+                previous_uid = add_entries(previous_uid, prev, entries)
+
+            # set entry keys for last entry
+            add_entries(previous_uid, last_path, entries)
+
+        return resources
 
 
 class CwsTerraformDeployer(CwsTerraformCommand):
@@ -86,16 +151,16 @@ class CwsTerraformDeployer(CwsTerraformCommand):
         terraform = Terraform()
         terraform.init()
 
-        # output, dry and create are global options
+        # Output, dry and create are global options
         dry = create = False
         for command, options in execution_list:
-            dry = dry or options.pop('dry', False)
-            create = create or options.pop('create', False)
+            dry = options.pop('dry', False) or dry
+            create = options.pop('create', False) or create
 
-            # set default key value
-            options['key'] = options['key'] or f"{command.app.name}/archive.zip"
+            # Set default bucket key value
+            options['key'] = options['key'] or f"{options.get('module')}-{command.app.name}/archive.zip"
 
-            # Only print output
+            # Stop if only print output
             output = options.pop('output', False)
             if output:
                 print(f"terraform output : {terraform.output()}")
@@ -114,7 +179,7 @@ class CwsTerraformDeployer(CwsTerraformCommand):
             print(f"Uploading zip to S3")
             module_name = options.pop('module_name')
             ignore = options.pop('ignore') or ['.*', 'terraform']
-            options.pop('hash')  # forces hash file
+            options.pop('hash')
             command.app.execute(cls.ZIP_CMD, ignore=ignore, module_name=module_name, hash=True, **options)
 
         # Generates default provider
@@ -122,8 +187,9 @@ class CwsTerraformDeployer(CwsTerraformCommand):
 
         # Generates terraform files (create step)
         for command, options in execution_list:
+            terraform_filename = f"{command.app.name}.{command.app.ms_type}.tf"
             msg = f"Generate terraform files for creating API and lambdas for {command.app.name}"
-            cls.generate_terraform_files("create", command.app, terraform, msg, dry=dry, **options)
+            cls.generate_terraform_files("create", command.app, terraform, terraform_filename, msg, dry=dry, **options)
 
         # Apply terraform if not dry (create API with null resources and lambda step)
         if not dry:
@@ -132,8 +198,9 @@ class CwsTerraformDeployer(CwsTerraformCommand):
 
         # Generates terraform files (update step)
         for command, options in execution_list:
+            terraform_filename = f"{command.app.name}.{command.app.ms_type}.tf"
             msg = f"Generate terraform files for updating API routes and deploiement for {command.app.name}"
-            cls.generate_terraform_files("update", command.app, terraform, msg, dry=dry, **options)
+            cls.generate_terraform_files("update", command.app, terraform, terraform_filename, msg, dry=dry, **options)
 
         # Apply terraform if not dry (update API routes and deploy step)
         if not dry:
@@ -285,68 +352,3 @@ class Terraform:
             _, out, err = self.terraform.workspace('new', workspace, raise_on_error=True)
         if not (Path(self.working_dir) / '.terraform').exists():
             self.terraform.init(input=False, raise_on_error=True)
-
-
-@dataclass
-class TerraformResource:
-    parent_uid: str
-    path: str
-    entries: List[Entry]
-    cors: CORSConfig
-
-    @property
-    def uid(self):
-        def remove_brackets(path):
-            return f"{path.replace('{', '').replace('}', '')}"
-
-        if self.path is None:
-            return ''
-
-        last = remove_brackets(self.path)
-        return f"{self.parent_uid}{UID_SEP}{last}" if self.parent_uid else last
-
-    @property
-    def is_root(self):
-        return self.path is None
-
-    @property
-    def parent_is_root(self):
-        return self.parent_uid == ''
-
-    def __repr__(self):
-        return f"{self.uid}:{self.entries}"
-
-
-def terraform_resources(app):
-    """Returns the list of flatten path (prev, last, entry)."""
-    resources = {}
-
-    def add_entries(previous, last, entries: List[Entry]):
-        ter_entry = TerraformResource(previous, last, entries, app.config.cors)
-        uid = ter_entry.uid
-        if uid not in resources:
-            resources[uid] = ter_entry
-        if resources[uid].entries is None:
-            resources[uid].entries = entries
-        return uid
-
-    for route, entries in app.entries.items():
-        previous_uid = ''
-        if route.startswith('/'):
-            route = route[1:]
-        splited_route = route.split('/')
-
-        # special root case
-        if splited_route == ['']:
-            add_entries(None, None, entries)
-            continue
-
-        # creates intermediate resources
-        last_path = splited_route[-1:][0]
-        for prev in splited_route[:-1]:
-            previous_uid = add_entries(previous_uid, prev, entries)
-
-        # set entry keys for last entry
-        add_entries(previous_uid, last_path, entries)
-
-    return resources

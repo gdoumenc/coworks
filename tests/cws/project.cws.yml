@@ -1,11 +1,11 @@
-version: ">=11"
+version: 2
 services:
   - module: m1
     services:
-      - service: s1
-      - service: s2
+      - s1
+      - s2
   - module: m2
-    service: s3
+    services: s3
 commands:
   test_command0:
     option_key1: option_value1

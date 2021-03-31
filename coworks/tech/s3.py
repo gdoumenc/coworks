@@ -2,7 +2,7 @@ import json
 
 from chalice import BadRequestError, NotFoundError
 
-from ..coworks import TechMicroService, aws
+from ..coworks import TechMicroService
 
 
 class S3MicroService(TechMicroService):

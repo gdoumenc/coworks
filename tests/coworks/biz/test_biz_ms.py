@@ -3,11 +3,11 @@ from unittest.mock import Mock
 
 import pytest
 
-from coworks import BizFactory, Every, At
+# from coworks import Every, At
 from coworks.config import Config
 
 
-class TestClass:
+class ToBeRedoneTestClass:
 
     def test_biz_reactor(self):
         fact = BizFactory('step_function')

@@ -5,13 +5,13 @@ import pytest
 import yaml
 from unittest.mock import Mock, MagicMock
 
-from coworks import BizFactory, entry
+from coworks import entry
 from coworks.cws.sfn import StepFunction, TechState, CwsSFNTranslater
 from coworks.cws.writer import CwsWriterError
 from tests.coworks.tech_ms import S3MockTechMS
 
 
-class TestStepFunction(StepFunction):
+class ToBeRedoneTestStepFunction(StepFunction):
 
     def __init__(self, data):
         filepath = Mock()
@@ -44,7 +44,7 @@ class TechMS(S3MockTechMS):
         return f"get {value} and {other}"
 
 
-class TestClass:
+class ToBeRedoneTestClass:
     os.environ["WORKSPACE"] = ''  # not sure where this should be set
 
     def test_no_params(self):
