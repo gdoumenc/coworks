@@ -6,7 +6,7 @@ from email.message import EmailMessage
 import requests
 from aws_xray_sdk.core import xray_recorder
 
-from coworks import Blueprint, FileParam, entry
+from coworks import Blueprint, FileParam, entry, MicroServiceProxy
 
 
 class Mail(Blueprint):
@@ -96,3 +96,13 @@ class Mail(Blueprint):
             return "Wrong username/password : cannot connect.", 400
         except Exception as e:
             return f"Cannot send email message (Error: {str(e)}).", 400
+
+
+class MailProxy(MicroServiceProxy):
+
+    def send(self, path, data, sync=False):
+        if not sync:
+            self.session.headers.update({'InvocationType': 'Event'})
+        return self.session.post(f'{self.url}/send', json=data)
+
+

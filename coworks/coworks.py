@@ -345,16 +345,16 @@ class MicroServiceProxy:
 
     def __init__(self, env_name, **kwargs):
         self.session = requests.Session()
-        id = os.getenv(f'{env_name}_CWS_ID')
-        token = os.getenv(f'{env_name}_CWS_TOKEN')
-        stage = os.getenv(f'{env_name}_CWS_STAGE')
+        self.cws_id = os.getenv(f'{env_name}_CWS_ID')
+        self.cws_token = os.getenv(f'{env_name}_CWS_TOKEN')
+        self.cws_stage = os.getenv(f'{env_name}_CWS_STAGE')
 
         self.session.headers.update(
             {
-                'authorization': token,
+                'authorization': self.cws_token,
                 'content-type': 'application/json',
             })
-        self.url = f"https://{id}.execute-api.eu-west-1.amazonaws.com/{stage}"
+        self.url = f"https://{self.cws_id}.execute-api.eu-west-1.amazonaws.com/{self.cws_stage}"
 
     def get(self, path, data=None):
         return self.session.get(f'{self.url}/{path}', data=data)
