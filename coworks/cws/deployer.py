@@ -279,23 +279,29 @@ class CwsTerraformDestroyer(CwsTerraformCommand):
         if debug:
             name = f"{module}-{options['service']}"
             where = f"{bucket}/{key}"
-            print(f"Removing zip sources of {name} from s3:{where} {'(not done)' if dry else ''}")
+            print(f"Removing zip sources of {name} from s3: {where} {'(not done)' if dry else ''}")
 
-        aws_s3_session.client.delete_object(Bucket=bucket, Key=key)
-        aws_s3_session.client.delete_object(Bucket=bucket, Key=f"{key}.b64sha256")
-        if debug:
-            print(f"Successfully removed sources at s3://{bucket}/{key}")
+        if not dry:
+            aws_s3_session.client.delete_object(Bucket=bucket, Key=key)
+            aws_s3_session.client.delete_object(Bucket=bucket, Key=f"{key}.b64sha256")
+            if debug:
+                print(f"Successfully removed sources at s3://{bucket}/{key}")
 
-    def terraform_destroy(self, *, workspace, **options):
+    def terraform_destroy(self, *, workspace, debug, dry, **options):
         terraform = Terraform()
 
-        msg = f"Generate terraform files for creating API and lambdas for {self.app.name}"
-        self.generate_terraform_files("create", self.app, terraform, msg, **options)
+        if not dry:
+            for w in terraform.workspace_list():
+                if w in ["default", workspace]:
+                    print(f"Terraform destroy ({w})", flush=True)
+                    terraform.destroy(w)
 
-        for w in terraform.workspace_list():
-            if w in ["default", workspace]:
-                print(f"Terraform destroy ({w})", flush=True)
-                terraform.destroy(w)
+        terraform_filename = f"{self.app.name}.{self.app.ms_type}.tf"
+        output = Path(terraform.working_dir) / terraform_filename
+        if debug:
+            print(f"Removing terraform files: {output} {'(not done)' if dry else ''}")
+        if not dry:
+            output.unlink(missing_ok=True)
 
 
 logging.getLogger("python_terraform").setLevel(logging.ERROR)
