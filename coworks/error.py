@@ -40,3 +40,7 @@ class UnprocessableEntityError(ChaliceViewError):
 
 class TooManyRequestsError(ChaliceViewError):
     STATUS_CODE = 429
+
+
+class InternalServerError(ChaliceViewError):
+    STATUS_CODE = 500

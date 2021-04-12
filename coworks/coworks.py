@@ -291,8 +291,8 @@ class TechMicroService(CoworksMixin, Chalice):
     def _entry(self, path: str, method: str) -> Optional[Entry]:
         """Finds the entry corresponding to the route."""
         pathes = [x for x in path.split('/') if x]
-        for entry, result in self.entries.items():
-            entry_pathes = [x for x in entry.split('/') if x]
+        for entry_path, result in self.entries.items():
+            entry_pathes = [x for x in entry_path.split('/') if x]
             if len(pathes) != len(entry_pathes):
                 continue
 
@@ -340,6 +340,7 @@ class TechMicroService(CoworksMixin, Chalice):
         except Exception as e:
             self.log.debug(f"Error in api handler for {self.name} : {e}")
             raise
+
 
 class MicroServiceProxy:
 
