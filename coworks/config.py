@@ -119,25 +119,25 @@ class LocalConfig(Config):
             self.auth = no_check
 
 
-class ProdConfig(Config):
-    """ Production configuration have workspace's name corresponding to version's name."""
-
-    def __init__(self, pattern=r"v[1-9]+", token_var_name='TOKEN', **kwargs):
-        super().__init__(**kwargs)
-        self.pattern = pattern
+class DevConfig(Config):
+    def __init__(self, token_var_name='TOKEN', **kwargs):
+        super().__init__(workspace='dev', **kwargs)
 
         if self.auth is None:
             def check_token(auth_request):
                 """Authorization method testing token value in header."""
                 valid = (auth_request.token == os.getenv(token_var_name))
-                # if not valid:
-                #     msg = f"Wrong token : request token {auth_request.token} != lambda token {os.getenv('TOKEN')}"
-                # else:
-                #     msg = f"Authorization validated"
-                # _self.log.debug(msg)
                 return valid
 
             self.auth = check_token
+
+
+class ProdConfig(DevConfig):
+    """ Production configuration have workspace's name corresponding to version's name."""
+
+    def __init__(self, pattern=r"v[1-9]+", token_var_name='TOKEN', **kwargs):
+        super().__init__(**kwargs)
+        self.pattern = pattern
 
     def is_valid_for(self, workspace):
         return re.match(self.pattern, workspace) is not None

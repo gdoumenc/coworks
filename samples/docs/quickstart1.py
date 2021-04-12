@@ -1,4 +1,5 @@
 from coworks import TechMicroService, entry
+from coworks.config import Config
 from coworks.cws.runner import CwsRunner
 
 
@@ -9,5 +10,5 @@ class SimpleMicroService(TechMicroService):
         return "Simple microservice ready.\n"
 
 
-app = SimpleMicroService()
+app = SimpleMicroService(configs=Config())
 CwsRunner(app)

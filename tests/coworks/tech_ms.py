@@ -4,11 +4,12 @@ from unittest.mock import MagicMock
 from chalice import Response
 
 from coworks import TechMicroService, entry
+from coworks.config import LocalConfig
 
 
 class TechMS(TechMicroService):
-    def __init__(self, **kwargs):
-        super().__init__(name='test', **kwargs)
+    def __init__(self, configs=None, **kwargs):
+        super().__init__(name='test', configs=configs or LocalConfig(), **kwargs)
 
 
 class S3MockTechMS(TechMicroService):

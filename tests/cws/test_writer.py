@@ -34,8 +34,10 @@ class TestClass:
 
         assert 'GET' in simple.entries['extended/content']
         assert 'POST' not in simple.entries['extended/content']
+        assert 'extended' not in simple.entries
         assert not writer.terraform_resources(simple)['extended'].is_root
         assert writer.terraform_resources(simple)['extended'].path == 'extended'
+        assert writer.terraform_resources(simple)['extended'].entries is None
 
         assert 'GET' in simple.entries['kwparam1']
         assert 'POST' not in simple.entries['kwparam1']

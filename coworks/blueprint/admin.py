@@ -11,7 +11,7 @@ from coworks.utils import make_absolute
 class Admin(Blueprint):
 
     @entry
-    def get_routes(self, pretty=False):
+    def get_route(self, pretty=False):
         """Returns the list of entrypoints with signature."""
         routes = {}
         for path, entrypoint in self._current_app.entries.items():

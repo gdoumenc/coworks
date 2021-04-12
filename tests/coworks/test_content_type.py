@@ -5,12 +5,12 @@ from unittest.mock import MagicMock
 import requests
 
 from coworks import TechMicroService, entry
-from coworks.cws.sfn import TechState
+from coworks.config import Config
 
 
 class TechMS(TechMicroService):
     def __init__(self):
-        super().__init__(name='test')
+        super().__init__(name='test', configs=Config())
 
     @entry
     def post_params(self, text=None, context=None, files=None):

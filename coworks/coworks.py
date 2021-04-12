@@ -10,7 +10,7 @@ from chalice.app import AuthRequest
 from typing import Callable
 from typing import Dict, List, Union, Optional
 
-from .config import Config, LocalConfig, ProdConfig, DEFAULT_PROJECT_DIR, DEFAULT_WORKSPACE
+from .config import Config, LocalConfig, DevConfig, ProdConfig, DEFAULT_PROJECT_DIR, DEFAULT_WORKSPACE
 from .mixins import CoworksMixin
 from .utils import trim_underscores, HTTP_METHODS
 
@@ -113,7 +113,7 @@ class Blueprint(CoworksMixin, ChaliceBlueprint):
         for func in self.after_activation_funcs:
             self.current_app.after_activation(func)
         for func in self.handle_exception_funcs:
-            self.current_app.handle_exception_funcs(func)
+            self.current_app.handle_exception(func)
 
 
 class TechMicroService(CoworksMixin, Chalice):
@@ -131,7 +131,7 @@ class TechMicroService(CoworksMixin, Chalice):
         """
         name = name or self.__class__.__name__.lower()
 
-        self.configs = configs or [LocalConfig(), ProdConfig()]
+        self.configs = configs or [LocalConfig(), DevConfig(), ProdConfig()]
         if type(self.configs) is not list:
             self.configs = [configs]
         self.config = None
@@ -228,13 +228,14 @@ class TechMicroService(CoworksMixin, Chalice):
             self.do_before_first_activation(event, context)
             self.do_before_activation(event, context)
             response = self.handler(event, context)
-            return self.do_after_activation(response)
+            self.do_after_activation(response)
+            return self._convert_response(response)
         except Exception as e:
             self.log.error(f"exception: {e}")
             response = self.do_handle_exception(event, context, e)
             if response is None:
                 raise
-            return response
+            return self._convert_response(response)
 
     def handler(self, event, context):
         """Main microservice entry point."""
@@ -340,7 +341,6 @@ class TechMicroService(CoworksMixin, Chalice):
             self.log.debug(f"Error in api handler for {self.name} : {e}")
             raise
 
-
 class MicroServiceProxy:
 
     def __init__(self, env_name, **kwargs):
@@ -359,10 +359,12 @@ class MicroServiceProxy:
     def get(self, path, data=None):
         return self.session.get(f'{self.url}/{path}', data=data)
 
-    def post(self, path, data, sync=True):
+    def post(self, path, data=None, attachments=None, headers=None, sync=True):
+        if headers:
+            self.session.headers.update(headers)
         if not sync:
             self.session.headers.update({'InvocationType': 'Event'})
-        return self.session.post(f'{self.url}/{path}', json=data)
+        return self.session.post(f'{self.url}/{path}', json=data or {}, files=attachments)
 
 
 class BizMicroService(TechMicroService):

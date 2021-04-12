@@ -10,7 +10,7 @@ from itertools import chain, repeat
 from pathlib import Path
 from threading import Thread
 from time import sleep
-from typing import List
+from typing import List, Optional
 
 from coworks.aws import AwsS3Session
 from coworks.coworks import Entry
@@ -90,7 +90,7 @@ class CwsTerraformCommand(CwsCommand, ABC):
         """Returns the list of flatten path (prev, last, entry)."""
         resources = {}
 
-        def add_entries(previous, last, entries: List[Entry]):
+        def add_entries(previous, last, entries: Optional[List[Entry]]):
             ter_entry = TerraformResource(previous, last, entries, app.config.cors)
             uid = ter_entry.uid
             if uid not in resources:
@@ -113,7 +113,7 @@ class CwsTerraformCommand(CwsCommand, ABC):
             # creates intermediate resources
             last_path = splited_route[-1:][0]
             for prev in splited_route[:-1]:
-                previous_uid = add_entries(previous_uid, prev, entries)
+                previous_uid = add_entries(previous_uid, prev, None)
 
             # set entry keys for last entry
             add_entries(previous_uid, last_path, entries)

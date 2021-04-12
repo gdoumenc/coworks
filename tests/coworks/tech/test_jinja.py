@@ -1,24 +1,23 @@
 import json
-import os
-import urllib.parse
-import tempfile
-
 import requests
+import tempfile
+import urllib.parse
 
+from coworks.config import LocalConfig
 from coworks.tech.jinja import JinjaRenderMicroService
 
 
 class TestClass:
 
     def test_render_template_in_url(self, local_server_factory):
-        local_server = local_server_factory(JinjaRenderMicroService())
+        local_server = local_server_factory(JinjaRenderMicroService(configs=LocalConfig()))
         template = urllib.parse.quote_plus("hello {{ world_name }}")
         response = local_server.make_call(requests.get, f"/render/{template}", params={'world_name': 'world'})
         assert response.status_code == 200
         assert response.json() == {"render": "hello [\'world\']"}
 
     def test_render_template_multipart_form(self, local_server_factory):
-        local_server = local_server_factory(JinjaRenderMicroService())
+        local_server = local_server_factory(JinjaRenderMicroService(configs=LocalConfig()))
 
         template = tempfile.TemporaryFile()
         template.write("hello {{ world_name }}".encode())

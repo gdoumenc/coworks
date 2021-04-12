@@ -8,7 +8,7 @@ from functools import update_wrapper, partial
 
 from aws_xray_sdk.core import xray_recorder
 from botocore.exceptions import BotoCoreError
-from chalice import AuthResponse, Response
+from chalice import AuthResponse, Response, ChaliceViewError
 from requests_toolbelt.multipart import MultipartDecoder
 
 from .aws import AwsS3Session
@@ -237,7 +237,7 @@ class CoworksMixin:
                             add_param(k, value if len(value) > 1 else value[0])
                         kwargs = dict(**kwargs, **params)
                 else:
-                    if not args and (req.json_body or req.query_params):
+                    if not args and (req.raw_body or req.query_params):
                         err = f"TypeError: got an unexpected arguments (body: {req.raw_body}, query: {req.query_params}"
                         return Response(body=err, status_code=400)
 
@@ -248,7 +248,9 @@ class CoworksMixin:
 
                 resp = func(self, **kwargs)
                 self.__class__ = self_class
-                return _convert_response(resp)
+                return self._convert_response(resp)
+            except ChaliceViewError:
+                raise
             except TypeError as e:
                 return Response(body=str(e), status_code=400)
             except Exception:
@@ -366,20 +368,20 @@ class CoworksMixin:
                 data[k] = self._get_data_on_s3(v)
         return data
 
-
-def _convert_response(resp):
-    if type(resp) is tuple:
-        if len(resp) == 2:
-            if type(resp[1]) is int:
-                return Response(body=resp[0], status_code=resp[1])
-            elif type(resp[1]) is dict:
-                return Response(body=resp[0], status_code=200, headers=resp[1])
+    @staticmethod
+    def _convert_response(resp):
+        if type(resp) is tuple:
+            if len(resp) == 2:
+                if type(resp[1]) is int:
+                    return Response(body=resp[0], status_code=resp[1])
+                elif type(resp[1]) is dict:
+                    return Response(body=resp[0], status_code=200, headers=resp[1])
+                else:
+                    return Response(body="Internal error (wrong result type)", status_code=500)
             else:
-                return Response(body="Internal error (wrong result type)", status_code=500)
-        else:
-            return Response(body=resp[0], status_code=resp[1], headers=resp[2])
+                return Response(body=resp[0], status_code=resp[1], headers=resp[2])
 
-    return resp
+        return resp
 
 
 class FileParam:

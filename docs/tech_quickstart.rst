@@ -3,7 +3,7 @@
 TechMS Quickstart
 =================
 
-This page gives a quick and partial introduction to Coworks technical microservices.
+This page gives a quick and partial introduction to CoWorks Technical Microservices.
 Follow :doc:`installation` to set up a project and install Coworks first.
 
 A tech microservice is simply defined by a single python class which looks like this:
