@@ -109,7 +109,7 @@ class Config:
 
 class LocalConfig(Config):
     def __init__(self, **kwargs):
-        super().__init__(workspace='local', **kwargs)
+        super().__init__(workspace='local', environment_variables={"AWS_XRAY_SDK_ENABLED": False}, **kwargs)
 
         if self.auth is None:
             def no_check(auth_request):

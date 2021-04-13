@@ -1,11 +1,11 @@
 import json
 import os
-from typing import List, Tuple, Any
-
 import requests
 from aws_xray_sdk.core import xray_recorder
+from typing import List, Tuple, Union, Any
 
 from .. import Blueprint, entry
+from ..error import NotFoundError, InternalServerError
 
 
 class AccessDenied(Exception):
@@ -69,7 +69,7 @@ class Odoo(Blueprint):
 
     @entry
     def get(self, model: str, query: str = "{*}", order: str = None, filters: List[Tuple[str, str, Any]] = None,
-            limit: int = 300, page_size=None, page=0) -> dict:
+            limit: int = 300, page_size=None, page=0, ensure_one=False) -> Tuple[Union[dict, List[dict]], int]:
         params = {'query': query, 'limit': limit}
         if order:
             params.update({'order': order})
@@ -81,17 +81,24 @@ class Odoo(Blueprint):
             params.update({'page': page})
         res, status_code = self.odoo_get(f'{self.url}/api/{model}', params)
         if status_code == 200:
+            if ensure_one:
+                if len(res['result']) == 0:
+                    raise NotFoundError()
+                if len(res['result']) > 1:
+                    raise InternalServerError("More than one result")
+                else:
+                    return res['result'][0], 200
             return res['result'], 200
         return res, status_code
 
     @entry
-    def get_(self, model: str, rec_id: int, query="{*}") -> dict:
+    def get_(self, model: str, rec_id: int, query="{*}") -> Tuple[dict, int]:
         params = {'query': query}
         res, status_code = self.odoo_get(f'{self.url}/api/{model}/{rec_id}', params)
         return res, status_code
 
     @entry
-    def get_pdf(self, report_id: int, rec_ids: List[int]) -> dict:
+    def get_pdf(self, report_id: int, rec_ids: List[int]) -> Tuple[dict, int]:
         params = {'params': {'res_ids': json.dumps(rec_ids)}}
         res, status_code = self.odoo_post(f"{self.url}/report/{report_id}", params=params)
         if status_code == 200:
@@ -99,8 +106,8 @@ class Odoo(Blueprint):
         return res, status_code
 
     @entry
-    def post(self, model: str, data={}, context=None) -> id:
-        params = {'params': {'data': data}}
+    def post(self, model: str, data=None, context=None) -> Tuple[dict, int]:
+        params = {'params': {'data': data or {}}}
         if context:
             params.update({'context': context})
         res, status_code = self.odoo_post(f"{self.url}/api/{model}", params=params)
@@ -122,7 +129,7 @@ class Odoo(Blueprint):
             return res.text, 500
 
     @xray_recorder.capture()
-    def odoo_post(self, path, params, headers=None):
+    def odoo_post(self, path, params, headers=None) -> Tuple[Union[str, dict], int]:
         _params = {'jsonrpc': "2.0", 'session_id': self.session_id}
         headers = headers or {}
         res = requests.post(path, params=_params, json=params, headers=headers)
@@ -132,8 +139,7 @@ class Odoo(Blueprint):
                 return f"{result['error']['message']}:{result['error']['data']}", 404
             return result, res.status_code
         except (json.decoder.JSONDecodeError, Exception):
-            return res, 500
-        return res, res.status_code
+            return res.text, 500
 
     def _get_session_id(self):
         """Open or checks the connection."""
