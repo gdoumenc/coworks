@@ -1,8 +1,9 @@
 import json
 import os
+from typing import List, Tuple, Union, Any
+
 import requests
 from aws_xray_sdk.core import xray_recorder
-from typing import List, Tuple, Union, Any
 
 from .. import Blueprint, entry
 from ..error import NotFoundError, InternalServerError
@@ -88,18 +89,22 @@ class Odoo(Blueprint):
         if status_code == 200:
             if ensure_one:
                 if len(res['result']) == 0:
-                    raise NotFoundError(f"Noting found for {model} with {filters}")
+                    raise NotFoundError(f"Nothing found for {model} with {filters} [Odoo blueprint {self.name}]")
                 if len(res['result']) > 1:
                     raise InternalServerError("More than one result")
                 else:
                     return res['result'][0], 200
             return res['result'], 200
+        if status_code == 500:
+            raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
         return res, status_code
 
     @entry
     def get_(self, model: str, rec_id: int, query="{*}") -> Response:
         params = {'query': query}
         res, status_code = self.odoo_get(f'{self.url}/api/{model}/{rec_id}', params)
+        if status_code == 500:
+            raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
         return res, status_code
 
     @entry
@@ -108,6 +113,8 @@ class Odoo(Blueprint):
         res, status_code = self.odoo_post(f"{self.url}/report/{report_id}", params=params)
         if status_code == 200:
             return res['result'], 200
+        if status_code == 500:
+            raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
         return res, status_code
 
     @entry
@@ -118,12 +125,16 @@ class Odoo(Blueprint):
         res, status_code = self.odoo_post(f"{self.url}/api/{model}", params=params)
         if status_code == 200:
             return res['result'], 200
+        if status_code == 500:
+            raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
         return res, status_code
 
     @entry
     def put(self, model: str, rec_id: int, data=None) -> Response:
         params = {'params': {'data': data or {}}}
         res, status_code = self.odoo_put(f'{self.url}/api/{model}/{rec_id}', params)
+        if status_code == 500:
+            raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
         return res, status_code
 
     @entry
@@ -133,6 +144,15 @@ class Odoo(Blueprint):
         if filters:
             params.update({'filter': filters})
         res, status_code = self.odoo_put(f'{self.url}/api/{model}', params)
+        if status_code == 500:
+            raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
+        return res, status_code
+
+    @entry
+    def delete(self, model: str, rec_id: int) -> Response:
+        res, status_code = self.odoo_delete(f'{self.url}/api/{model}/{rec_id}')
+        if status_code == 500:
+            raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
         return res, status_code
 
     @xray_recorder.capture()
@@ -166,6 +186,19 @@ class Odoo(Blueprint):
         _params = {'jsonrpc': "2.0", 'session_id': self.session_id}
         headers = headers or {}
         res = requests.put(path, params=_params, json=params, headers=headers)
+        try:
+            result = res.json()
+            if 'error' in result:
+                return f"{result['error']['message']}:{result['error']['data']}", 404
+            return result, res.status_code
+        except (json.decoder.JSONDecodeError, Exception):
+            return res.text, 500
+
+    @xray_recorder.capture()
+    def odoo_delete(self, path, headers=None) -> Tuple[Union[str, dict], int]:
+        _params = {'jsonrpc': "2.0", 'session_id': self.session_id}
+        headers = headers or {}
+        res = requests.delete(path, params=_params, headers=headers)
         try:
             result = res.json()
             if 'error' in result:
