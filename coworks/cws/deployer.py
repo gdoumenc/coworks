@@ -1,16 +1,16 @@
-from dataclasses import dataclass
-
-import boto3
-import click
 import itertools
 import logging
 import sys
 from abc import ABC
+from dataclasses import dataclass
 from itertools import chain, repeat
 from pathlib import Path
 from threading import Thread
 from time import sleep
 from typing import List, Optional
+
+import boto3
+import click
 
 from coworks.aws import AwsS3Session
 from coworks.coworks import Entry
@@ -139,11 +139,12 @@ class CwsTerraformDeployer(CwsTerraformCommand):
             *super().options,
             *self.zip_cmd.options,
             click.option('--binary_media_types'),
-            click.option('--create', '-c', is_flag=True, help="May create or recreate the API."),
-            click.option('--dry', is_flag=True, help="Doesn't perform deploy."),
+            click.option('--create', '-c', is_flag=True, help="May create or recreate the API [Global option only]."),
+            click.option('--dry', is_flag=True, help="Doesn't perform deploy [Global option only]."),
             click.option('--layers', '-l', multiple=True),
             click.option('--output', '-o', is_flag=True, help="Print terraform output values."),
             click.option('--stop', type=click.Choice(['create', 'update']), help="Stop the terraform generation"),
+            click.option('--update', '-u', is_flag=True, help="Only update lambda code [Global option only]."),
         ]
 
     @classmethod
@@ -151,11 +152,12 @@ class CwsTerraformDeployer(CwsTerraformCommand):
         terraform = Terraform()
         terraform.init()
 
-        # Output, dry and create are global options
-        dry = create = False
+        # Output, dry, create and update are global options
+        dry = create = update_lambda_only = False
         for command, options in execution_list:
             dry = options.pop('dry', False) or dry
             create = options.pop('create', False) or create
+            update_lambda_only = options.pop('update', False) or update_lambda_only
 
             # Set default bucket key value
             options['key'] = options['key'] or f"{options.get('module')}-{command.app.name}/archive.zip"
@@ -186,26 +188,31 @@ class CwsTerraformDeployer(CwsTerraformCommand):
         cls.generate_common_terraform_files()
 
         # Generates terraform files (create step)
-        for command, options in execution_list:
-            terraform_filename = f"{command.app.name}.{command.app.ms_type}.tf"
-            msg = f"Generate terraform files for creating API and lambdas for {command.app.name}"
-            cls.generate_terraform_files("create", command.app, terraform, terraform_filename, msg, dry=dry, **options)
+        if not update_lambda_only:
+            for command, options in execution_list:
+                terraform_filename = f"{command.app.name}.{command.app.ms_type}.tf"
+                msg = f"Generate terraform files for creating API and lambdas for {command.app.name}"
+                cls.generate_terraform_files("create", command.app, terraform, terraform_filename, msg, dry=dry,
+                                             **options)
 
         # Apply terraform if not dry (create API with null resources and lambda step)
+        # or in case of only updating lambda code
         if not dry:
             msg = ["Create API", "Create lambda"] if create else ["Update API", "Update lambda"]
-            cls.terraform_apply(terraform, workspace, msg)
+            cls.terraform_apply(terraform, workspace, msg, update_lambda_only=update_lambda_only)
 
         # Generates terraform files (update step)
-        for command, options in execution_list:
-            terraform_filename = f"{command.app.name}.{command.app.ms_type}.tf"
-            msg = f"Generate terraform files for updating API routes and deploiement for {command.app.name}"
-            cls.generate_terraform_files("update", command.app, terraform, terraform_filename, msg, dry=dry, **options)
+        if not update_lambda_only:
+            for command, options in execution_list:
+                terraform_filename = f"{command.app.name}.{command.app.ms_type}.tf"
+                msg = f"Generate terraform files for updating API routes and deploiement for {command.app.name}"
+                cls.generate_terraform_files("update", command.app, terraform, terraform_filename, msg, dry=dry,
+                                             **options)
 
-        # Apply terraform if not dry (update API routes and deploy step)
-        if not dry:
-            msg = ["Update API routes", f"Deploy API {workspace}"]
-            cls.terraform_apply(terraform, workspace, msg)
+            # Apply terraform if not dry (update API routes and deploy step)
+            if not dry:
+                msg = ["Update API routes", f"Deploy API {workspace}"]
+                cls.terraform_apply(terraform, workspace, msg)
 
         # Traces output
         print(f"terraform output : {terraform.output()}")
@@ -224,7 +231,10 @@ class CwsTerraformDeployer(CwsTerraformCommand):
             print('provider "aws" {\nprofile = "fpr-customer"\nregion = "eu-west-1"\n}', file=output, flush=True)
 
     @staticmethod
-    def terraform_apply(terraform, workspace, traces):
+    def terraform_apply(terraform, workspace, traces, update_lambda_only=False):
+        """In the default terraform workspace, we have the API.
+        In the specific workspace, we have the corresponding stagging lambda.
+        """
         stop = False
 
         def display_spinning_cursor():
@@ -235,14 +245,13 @@ class CwsTerraformDeployer(CwsTerraformCommand):
                 sys.stdout.flush()
                 sleep(0.1)
 
-        # In the default terraform workspace, we have the API.
-        # In the specific workspace, we have the correspondingg stagging lambda.
         spin_thread = Thread(target=display_spinning_cursor)
         spin_thread.start()
 
         try:
-            print(f"Terraform apply ({traces[0]})", flush=True)
-            terraform.apply("default")
+            if not update_lambda_only:
+                print(f"Terraform apply ({traces[0]})", flush=True)
+                terraform.apply("default")
             print(f"Terraform apply ({traces[1]})", flush=True)
             terraform.apply(workspace)
         finally:

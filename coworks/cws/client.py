@@ -72,6 +72,9 @@ def invoke(ctx):
 
             # Adds command and global options
             options = {**command_options, **client_options, '_from_cws': True}
+            if options.get('help', False):
+                print(command.get_help(ctx))
+                return
             command.make_context(command.name, options)
             commands_to_be_executed.append(command, options)
 
@@ -243,7 +246,6 @@ class ServiceConfig:
             for needed in cmd.needed_commands:
                 self.get_command(needed, ms)
 
-            click.help_option()(cmd)
             return cmd
 
     def _command_class(self, cmd_name):
