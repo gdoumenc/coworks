@@ -64,10 +64,11 @@ class XRayContextManager:
                 if subsegment:
                     subsegment.put_annotation('service', app.name)
                     subsegment.add_exception(e, traceback.extract_stack())
-            except Exception:
+            finally:
                 return {
                     'headers': {},
                     'multiValueHeaders': {},
                     'statusCode': 500,
-                    'body': "Exception in microservice, see logs in XRay"
+                    'body': "Exception in microservice, see logs in XRay for more details",
+                    'error': str(e)
                 }

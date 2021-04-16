@@ -21,10 +21,14 @@
 
 Coworks is an unified compositional microservices framework over AWS technologies and
 based on the `Chalice <https://github.com/aws/chalice>`__ microframework.
-The aim of this project, is to offer a very simplified experience of microservices over the awesome technologies of AWS.
+The aim of this project, is to offer a very simplified experience of microservices over the Lambda product
+of AWS and mainly to extends their usage over the asynchronous and orchestration topics.
 
 Each atomic microservice (Tech Microservice) is a simple python class deployed as serverless Lambda and
 can be called synchronously or asynchronously.
+
+A composition of such tech microservices is done by business microservice (Biz Microservice) with mainly
+decoupled asynchronous interactions.
 
 You can get a quickstart on `TechMicroService <https://coworks.readthedocs.io/en/latest/tech_quickstart.html>`_ then
 continue with `BizMicroService <https://coworks.readthedocs.io/en/latest/biz_quickstart.html>`_

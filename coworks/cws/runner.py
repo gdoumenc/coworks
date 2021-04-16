@@ -81,7 +81,7 @@ class ThreadedLocalServer(Thread):
 
     def configure(self, app_object, config=None, **kwargs):
         self._app_object = app_object
-        self._config = config if config else Config()
+        self._config = config
 
     def run(self):
         self._server = LocalDevServer(self._app_object, self._config, self._host, self._port, )

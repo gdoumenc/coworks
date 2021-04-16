@@ -7,7 +7,7 @@ from itertools import chain, repeat
 from pathlib import Path
 from threading import Thread
 from time import sleep
-from typing import List
+from typing import List, Optional
 
 import boto3
 import click
@@ -20,6 +20,36 @@ from .zip import CwsZipArchiver
 from ..config import CORSConfig
 
 UID_SEP = '_'
+
+
+@dataclass
+class TerraformResource:
+    parent_uid: str
+    path: str
+    entries: List[Entry]
+    cors: CORSConfig
+
+    @property
+    def uid(self):
+        def remove_brackets(path):
+            return f"{path.replace('{', '').replace('}', '')}"
+
+        if self.path is None:
+            return ''
+
+        last = remove_brackets(self.path)
+        return f"{self.parent_uid}{UID_SEP}{last}" if self.parent_uid else last
+
+    @property
+    def is_root(self):
+        return self.path is None
+
+    @property
+    def parent_is_root(self):
+        return self.parent_uid == ''
+
+    def __repr__(self):
+        return f"{self.uid}:{self.entries}"
 
 
 class CwsTerraformCommand(CwsCommand, ABC):
@@ -42,7 +72,7 @@ class CwsTerraformCommand(CwsCommand, ABC):
         return app.commands.get(self.WRITER_CMD) or CwsTemplateWriter(app)
 
     @classmethod
-    def generate_terraform_files(cls, step, app, terraform, msg, key, **options):
+    def generate_terraform_files(cls, step, app, terraform, filename, msg, **options):
         debug = options['debug']
         dry = options['dry']
         profile_name = options['profile_name']
@@ -51,9 +81,44 @@ class CwsTerraformCommand(CwsCommand, ABC):
         if not dry or options.get('stop') == step:
             if debug:
                 print(msg)
-            output = str(Path(terraform.working_dir) / f"{app.name}.tf")
+            output = str(Path(terraform.working_dir) / filename)
             app.execute(cls.WRITER_CMD, template=["terraform.j2"], output=output, aws_region=aws_region,
-                        step=step, key=key, resources=terraform_resources(app), **options)
+                        step=step, resources=cls.terraform_resources(app), **options)
+
+    @staticmethod
+    def terraform_resources(app):
+        """Returns the list of flatten path (prev, last, entry)."""
+        resources = {}
+
+        def add_entries(previous, last, entries: Optional[List[Entry]]):
+            ter_entry = TerraformResource(previous, last, entries, app.config.cors)
+            uid = ter_entry.uid
+            if uid not in resources:
+                resources[uid] = ter_entry
+            if resources[uid].entries is None:
+                resources[uid].entries = entries
+            return uid
+
+        for route, entries in app.entries.items():
+            previous_uid = ''
+            if route.startswith('/'):
+                route = route[1:]
+            splited_route = route.split('/')
+
+            # special root case
+            if splited_route == ['']:
+                add_entries(None, None, entries)
+                continue
+
+            # creates intermediate resources
+            last_path = splited_route[-1:][0]
+            for prev in splited_route[:-1]:
+                previous_uid = add_entries(previous_uid, prev, None)
+
+            # set entry keys for last entry
+            add_entries(previous_uid, last_path, entries)
+
+        return resources
 
 
 class CwsTerraformDeployer(CwsTerraformCommand):
@@ -74,11 +139,12 @@ class CwsTerraformDeployer(CwsTerraformCommand):
             *super().options,
             *self.zip_cmd.options,
             click.option('--binary_media_types'),
-            click.option('--create', '-c', is_flag=True, help="May create or recreate the API."),
-            click.option('--dry', is_flag=True, help="Doesn't perform deploy."),
+            click.option('--create', '-c', is_flag=True, help="May create or recreate the API [Global option only]."),
+            click.option('--dry', is_flag=True, help="Doesn't perform deploy [Global option only]."),
             click.option('--layers', '-l', multiple=True),
             click.option('--output', '-o', is_flag=True, help="Print terraform output values."),
             click.option('--stop', type=click.Choice(['create', 'update']), help="Stop the terraform generation"),
+            click.option('--update', '-u', is_flag=True, help="Only update lambda code [Global option only]."),
         ]
 
     @classmethod
@@ -86,16 +152,17 @@ class CwsTerraformDeployer(CwsTerraformCommand):
         terraform = Terraform()
         terraform.init()
 
-        # output, dry and create are global options
-        dry = create = False
+        # Output, dry, create and update are global options
+        dry = create = update_lambda_only = False
         for command, options in execution_list:
-            dry = dry or options.pop('dry', False)
-            create = create or options.pop('create', False)
+            dry = options.pop('dry', False) or dry
+            create = options.pop('create', False) or create
+            update_lambda_only = options.pop('update', False) or update_lambda_only
 
-            # set default key value
-            options['key'] = options['key'] or f"{command.app.name}/archive.zip"
+            # Set default bucket key value
+            options['key'] = options['key'] or f"{options.get('module')}-{command.app.name}/archive.zip"
 
-            # Only print output
+            # Stop if only print output
             output = options.pop('output', False)
             if output:
                 print(f"terraform output : {terraform.output()}")
@@ -114,31 +181,38 @@ class CwsTerraformDeployer(CwsTerraformCommand):
             print(f"Uploading zip to S3")
             module_name = options.pop('module_name')
             ignore = options.pop('ignore') or ['.*', 'terraform']
-            options.pop('hash')  # forces hash file
+            options.pop('hash')
             command.app.execute(cls.ZIP_CMD, ignore=ignore, module_name=module_name, hash=True, **options)
 
         # Generates default provider
         cls.generate_common_terraform_files()
 
         # Generates terraform files (create step)
-        for command, options in execution_list:
-            msg = f"Generate terraform files for creating API and lambdas for {command.app.name}"
-            cls.generate_terraform_files("create", command.app, terraform, msg, dry=dry, **options)
+        if not update_lambda_only:
+            for command, options in execution_list:
+                terraform_filename = f"{command.app.name}.{command.app.ms_type}.tf"
+                msg = f"Generate terraform files for creating API and lambdas for {command.app.name}"
+                cls.generate_terraform_files("create", command.app, terraform, terraform_filename, msg, dry=dry,
+                                             **options)
 
         # Apply terraform if not dry (create API with null resources and lambda step)
+        # or in case of only updating lambda code
         if not dry:
             msg = ["Create API", "Create lambda"] if create else ["Update API", "Update lambda"]
-            cls.terraform_apply(terraform, workspace, msg)
+            cls.terraform_apply(terraform, workspace, msg, update_lambda_only=update_lambda_only)
 
         # Generates terraform files (update step)
-        for command, options in execution_list:
-            msg = f"Generate terraform files for updating API routes and deploiement for {command.app.name}"
-            cls.generate_terraform_files("update", command.app, terraform, msg, dry=dry, **options)
+        if not update_lambda_only:
+            for command, options in execution_list:
+                terraform_filename = f"{command.app.name}.{command.app.ms_type}.tf"
+                msg = f"Generate terraform files for updating API routes and deploiement for {command.app.name}"
+                cls.generate_terraform_files("update", command.app, terraform, terraform_filename, msg, dry=dry,
+                                             **options)
 
-        # Apply terraform if not dry (update API routes and deploy step)
-        if not dry:
-            msg = ["Update API routes", f"Deploy API {workspace}"]
-            cls.terraform_apply(terraform, workspace, msg)
+            # Apply terraform if not dry (update API routes and deploy step)
+            if not dry:
+                msg = ["Update API routes", f"Deploy API {workspace}"]
+                cls.terraform_apply(terraform, workspace, msg)
 
         # Traces output
         print(f"terraform output : {terraform.output()}")
@@ -157,7 +231,10 @@ class CwsTerraformDeployer(CwsTerraformCommand):
             print('provider "aws" {\nprofile = "fpr-customer"\nregion = "eu-west-1"\n}', file=output, flush=True)
 
     @staticmethod
-    def terraform_apply(terraform, workspace, traces):
+    def terraform_apply(terraform, workspace, traces, update_lambda_only=False):
+        """In the default terraform workspace, we have the API.
+        In the specific workspace, we have the corresponding stagging lambda.
+        """
         stop = False
 
         def display_spinning_cursor():
@@ -168,14 +245,13 @@ class CwsTerraformDeployer(CwsTerraformCommand):
                 sys.stdout.flush()
                 sleep(0.1)
 
-        # In the default terraform workspace, we have the API.
-        # In the specific workspace, we have the correspondingg stagging lambda.
         spin_thread = Thread(target=display_spinning_cursor)
         spin_thread.start()
 
         try:
-            print(f"Terraform apply ({traces[0]})", flush=True)
-            terraform.apply("default")
+            if not update_lambda_only:
+                print(f"Terraform apply ({traces[0]})", flush=True)
+                terraform.apply("default")
             print(f"Terraform apply ({traces[1]})", flush=True)
             terraform.apply(workspace)
         finally:
@@ -212,23 +288,29 @@ class CwsTerraformDestroyer(CwsTerraformCommand):
         if debug:
             name = f"{module}-{options['service']}"
             where = f"{bucket}/{key}"
-            print(f"Removing zip sources of {name} from s3:{where} {'(not done)' if dry else ''}")
+            print(f"Removing zip sources of {name} from s3: {where} {'(not done)' if dry else ''}")
 
-        aws_s3_session.client.delete_object(Bucket=bucket, Key=key)
-        aws_s3_session.client.delete_object(Bucket=bucket, Key=f"{key}.b64sha256")
-        if debug:
-            print(f"Successfully removed sources at s3://{bucket}/{key}")
+        if not dry:
+            aws_s3_session.client.delete_object(Bucket=bucket, Key=key)
+            aws_s3_session.client.delete_object(Bucket=bucket, Key=f"{key}.b64sha256")
+            if debug:
+                print(f"Successfully removed sources at s3://{bucket}/{key}")
 
-    def terraform_destroy(self, *, workspace, **options):
+    def terraform_destroy(self, *, workspace, debug, dry, **options):
         terraform = Terraform()
 
-        msg = f"Generate terraform files for creating API and lambdas for {self.app.name}"
-        self.generate_terraform_files("create", self.app, terraform, msg, **options)
+        if not dry:
+            for w in terraform.workspace_list():
+                if w in ["default", workspace]:
+                    print(f"Terraform destroy ({w})", flush=True)
+                    terraform.destroy(w)
 
-        for w in terraform.workspace_list():
-            if w in ["default", workspace]:
-                print(f"Terraform destroy ({w})", flush=True)
-                terraform.destroy(w)
+        terraform_filename = f"{self.app.name}.{self.app.ms_type}.tf"
+        output = Path(terraform.working_dir) / terraform_filename
+        if debug:
+            print(f"Removing terraform files: {output} {'(not done)' if dry else ''}")
+        if not dry:
+            output.unlink(missing_ok=True)
 
 
 logging.getLogger("python_terraform").setLevel(logging.ERROR)
@@ -285,68 +367,3 @@ class Terraform:
             _, out, err = self.terraform.workspace('new', workspace, raise_on_error=True)
         if not (Path(self.working_dir) / '.terraform').exists():
             self.terraform.init(input=False, raise_on_error=True)
-
-
-@dataclass
-class TerraformResource:
-    parent_uid: str
-    path: str
-    entries: List[Entry]
-    cors: CORSConfig
-
-    @property
-    def uid(self):
-        def remove_brackets(path):
-            return f"{path.replace('{', '').replace('}', '')}"
-
-        if self.path is None:
-            return ''
-
-        last = remove_brackets(self.path)
-        return f"{self.parent_uid}{UID_SEP}{last}" if self.parent_uid else last
-
-    @property
-    def is_root(self):
-        return self.path is None
-
-    @property
-    def parent_is_root(self):
-        return self.parent_uid == ''
-
-    def __repr__(self):
-        return f"{self.uid}:{self.entries}"
-
-
-def terraform_resources(app):
-    """Returns the list of flatten path (prev, last, entry)."""
-    resources = {}
-
-    def add_entries(previous, last, entries: List[Entry]):
-        ter_entry = TerraformResource(previous, last, entries, app.config.cors)
-        uid = ter_entry.uid
-        if uid not in resources:
-            resources[uid] = ter_entry
-        if resources[uid].entries is None:
-            resources[uid].entries = entries
-        return uid
-
-    for route, entries in app.entries.items():
-        previous_uid = ''
-        if route.startswith('/'):
-            route = route[1:]
-        splited_route = route.split('/')
-
-        # special root case
-        if splited_route == ['']:
-            add_entries(None, None, entries)
-            continue
-
-        # creates intermediate resources
-        last_path = splited_route[-1:][0]
-        for prev in splited_route[:-1]:
-            previous_uid = add_entries(previous_uid, prev, entries)
-
-        # set entry keys for last entry
-        add_entries(previous_uid, last_path, entries)
-
-    return resources

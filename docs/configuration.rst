@@ -3,11 +3,68 @@
 Configuration
 =============
 
-Layers
-------
+Configuration versus Environment variable
+-----------------------------------------
 
-We use AWS Layers to keep the lambda code as small as possible : coworks and additionnal python libraries are put in a same layer that can be reused by several lambda functions.
+We can consider three configuration levels:
 
+    * project config,
+    * execution config,
+    * application config.
+
+Project configuration is related to how the team works and how deployment should be done. This description
+is done by a project configuration file: ``project.cws.yml``. This project configuration file describes :
+
+    * the miscroservices declared
+    * the commands and options associated on those microservices
+
+As for the `Twelve-Factor App <https://12factor.net/>`_ : *"The twelve-factor app stores config in environment variables.
+Env vars are easy to change between deploys without changing any code;"*. Using environment variables is highly
+recommanded to enable easy code deployments to differents systems:
+Changing configuration is just updating variables in the configuration in the CI/CD process.
+
+At last : *"application config does not vary between deploys, and so is best done in the code."* That's why
+entries are defined in the code.
+
+Workspace configuration
+-----------------------
+
+To add an workspace configuration to a microservice, defined it and use it with the ``configs`` parameter in its
+constructor::
+
+	config = Config(workspace='local', environment_variables_file=Path("config") / "vars_local.json")
+	app = SimpleMicroService(ms_name='test', configs=config)
+
+The ``workspace`` value will correspond to the ``--workspace`` argument for the commands ``run`` or ``deploy``.
+
+In this case, if you run the microservice in the workspace ``local``, then environment file will be found in
+``config/vars_local.json``.
+
+You can then define several configurations::
+
+	local_config = Config(workspace='local', environment_variables_file=Path("config") / "vars_local.json")
+	dev_config = Config(workspace='dev', environment_variables_file=Path("config") / "vars_dev.json")
+	app = SimpleMicroService(ms_name='test', configs=[local_config, dev_config])
+
+This allows you to define specific environment values for local running and for dev deploied stage.
+
+The ``Config`` class is defined as::
+
+    @dataclass
+    class Config:
+        """ Configuration class for deployment."""
+
+        workspace: str = DEFAULT_WORKSPACE
+        environment_variables_file: Union[str, List[str]] = 'vars.json'
+        environment_variables: Union[dict, List[dict]] = None
+        auth: Callable[[CoworksMixin, AuthRequest], Union[bool, list, AuthResponse]] = None
+        cors: CORSConfig = CORSConfig(allow_origin='')
+        content_type: Tuple[str] = ('multipart/form-data', 'application/json', 'text/plain')
+
+Three other global workspace parameters may be defined and are describe below.
+
+Another usefull class defined is ``ProdConfig``. This configuration class is defined for production workspace
+where their names are version names, i.e. defined as ``r"v[1-9]+"``.
 
 CORS
 ----
@@ -15,7 +72,8 @@ CORS
 For security reasons, by default microservices do not support CORS headers in response.
 
 For simplicity, we can only add CORS parameters to all routes of the microservice.
-To handle CORS protocol for a specific route, the ``OPTION`` method should be defined on that route.
+To handle CORS protocol for a specific route, the ``OPTION`` method should be defined on that route and will override
+the global parameter.
 
 To add CORS headers in all routes of the microservice, you can simply define ``allow_origin`` value in configuration::
 
@@ -29,8 +87,11 @@ You can specify a single origin::
 
 Or a list::
 
-	config = Config(cors=CORSConfig(allow_origin=['www.test.com', 'www.test.fr']))
+	config = Config(cors=CORSConfig(allow_origin=os.getenv('ALLOW_ORIGIN', '*').split(','))
 	app = SimpleMicroService(ms_name='test', config=config)
+
+*Note*: Even if the configuration is defined in the code, we recommend that some CORS parameters as ``allow-origin``
+should be defined in environment.
 
 You can also specify other CORS parameters::
 
@@ -41,8 +102,9 @@ You can also specify other CORS parameters::
     					allow_credentials=True))
 	app = SimpleMicroService(ms_name='test', configs=config)
 
-As you can see, one configuration may be defined for a microservice. But we will explain below why a list of
-configurations may be also defined.
+
+
+.. _auth:
 
 Authorization
 -------------
@@ -50,7 +112,7 @@ Authorization
 Class control
 ^^^^^^^^^^^^^
 
-For simplicity, only one simple authorizer is defined per class. The authorizer may be defined by the method ``auth``.
+For simplicity, we can define one simple authorizer on a class. The authorizer may be defined by the method ``auth``.
 
 .. code-block:: python
 
@@ -60,6 +122,8 @@ For simplicity, only one simple authorizer is defined per class. The authorizer 
 
 		def auth(self, auth_request):
 			return True
+
+*Note*: This method may be static or not.
 
 The function must accept a single arg, which will be an instance of
 `AuthRequest <https://chalice.readthedocs.io/en/latest/api.html#AuthRequest>`_.
@@ -76,8 +140,6 @@ The API client must include it in the header to send the authorization token to 
 
 		def auth(self, auth_request):
 			return auth_request.token == os.getenv('TOKEN')
-
-*Note* : To define environment variables, see below.
 
 To call this microservice, we have to put the right token in headers::
 
@@ -104,126 +166,5 @@ will be rejected by ``API Gateway``.
 
 The `auth` function must also be defined at the bluprint level, and then it is available for all the bluprint rules.
 
-Global control
-^^^^^^^^^^^^^^
-
-It is possible to redefine the class defined authorizer, by declaring a new authorization method in the configuration.
-In this case, the authorizer is defined on all routes of the microservice.
-
-Deploy vs update
-----------------
-
-Deployment and update are two important steps for the usage of the code. But we think these are different, so they are made
-in two different ways
-
-For deployment, we prefer using ``terraform`` and to update we will use ``cws``.
-
-
-Stages
-------
-
-Staging is a very important part in the programmation development process.
-You can easily deploy different stages of a microservice with APIGateway.
-
-In the following, we will give an example of how to use `terraform` for staging.
-
-Stagging with Terraform
-^^^^^^^^^^^^^^^^^^^^^^^
-
-We choose to implement staging with one lambda per stage and only one API for all the stages.
-Other patterns may be used such as terraform workspace.
-
-A Lambda per stage
-******************
-
-As we have seen, a configuration may be defined for a microservice. To implement several stages
-we will use several configurations, one per stage.
-
-.. code-block:: python
-
-	DEV_CONFIG = Config(
-		workspace="dev",
-		version="0.0",
-		cors=CORSConfig(allow_origin='*'),
-		environment_variables_file="vars_dev.json",
-		layers=["layer"]
-	)
-	PROD_CONFIG = Config(
-		workspace="prod",
-		version="0.0",
-		cors=CORSConfig(allow_origin='www.mywebsite.com'),
-		environment_variables_file="vars_prod.secret.json",
-		layers=["layer"]
-	)
-
-	WORKSPACES = [DEV_CONFIG, PROD_CONFIG]
-
-Then you can initialize your microservice with those configurations, creating one lambda per
-workspace configuration.
-
-.. code-block:: python
-
-	app = SimpleMicroService(ms_name='test', configs=WORKSPACES)
-
-To run the microservice in a specific workspace, add the workspace parameter:
-
-.. code-block:: python
-
-	app.run(workspace='prod')
-
-
-Staging deployment
-******************
-
-We use scons to automate staging deployment. Create a SConstruct file containing the following code :
-
-.. code-block:: python
-
-	from coworks.cws.layers import Layer
-	from coworks.cws.scons import AllFiles, CwsProject
-
-	Layer(['./terraform/layer.zip'])
-
-	src = [AllFiles('src')]
-	tms = [('app-test', ['dev', 'prod'])]
-
-	CwsProject(src, tms)
-
-Put source files (code of the microservice, files cointaining environment variables) in a src directory and then execute scons (omitting microservice=app-test will deploy all microservices defined in the SConstruct file) :
-
-.. code-block:: console
-
-	scons microservice=app-test stage=dev
-
-It will create the layer and the terraform files to deploy the stage "dev" and taint the resources that need to be redeployed.
-
-The terraform file created by scons using terraform export contains one lambda resource per workspace
-
-.. code-block:: jinja
-
-	{% for stage in app_configs %}
-	 	data "local_file" "environment_variables_{{ stage.workspace_name }}" {
-	  		filename = "{{ project_dir }}/{{ stage.environment_variables_file }}"
-	  	}
-	  	resource "aws_lambda_function" "{{ res_id }}_{{ stage.workspace_name }}" {
-	  		filename = local.lambda.zip_filename
-			...
-		}
-	{% endfor %}
-
-And one APIGateway deployment per workspace :
-
-.. code-block:: jinja
-
-	{% for stage in app_configs %}
-	  	resource "aws_api_gateway_deployment" "{{ res_id }}_{{ stage.workspace_name }}" {
-			...
-		}
-	{% endfor %}
-
-Now you can actually deploy the resources :
-
-.. code-block:: console
-
-	cd terraform
-	terraform apply
+Content type
+------------

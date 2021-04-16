@@ -6,11 +6,16 @@ from email.message import EmailMessage
 import requests
 from aws_xray_sdk.core import xray_recorder
 
-from coworks import Blueprint, FileParam, entry
+from coworks import Blueprint, FileParam, entry, MicroServiceProxy
 
 
 class Mail(Blueprint):
-    """Mail blueprint."""
+    """Mail blueprint.
+    Environment variables needed:
+    - env_server_var_name: Variable name for the SMTP server.
+    - env_login_var_name: Variable name for the login.
+    - env_passwd_var_name: Variable name for the password.
+    """
 
     def __init__(self, env_server_var_name, env_login_var_name, env_passwd_var_name, **kwargs):
         super().__init__(**kwargs)
@@ -29,7 +34,7 @@ class Mail(Blueprint):
                 raise EnvironmentError(f'{self.env_login_var_name} not defined in environment.')
             self.smtp_passwd = os.getenv(env_passwd_var_name)
             if not self.smtp_passwd:
-                raise EnvironmentError(f'{env_passwd_var_name} not defined in environment.')
+                raise EnvironmentError(f'{self.env_passwd_var_name} not defined in environment.')
 
     @entry
     @xray_recorder.capture()
@@ -37,7 +42,8 @@ class Mail(Blueprint):
                   cc_addrs: [str] = None, bcc_addrs: [str] = None, body="",
                   attachments: [FileParam] = None, attachment_urls: dict = None, subtype="plain", starttls=True):
         """ Send mail.
-        To send attachments, add files in the body of the request as multipart/form-data. """
+        To send attachments, add files in the body of the request as multipart/form-data.
+        """
 
         from_addr = from_addr or os.getenv('from_addr')
         if not from_addr:
@@ -83,7 +89,7 @@ class Mail(Blueprint):
         except Exception as e:
             return f"Cannot create email message (Error: {str(e)}).", 400
 
-        # Send emails
+        # Send email
         try:
             with smtplib.SMTP(self.smtp_server) as server:
                 if starttls:
@@ -96,3 +102,10 @@ class Mail(Blueprint):
             return "Wrong username/password : cannot connect.", 400
         except Exception as e:
             return f"Cannot send email message (Error: {str(e)}).", 400
+
+
+class MailProxy(MicroServiceProxy):
+
+    def send(self, path, data, attachments=None, sync=False):
+        headers = {'content-type': 'multipart/form-data'} if attachments else {}
+        return super().post(f'{self.url}/send', data=data, attachments=attachments, sync=sync)

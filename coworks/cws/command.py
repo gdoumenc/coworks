@@ -117,6 +117,11 @@ class CwsCommand(click.Command, ABC):
             ctx_options.setdefault('_from_cws', False)
             ctx.params.update(project_dir=project_dir, module=module, service=service, workspace=workspace,
                               **ctx_options)
+
+            if ctx_options.get('help', False):
+                print(self.get_help(ctx))
+                return
+
             self.invoke(ctx)
 
             for func in self.after_funcs:

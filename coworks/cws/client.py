@@ -1,16 +1,19 @@
-import sys
 from copy import deepcopy
 from dataclasses import dataclass, asdict
 from logging import getLogger, WARNING
 
 import anyconfig
 import click
+import sys
+from typing import List, Tuple
 
 from .command import CwsMultiCommands
 from .error import CwsClientError
 from ..config import DEFAULT_PROJECT_DIR, DEFAULT_WORKSPACE
 from ..utils import import_attr, get_system_info
 from ..version import __version__
+
+PROJECT_CONFIG_VERSION = 2
 
 
 @click.group()
@@ -69,6 +72,9 @@ def invoke(ctx):
 
             # Adds command and global options
             options = {**command_options, **client_options, '_from_cws': True}
+            if options.get('help', False):
+                print(command.get_help(ctx))
+                return
             command.make_context(command.name, options)
             commands_to_be_executed.append(command, options)
 
@@ -141,27 +147,32 @@ class ProjectConfig:
         getLogger('anyconfig').setLevel(WARNING)
         self.params = anyconfig.multi_load([self.project_file, project_secret_file], ac_ignore_missing=True)
 
+        if self.params.get('version') != PROJECT_CONFIG_VERSION:
+            raise CwsClientError(f"Wrong project file version (should be {PROJECT_CONFIG_VERSION}).\n")
+
     def get_service_config(self, module, service, workspace):
         return ServiceConfig(self, module, service, workspace)
 
-    def all_services(self, module=None):
-        """ Returns the list of microservices on which the command will be executed."""
+    def all_services(self, module: str = None) -> List[Tuple[str, str]]:
+        """ Returns the list of (module, microservice) on which the command will be executed."""
         services = self.params.get('services', {})
 
         res = []
         for s in services:
-            if 'module' not in s:
-                continue
+            if 'module' not in s or 'services' not in s:
+                raise CwsClientError(f"Services wrongly defined.\n")
 
             if module and s['module'] != module:
                 continue
 
-            if 'service' in s:
-                res.append((s['module'], s['service']))
-            elif 'services' in s:
-                for ss in s['services']:
-                    if 'service' in ss:
-                        res.append((s['module'], ss['service']))
+            if 'services' in s:
+                _module = s['module']
+                _services = s['services']
+                if type(_services) is str:
+                    res.append((_module, _services))
+                else:
+                    for service in _services:
+                        res.append((_module, service))
         return res
 
     @property
@@ -235,7 +246,6 @@ class ServiceConfig:
             for needed in cmd.needed_commands:
                 self.get_command(needed, ms)
 
-            click.help_option()(cmd)
             return cmd
 
     def _command_class(self, cmd_name):

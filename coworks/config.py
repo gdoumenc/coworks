@@ -1,13 +1,13 @@
+from dataclasses import dataclass
+from json import JSONDecodeError
+
 import json
 import os
 import re
-from dataclasses import dataclass
-from json import JSONDecodeError
-from pathlib import Path
-from typing import Callable, Union, List, Tuple
-
 from chalice import CORSConfig as ChaliceCORSConfig, AuthResponse
 from chalice.app import AuthRequest as ChaliceAuthRequest
+from pathlib import Path
+from typing import Callable, Union, List, Tuple
 
 from .mixins import CoworksMixin
 from .utils import as_list
@@ -40,16 +40,17 @@ class CORSConfig(ChaliceCORSConfig):
 class Config:
     """ Configuration class for deployment."""
 
-    version: str = ""
     workspace: str = DEFAULT_WORKSPACE
-    environment_variables_file: Union[str, List[str]] = None
+    environment_variables_file: Union[str, List[str]] = 'vars.json'
     environment_variables: Union[dict, List[dict]] = None
-    auth: Callable[[CoworksMixin, AuthRequest], Union[bool, list, AuthResponse]] = None
+    auth: Union[
+        Callable[[AuthRequest], Union[bool, list, AuthResponse]],
+        Callable[[CoworksMixin, AuthRequest], Union[bool, list, AuthResponse]],
+    ] = None
     cors: CORSConfig = CORSConfig(allow_origin='')
     content_type: Tuple[str] = ('multipart/form-data', 'application/json', 'text/plain')
-    data: dict = None
 
-    def is_valid_for(self, workspace):
+    def is_valid_for(self, workspace) -> bool:
         return self.workspace == workspace
 
     def existing_environment_variables_files(self, project_dir):
@@ -104,3 +105,39 @@ class Config:
         except Exception as e:
             print(type(e))
             raise FileNotFoundError(f"Error when loading environment variables files {str(e)}.\n")
+
+
+class LocalConfig(Config):
+    def __init__(self, **kwargs):
+        super().__init__(workspace='local', environment_variables={"AWS_XRAY_SDK_ENABLED": False}, **kwargs)
+
+        if self.auth is None:
+            def no_check(auth_request):
+                """Authorization method always validated."""
+                return True
+
+            self.auth = no_check
+
+
+class DevConfig(Config):
+    def __init__(self, token_var_name='TOKEN', **kwargs):
+        super().__init__(workspace='dev', **kwargs)
+
+        if self.auth is None:
+            def check_token(auth_request):
+                """Authorization method testing token value in header."""
+                valid = (auth_request.token == os.getenv(token_var_name))
+                return valid
+
+            self.auth = check_token
+
+
+class ProdConfig(DevConfig):
+    """ Production configuration have workspace's name corresponding to version's name."""
+
+    def __init__(self, pattern=r"v[1-9]+", token_var_name='TOKEN', **kwargs):
+        super().__init__(**kwargs)
+        self.pattern = pattern
+
+    def is_valid_for(self, workspace):
+        return re.match(self.pattern, workspace) is not None

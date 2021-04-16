@@ -1,7 +1,7 @@
-import os
 from collections import defaultdict
 
 import click
+import os
 
 from coworks import TechMicroService, entry
 from coworks.config import Config

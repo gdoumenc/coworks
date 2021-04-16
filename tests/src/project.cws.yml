@@ -1,9 +1,9 @@
-version: ">=11"
+version: 2
 services:
   - module: example
     services:
-      - service: project1
-      - service: project2
+      - project1
+      - project2
 commands:
   inspect:
     class: coworks.cws.CwsInspector

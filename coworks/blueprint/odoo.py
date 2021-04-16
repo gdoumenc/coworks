@@ -1,163 +1,252 @@
-from pyexpat import ExpatError
-from xmlrpc import client
-
+import json
 import os
-import time
+from typing import List, Tuple, Union, Any
+
+import requests
 from aws_xray_sdk.core import xray_recorder
-from http.client import BadStatusLine
-from typing import List, Tuple, Union, Optional
-from xmlrpc.client import Fault, ProtocolError
 
 from .. import Blueprint, entry
+from ..error import NotFoundError, InternalServerError
+
+Response = Tuple[dict, int]
+GetResponse = Tuple[Union[dict, List[dict]], int]
+Ids = List[int]
+Filters = List[Tuple[str, str, Any]]
+
+
+class AccessDenied(Exception):
+    ...
 
 
 class Odoo(Blueprint):
-    """Odoo blueprint."""
+    """Odoo blueprint.
+    Environment variables needed:
+    - env_url_var_name: Variable name for the odoo server URL.
+    - env_dbname_var_name: Variable name for the odoo database.
+    - env_user_var_name: Variable name for the user login.
+    - env_passwd_var_name: Variable name for the password.
+    """
 
-    def __init__(self, url_env_var_name='URL', dbname_env_var_name='DBNAME', user_env_var_name='USER',
-                 passwd_env_var_name='PASSWD', **kwargs):
+    def __init__(self,
+                 env_url_var_name=None, env_dbname_var_name=None, env_user_var_name=None, env_passwd_var_name=None,
+                 env_var_prefix=None, **kwargs):
         super().__init__(**kwargs)
-        self.url = self.dbname = self.user = self.passwd = None
-        self.url_env_var_name = url_env_var_name
-        self.dbname_env_var_name = dbname_env_var_name
-        self.user_env_var_name = user_env_var_name
-        self.passwd_env_var_name = passwd_env_var_name
-        self.api_uid = None
-
-    @entry
-    def get(self):
-        """Check the connection."""
-        try:
-            self.connect()
-            return "connected"
-        except Exception as e:
-            return str(e), 404
-
-    @entry
-    def get_model(self, model: str, searched_field_or_domain: Union[str, List[Tuple[str, str, any]]],
-                  searched_value=None, fields: Optional[List[str]] = None, ensure_one=False, **kwargs):
-        """Returns the list of objects or the object which searched_field is equal to the searched_value."""
-        if type(searched_field_or_domain) is list:
-            filters = [searched_field_or_domain]
+        if env_var_prefix:
+            self.env_url_var_name = f"{env_var_prefix}_URL"
+            self.env_dbname_var_name = f"{env_var_prefix}_DBNAME"
+            self.env_user_var_name = f"{env_var_prefix}_USER"
+            self.env_passwd_var_name = f"{env_var_prefix}_PASSWD"
         else:
-            filters = [[(searched_field_or_domain, '=', searched_value)]] if searched_field_or_domain else [[]]
-        fields = fields or ['id']
-        results = self.search(model, filters, fields=fields, ensure_one=ensure_one, **kwargs)
-        return results
+            self.env_url_var_name = env_url_var_name
+            self.env_dbname_var_name = env_dbname_var_name
+            self.env_user_var_name = env_user_var_name
+            self.env_passwd_var_name = env_passwd_var_name
+        self.url = self.dbname = self.user = self.passwd = None
+        self.session_id = None
 
-    @entry
-    def get_fields(self, model, searched_field, searched_value, fields=None):
-        """Returns the value of the object which searched_field is equal to the searched_value."""
-        fields = fields or ['id']
-        return self.get_model(model, searched_field, searched_value, fields=fields, ensure_one=True)
+        @self.before_first_activation
+        def check_env_vars(event, context):
+            self.url = os.getenv(self.env_url_var_name)
+            if not self.url:
+                raise EnvironmentError(f'{self.env_url_var_name} not defined in environment.')
+            self.dbname = os.getenv(self.env_dbname_var_name)
+            if not self.dbname:
+                raise EnvironmentError(f'{self.env_dbname_var_name} not defined in environment.')
+            self.user = os.getenv(self.env_user_var_name)
+            if not self.user:
+                raise EnvironmentError(f'{self.env_user_var_name} not defined in environment.')
+            self.passwd = os.getenv(self.env_passwd_var_name)
+            if not self.passwd:
+                raise EnvironmentError(f'{self.env_passwd_var_name} not defined in environment.')
 
-    @entry
-    def get_field(self, model, searched_field, searched_value, fields='id'):
-        """Returns the value of the object which searched_field is equal to the searched_value."""
-        return self.get_model(model, searched_field, searched_value, fields=[fields], ensure_one=True)[0]
+        @self.before_activation
+        def set_session(event, context):
+            self.session_id, status_code = self._get_session_id()
 
-    @entry
-    def get_id(self, model, searched_field, searched_value):
-        """Returns the id of the object which searched_field is equal to the searched_value."""
-        return self.get_field(model, searched_field, searched_value)
+        @self.after_activation
+        def destroy_session(response):
+            self.session_id = self._destroy_session()
 
-    @xray_recorder.capture("Connect to ODOO")
-    def connect(self, url=None, dbname=None, user=None, passwd=None):
-        # initialize connection informations
-        self.url = url or os.getenv(self.url_env_var_name)
-        if not self.url:
-            raise EnvironmentError(f"{self.url_env_var_name} not defined in environment.")
-        self.dbname = dbname or os.getenv(self.dbname_env_var_name)
-        if not self.dbname:
-            raise EnvironmentError(f"{self.dbname_env_var_name} not defined in environment.")
-        self.user = user or os.getenv(self.user_env_var_name)
-        if not self.user:
-            raise EnvironmentError(f"{self.user_env_var_name} not defined in environment.")
-        self.passwd = passwd or os.getenv(self.passwd_env_var_name)
-        if not self.passwd:
-            raise EnvironmentError(f"{self.passwd_env_var_name} not defined in environment.")
-
-        try:
-            subsegment = xray_recorder.current_subsegment()
-            if subsegment:
-                subsegment.put_metadata("connection",
-                                        f"Connection parameters: {self.url}, {self.dbname}, {self.user}, {self.passwd}")
-
-            # initialize xml connection to odoo
-            common = client.ServerProxy(f'{self.url}/xmlrpc/2/common')
-            self.api_uid = common.authenticate(self.dbname, self.user, self.passwd, {})
-            if not self.api_uid:
-                raise Exception(f'Odoo connection parameters are wrong.')
-        except Exception:
-            raise Exception(f'Odoo interface variables wrongly defined.')
-
-    @xray_recorder.capture()
-    def execute_kw(self, model: str, method: str, *args):
-        if not self.api_uid:
-            self.connect()
-        models_url = f'{self.url}/xmlrpc/2/object'
-        try:
-            with client.ServerProxy(models_url, allow_none=True) as models:
-                res: List[dict] = models.execute_kw(self.dbname, self.api_uid, self.passwd, model, method, *args)
-                return res
-        except (BadStatusLine, ExpatError, ProtocolError):
-            time.sleep(2)
-            with client.ServerProxy(models_url) as models:
-                return models.execute_kw(self.dbname, self.api_uid, self.passwd, model, method, *args)
-        except Fault as e:
-            if e.faultString.endswith("TypeError: cannot marshal None unless allow_none is enabled\n"):
-                return
-            raise
-        except Exception as e:
+        @self.handle_exception
+        def handle_access_denied(event, context, e):
+            if type(e) is AccessDenied:
+                return "AccessDenied", 401
             raise
 
-    @xray_recorder.capture()
-    def search(self, model, filters: List[List[tuple]], *, fields=None, offset=None, limit=None, order=None,
-               ensure_one: bool = False) -> Union[Tuple[str, int], dict, List[dict]]:
-        options = {}
-        if fields:
-            options["fields"] = fields if type(fields) is list else [fields]
-        options.setdefault("offset", int(offset) if offset else 0)
-        options.setdefault("limit", int(limit) if limit else 50)
-        options.setdefault("order", order if order else 'id asc')
+    @entry
+    def get(self, model: str, query: str = "{*}", order: str = None, filters: Filters = None,
+            limit: int = 300, page_size=None, page=0, ensure_one=False) -> GetResponse:
+        params = {'query': query, 'limit': limit}
+        if order:
+            params.update({'order': order})
+        if filters:
+            params.update({'filters': json.dumps(filters)})
+        if page_size:
+            params.update({'page_size': page_size})
+        if page:
+            params.update({'page': page})
+        res, status_code = self.odoo_get(f'{self.url}/api/{model}', params)
+        if status_code == 200:
+            if ensure_one:
+                if len(res['result']) == 0:
+                    raise NotFoundError(f"Nothing found for {model} with {filters} [Odoo blueprint {self.name}]")
+                if len(res['result']) > 1:
+                    raise InternalServerError("More than one result")
+                else:
+                    return res['result'][0], 200
+            return res['result'], 200
+        if status_code == 500:
+            raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
+        return res, status_code
 
+    @entry
+    def get_(self, model: str, rec_id: int, query="{*}") -> Response:
+        params = {'query': query}
+        res, status_code = self.odoo_get(f'{self.url}/api/{model}/{rec_id}', params)
+        if status_code == 500:
+            raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
+        return res, status_code
+
+    @entry
+    def get_pdf(self, report_id: int, rec_ids: Ids) -> Response:
+        params = {'params': {'res_ids': json.dumps(rec_ids)}}
+        res, status_code = self.odoo_post(f"{self.url}/report/{report_id}", params=params)
+        if status_code == 200:
+            return res['result'], 200
+        if status_code == 500:
+            raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
+        return res, status_code
+
+    @entry
+    def post(self, model: str, data=None, context=None) -> Response:
+        params = {'params': {'data': data or {}}}
+        if context:
+            params.update({'context': context})
+        res, status_code = self.odoo_post(f"{self.url}/api/{model}", params=params)
+        if status_code == 200:
+            return res['result'], 200
+        if status_code == 500:
+            raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
+        return res, status_code
+
+    @entry
+    def put(self, model: str, rec_id: int, data=None) -> Response:
+        params = {'params': {'data': data or {}}}
+        res, status_code = self.odoo_put(f'{self.url}/api/{model}/{rec_id}', params)
+        if status_code == 500:
+            raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
+        return res, status_code
+
+    @entry
+    def put_(self, model: str, filters: Filters = None, data=None) -> Response:
+        """Bulk update."""
+        params = {'params': {'data': data or {}}}
+        if filters:
+            params.update({'filter': filters})
+        res, status_code = self.odoo_put(f'{self.url}/api/{model}', params)
+        if status_code == 500:
+            raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
+        return res, status_code
+
+    @entry
+    def delete(self, model: str, rec_id: int) -> Response:
+        res, status_code = self.odoo_delete(f'{self.url}/api/{model}/{rec_id}')
+        if status_code == 500:
+            raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
+        return res, status_code
+
+    @xray_recorder.capture()
+    def odoo_get(self, path, params, headers=None):
+        params.update({'jsonrpc': "2.0", 'session_id': self.session_id})
+        headers = headers or {}
+        res = requests.get(path, params=params, headers=headers)
         try:
-            results = self.execute_kw(model, 'search_read', filters, options)
-            return _reduce_result(results, fields, ensure_one)
+            result = res.json()
+            if 'error' in result:
+                return f"{result['message']}: {result['data']}", 404
+            return result, res.status_code
+        except (json.decoder.JSONDecodeError, Exception):
+            return res.text, 500
+
+    @xray_recorder.capture()
+    def odoo_post(self, path, params, headers=None) -> Tuple[Union[str, dict], int]:
+        _params = {'jsonrpc': "2.0", 'session_id': self.session_id}
+        headers = headers or {}
+        res = requests.post(path, params=_params, json=params, headers=headers)
+        try:
+            result = res.json()
+            if 'error' in result:
+                return f"{result['error']['message']}:{result['error']['data']}", 404
+            return result, res.status_code
+        except (json.decoder.JSONDecodeError, Exception):
+            return res.text, 500
+
+    @xray_recorder.capture()
+    def odoo_put(self, path, params, headers=None) -> Tuple[Union[str, dict], int]:
+        _params = {'jsonrpc': "2.0", 'session_id': self.session_id}
+        headers = headers or {}
+        res = requests.put(path, params=_params, json=params, headers=headers)
+        try:
+            result = res.json()
+            if 'error' in result:
+                return f"{result['error']['message']}:{result['error']['data']}", 404
+            return result, res.status_code
+        except (json.decoder.JSONDecodeError, Exception):
+            return res.text, 500
+
+    @xray_recorder.capture()
+    def odoo_delete(self, path, headers=None) -> Tuple[Union[str, dict], int]:
+        _params = {'jsonrpc': "2.0", 'session_id': self.session_id}
+        headers = headers or {}
+        res = requests.delete(path, params=_params, headers=headers)
+        try:
+            result = res.json()
+            if 'error' in result:
+                return f"{result['error']['message']}:{result['error']['data']}", 404
+            return result, res.status_code
+        except (json.decoder.JSONDecodeError, Exception):
+            return res.text, 500
+
+    def _get_session_id(self):
+        """Open or checks the connection."""
+        try:
+            data = {
+                'jsonrpc': "2.0",
+                'params': {
+                    'db': self.dbname,
+                    'login': self.user,
+                    'password': self.passwd,
+                }
+            }
+            res = requests.post(
+                f'{self.url}/web/session/authenticate/',
+                data=json.dumps(data),
+                headers={'Content-type': 'application/json'}
+            )
+
+            data = json.loads(res.text)
+            if data['result']['session_id']:
+                return res.cookies["session_id"], 200
         except Exception as e:
-            return str(e), 404
+            raise AccessDenied()
 
-    @xray_recorder.capture()
-    def create(self, model, data: dict):
-        return self.execute_kw(model, 'create', [self._replace_tuple(data)])
+    def _destroy_session(self):
+        """Open or checks the connection."""
+        try:
+            data = {
+                'jsonrpc': "2.0",
+                'params': {
+                    'db': self.dbname,
+                    'login': self.user,
+                    'password': self.passwd,
+                }
+            }
+            res = requests.post(
+                f'{self.url}/web/session/destroy/',
+                data=json.dumps(data),
+                headers={'Content-type': 'application/json'}
+            )
 
-    @xray_recorder.capture()
-    def write(self, model, _id, data: dict):
-        return self.execute_kw(model, 'write', [[_id], self._replace_tuple(data)])
-
-    # def delete(self, model, _id):
-    #     return self.execute_kw(model, 'unlink', [[_id]])
-
-    def _replace_tuple(self, struct: dict) -> dict:
-        """For data from JSON, tuple are defined with key surronded by paranthesis."""
-        for k, value in struct.items():
-            if isinstance(value, dict):
-                self._replace_tuple(value)
-            else:
-                if k.startswith('(') and type(value) is list:
-                    del struct[k]
-                    struct[k[1:-1]] = [tuple(v) for v in value]
-        return struct
-
-
-def _reduce_result(results: List[dict], fields, ensure_one):
-    """Reduces rows values if only one value and ensure only only one in the result list and returns it."""
-    if len(fields) == 1:
-        results = [row[fields[0]] for row in results]
-    if ensure_one:
-        if len(results) == 0:
-            return "No object found.", 404
-        if len(results) > 1:
-            return f"More than one object ({len(results)}) founds : ids={[o.get('id') for o in results]}", 404
-        return results[0]
-    return results
+            return "", 200
+        except Exception as e:
+            return str(e), 401

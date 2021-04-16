@@ -22,3 +22,12 @@ To use it :
 
     myservice = ...
     XRayContextManager(myservice, xray_recorder)
+
+
+When the microservice is in debug mode, the manager is replaced by a mock manager. You can also disable this context
+manager by setting an environment variable :
+
+.. code-block:: python
+
+    AWS_XRAY_SDK_ENABLED = false
+

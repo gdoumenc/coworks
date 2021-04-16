@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 import requests
 
-from coworks.config import Config
+from coworks.config import Config, LocalConfig
 from coworks.cws.client import client
 from coworks.cws.runner import ThreadedLocalServer
 from coworks.utils import import_attr
@@ -15,7 +15,7 @@ from tests.src.example import TechMS
 class TestClass:
 
     def test_simple_example(self, local_server_factory):
-        local_server = local_server_factory(TechMS())
+        local_server = local_server_factory(TechMS(configs=LocalConfig()))
         response = local_server.make_call(requests.get, '/', timeout=500)
         assert response.status_code == 200
         assert response.text == "Simple microservice for test.\n"
@@ -33,7 +33,7 @@ class TestClass:
         assert response.text == "456\n"
 
     def test_params(self, local_server_factory):
-        local_server = local_server_factory(TechMS())
+        local_server = local_server_factory(TechMS(configs=LocalConfig()))
         response = local_server.make_call(requests.put, '/value/1', json=456)
         assert response.status_code == 200
         assert response.text == "456"
@@ -49,7 +49,7 @@ class TestClass:
         assert response.text == "Simple microservice for test dev environment variable.\n"
 
     def test_init(self, local_server_factory, example_dir):
-        local_server = local_server_factory(TechMS(configs=[]))
+        local_server = local_server_factory(TechMS(configs=[LocalConfig()]))
         response = local_server.make_call(requests.get, '/init', timeout=500)
         assert response.status_code == 200
         assert response.text == "Initial value is test.\n"
