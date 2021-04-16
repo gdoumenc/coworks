@@ -84,6 +84,6 @@ resource "aws_lambda_permission" "{{ resource_name }}" {
 resource "aws_cloudwatch_log_group" "lambda_{{ resource_name }}" {
   provider = aws.{{ resource_name }}
   count = local.{{ resource_name }}_when_stage
-  name = "/aws/lambda/${local.{{ resource_name }}_lambda_name}"
+  name = "/aws/lambda/${local.{{ resource_name }}_lambda_name}_{{ workspace }}"
   retention_in_days = 7
 }

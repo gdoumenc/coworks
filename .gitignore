@@ -9,9 +9,9 @@ Pipfile.lock
 # Samples
 **/*.secret.json
 samples/*/terraform
+samples/*/Pipfile.lock
 
 # Tests example
-samples/docs/Pipfile.lock
 tests/example/*.zip
 
 # Dev tools

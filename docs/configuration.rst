@@ -12,24 +12,33 @@ We can consider three configuration levels:
     * execution config,
     * application config.
 
-Project configuration is related to how the team works and how deployment should be done. This description
-is done by a project configuration file: ``project.cws.yml``. This project configuration file describes :
+Project configuration
+    Project configuration is related to how the team works and how deployment should be done. This description
+    is done by a project configuration file: ``project.cws.yml``. This project configuration file describes :
 
-    * the miscroservices declared
-    * the commands and options associated on those microservices
+        * the miscroservices declared
+        * the commands and options associated on those microservices
 
-As for the `Twelve-Factor App <https://12factor.net/>`_ : *"The twelve-factor app stores config in environment variables.
-Env vars are easy to change between deploys without changing any code;"*. Using environment variables is highly
-recommanded to enable easy code deployments to differents systems:
-Changing configuration is just updating variables in the configuration in the CI/CD process.
+Execution configuration
+    As for the `Twelve-Factor App <https://12factor.net/>`_ : *"The twelve-factor app stores config in environment variables.
+    Env vars are easy to change between deploys without changing any code;"*. Using environment variables is highly
+    recommanded to enable easy code deployments to differents systems:
+    Changing configuration is just updating variables in the configuration in the CI/CD process.
 
-At last : *"application config does not vary between deploys, and so is best done in the code."* That's why
-entries are defined in the code.
+Application configuration
+    At last : *"application config does not vary between deploys, and so is best done in the code."* That's why
+    entries are defined in the code.
 
-Workspace configuration
------------------------
+Project configuration
+---------------------
 
-To add an workspace configuration to a microservice, defined it and use it with the ``configs`` parameter in its
+Stage is a key concept for the deployment. Stages are defined thru the concept of workspace (same as for terraform).
+
+
+Workspace definition
+^^^^^^^^^^^^^^^^^^^^
+
+To add a workspace and its configuration to a microservice, defined it and use it with the ``configs`` parameter in its
 constructor::
 
 	config = Config(workspace='local', environment_variables_file=Path("config") / "vars_local.json")
@@ -37,7 +46,7 @@ constructor::
 
 The ``workspace`` value will correspond to the ``--workspace`` argument for the commands ``run`` or ``deploy``.
 
-In this case, if you run the microservice in the workspace ``local``, then environment file will be found in
+In the exemple over, if you run the microservice in the workspace ``local``, then environment file will be found in
 ``config/vars_local.json``.
 
 You can then define several configurations::
@@ -65,6 +74,14 @@ Three other global workspace parameters may be defined and are describe below.
 
 Another usefull class defined is ``ProdConfig``. This configuration class is defined for production workspace
 where their names are version names, i.e. defined as ``r"v[1-9]+"``.
+
+Project configuration file
+^^^^^^^^^^^^^^^^^^^^
+
+A project configuration file is a YAML file containg two main parts:
+
+* The list of microservice defined
+* The command and options defined for those microservices.
 
 CORS
 ----

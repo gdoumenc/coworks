@@ -195,24 +195,23 @@ class CwsTerraformDeployer(CwsTerraformCommand):
                 cls.generate_terraform_files("create", command.app, terraform, terraform_filename, msg, dry=dry,
                                              **options)
 
-        # Apply terraform if not dry (create API with null resources and lambda step)
-        # or in case of only updating lambda code
-        if not dry:
-            msg = ["Create API", "Create lambda"] if create else ["Update API", "Update lambda"]
-            cls.terraform_apply(terraform, workspace, msg, update_lambda_only=update_lambda_only)
+            # Apply terraform if not dry (create API with null resources and lambda step)
+            # or in case of only updating lambda code
+            if not dry:
+                msg = ["Create API", "Create lambda"] if create else ["Update API", "Update lambda"]
+                cls.terraform_apply(terraform, workspace, msg)
 
         # Generates terraform files (update step)
-        if not update_lambda_only:
-            for command, options in execution_list:
-                terraform_filename = f"{command.app.name}.{command.app.ms_type}.tf"
-                msg = f"Generate terraform files for updating API routes and deploiement for {command.app.name}"
-                cls.generate_terraform_files("update", command.app, terraform, terraform_filename, msg, dry=dry,
-                                             **options)
+        for command, options in execution_list:
+            terraform_filename = f"{command.app.name}.{command.app.ms_type}.tf"
+            msg = f"Generate terraform files for updating API routes and deploiement for {command.app.name}"
+            cls.generate_terraform_files("update", command.app, terraform, terraform_filename, msg, dry=dry,
+                                         **options)
 
-            # Apply terraform if not dry (update API routes and deploy step)
-            if not dry:
-                msg = ["Update API routes", f"Deploy API {workspace}"]
-                cls.terraform_apply(terraform, workspace, msg)
+        # Apply terraform if not dry (update API routes and deploy step)
+        if not dry:
+            msg = ["Update API routes", f"Deploy API {workspace}"]
+            cls.terraform_apply(terraform, workspace, msg, update_lambda_only=update_lambda_only)
 
         # Traces output
         print(f"terraform output : {terraform.output()}")
