@@ -136,7 +136,7 @@ class ProdConfig(DevConfig):
     """ Production configuration have workspace's name corresponding to version's name."""
 
     def __init__(self, pattern=r"v[1-9]+", token_var_name='TOKEN', **kwargs):
-        super().__init__(**kwargs)
+        super().__init__(environment_variables_file="vars.prod.json", **kwargs)
         self.pattern = pattern
 
     def is_valid_for(self, workspace):
