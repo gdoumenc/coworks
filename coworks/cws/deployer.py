@@ -286,8 +286,8 @@ class CwsTerraformDestroyer(CwsTerraformCommand):
     def options(self):
         return [
             *super().options,
-            click.option('--all', '-a', is_flag=True, help="Destroy on all workspaces"),
-            click.option('--bucket', '-b', help="Bucket to remove sources zip file from", required=True),
+            click.option('--all', '-a', is_flag=True, help="Destroy on all workspaces."),
+            click.option('--bucket', '-b', help="Bucket to remove sources zip file from.", required=True),
             click.option('--debug', is_flag=True, help="Print debug logs to stderr."),
             click.option('--dry', is_flag=True, help="Doesn't perform destroy."),
             click.option('--key', '-k', help="Sources zip file bucket's name."),
@@ -330,7 +330,7 @@ class CwsTerraformDestroyer(CwsTerraformCommand):
             try:
                 targets = self.read_terraform_resources_list_file(terraform, terraform_filename, **options)
             except OSError:
-                print(f"The resouces have been already removed.")
+                print(f"The resouces have been already removed ({terraform_filename}).")
                 return
 
             # Destroy resources
@@ -340,9 +340,19 @@ class CwsTerraformDestroyer(CwsTerraformCommand):
                     terraform.destroy(w, targets)
 
         if all_workspaces:
+
+            # Removing terraform resource file
             output = Path(terraform.working_dir) / terraform_filename
             if debug:
-                print(f"Removing terraform files: {output} {'(not done)' if dry else ''}")
+                print(f"Removing terraform resource file: {output} {'(not done)' if dry else ''}")
+            if not dry:
+                output.unlink(missing_ok=True)
+
+            # Removing terraform file
+            terraform_filename = f"{self.app.name}.{self.app.ms_type}.tf"
+            output = Path(terraform.working_dir) / terraform_filename
+            if debug:
+                print(f"Removing terraform file: {output} {'(not done)' if dry else ''}")
             if not dry:
                 output.unlink(missing_ok=True)
 
