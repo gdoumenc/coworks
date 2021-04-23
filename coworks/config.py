@@ -1,13 +1,13 @@
-from dataclasses import dataclass
-from json import JSONDecodeError
-
 import json
 import os
 import re
-from chalice import CORSConfig as ChaliceCORSConfig, AuthResponse
-from chalice.app import AuthRequest as ChaliceAuthRequest
+from dataclasses import dataclass
+from json import JSONDecodeError
 from pathlib import Path
 from typing import Callable, Union, List, Tuple
+
+from chalice import CORSConfig as ChaliceCORSConfig, AuthResponse
+from chalice.app import AuthRequest as ChaliceAuthRequest
 
 from .mixins import CoworksMixin
 from .utils import as_list
@@ -108,8 +108,10 @@ class Config:
 
 
 class LocalConfig(Config):
-    def __init__(self, **kwargs):
-        super().__init__(workspace='local', environment_variables={"AWS_XRAY_SDK_ENABLED": False}, **kwargs)
+    def __init__(self, workspace='local', **kwargs):
+        if 'environment_variables' not in kwargs:
+            environment_variables = {"AWS_XRAY_SDK_ENABLED": False}
+        super().__init__(workspace=workspace, **kwargs)
 
         if self.auth is None:
             def no_check(auth_request):
@@ -120,8 +122,8 @@ class LocalConfig(Config):
 
 
 class DevConfig(Config):
-    def __init__(self, token_var_name='TOKEN', **kwargs):
-        super().__init__(workspace='dev', **kwargs)
+    def __init__(self, workspace=DEFAULT_WORKSPACE, token_var_name='TOKEN', **kwargs):
+        super().__init__(workspace=workspace, **kwargs)
 
         if self.auth is None:
             def check_token(auth_request):
@@ -135,8 +137,9 @@ class DevConfig(Config):
 class ProdConfig(DevConfig):
     """ Production configuration have workspace's name corresponding to version's name."""
 
-    def __init__(self, pattern=r"v[1-9]+", token_var_name='TOKEN', **kwargs):
-        super().__init__(environment_variables_file="vars.prod.json", **kwargs)
+    def __init__(self, environment_variables_file="vars.prod.json", pattern=r"v[1-9]+", token_var_name='TOKEN',
+                 **kwargs):
+        super().__init__(environment_variables_file=environment_variables_file, token_var_name=token_var_name, **kwargs)
         self.pattern = pattern
 
     def is_valid_for(self, workspace):

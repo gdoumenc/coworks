@@ -1,9 +1,8 @@
 import json
 import os
-from typing import List, Tuple, Union, Any
-
 import requests
 from aws_xray_sdk.core import xray_recorder
+from typing import List, Tuple, Union, Any
 
 from .. import Blueprint, entry
 from ..error import NotFoundError, InternalServerError
@@ -103,6 +102,21 @@ class Odoo(Blueprint):
     def get_(self, model: str, rec_id: int, query="{*}") -> Response:
         params = {'query': query}
         res, status_code = self.odoo_get(f'{self.url}/api/{model}/{rec_id}', params)
+        if status_code == 500:
+            raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
+        return res, status_code
+
+    @entry
+    def get_call(self, model: str):
+        return "Not done", 500
+
+    @entry
+    def get_call_(self, model: str, rec_id: int, function, *args, **kwargs) -> Response:
+        params = {'params': {'args': json.dumps(args) if args else '[]',
+                             'kwargs': json.dumps(kwargs) if kwargs else '{}'}}
+        res, status_code = self.odoo_post(f"{self.url}/object/{model}/{rec_id}/{function}", params=params)
+        if status_code == 200:
+            return res['result'], 200
         if status_code == 500:
             raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
         return res, status_code

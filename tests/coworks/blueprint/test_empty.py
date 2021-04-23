@@ -16,6 +16,6 @@ class TestClass:
         ms = TechMS()
         ms.register_blueprint(BP())
         local_server = local_server_factory(ms)
-        response = local_server.make_call(requests.get, '/', timeout=500)
+        response = local_server.make_call(requests.get, '/')
         assert response.status_code == 200
         assert response.text == 'blueprint test'
