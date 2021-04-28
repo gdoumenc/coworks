@@ -166,6 +166,7 @@ class TechMicroService(CoworksMixin, Chalice):
 
     def deferred_init(self, workspace):
         if self.entries is None:
+            self.entries = {}
 
             # Set workspace config
             self.config = self.get_config(workspace)

@@ -82,7 +82,7 @@ class CwsTerraformCommand(CwsCommand, ABC):
             print(msg)
         output = str(Path(terraform.working_dir) / filename)
         app.execute(cls.WRITER_CMD, template=["terraform.j2"], output=output, aws_region=aws_region,
-                    step=step, resources=cls.terraform_resources(app), **options)
+                    step=step, api_resources=cls.terraform_api_resources(app), **options)
 
     @classmethod
     def generate_terraform_resources_list_file(cls, app, terraform, filename, msg, **options):
@@ -96,7 +96,7 @@ class CwsTerraformCommand(CwsCommand, ABC):
             print(msg)
         output = Path(terraform.working_dir) / filename
         app.execute(cls.WRITER_CMD, template=["resources.j2"], output=str(output), aws_region=aws_region,
-                    resources=cls.terraform_resources(app), **options)
+                    api_resources=cls.terraform_api_resources(app), **options)
 
         return cls.read_terraform_resources_list_file(terraform, filename, **options)
 
@@ -108,7 +108,7 @@ class CwsTerraformCommand(CwsCommand, ABC):
             return [line[:-1] for line in lines if line.rstrip()]
 
     @staticmethod
-    def terraform_resources(app):
+    def terraform_api_resources(app):
         """Returns the list of flatten path (prev, last, entry)."""
         resources = {}
 
@@ -201,12 +201,12 @@ class CwsTerraformDeployer(CwsTerraformCommand):
         # cls.generate_common_terraform_files()
 
         # Get all terraform resources
-        terraform_ressources = []
+        terraform_api_ressources = []
         for command, options in execution_list:
             terraform_filename = f"{command.app.name}.{command.app.ms_type}.txt"
             msg = f"Generate resources list for {command.app.name}"
             res = cls.generate_terraform_resources_list_file(command.app, terraform, terraform_filename, msg, **options)
-            terraform_ressources.extend(res)
+            terraform_api_ressources.extend(res)
 
         # Generates terraform files (create step)
         if not update_lambda_only:
@@ -220,7 +220,7 @@ class CwsTerraformDeployer(CwsTerraformCommand):
             # or in case of only updating lambda code
             if not dry:
                 msg = ["Create API", "Create lambda"] if create else ["Update API", "Update lambda"]
-                cls.terraform_apply(terraform, workspace, terraform_ressources, msg)
+                cls.terraform_apply(terraform, workspace, terraform_api_ressources, msg)
 
         # Stop on create step if needed
         if create:
@@ -236,7 +236,8 @@ class CwsTerraformDeployer(CwsTerraformCommand):
         # Apply terraform if not dry (update API routes and deploy step)
         if not dry:
             msg = ["Update API routes", f"Deploy API {workspace}"]
-            cls.terraform_apply(terraform, workspace, terraform_ressources, msg, update_lambda_only=update_lambda_only)
+            cls.terraform_apply(terraform, workspace, terraform_api_ressources, msg,
+                                update_lambda_only=update_lambda_only)
 
         # Traces output
         print(f"terraform output : {terraform.output()}")
@@ -381,8 +382,7 @@ class Terraform:
 
     def apply(self, workspace, targets):
         self.select_workspace(workspace)
-        return_code, _, err = self.terraform.apply(target=targets, skip_plan=True, input=False, raise_on_error=False,
-                                                   parallelism=1)
+        return_code, _, err = self.terraform.apply(target=targets, skip_plan=True, input=False, raise_on_error=False)
         if return_code != 0:
             raise CwsCommandError(err)
 

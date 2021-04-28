@@ -79,13 +79,6 @@ resource "aws_iam_role_policy_attachment" "{{ resource_name }}_xray" {
   policy_arn = "arn:aws:iam::aws:policy/AWSXrayFullAccess"
 }
 
-resource "aws_iam_role_policy_attachment" "{{ resource_name }}_step_functions" {
-  provider = aws.{{ resource_name }}
-  count = local.{{ resource_name }}_when_default
-  role = join("", aws_iam_role.{{ resource_name }}_microservice.*.name)
-  policy_arn = "arn:aws:iam::aws:policy/AWSStepFunctionsFullAccess"
-}
-
 data "aws_iam_role" "{{ resource_name }}_microservice" {
   provider = aws.{{ resource_name }}
   count = local.{{ resource_name }}_when_stage
