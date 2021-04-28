@@ -118,8 +118,8 @@ class MailProxyData:
     subject = ""
     from_addr: str = None
     from_name: str = ''
-    to_addrs: [str] = None,
-    cc_addrs: [str] = None,
+    to_addrs: [str] = None
+    cc_addrs: [str] = None
     bcc_addrs: [str] = None
     body: str = ""
     attachments: [FileParam] = None

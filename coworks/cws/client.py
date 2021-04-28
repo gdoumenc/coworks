@@ -1,11 +1,11 @@
+import sys
 from copy import deepcopy
 from dataclasses import dataclass, asdict
 from logging import getLogger, WARNING
+from typing import List, Tuple
 
 import anyconfig
 import click
-import sys
-from typing import List, Tuple
 
 from .command import CwsMultiCommands
 from .error import CwsClientError
@@ -147,6 +147,8 @@ class ProjectConfig:
         getLogger('anyconfig').setLevel(WARNING)
         self.params = anyconfig.multi_load([self.project_file, project_secret_file], ac_ignore_missing=True)
 
+        if not self.params:
+            raise CwsClientError(f"Cannot find project file ({file_name + file_suffix}).\n")
         if self.params.get('version') != PROJECT_CONFIG_VERSION:
             raise CwsClientError(f"Wrong project file version (should be {PROJECT_CONFIG_VERSION}).\n")
 

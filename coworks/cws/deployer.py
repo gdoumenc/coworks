@@ -89,6 +89,8 @@ class CwsTerraformCommand(CwsCommand, ABC):
         debug = options['debug']
         profile_name = options['profile_name']
         aws_region = boto3.Session(profile_name=profile_name).region_name
+        if not aws_region:
+            raise CwsCommandError("No region defined for this profile.")
 
         if debug:
             print(msg)
@@ -196,7 +198,7 @@ class CwsTerraformDeployer(CwsTerraformCommand):
             command.app.execute(cls.ZIP_CMD, ignore=ignore, module_name=module_name, hash=True, **options)
 
         # Generates default provider
-        cls.generate_common_terraform_files()
+        # cls.generate_common_terraform_files()
 
         # Get all terraform resources
         terraform_ressources = []

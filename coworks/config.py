@@ -110,7 +110,7 @@ class Config:
 class LocalConfig(Config):
     def __init__(self, workspace='local', **kwargs):
         if 'environment_variables' not in kwargs:
-            environment_variables = {"AWS_XRAY_SDK_ENABLED": False}
+            kwargs['environment_variables'] = {"AWS_XRAY_SDK_ENABLED": False}
         super().__init__(workspace=workspace, **kwargs)
 
         if self.auth is None:

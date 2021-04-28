@@ -1,14 +1,14 @@
-from dataclasses import dataclass
-
 import json
 import os
 import re
+from dataclasses import dataclass
+from typing import Callable
+from typing import Dict, List, Union, Optional
+
 import requests
 from chalice import AuthResponse
 from chalice import Chalice, Blueprint as ChaliceBlueprint
 from chalice.app import AuthRequest
-from typing import Callable
-from typing import Dict, List, Union, Optional
 
 from .config import Config, LocalConfig, DevConfig, ProdConfig, DEFAULT_PROJECT_DIR, DEFAULT_WORKSPACE
 from .mixins import CoworksMixin
@@ -340,6 +340,9 @@ class TechMicroService(CoworksMixin, Chalice):
         except Exception as e:
             self.log.debug(f"Error in api handler for {self.name} : {e}")
             raise
+
+    def schedule(self, *args, **kwargs):
+        raise NotImplementedError("Schedule decorator is defined on BizMicroService, not TechMicroService")
 
 
 class MicroServiceProxy:

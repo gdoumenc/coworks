@@ -1,9 +1,20 @@
+import pytest
 import requests
 
 from tests.coworks.biz_ms import BizMS
+from tests.coworks.test_ms import SimpleMS
 
 
+@pytest.mark.wip
 class TestClass:
+
+    def test_ms(self, local_server_factory):
+        tech = SimpleMS()
+
+        with pytest.raises(NotImplementedError) as pytest_wrapped_e:
+            @tech.schedule('rate(1 hour)', name='hourly', description="Test hourly.")
+            def every_sample(name):
+                return tech.get(name=name)
 
     def test_biz(self, local_server_factory):
         biz = BizMS()
