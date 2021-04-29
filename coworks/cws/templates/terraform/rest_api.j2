@@ -59,7 +59,7 @@ resource "aws_api_gateway_integration" "{{ resource_name }}_null" {
   type = "MOCK"
 }
 
-{%- for uid, resource in resources.items() %}
+{%- for uid, resource in api_resources.items() %}
   {% if resource.path %}
 resource "aws_api_gateway_resource" "{{ resource_name }}_{{ uid }}" {
   provider = aws.{{ resource_name }}
@@ -310,6 +310,7 @@ resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_OPTION
 
 {# API Deployments #}
 
+{%- if api_resources %}
 resource "aws_api_gateway_deployment" "{{ resource_name }}" {
   provider = aws.{{ resource_name }}
   count = local.{{ resource_name }}_when_stage
@@ -347,6 +348,7 @@ resource "aws_api_gateway_stage" "{{ resource_name }}" {
   deployment_id = aws_api_gateway_deployment.{{ resource_name }}[0].id
   xray_tracing_enabled = true
 }
+{% endif -%}
 
 # ---------------------------------------------------------------------------------------------------------------------
 # OUTPUT

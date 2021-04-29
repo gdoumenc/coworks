@@ -70,7 +70,7 @@ data "aws_lambda_function" "{{ resource_name }}" {
   function_name = local.{{ resource_name }}_lambda_name
 }
 
-resource "aws_lambda_permission" "{{ resource_name }}" {
+resource "aws_lambda_permission" "{{ resource_name }}_allow_apigateway" {
   provider = aws.{{ resource_name }}
   count = local.{{ resource_name }}_when_stage
   statement_id = "AllowExecutionFromAPIGateway"

@@ -2,7 +2,6 @@
 # LOCAL FOR THIS CUSTOMER
 # ---------------------------------------------------------------------------------------------------------------------
 
-{% include "tags.j2" %}
 
 
 locals {
@@ -13,7 +12,7 @@ locals {
 locals {
   {{ resource_name }}_bucket = "{{ bucket }}"
   {{ resource_name }}_key = "{{ key }}"
-  {{ resource_name }}_python = "python3.7"
+  {{ resource_name }}_python = "python{{ python }}"
   {{ resource_name }}_role_arn = join("", aws_iam_role.{{ resource_name }}_microservice.*.arn, data.aws_iam_role.{{ resource_name }}_microservice.*.arn)
   {{ resource_name }}_security_group_ids = []
   {{ resource_name }}_vpc_id = []
@@ -23,7 +22,7 @@ locals {
 {% if layers -%}
 data "aws_lambda_layer_version" "{{ resource_name }}" {
   provider = aws.{{ resource_name }}
-  for_each = {for layer_name in [{% for  layer in layers %}"{{ layer }}"{% endfor %}]: layer_name => layer_name}
+  for_each = {for layer_name in [{% for  layer in layers %}"{{ layer }}",{% endfor %}]: layer_name => layer_name}
   layer_name = each.value
 }
 
@@ -56,10 +55,7 @@ resource "aws_iam_role" "{{ resource_name }}_microservice" {
 }
 EOF
 
-  tags = {
-    Product: "microservice"
-    Creator: "coworks"
-  }
+  tags = local.{{ resource_name }}_tags
 }
 
 resource "aws_iam_role_policy_attachment" "{{ resource_name }}_s3" {
@@ -83,15 +79,9 @@ resource "aws_iam_role_policy_attachment" "{{ resource_name }}_xray" {
   policy_arn = "arn:aws:iam::aws:policy/AWSXrayFullAccess"
 }
 
-resource "aws_iam_role_policy_attachment" "{{ resource_name }}_step_functions" {
-  provider = aws.{{ resource_name }}
-  count = local.{{ resource_name }}_when_default
-  role = join("", aws_iam_role.{{ resource_name }}_microservice.*.name)
-  policy_arn = "arn:aws:iam::aws:policy/AWSStepFunctionsFullAccess"
-}
-
 data "aws_iam_role" "{{ resource_name }}_microservice" {
   provider = aws.{{ resource_name }}
   count = local.{{ resource_name }}_when_stage
   name = "{{ resource_name }}_microservice_role"
+  tags = local.{{ resource_name }}_tags
 }

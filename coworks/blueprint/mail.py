@@ -1,13 +1,18 @@
 import os
 import smtplib
-from email.utils import formataddr
+from dataclasses import dataclass
 from email.message import EmailMessage
+from email.utils import formataddr
 
 import requests
 from aws_xray_sdk.core import xray_recorder
 
 from coworks import Blueprint, FileParam, entry, MicroServiceProxy
 
+
+#
+# BLUEPRINT PART
+#
 
 class Mail(Blueprint):
     """Mail blueprint.
@@ -104,8 +109,27 @@ class Mail(Blueprint):
             return f"Cannot send email message (Error: {str(e)}).", 400
 
 
+#
+# PROXY PART
+#
+
+@dataclass
+class MailProxyData:
+    subject = ""
+    from_addr: str = None
+    from_name: str = ''
+    to_addrs: [str] = None
+    cc_addrs: [str] = None
+    bcc_addrs: [str] = None
+    body: str = ""
+    attachments: [FileParam] = None
+    attachment_urls: dict = None
+    subtype: str = "plain"
+    starttls: bool = True
+
+
 class MailProxy(MicroServiceProxy):
 
-    def send(self, path, data, attachments=None, sync=False):
+    def send(self, data: MailProxyData, attachments: FileParam = None, sync: bool = False):
         headers = {'content-type': 'multipart/form-data'} if attachments else {}
         return super().post(f'{self.url}/send', data=data, attachments=attachments, sync=sync)

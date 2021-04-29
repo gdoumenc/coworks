@@ -12,24 +12,33 @@ We can consider three configuration levels:
     * execution config,
     * application config.
 
-Project configuration is related to how the team works and how deployment should be done. This description
-is done by a project configuration file: ``project.cws.yml``. This project configuration file describes :
+Project configuration
+    Project configuration is related to how the team works and how deployment should be done. This description
+    is done by a project configuration file: ``project.cws.yml``. This project configuration file describes :
 
-    * the miscroservices declared
-    * the commands and options associated on those microservices
+        * the miscroservices declared
+        * the commands and options associated on those microservices
 
-As for the `Twelve-Factor App <https://12factor.net/>`_ : *"The twelve-factor app stores config in environment variables.
-Env vars are easy to change between deploys without changing any code;"*. Using environment variables is highly
-recommanded to enable easy code deployments to differents systems:
-Changing configuration is just updating variables in the configuration in the CI/CD process.
+Execution configuration
+    As for the `Twelve-Factor App <https://12factor.net/>`_ : *"The twelve-factor app stores config in environment variables.
+    Env vars are easy to change between deploys without changing any code;"*. Using environment variables is highly
+    recommanded to enable easy code deployments to differents systems:
+    Changing configuration is just updating variables in the configuration in the CI/CD process.
 
-At last : *"application config does not vary between deploys, and so is best done in the code."* That's why
-entries are defined in the code.
+Application configuration
+    At last : *"application config does not vary between deploys, and so is best done in the code."* That's why
+    entries are defined in the code.
 
-Workspace configuration
------------------------
+Project configuration
+---------------------
 
-To add an workspace configuration to a microservice, defined it and use it with the ``configs`` parameter in its
+Stage is a key concept for the deployment. Stages are defined thru the concept of workspace (same as for terraform).
+
+
+Workspace definition
+^^^^^^^^^^^^^^^^^^^^
+
+To add a workspace and its configuration to a microservice, defined it and use it with the ``configs`` parameter in its
 constructor::
 
 	config = Config(workspace='local', environment_variables_file=Path("config") / "vars_local.json")
@@ -37,7 +46,7 @@ constructor::
 
 The ``workspace`` value will correspond to the ``--workspace`` argument for the commands ``run`` or ``deploy``.
 
-In this case, if you run the microservice in the workspace ``local``, then environment file will be found in
+In the exemple over, if you run the microservice in the workspace ``local``, then environment file will be found in
 ``config/vars_local.json``.
 
 You can then define several configurations::
@@ -65,6 +74,14 @@ Three other global workspace parameters may be defined and are describe below.
 
 Another usefull class defined is ``ProdConfig``. This configuration class is defined for production workspace
 where their names are version names, i.e. defined as ``r"v[1-9]+"``.
+
+Project configuration file
+^^^^^^^^^^^^^^^^^^^^
+
+A project configuration file is a YAML file containg two main parts:
+
+* The list of microservice defined
+* The command and options defined for those microservices.
 
 CORS
 ----
@@ -168,3 +185,115 @@ The `auth` function must also be defined at the bluprint level, and then it is a
 
 Content type
 ------------
+
+
+OLD
+
+Project configuration file
+--------------------------
+
+This configuration file is a YAML file describing the microservices and the commands defined in the project.
+Mainly this file is defined in two parts::
+
+    version: ">0.3.3"
+    services:
+    commands:
+
+The version key is used for compatibility. The services key introduce the ``services`` defined in the project,
+and the ``commands`` one the commands.
+
+Service part
+^^^^^^^^^^^^
+
+This part described the services defined in the project.
+
+So if you pass no module and service option to the ``cws`` command it will apply this command to all services defined.
+If you specify only the module, then the command will be applyed on all services of this module.
+
+Here is an example :
+
+.. code-block:: yaml
+
+    services:
+      - module: content_manager
+        service: content_cms
+      - module: configuration_manager
+        services:
+          - service: configuration_cms
+          - service: authorization_cms
+
+
+Command part
+^^^^^^^^^^^^
+
+This part described the commands and default options defined in the project.
+
+Here is an example :
+
+.. code-block:: yaml
+
+    commands:
+      run:
+        class: coworks.cws.runner.CwsRunner
+        port: 8000
+      info:
+        class: fpr.cws.FprInformant
+      deploy:
+        class: fpr.cws.deployer.FPRDeploy
+        project_name: cms
+        custom_layers: []
+        binary_media_types: ["application/json", "text/plain"]
+        profile_name: fpr-customer
+        bucket: coworks-microservice
+        services:
+          - module: configuration_manager
+            service: configuration_cms_ms
+            workspaces:
+              - workspace: prod
+                common_layers: ["fpr-1", "storage-1"]
+              - workspace: dev
+                common_layers: ["fpr-dev", "storage-1"]
+        workspaces:
+          - workspace: prod
+            common_layers: ["fpr-1"]
+          - workspace: dev
+            common_layers: ["fpr-dev"]
+
+Testing
+-------
+
+Testing part is very important for CD/CI process.
+
+PyTest Intergration
+^^^^^^^^^^^^^^^^^^^
+
+To create your tests for pytest, add this fixture in your ``conftest.py``::
+
+	from coworks.pytest.fixture import local_server_factory
+
+Then
+
+.. code-block:: python
+
+	def test_root(local_server_factory):
+		local_server = local_server_factory(SimpleExampleMicroservice())
+		response = local_server.make_call(requests.get, '/')
+		assert response.status_code == 200
+
+If you want to debug your test and stop on breakpoint, you need to increase request timeout:
+
+.. code-block:: python
+
+	def test_root(local_server_factory):
+		local_server = local_server_factory(SimpleExampleMicroservice())
+		response = local_server.make_call(requests.get, '/', timeout=200.0)
+		assert response.status_code == 200
+
+If you have an authorized access:
+
+.. code-block:: python
+
+	def test_root(local_server_factory):
+		local_server = local_server_factory(SimpleExampleMicroservice())
+		response = local_server.make_call(requests.get, '/', headers={'authorization': 'allow'})
+		assert response.status_code == 200

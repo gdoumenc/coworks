@@ -1,0 +1,45 @@
+aws_iam_role.{{ resource_name }}_microservice
+aws_iam_role_policy_attachment.{{ resource_name }}_s3
+aws_iam_role_policy_attachment.{{ resource_name }}_cloud_watch
+aws_iam_role_policy_attachment.{{ resource_name }}_xray
+aws_iam_role_policy_attachment.{{ resource_name }}_step_functions
+
+aws_api_gateway_rest_api.{{ resource_name }}
+aws_api_gateway_authorizer.{{ resource_name }}
+aws_api_gateway_resource.{{ resource_name }}_null
+aws_api_gateway_method.{{ resource_name }}_null
+aws_api_gateway_integration.{{ resource_name }}_null
+{%- for uid, resource in api_resources.items() %}
+  {% if resource.path %}
+aws_api_gateway_resource.{{ resource_name }}_{{ uid }}
+  {% endif %}
+  {%- if resource.entries %}
+    {%- for method, entry in resource.entries.items() %}
+aws_api_gateway_method.{{ resource_name }}_{{ uid }}_{{ method }}
+aws_api_gateway_integration.{{ resource_name }}_{{ uid }}_{{ method }}
+aws_api_gateway_method_response.{{ resource_name }}_{{ uid }}_{{ method }}_response_200
+aws_api_gateway_integration_response.{{ resource_name }}_{{ uid }}_{{ method }}_response_200
+    {%- endfor %}
+    {%- if resource.cors %}
+aws_api_gateway_method.{{ resource_name }}_{{ uid }}_OPTIONS
+aws_api_gateway_integration.{{ resource_name }}_{{ uid }}_OPTIONS
+aws_api_gateway_integration_response.{{ resource_name }}_{{ uid }}_OPTIONS
+aws_api_gateway_method_response.{{ resource_name }}_{{ uid }}_OPTIONS
+    {% endif -%}
+  {% endif -%}
+{%- endfor %}
+aws_api_gateway_deployment.{{ resource_name }}
+aws_cloudwatch_log_group.api_{{ resource_name }}
+aws_api_gateway_stage.{{ resource_name }}
+
+aws_lambda_function.{{ resource_name }}
+aws_lambda_permission.{{ resource_name }}_allow_apigateway
+aws_cloudwatch_log_group.lambda_{{ resource_name }}
+
+{%- if app.schedule_entries %}
+    {%- for name, entry in app.schedule_entries.items() %}
+aws_lambda_permission.{{ resource_name }}_allow_eventbridge
+aws_cloudwatch_event_rule.{{ resource_name }}_{{ name }}
+aws_cloudwatch_event_target.{{ resource_name }}_{{ name }}
+    {% endfor %}
+{%- endif %}
