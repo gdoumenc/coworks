@@ -362,15 +362,29 @@ class MicroServiceProxy:
             })
         self.url = f"https://{self.cws_id}.execute-api.eu-west-1.amazonaws.com/{self.cws_stage}"
 
-    def get(self, path, data=None):
-        return self.session.get(f'{self.url}/{path}', data=data)
+    def get(self, path, data=None, response_content_type='bytes'):
+        resp = self.session.get(f'{self.url}/{path}', data=data)
+        return self.convert(resp, response_content_type)
 
-    def post(self, path, data=None, attachments=None, headers=None, sync=True):
+    def post(self, path, data=None, json=None, attachments=None, headers=None, sync=True,
+             response_content_type='bytes'):
         if headers:
             self.session.headers.update(headers)
         if not sync:
             self.session.headers.update({'InvocationType': 'Event'})
-        return self.session.post(f'{self.url}/{path}', json=data or {}, files=attachments)
+        resp = self.session.post(f'{self.url}/{path}', data=data, json=json or {}, files=attachments)
+        return self.convert(resp, response_content_type)
+
+    @staticmethod
+    def convert(resp, response_content_type):
+        resp.raise_for_status()
+        if response_content_type == 'text':
+            content = resp.text
+        elif response_content_type == 'json':
+            content = resp.json()
+        else:
+            content = resp.content
+        return content, resp.status_code
 
 
 class BizMicroService(TechMicroService):
