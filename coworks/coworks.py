@@ -366,13 +366,11 @@ class MicroServiceProxy:
         resp = self.session.get(f'{self.url}/{path}', data=data)
         return self.convert(resp, response_content_type)
 
-    def post(self, path, data=None, json=None, attachments=None, headers=None, sync=True,
-             response_content_type='bytes'):
-        if headers:
-            self.session.headers.update(headers)
+    def post(self, path, data=None, json=None, headers=None, sync=True, response_content_type='bytes'):
+        headers = {**self.session.headers, **headers} if headers else self.session.headers
         if not sync:
-            self.session.headers.update({'InvocationType': 'Event'})
-        resp = self.session.post(f'{self.url}/{path}', data=data, json=json or {}, files=attachments)
+            headers.update({'InvocationType': 'Event'})
+        resp = self.session.post(f'{self.url}/{path}', data=data, json=json or {}, headers=headers)
         return self.convert(resp, response_content_type)
 
     @staticmethod
