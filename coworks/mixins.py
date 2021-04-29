@@ -238,9 +238,13 @@ class CoworksMixin:
                             add_param(k, value if len(value) > 1 else value[0])
                         kwargs = dict(**kwargs, **params)
                 else:
-                    if not args and (req.raw_body or req.query_params):
-                        err = f"TypeError: got an unexpected arguments (body: {req.raw_body}, query: {req.query_params}"
-                        return Response(body=err, status_code=400)
+                    if not args:
+                        if req.raw_body and req.json_body:
+                            err = f"TypeError: got an unexpected arguments (body: {req.json_body})"
+                            return Response(body=err, status_code=400)
+                        if req.query_params:
+                            err = f"TypeError: got an unexpected arguments (query: {req.query_params})"
+                            return Response(body=err, status_code=400)
 
                 # chalice is changing class for local server for threading reason (why not mixin..?)
                 self_class = self.__class__
