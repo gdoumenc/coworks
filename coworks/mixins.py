@@ -85,7 +85,8 @@ class CoworksMixin:
 
         May be used as a decorator.
 
-        The function will be called with the exception and eventually a response to return.
+        The function will be called with event, context and the exception. If a response is returned, the microservice
+        returns directly this reponse.
         """
 
         self.handle_exception_funcs.append(f)

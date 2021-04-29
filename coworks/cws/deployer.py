@@ -163,8 +163,10 @@ class CwsTerraformDeployer(CwsTerraformCommand):
             click.option('--binary_media_types'),
             click.option('--create', '-c', is_flag=True, help="Stop on create step."),
             click.option('--dry', is_flag=True, help="Doesn't perform deploy [Global option only]."),
-            click.option('--layers', '-l', multiple=True),
+            click.option('--layers', '-l', multiple=True, help="Add layer (full arn: aws:lambda:...)"),
             click.option('--output', '-o', is_flag=True, help="Print terraform output values."),
+            click.option('--python', '-p', type=click.Choice(['3.7', '3.8']), default='3.8',
+                         help="Python version for the lambda."),
             click.option('--update', '-u', is_flag=True, help="Only update lambda code [Global option only]."),
         ]
 

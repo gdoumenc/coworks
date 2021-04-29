@@ -21,23 +21,23 @@ class TestClass:
 
         assert 'GET' in simple.entries['']
         assert 'POST' not in simple.entries['']
-        assert writer.terraform_resources(simple)[''].parent_uid is None
-        assert writer.terraform_resources(simple)[''].is_root
-        assert writer.terraform_resources(simple)[''].path is None
+        assert writer.terraform_api_resources(simple)[''].parent_uid is None
+        assert writer.terraform_api_resources(simple)[''].is_root
+        assert writer.terraform_api_resources(simple)[''].path is None
 
         assert 'GET' in simple.entries['content']
         assert 'POST' in simple.entries['content']
-        assert writer.terraform_resources(simple)['content'].parent_uid == ''
-        assert not writer.terraform_resources(simple)['content'].is_root
-        assert writer.terraform_resources(simple)['content'].parent_is_root
-        assert writer.terraform_resources(simple)['content'].path == 'content'
+        assert writer.terraform_api_resources(simple)['content'].parent_uid == ''
+        assert not writer.terraform_api_resources(simple)['content'].is_root
+        assert writer.terraform_api_resources(simple)['content'].parent_is_root
+        assert writer.terraform_api_resources(simple)['content'].path == 'content'
 
         assert 'GET' in simple.entries['extended/content']
         assert 'POST' not in simple.entries['extended/content']
         assert 'extended' not in simple.entries
-        assert not writer.terraform_resources(simple)['extended'].is_root
-        assert writer.terraform_resources(simple)['extended'].path == 'extended'
-        assert writer.terraform_resources(simple)['extended'].entries is None
+        assert not writer.terraform_api_resources(simple)['extended'].is_root
+        assert writer.terraform_api_resources(simple)['extended'].path == 'extended'
+        assert writer.terraform_api_resources(simple)['extended'].entries is None
 
         assert 'GET' in simple.entries['kwparam1']
         assert 'POST' not in simple.entries['kwparam1']

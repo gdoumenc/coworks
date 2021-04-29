@@ -12,7 +12,7 @@ locals {
 locals {
   {{ resource_name }}_bucket = "{{ bucket }}"
   {{ resource_name }}_key = "{{ key }}"
-  {{ resource_name }}_python = "python3.7"
+  {{ resource_name }}_python = "python{{ python }}"
   {{ resource_name }}_role_arn = join("", aws_iam_role.{{ resource_name }}_microservice.*.arn, data.aws_iam_role.{{ resource_name }}_microservice.*.arn)
   {{ resource_name }}_security_group_ids = []
   {{ resource_name }}_vpc_id = []

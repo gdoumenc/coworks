@@ -30,7 +30,8 @@ class CwsZipArchiver(CwsCommand):
             click.option('--hash', is_flag=True, help="Upload also hash code content."),
             click.option('--ignore', '-i', multiple=True, help="Ignore pattern."),
             click.option('--key', '-k', help="Sources zip file bucket's name."),
-            click.option('--module_name', '-m', multiple=True, help="Python module added from current pyenv."),
+            click.option('--module_name', '-m', multiple=True,
+                         help="Python module added from current pyenv (module or file.py)."),
             click.option('--profile_name', '-p', required=True, help="AWS credential profile."),
         ]
 

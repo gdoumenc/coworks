@@ -1,14 +1,14 @@
+from dataclasses import dataclass
+
 import json
 import os
 import re
-from dataclasses import dataclass
-from typing import Callable
-from typing import Dict, List, Union, Optional
-
 import requests
 from chalice import AuthResponse
 from chalice import Chalice, Blueprint as ChaliceBlueprint
 from chalice.app import AuthRequest
+from typing import Callable
+from typing import Dict, List, Union, Optional
 
 from .config import Config, LocalConfig, DevConfig, ProdConfig, DEFAULT_PROJECT_DIR, DEFAULT_WORKSPACE
 from .mixins import CoworksMixin
@@ -196,6 +196,8 @@ class TechMicroService(CoworksMixin, Chalice):
         def deferred(workspace):
             if not hide_routes:
                 blueprint._init_routes(self, url_prefix=url_prefix)
+
+            # use old syntax for super as local server changes type
             super(TechMicroService, self).register_blueprint(blueprint, url_prefix=url_prefix)
 
         self.deferred_inits.append(deferred)
@@ -264,10 +266,9 @@ class TechMicroService(CoworksMixin, Chalice):
         workspace = os.environ['WORKSPACE']
         self.deferred_init(workspace=workspace)
 
-        if not self._got_first_activation:
-            for func in self.before_first_activation_funcs:
-                func(event, context)
-            self._got_first_activation = True
+        for func in self.before_first_activation_funcs:
+            func(event, context)
+        self._got_first_activation = True
 
     def do_before_activation(self, event, context):
         """Calls all before activation functions."""
@@ -343,7 +344,7 @@ class TechMicroService(CoworksMixin, Chalice):
             raise
 
     def schedule(self, *args, **kwargs):
-        raise NotImplementedError("Schedule decorator is defined on BizMicroService, not TechMicroService")
+        raise Exception("Schedule decorator is defined on BizMicroService, not on TechMicroService")
 
 
 class MicroServiceProxy:
@@ -379,10 +380,35 @@ class BizMicroService(TechMicroService):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.schedule_entries: Dict[str, ScheduleEntry] = {}
+        self.microservices: Dict[str, TechMicroService] = {}
 
     @property
     def ms_type(self):
         return 'biz'
+
+    def register_microservice(self, service: TechMicroService):
+        """ Register a :class:`MicroService` used by the microservice.
+
+        :param service: service to register.
+        :return:
+        """
+        self.microservices[service.name] = service
+
+        @self.before_first_activation
+        def first(event, context):
+            service.do_before_first_activation(event, context)
+
+        @self.before_activation
+        def before(event, context):
+            service.do_before_activation(event, context)
+
+        @self.after_activation
+        def after(response):
+            return service.do_after_activation(response)
+
+        @self.handle_exception
+        def after(event, context, e):
+            return service.do_handle_exception(event, context, e)
 
     # noinspection PyMethodOverriding
     def schedule(self, exp, *, name=None, description=None, workspaces=None):
