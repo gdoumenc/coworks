@@ -164,6 +164,7 @@ class CwsTerraformDeployer(CwsTerraformCommand):
             click.option('--create', '-c', is_flag=True, help="Stop on create step."),
             click.option('--dry', is_flag=True, help="Doesn't perform deploy [Global option only]."),
             click.option('--layers', '-l', multiple=True, help="Add layer (full arn: aws:lambda:...)"),
+            click.option('--init', '-i', is_flag=True, help="Perform terraform initialization."),
             click.option('--output', '-o', is_flag=True, help="Print terraform output values."),
             click.option('--python', '-p', type=click.Choice(['3.7', '3.8']), default='3.8',
                          help="Python version for the lambda."),
@@ -172,11 +173,8 @@ class CwsTerraformDeployer(CwsTerraformCommand):
 
     @classmethod
     def multi_execute(cls, project_dir, workspace, execution_list):
-        terraform = Terraform()
-        terraform.init()
-
         # Output, dry, create, stop and update are global options
-        dry = create = update_lambda_only = False
+        dry = create = update_lambda_only = output = init = False
         for command, options in execution_list:
             dry = options.pop('dry', False) or dry
             create = options.pop('create', False) or create
@@ -184,12 +182,18 @@ class CwsTerraformDeployer(CwsTerraformCommand):
 
             # Set default bucket key value
             options['key'] = options['key'] or f"{options.get('module')}-{command.app.name}/archive.zip"
+            output = output or options.pop('output', False)
+            init = init or options.pop('init', False)
 
-            # Stop if only print output
-            output = options.pop('output', False)
-            if output:
-                print(f"terraform output : {terraform.output()}")
-                return
+        terraform = Terraform()
+        if init:
+            print("terraform init")
+            terraform.init()
+
+        # Stop if only print output
+        if output:
+            print(f"terraform output : {terraform.output()}")
+            return
 
         # Transfert zip file to S3 (to be done on each service)
         for command, options in execution_list:
@@ -366,6 +370,7 @@ class CwsTerraformDestroyer(CwsTerraformCommand):
                 self.__class__.generate_terraform_files("create", self.app, terraform, "destroy.j2", terraform_filename,
                                                         msg, dry=dry, debug=debug, **options)
 
+        terraform.select_workspace("default")
 
 class Terraform:
 

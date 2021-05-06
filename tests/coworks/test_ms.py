@@ -154,8 +154,6 @@ class TestClass:
         assert response.headers['x-test'] == 'true'
         assert response.text == 'test'
 
-    import pytest
-    @pytest.mark.wip
     def test_entry_not_unique(self, local_server_factory):
         ms = AmbiguousMS()
         local_server = local_server_factory(ms)
