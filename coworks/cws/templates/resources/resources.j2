@@ -1,3 +1,4 @@
+data.aws_iam_role.{{ resource_name }}_microservice
 {% if layers -%}
 data.aws_lambda_layer_version.{{ resource_name }}
 {% endif %}

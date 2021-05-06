@@ -112,13 +112,13 @@ class CwsTerraformCommand(CwsCommand, ABC):
         """Returns the list of flatten path (prev, last, entry)."""
         resources = {}
 
-        def add_entries(previous, last, entries: Optional[List[Entry]]):
-            ter_entry = TerraformResource(previous, last, entries, app.config.cors)
+        def add_entries(previous, last, entries_: Optional[List[Entry]]):
+            ter_entry = TerraformResource(previous, last, entries_, app.config.cors)
             uid = ter_entry.uid
             if uid not in resources:
                 resources[uid] = ter_entry
             if resources[uid].entries is None:
-                resources[uid].entries = entries
+                resources[uid].entries = entries_
             return uid
 
         for route, entries in app.entries.items():
@@ -185,13 +185,8 @@ class CwsTerraformDeployer(CwsTerraformCommand):
             output = output or options.pop('output', False)
             init = init or options.pop('init', False)
 
-        terraform = Terraform()
-        if init:
-            print("terraform init")
-            terraform.init()
-
-        # Stop if only print output
-        if output:
+        terraform = Terraform(init)
+        if output:  # Stop if only print output
             print(f"terraform output : {terraform.output()}")
             return
 
@@ -201,7 +196,7 @@ class CwsTerraformDeployer(CwsTerraformCommand):
             module_name = options.pop('module_name')
             ignore = options.pop('ignore') or ['.*', 'terraform']
             options.pop('hash')
-            command.app.execute(cls.ZIP_CMD, ignore=ignore, module_name=module_name, hash=True, **options)
+            command.app.execute(cls.ZIP_CMD, ignore=ignore, module_name=module_name, hash=True, dry=dry, **options)
 
         # Generates default provider
         # cls.generate_common_terraform_files()
@@ -330,7 +325,7 @@ class CwsTerraformDestroyer(CwsTerraformCommand):
                 print(f"Successfully removed sources at s3://{bucket}/{key}")
 
     def terraform_destroy(self, *, workspace, debug, dry, **options):
-        terraform = Terraform()
+        terraform = Terraform(False)
 
         all_workspaces = options['all']
         terraform_resources_filename = f"{self.app.name}.{self.app.ms_type}.txt"
@@ -372,16 +367,18 @@ class CwsTerraformDestroyer(CwsTerraformCommand):
 
         terraform.select_workspace("default")
 
+
 class Terraform:
 
-    def __init__(self):
+    def __init__(self, init):
         from python_terraform import Terraform as PythonTerraform
 
-        self.terraform = PythonTerraform(working_dir='terraform', terraform_bin_path='terraform')
-        dir = Path(self.working_dir).mkdir(exist_ok=True)
-        return_code, _, err = self.terraform.init(dir_or_plan=dir)
-        if return_code != 0:
-            raise CwsCommandError(err)
+        self.terraform = PythonTerraform(working_dir='terraform')
+        Path(self.working_dir).mkdir(exist_ok=True)
+        if init:
+            return_code, _, err = self.terraform.init(dir_or_plan=self.working_dir)
+            if return_code != 0:
+                raise CwsCommandError(err)
 
     @property
     def working_dir(self):
