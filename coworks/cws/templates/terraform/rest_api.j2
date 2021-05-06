@@ -31,6 +31,7 @@ resource "aws_api_gateway_authorizer" "{{ resource_name }}" {
   name = "{{ resource_name }}-auth"
   rest_api_id = local.{{ resource_name }}_api_id
   authorizer_uri = local.{{ resource_name }}_lambda_uri
+  authorizer_result_ttl_in_seconds = 0
 }
 
 # since at least one integration in needed to create api deployment we create an empty resource to prevent terraform from failing the first time we deploy the microservice
