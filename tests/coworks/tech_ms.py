@@ -93,23 +93,3 @@ class ParamMS(TechMS):
         return str1 + str(param1) + param2
 
 
-class TupleReturnedMS(TechMS):
-    @entry
-    def get(self):
-        return 'ok', 200
-
-    @entry
-    def get_json(self):
-        return {'value': 'ok'}, 200
-
-    @entry
-    def get_resp(self, str):
-        return Response(body=str, status_code=200)
-
-    @entry
-    def get_error(self, str):
-        return str, 300
-
-    @entry
-    def get_tuple(self, str):
-        return (str, 200, {'x-test': 'true'})

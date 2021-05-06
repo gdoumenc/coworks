@@ -306,7 +306,7 @@ class TechMicroService(CoworksMixin, Chalice):
                 found = False
                 break
 
-            if found:
+            if found and method in result:
                 return result[method]
         return None
 
