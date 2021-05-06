@@ -37,7 +37,7 @@ resource "aws_api_gateway_authorizer" "{{ resource_name }}" {
 resource "aws_api_gateway_resource" "{{ resource_name }}_null" {
   provider = aws.{{ resource_name }}
   count = {{ "local.{}_when_default".format(resource_name) if step == "create" else 0 }}
-  path_part = "null_resource"
+  path_part = "none"
   parent_id = local.{{ resource_name }}_api_root_id
   rest_api_id = local.{{ resource_name }}_api_id
 }
@@ -55,7 +55,6 @@ resource "aws_api_gateway_integration" "{{ resource_name }}_null" {
   rest_api_id = local.{{ resource_name }}_api_id
   resource_id = join("", aws_api_gateway_resource.{{ resource_name }}_null.*.id)
   http_method = join("", aws_api_gateway_method.{{ resource_name }}_null.*.http_method)
-  integration_http_method = "GET"
   type = "MOCK"
 }
 
