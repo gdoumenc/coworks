@@ -3,8 +3,9 @@ import inspect
 import json
 import os
 import platform
-import sys
 from functools import partial
+
+import sys
 
 HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
 
@@ -19,7 +20,9 @@ def jsonify(result, pretty=False, indent=None, separators=None):
     return json.dumps(result, indent=indent, separators=separators)
 
 
-def import_attr(module, attr, cwd='.'):
+def import_attr(module, attr: str, cwd='.'):
+    if type(attr) is not str:
+        raise AttributeError(f"{attr} is not a string.")
     if cwd not in sys.path:
         sys.path.insert(0, cwd)
     app_module = importlib.import_module(module)
