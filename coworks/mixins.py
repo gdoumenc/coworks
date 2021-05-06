@@ -1,14 +1,14 @@
+import traceback
+
 import cgi
 import inspect
 import io
 import json
-import traceback
 import urllib
-from functools import update_wrapper, partial
-
 from aws_xray_sdk.core import xray_recorder
 from botocore.exceptions import BotoCoreError
 from chalice import AuthResponse, Response, ChaliceViewError
+from functools import update_wrapper, partial
 from requests_toolbelt.multipart import MultipartDecoder
 
 from .aws import AwsS3Session
@@ -97,8 +97,10 @@ class CoworksMixin:
         :param hide_routes list of routes to be hidden.
         """
 
-        # Global authorization function may be redefined
-        auth_fun = app.config.auth if app.config.auth else class_auth_methods(app)
+        # Global authorization function may be redefined by config
+        auth_fun = class_auth_methods(app)
+        if not auth_fun and app.config.auth:
+            auth_fun = app.config.auth
         auth = self._create_auth_proxy(app, auth_fun) if auth_fun else None
 
         # Adds entrypoints
