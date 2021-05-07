@@ -99,8 +99,7 @@ class CoworksMixin:
 
         # Global authorization function may be redefined by config
         auth_fun = class_auth_methods(app)
-        if not auth_fun and app.config.auth:
-            auth_fun = app.config.auth
+        auth_fun = auth_fun or app.config.auth
         auth = self._create_auth_proxy(app, auth_fun) if auth_fun else None
 
         # Adds entrypoints
@@ -203,7 +202,7 @@ class CoworksMixin:
                     params = {}
                     if req.raw_body:  # POST request
                         try:
-                            content_type = req.headers['content-type']
+                            content_type = req.headers.get('content-type', 'application/json')
                             if content_type.startswith('multipart/form-data'):
                                 try:
                                     multipart_decoder = MultipartDecoder(req.raw_body, content_type)
