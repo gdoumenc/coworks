@@ -158,6 +158,10 @@ class TechMicroService(CoworksMixin, Chalice):
     def ms_type(self):
         return 'tech'
 
+    @property
+    def current_app(self):
+        return self
+
     def get_config(self, workspace):
         for conf in self.configs:
             if conf.is_valid_for(workspace):
@@ -172,7 +176,7 @@ class TechMicroService(CoworksMixin, Chalice):
             self.config = self.get_config(workspace)
 
             # Initializes routes and defered initializations
-            self._init_routes(self)
+            self._init_routes()
             for deferred_init in self.deferred_inits:
                 deferred_init(workspace)
             for blueprint in self.blueprints.values():
@@ -193,14 +197,14 @@ class TechMicroService(CoworksMixin, Chalice):
             raise NameError(f"A blueprint is already defined with the name : {name}.")
         self.blueprints[name] = blueprint
 
-        def deferred(workspace):
-            if not hide_routes:
-                blueprint._init_routes(self, url_prefix=url_prefix)
+        # use old syntax for super as local server changes type
+        super(TechMicroService, self).register_blueprint(blueprint, url_prefix=url_prefix)
 
-            # use old syntax for super as local server changes type
-            super(TechMicroService, self).register_blueprint(blueprint, url_prefix=url_prefix)
+        if not hide_routes:
+            def deferred(*args):
+                blueprint._init_routes(url_prefix=url_prefix)
 
-        self.deferred_inits.append(deferred)
+            self.deferred_inits.append(deferred)
 
     def add_entry(self, path, method, auth, fun):
         self.entries[path][method] = Entry(auth, fun)
