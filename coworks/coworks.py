@@ -366,11 +366,11 @@ class MicroServiceProxy:
             })
         self.url = f"https://{self.cws_id}.execute-api.eu-west-1.amazonaws.com/{self.cws_stage}"
 
-    def get(self, path, data=None, response_content_type='bytes'):
+    def get(self, path, data=None, response_content_type='json'):
         resp = self.session.get(f'{self.url}/{path}', data=data)
         return self.convert(resp, response_content_type)
 
-    def post(self, path, data=None, json=None, headers=None, sync=True, response_content_type='bytes'):
+    def post(self, path, data=None, json=None, headers=None, sync=True, response_content_type='json'):
         headers = {**self.session.headers, **headers} if headers else self.session.headers
         if not sync:
             headers.update({'InvocationType': 'Event'})
