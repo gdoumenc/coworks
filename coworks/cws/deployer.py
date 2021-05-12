@@ -338,32 +338,36 @@ class CwsTerraformDestroyer(CwsTerraformCommand):
                 print(f"The resouces have been already removed ({terraform_resources_filename}).")
                 return
 
-            # Destroy resources
+            # Destroy resources (except default)
             for w in terraform.workspace_list():
-                if all_workspaces or w in ["default", workspace]:
+                if w in [workspace] or (all_workspaces and w != 'default'):
                     print(f"Terraform destroy ({w})", flush=True)
                     terraform.destroy(w, targets)
 
-        if all_workspaces:
+            if all_workspaces:
 
-            # Removing terraform resource file
-            output = Path(terraform.working_dir) / terraform_resources_filename
-            if debug:
-                print(f"Removing terraform resource file: {output} {'(not done)' if dry else ''}")
-            if not dry:
-                output.unlink(missing_ok=True)
+                # Remove default workspace
+                # --create --dry
+                terraform.destroy('default', targets)
 
-            # Removing terraform file
-            terraform_filename = f"{self.app.name}.{self.app.ms_type}.tf"
-            output = Path(terraform.working_dir) / terraform_filename
-            if debug:
-                print(f"Removing terraform file: {output} {'(not done)' if dry else ''}")
-            if not dry:
-                output.unlink(missing_ok=True)
+                # Removes terraform resource file
+                output = Path(terraform.working_dir) / terraform_resources_filename
+                if debug:
+                    print(f"Removing terraform resource file: {output} {'(not done)' if dry else ''}")
+                if not dry:
+                    output.unlink(missing_ok=True)
+
+                # Removes terraform file
                 terraform_filename = f"{self.app.name}.{self.app.ms_type}.tf"
-                msg = f"Generate minimal destroy file for {self.app.name}"
-                self.__class__.generate_terraform_files("create", self.app, terraform, "destroy.j2", terraform_filename,
-                                                        msg, dry=dry, debug=debug, **options)
+                output = Path(terraform.working_dir) / terraform_filename
+                if debug:
+                    print(f"Removing terraform file: {output} {'(not done)' if dry else ''}")
+                if not dry:
+                    output.unlink(missing_ok=True)
+                    terraform_filename = f"{self.app.name}.{self.app.ms_type}.tf"
+                    msg = f"Generate minimal destroy file for {self.app.name}"
+                    self.__class__.generate_terraform_files("create", self.app, terraform, "destroy.j2", terraform_filename,
+                                                            msg, dry=dry, debug=debug, **options)
 
         terraform.select_workspace("default")
 

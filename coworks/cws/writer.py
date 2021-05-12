@@ -53,7 +53,7 @@ class CwsTemplateWriter(CwsWriter):
         self.data = data or {}
         self.template_filenames = template or []
         self.env = env or Environment(
-            loader=PackageLoader(sys.modules[__name__].__name__),
+            loader=PackageLoader(sys.modules[__name__].__package__),
             autoescape=select_autoescape(['html', 'xml']))
 
     @property
