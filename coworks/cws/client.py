@@ -1,11 +1,12 @@
-import sys
 from copy import deepcopy
 from dataclasses import dataclass, asdict
 from logging import getLogger, WARNING
-from typing import List, Tuple
 
 import anyconfig
 import click
+import sys
+from pathlib import Path
+from typing import List, Tuple
 
 from .command import CwsMultiCommands
 from .error import CwsClientError
@@ -100,24 +101,26 @@ class CwsClientOptions:
     module: str
     service: str
     config_file: str
+    config_file_suffix: str
 
     def __init__(self, params):
         self.project_dir = params.get('project_dir')
         self.workspace = params.get('workspace')
         self.module = params.get('module')
         self.service = params.get('service')
-        self.config_file = params.get('config_file') or "project"
-        self.project_config = ProjectConfig(self.project_dir, self.config_file)
+        self.config_file = params.get('config_file') or 'project'
+        self.config_file_suffix = params.get('config_file_suffix') or '.cws.yml'
+        self.project_config = ProjectConfig(self.project_dir, self.config_file, self.config_file_suffix)
 
     @property
     def services(self):
-        """Returns the list of services defined from the client optons"""
+        """Returns the list of services defined from the client optons."""
         if self.service:
             return [(self.module, self.service)]
         return self.project_config.all_services(self.module)
 
     def get_handler(self, module, service):
-        # Load microservice handler
+        """Loads microservice handler."""
         try:
             return import_attr(module, service, cwd=self.project_dir)
         except AttributeError as e:
@@ -136,17 +139,17 @@ class CwsClientOptions:
 class ProjectConfig:
     """Class for the project configuration file."""
 
-    def __init__(self, project_dir, file_name, file_suffix=".cws.yml"):
-        from pathlib import Path
+    def __init__(self, project_dir, file_name, file_suffix):
         self.project_dir = project_dir
         self.params = {}
-
-        project_dir_path = Path(project_dir)
-        self.project_file = project_dir_path / (file_name + file_suffix)
-        project_secret_file = project_dir_path / (file_name + '.secret' + file_suffix)
         getLogger('anyconfig').setLevel(WARNING)
-        self.params = anyconfig.multi_load([self.project_file, project_secret_file], ac_ignore_missing=True)
 
+        # Loads project configuration file at project dir then at root if not found
+        self.params = self._load_config(project_dir, file_name, file_suffix)
+        if not self.params:
+            self.params = self._load_config('.', file_name, file_suffix)
+
+        # Checks results
         if not self.params:
             raise CwsClientError(f"Cannot find project file ({file_name + file_suffix}).\n")
         if self.params.get('version') != PROJECT_CONFIG_VERSION:
@@ -181,6 +184,14 @@ class ProjectConfig:
     def all_commands(self):
         """ Returns the list of microservices on which the command will be executed."""
         return self.params.get('commands', {})
+
+    @staticmethod
+    def _load_config(dir, file_name, file_suffix):
+        """Loads the project configuration file."""
+        project_dir_path = Path(dir)
+        project_file = project_dir_path / (file_name + file_suffix)
+        project_secret_file = project_dir_path / (file_name + '.secret' + file_suffix)
+        return anyconfig.multi_load([project_file, project_secret_file], ac_ignore_missing=True)
 
     @staticmethod
     def _get_workspace_options(options, workspace):
@@ -251,6 +262,7 @@ class ServiceConfig:
             return cmd
 
     def _command_class(self, cmd_name):
+        """Loads the command class defined by name."""
         cmd_class_name = self.get_command_options(cmd_name).get('class')
         if cmd_class_name:
             splitted = cmd_class_name.split('.')

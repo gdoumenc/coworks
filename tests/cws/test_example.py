@@ -1,9 +1,8 @@
+import pytest
+import requests
 import threading
 import time
 from pathlib import Path
-
-import pytest
-import requests
 
 from coworks.config import Config, LocalConfig
 from coworks.cws.client import client
