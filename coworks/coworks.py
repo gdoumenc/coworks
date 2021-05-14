@@ -329,7 +329,7 @@ class TechMicroService(CoworksMixin, Chalice):
 
     def _api_handler(self, event, context):
         """API rest handler."""
-        self.log.debug(f"Calling {self.name} by api")
+        self.log.debug(f"Calling {self.name} by api : {event}")
 
         try:
             # Chalice accepts only string for body
