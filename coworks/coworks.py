@@ -316,7 +316,7 @@ class TechMicroService(CoworksMixin, Chalice):
 
     def _token_handler(self, event, context):
         """Authorization handler."""
-        self.log.debug(f"Calling {self.name} for authorization")
+        self.log.debug(f"Calling {self.name} for authorization : {event}")
 
         try:
             *_, method, route = event.get('methodArn').split('/', 3)
