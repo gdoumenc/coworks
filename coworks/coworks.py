@@ -332,9 +332,8 @@ class TechMicroService(CoworksMixin, Chalice):
         self.log.debug(f"Calling {self.name} by api : {event}")
 
         try:
-            # Chalice accepts only string for body
-            if type(event['body']) is dict:
-                event['body'] = json.dumps(event['body'])
+            # Chalice accepts only proxy integration and string for body
+            self.complete_for_proxy(event, context)
 
             res = super().__call__(event, context)
             workspace = os.getenv('WORKSPACE')
@@ -346,6 +345,32 @@ class TechMicroService(CoworksMixin, Chalice):
         except Exception as e:
             self.log.debug(f"Error in api handler for {self.name} : {e}")
             raise
+
+    @staticmethod
+    def complete_for_proxy(event, context):
+        request_context = event.get('requestContext')
+        if 'resourcePath' not in request_context:
+
+            # Creates proxy routes and path parameters
+            entry_path = request_context.get('entryPath')
+            entry_path_parameters = event.get('entryPathParameters')
+            proxy_resource_path = []
+            proxy_path_parameters = {}
+            counter = 0
+            for subpath in entry_path.split('/'):
+                if subpath.startswith('{'):
+                    proxy_resource_path.append(f'{{_{counter}}}')
+                    proxy_path_parameters[f'_{counter}'] = entry_path_parameters.get(subpath[1:-1])
+                    counter = counter + 1
+                else:
+                    proxy_resource_path.append(subpath)
+
+            # Completes the event with proxy parameters
+            request_context['resourcePath'] = '/'.join(proxy_resource_path)
+            event['pathParameters'] = proxy_path_parameters
+
+        if type(event['body']) is dict:
+            event['body'] = json.dumps(event['body'])
 
     def schedule(self, *args, **kwargs):
         raise Exception("Schedule decorator is defined on BizMicroService, not on TechMicroService")
