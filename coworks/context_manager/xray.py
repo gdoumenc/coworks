@@ -1,4 +1,6 @@
 import traceback
+
+from aws_xray_sdk.core import AWSXRayRecorder
 from functools import partial, update_wrapper
 
 LAMBDA_NAMESPACE = 'lambda'
@@ -72,3 +74,26 @@ class XRayContextManager:
                     'body': "Exception in microservice, see logs in XRay for more details",
                     'error': str(e)
                 }
+
+    @staticmethod
+    def capture(recorder):
+        """Decorator to trace function calls on XRay."""
+
+        if not issubclass(recorder.__class__, AWSXRayRecorder):
+            raise TypeError(f"recorder is not an AWSXRayRecorder {type(recorder)}")
+
+        def decorator(function):
+            def captured(*args, **kwargs):
+                subsegment = recorder.current_subsegment()
+                if subsegment:
+                    subsegment.put_metadata(f'{function.__name__}.args', args, COWORKS_NAMESPACE)
+                    subsegment.put_metadata(f'{function.__name__}.kwargs', kwargs, COWORKS_NAMESPACE)
+                response = function(*args, **kwargs)
+                if subsegment:
+                    subsegment.put_metadata(f'{function.__name__}.response', response, COWORKS_NAMESPACE)
+                return response
+
+            wrapped_fun = update_wrapper(captured, function)
+            return recorder.capture(function.__name__)(wrapped_fun)
+
+        return decorator
