@@ -1,14 +1,15 @@
+import traceback
+
 import cgi
 import inspect
 import io
 import json
-import traceback
 import urllib
-from functools import update_wrapper, partial
-
+from abc import abstractmethod
 from aws_xray_sdk.core import xray_recorder
 from botocore.exceptions import BotoCoreError
 from chalice import AuthResponse, Response, ChaliceViewError
+from functools import update_wrapper, partial
 from requests_toolbelt.multipart import MultipartDecoder
 
 from .aws import AwsS3Session
@@ -92,14 +93,20 @@ class CoworksMixin:
         self.handle_exception_funcs.append(f)
         return f
 
-    def _init_routes(self, app, *, url_prefix='', hide_routes=False):
+    @property
+    @abstractmethod
+    def current_app(self):
+        ...
+
+    def _init_routes(self, *, url_prefix='', hide_routes=False):
         """ Creates all routes for a microservice.
         :param hide_routes list of routes to be hidden.
         """
 
-        # Global authorization function may be redefined
-        auth_fun = app.config.auth if app.config.auth else class_auth_methods(app)
-        auth = self._create_auth_proxy(app, auth_fun) if auth_fun else None
+        # Global authorization function may be redefined by config
+        auth_fun = class_auth_methods(self.current_app)
+        auth_fun = auth_fun or self.current_app.config.auth
+        auth = self._create_auth_proxy(auth_fun) if auth_fun else None
 
         # Adds entrypoints
         methods = class_cws_methods(self)
@@ -131,17 +138,18 @@ class CoworksMixin:
 
             # Creates the entry
             if hide_routes is False or (type(hide_routes) is list and entry_path not in hide_routes):
-                if app.entries is None:
-                    app.entries = {}
-                if entry_path not in app.entries:
-                    app.entries[entry_path] = {}
-                if method in app.entries[entry_path]:
+                if self.current_app.entries is None:
+                    self.current_app.entries = {}
+                if entry_path not in self.current_app.entries:
+                    self.current_app.entries[entry_path] = {}
+                if method in self.current_app.entries[entry_path]:
                     raise CwsError(f"The method {method} is already defined for the route {make_absolute(entry_path)}")
-                app.add_entry(entry_path, method, auth, fun)
-                app.route(f"{make_absolute(route)}", methods=[method], authorizer=auth, cors=app.config.cors,
-                          content_types=list(app.config.content_type))(proxy)
+                self.current_app.add_entry(entry_path, method, auth, fun)
+                self.current_app.route(f"{make_absolute(route)}", methods=[method], authorizer=auth,
+                                       cors=self.current_app.config.cors,
+                                       content_types=list(self.current_app.config.content_type))(proxy)
 
-    def _create_auth_proxy(self, app, auth_method):
+    def _create_auth_proxy(self, auth_method):
 
         def proxy(auth_activation):
             subsegment = xray_recorder.current_subsegment()
@@ -150,7 +158,7 @@ class CoworksMixin:
                 if subsegment:
                     subsegment.put_metadata('result', auth)
             except Exception as e:
-                app.log.info(f"Exception : {str(e)}")
+                self.current_app.log.info(f"Exception : {str(e)}")
                 traceback.print_exc()
                 if subsegment:
                     subsegment.add_exception(e, traceback.extract_stack())
@@ -201,7 +209,7 @@ class CoworksMixin:
                     params = {}
                     if req.raw_body:  # POST request
                         try:
-                            content_type = req.headers['content-type']
+                            content_type = req.headers.get('content-type', 'application/json')
                             if content_type.startswith('multipart/form-data'):
                                 try:
                                     multipart_decoder = MultipartDecoder(req.raw_body, content_type)
@@ -228,6 +236,8 @@ class CoworksMixin:
                                 err = f"Cannot manage content type {content_type} for {self}"
                                 return Response(body=err, status_code=400)
                         except Exception as e:
+                            self.current_app.log.error(traceback.print_exc())
+                            self.current_app.log.debug(e)
                             return Response(body=str(e), status_code=400)
 
                     else:  # GET request

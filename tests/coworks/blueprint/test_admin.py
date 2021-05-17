@@ -1,9 +1,9 @@
 import json
-
 import requests
 
 from coworks import Blueprint
 from coworks.blueprint import Admin
+from coworks.config import DEFAULT_WORKSPACE
 from tests.coworks.tech_ms import *
 
 
@@ -39,6 +39,12 @@ class HiddenBlueprint(Blueprint):
 
 
 class TestClass:
+
+    def test_chalice_routes(self, local_server_factory):
+        ms = DocumentedMS()
+        ms.deferred_init(DEFAULT_WORKSPACE)
+        assert '/list/{_0}' in ms.routes
+
     def test_documentation(self, local_server_factory):
         ms = DocumentedMS()
         ms.register_blueprint(Admin(), url_prefix="/admin")

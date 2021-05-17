@@ -3,7 +3,6 @@ from dataclasses import dataclass
 import json
 import os
 import re
-import requests
 from chalice import AuthResponse
 from chalice import Chalice, Blueprint as ChaliceBlueprint
 from chalice.app import AuthRequest
@@ -87,6 +86,7 @@ class Blueprint(CoworksMixin, ChaliceBlueprint):
         :param kwargs: Other Chalice parameters.
 
         """
+        self._current_app = self._import_name = None
         import_name = name or self.__class__.__name__.lower()
         super().__init__(import_name)
 
@@ -158,6 +158,10 @@ class TechMicroService(CoworksMixin, Chalice):
     def ms_type(self):
         return 'tech'
 
+    @property
+    def current_app(self):
+        return self
+
     def get_config(self, workspace):
         for conf in self.configs:
             if conf.is_valid_for(workspace):
@@ -172,7 +176,7 @@ class TechMicroService(CoworksMixin, Chalice):
             self.config = self.get_config(workspace)
 
             # Initializes routes and defered initializations
-            self._init_routes(self)
+            self._init_routes()
             for deferred_init in self.deferred_inits:
                 deferred_init(workspace)
             for blueprint in self.blueprints.values():
@@ -193,14 +197,14 @@ class TechMicroService(CoworksMixin, Chalice):
             raise NameError(f"A blueprint is already defined with the name : {name}.")
         self.blueprints[name] = blueprint
 
-        def deferred(workspace):
-            if not hide_routes:
-                blueprint._init_routes(self, url_prefix=url_prefix)
+        # use old syntax for super as local server changes type
+        super(TechMicroService, self).register_blueprint(blueprint, url_prefix=url_prefix)
 
-            # use old syntax for super as local server changes type
-            super(TechMicroService, self).register_blueprint(blueprint, url_prefix=url_prefix)
+        if not hide_routes:
+            def deferred(*args):
+                blueprint._init_routes(url_prefix=url_prefix)
 
-        self.deferred_inits.append(deferred)
+            self.deferred_inits.append(deferred)
 
     def add_entry(self, path, method, auth, fun):
         self.entries[path][method] = Entry(auth, fun)
@@ -306,13 +310,13 @@ class TechMicroService(CoworksMixin, Chalice):
                 found = False
                 break
 
-            if found:
+            if found and method in result:
                 return result[method]
         return None
 
     def _token_handler(self, event, context):
         """Authorization handler."""
-        self.log.debug(f"Calling {self.name} for authorization")
+        self.log.debug(f"Calling {self.name} for authorization : {event}")
 
         try:
             *_, method, route = event.get('methodArn').split('/', 3)
@@ -325,12 +329,11 @@ class TechMicroService(CoworksMixin, Chalice):
 
     def _api_handler(self, event, context):
         """API rest handler."""
-        self.log.debug(f"Calling {self.name} by api")
+        self.log.debug(f"Calling {self.name} by api : {event}")
 
         try:
-            # Chalice accepts only string for body
-            if type(event['body']) is dict:
-                event['body'] = json.dumps(event['body'])
+            # Chalice accepts only proxy integration and string for body
+            self.complete_for_proxy(event, context)
 
             res = super().__call__(event, context)
             workspace = os.getenv('WORKSPACE')
@@ -343,48 +346,34 @@ class TechMicroService(CoworksMixin, Chalice):
             self.log.debug(f"Error in api handler for {self.name} : {e}")
             raise
 
+    @staticmethod
+    def complete_for_proxy(event, context):
+        request_context = event.get('requestContext')
+        if 'resourcePath' not in request_context:
+
+            # Creates proxy routes and path parameters
+            entry_path = request_context.get('entryPath')
+            entry_path_parameters = event.get('entryPathParameters')
+            proxy_resource_path = []
+            proxy_path_parameters = {}
+            counter = 0
+            for subpath in entry_path.split('/'):
+                if subpath.startswith('{'):
+                    proxy_resource_path.append(f'{{_{counter}}}')
+                    proxy_path_parameters[f'_{counter}'] = entry_path_parameters.get(subpath[1:-1])
+                    counter = counter + 1
+                else:
+                    proxy_resource_path.append(subpath)
+
+            # Completes the event with proxy parameters
+            request_context['resourcePath'] = '/'.join(proxy_resource_path)
+            event['pathParameters'] = proxy_path_parameters
+
+        if type(event['body']) is dict:
+            event['body'] = json.dumps(event['body'])
+
     def schedule(self, *args, **kwargs):
         raise Exception("Schedule decorator is defined on BizMicroService, not on TechMicroService")
-
-
-class MicroServiceProxy:
-
-    def __init__(self, env_name, **kwargs):
-        self.session = requests.Session()
-        self.cws_id = os.getenv(f'{env_name}_CWS_ID')
-        self.cws_token = os.getenv(f'{env_name}_CWS_TOKEN')
-        self.cws_stage = os.getenv(f'{env_name}_CWS_STAGE')
-
-        self.session.headers.update(
-            {
-                'authorization': self.cws_token,
-                'content-type': 'application/json',
-            })
-        self.url = f"https://{self.cws_id}.execute-api.eu-west-1.amazonaws.com/{self.cws_stage}"
-
-    def get(self, path, data=None, response_content_type='bytes'):
-        resp = self.session.get(f'{self.url}/{path}', data=data)
-        return self.convert(resp, response_content_type)
-
-    def post(self, path, data=None, json=None, attachments=None, headers=None, sync=True,
-             response_content_type='bytes'):
-        if headers:
-            self.session.headers.update(headers)
-        if not sync:
-            self.session.headers.update({'InvocationType': 'Event'})
-        resp = self.session.post(f'{self.url}/{path}', data=data, json=json or {}, files=attachments)
-        return self.convert(resp, response_content_type)
-
-    @staticmethod
-    def convert(resp, response_content_type):
-        resp.raise_for_status()
-        if response_content_type == 'text':
-            content = resp.text
-        elif response_content_type == 'json':
-            content = resp.json()
-        else:
-            content = resp.content
-        return content, resp.status_code
 
 
 class BizMicroService(TechMicroService):

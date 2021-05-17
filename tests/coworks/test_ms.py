@@ -3,6 +3,38 @@ import requests
 from tests.coworks.tech_ms import *
 
 
+class TupleReturnedMS(TechMS):
+    @entry
+    def get(self):
+        return 'ok', 200
+
+    @entry
+    def get_json(self):
+        return {'value': 'ok'}, 200
+
+    @entry
+    def get_resp(self, str):
+        return Response(body=str, status_code=200)
+
+    @entry
+    def get_error(self, str):
+        return str, 300
+
+    @entry
+    def get_tuple(self, str):
+        return (str, 200, {'x-test': 'true'})
+
+
+class AmbiguousMS(TechMS):
+    @entry
+    def get(self, uid):
+        return uid, 200
+
+    @entry
+    def post_test(self):
+        return {'value': 'ok'}, 200
+
+
 class TestClass:
 
     def test_request_arg(self, local_server_factory):
@@ -122,3 +154,15 @@ class TestClass:
         assert response.headers['x-test'] == 'true'
         assert response.text == 'test'
 
+    def test_entry_not_unique(self, local_server_factory):
+        ms = AmbiguousMS()
+        local_server = local_server_factory(ms)
+        response = local_server.make_call(requests.get, '/123')
+        assert response.status_code == 200
+        assert response.text == '123'
+        response = local_server.make_call(requests.post, '/test')
+        assert response.status_code == 200
+        assert response.text == '{"value":"ok"}'
+
+        entry_ = ms._entry('test', 'POST')
+        assert entry_ is not None

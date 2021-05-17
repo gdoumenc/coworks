@@ -14,7 +14,7 @@ class Admin(Blueprint):
     def get_route(self, pretty=False):
         """Returns the list of entrypoints with signature."""
         routes = {}
-        for path, entrypoint in self._current_app.entries.items():
+        for path, entrypoint in self.current_app.entries.items():
             route = {}
             for http_method, route_entry in entrypoint.items():
                 function_called = route_entry.fun
@@ -43,8 +43,8 @@ class Admin(Blueprint):
         env.filters["keyword_params"] = keyword_params
 
         data = {
-            'name': self._current_app.name,
-            'entries': self._current_app.entries,
+            'name': self.current_app.name,
+            'entries': self.current_app.entries,
         }
         template = env.get_template("proxy.j2")
         return template.render(**data)

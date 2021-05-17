@@ -8,6 +8,7 @@ import requests
 from aws_xray_sdk.core import xray_recorder
 
 from coworks import Blueprint, FileParam, entry, MicroServiceProxy
+from coworks.context_manager import XRayContextManager
 
 
 #
@@ -42,7 +43,7 @@ class Mail(Blueprint):
                 raise EnvironmentError(f'{self.env_passwd_var_name} not defined in environment.')
 
     @entry
-    @xray_recorder.capture()
+    @XRayContextManager.capture(xray_recorder)
     def post_send(self, subject="", from_addr: str = None, from_name: str = '', to_addrs: [str] = None,
                   cc_addrs: [str] = None, bcc_addrs: [str] = None, body="",
                   attachments: [FileParam] = None, attachment_urls: dict = None, subtype="plain", starttls=True):

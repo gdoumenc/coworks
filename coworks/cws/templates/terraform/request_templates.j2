@@ -1,0 +1,80 @@
+{% macro event(body, is_base64_encoded) %}
+  #set($allParams = $input.params())
+  #set($headers = $allParams.get("header"))
+  #set($path = $allParams.get("path"))
+  #set($queries = $allParams.get("querystring"))
+  {
+    "type" : "LAMBDA",
+    "resource" : "$context.resourcePath",
+    "path" : "$context.resourcePath",
+    "httpMethod": "$context.httpMethod",
+    "headers": {
+      #foreach($key in $headers.keySet())
+      "$key" : "$util.escapeJavaScript($headers.get($key))"#if($foreach.hasNext),#end
+      #end
+    },
+    "multiValueHeaders": {},
+    {{ body }},
+    "queryStringParameters": null,
+    "multiValueQueryStringParameters": {
+      #foreach($key in $method.request.multivaluequerystring.keySet())
+      "$key" : [
+        #foreach($val in $method.request.multivaluequerystring.get($key))
+       "$val"#if($foreach.hasNext),#end
+        #end
+        ]#if($foreach.hasNext),#end
+      #end
+    },
+    "entryPathParameters": {
+      #foreach($key in $path.keySet())
+      "$key": "$util.escapeJavaScript($path.get($key))"
+        #if($foreach.hasNext),#end
+      #end
+    },
+    "stageVariables": null,
+    {{ is_base64_encoded }},
+    "requestContext": {
+      "httpMethod": "$context.httpMethod",
+      "resourceId": "$context.resourceId",
+      "entryPath": "$context.resourcePath",
+      "extendedRequestId": "$context.extendedRequestId",
+      "requestTime": "$context.requestTime",
+      "path": "$context.path",
+      "accountId": "$context.accountId",
+      "protocol": "$context.protocol",
+      "stage": "$context.stage",
+      "domainPrefix": "$context.domainPrefix",
+      "requestTimeEpoch": $context.requestTimeEpoch,
+      "requestId": "$context.requestId",
+      "domainName": "$context.domainName",
+      "apiId": "$context.apiId"
+    },
+    "params" : {
+      #foreach($type in $allParams.keySet())
+      #set($params = $allParams.get($type))
+      "$type" : {
+        #foreach($paramName in $params.keySet())
+        "$paramName" : "$util.escapeJavaScript($params.get($paramName))"
+          #if($foreach.hasNext),#end
+        #end
+      }
+      #if($foreach.hasNext),#end
+      #end
+    },
+    "context" : {
+      #foreach($key in $context.keySet())
+      "$key" : "$util.escapeJavaScript($context.get($key))"
+      #if($foreach.hasNext),#end
+      #end
+    }
+  }
+{%- endmacro %}
+
+"application/json" = <<-EOT
+  {{ event("\"body\": $input.json('$')", "\"isBase64Encoded\": false") }}
+EOT
+"multipart/form-data" = <<-EOT
+  {{ event("\"body\": \"$util.base64Encode($input.body)\"", "\"isBase64Encoded\": true") }}
+EOT
+
+
