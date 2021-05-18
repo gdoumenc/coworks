@@ -1,8 +1,6 @@
 # ---------------------------------------------------------------------------------------------------------------------
-# LOCAL FOR THIS CUSTOMER
+# LOCAL FOR THIS MICROSERVICE
 # ---------------------------------------------------------------------------------------------------------------------
-
-
 
 locals {
   {{ resource_name }}_when_default = terraform.workspace == "default" ? 1 : 0
@@ -30,58 +28,3 @@ locals {
   {{ resource_name }}_layer_arns = [for layer in data.aws_lambda_layer_version.{{ resource_name }} : layer.arn]
 }
 {%- endif %}
-
-resource "aws_iam_role" "{{ resource_name }}_microservice" {
-  provider = aws.{{ resource_name }}
-  count = local.{{ resource_name }}_when_default
-  name = "{{ resource_name }}_microservice_role"
-
-  assume_role_policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Action": "sts:AssumeRole",
-      "Principal": {
-        "Service": [
-          "lambda.amazonaws.com",
-          "apigateway.amazonaws.com"
-        ]
-      },
-      "Effect": "Allow",
-      "Sid": ""
-    }
-  ]
-}
-EOF
-
-  tags = local.{{ resource_name }}_tags
-}
-
-resource "aws_iam_role_policy_attachment" "{{ resource_name }}_s3" {
-  provider = aws.{{ resource_name }}
-  count = local.{{ resource_name }}_when_default
-  role = join("", aws_iam_role.{{ resource_name }}_microservice.*.name)
-  policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
-}
-
-resource "aws_iam_role_policy_attachment" "{{ resource_name }}_cloud_watch" {
-  provider = aws.{{ resource_name }}
-  count = local.{{ resource_name }}_when_default
-  role = join("", aws_iam_role.{{ resource_name }}_microservice.*.name)
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
-}
-
-resource "aws_iam_role_policy_attachment" "{{ resource_name }}_xray" {
-  provider = aws.{{ resource_name }}
-  count = local.{{ resource_name }}_when_default
-  role = join("", aws_iam_role.{{ resource_name }}_microservice.*.name)
-  policy_arn = "arn:aws:iam::aws:policy/AWSXrayFullAccess"
-}
-
-data "aws_iam_role" "{{ resource_name }}_microservice" {
-  provider = aws.{{ resource_name }}
-  count = local.{{ resource_name }}_when_stage
-  name = "{{ resource_name }}_microservice_role"
-  tags = local.{{ resource_name }}_tags
-}

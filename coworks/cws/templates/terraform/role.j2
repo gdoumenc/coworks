@@ -1,0 +1,77 @@
+# ---------------------------------------------------------------------------------------------------------------------
+# ROLE
+# ---------------------------------------------------------------------------------------------------------------------
+
+resource "aws_iam_role" "{{ resource_name }}_microservice" {
+  provider = aws.{{ resource_name }}
+  count = local.{{ resource_name }}_when_default
+  name = "{{ resource_name }}_microservice_role"
+
+  assume_role_policy = jsonencode({
+    Version: "2012-10-17",
+    Statement: [
+      {
+        Action: "sts:AssumeRole",
+        Principal: {
+          Service: [
+            "lambda.amazonaws.com"
+          ]
+        },
+        Effect: "Allow",
+        Sid: ""
+      }
+    ]
+  })
+
+  tags = local.{{ resource_name }}_tags
+}
+
+resource "aws_iam_role_policy_attachment" "{{ resource_name }}_s3" {
+  provider = aws.{{ resource_name }}
+  count = local.{{ resource_name }}_when_default
+  role = join("", aws_iam_role.{{ resource_name }}_microservice.*.name)
+  policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "{{ resource_name }}_cloud_watch" {
+  provider = aws.{{ resource_name }}
+  count = local.{{ resource_name }}_when_default
+  role = join("", aws_iam_role.{{ resource_name }}_microservice.*.name)
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+}
+
+resource "aws_iam_role_policy_attachment" "{{ resource_name }}_xray" {
+  provider = aws.{{ resource_name }}
+  count = local.{{ resource_name }}_when_default
+  role = join("", aws_iam_role.{{ resource_name }}_microservice.*.name)
+  policy_arn = "arn:aws:iam::aws:policy/AWSXrayFullAccess"
+}
+
+data "aws_sqs_queue" "{{ resource_name }}_destination" {
+  provider = aws.{{ resource_name }}
+  count = local.{{ resource_name }}_when_default
+  name = "microservice-error-destination"
+}
+resource "aws_iam_role_policy" "{{ resource_name }}_destination" {
+  provider = aws.{{ resource_name }}
+  count = local.{{ resource_name }}_when_default
+  name = "{{ resource_name }}_destination"
+  role = join("", aws_iam_role.{{ resource_name }}_microservice.*.name)
+  policy = jsonencode({
+    Version: "2012-10-17",
+    Statement: [
+      {
+        Effect: "Allow",
+        Action: "sqs:SendMessage",
+        Resource: data.aws_sqs_queue.{{ resource_name }}_destination[0].arn
+      },
+    ]
+  })
+}
+
+data "aws_iam_role" "{{ resource_name }}_microservice" {
+  provider = aws.{{ resource_name }}
+  count = local.{{ resource_name }}_when_stage
+  name = "{{ resource_name }}_microservice_role"
+  tags = local.{{ resource_name }}_tags
+}
