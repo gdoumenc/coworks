@@ -187,7 +187,7 @@ class CwsTerraformDeployer(CwsTerraformCommand):
 
         terraform = Terraform(init)
         if output:  # Stop if only print output
-            print(f"terraform output : {terraform.output()}")
+            print(f"terraform output : {terraform.output()}", flush=True)
             return
 
         # Transfert zip file to S3 (to be done on each service)
@@ -242,7 +242,7 @@ class CwsTerraformDeployer(CwsTerraformCommand):
                                 update_lambda_only=update_lambda_only)
 
         # Traces output
-        print(f"terraform output : {terraform.output()}")
+        print(f"terraform output : {terraform.output()}", flush=True)
 
     def __init__(self, app=None, name='deploy'):
         self.zip_cmd = self.add_zip_command(app)
