@@ -6,6 +6,7 @@ services:
 commands:
   run:
     class: coworks.cws.runner.CwsRunner
+    autoreload: true
   deploy:
     class: coworks.cws.deployer.CwsTerraformDeployer
     project_name: cms
