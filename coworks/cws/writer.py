@@ -52,9 +52,7 @@ class CwsTemplateWriter(CwsWriter):
         super().__init__(app, name=name)
         self.data = data or {}
         self.template_filenames = template or []
-        self.env = env or Environment(
-            loader=PackageLoader(sys.modules[__name__].__package__),
-            autoescape=select_autoescape(['html', 'xml']))
+        self.env = env or self.get_jinja_env()
 
     @property
     def options(self):
@@ -62,6 +60,12 @@ class CwsTemplateWriter(CwsWriter):
             *super().options,
             click.option('--template', '-t', multiple=True),
         ]
+
+    @classmethod
+    def get_jinja_env(cls):
+        return Environment(
+            loader=PackageLoader(sys.modules[__name__].__package__),
+            autoescape=select_autoescape(['html', 'xml']))
 
     def _export_content(self, *, project_dir, module, service, workspace, **options):
         super()._export_content(**options)

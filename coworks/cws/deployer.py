@@ -7,6 +7,7 @@ import logging
 import sys
 from abc import ABC
 from pathlib import Path
+from python_terraform import Terraform as PythonTerraform
 from threading import Thread
 from time import sleep
 from typing import List, Optional
@@ -21,6 +22,55 @@ from ..config import CORSConfig
 UID_SEP = '_'
 
 logging.getLogger("python_terraform").setLevel(logging.ERROR)
+
+
+class Terraform:
+
+    def __init__(self):
+        self.terraform = PythonTerraform(working_dir='terraform')
+        Path(self.working_dir).mkdir(exist_ok=True)
+
+    @property
+    def working_dir(self):
+        return self.terraform.working_dir
+
+    def init(self):
+        return_code, _, err = self.terraform.init(dir_or_plan=self.working_dir)
+        if return_code != 0:
+            raise CwsCommandError(err)
+
+    def apply(self, workspace, targets):
+        self.select_workspace(workspace)
+        return_code, _, err = self.terraform.apply(target=targets, skip_plan=True, input=False, raise_on_error=False,
+                                                   parallelism=1)
+        if return_code != 0:
+            raise CwsCommandError(err)
+
+    def destroy(self, workspace, targets):
+        self.select_workspace(workspace)
+        return_code, _, err = self.terraform.destroy(target=targets)
+        if return_code != 0:
+            raise CwsCommandError(err)
+
+    def output(self):
+        self.select_workspace("default")
+        values = self.terraform.output(capture_output=True)
+        return {key: value['value'] for key, value in values.items()} if values else "{}"
+
+    def workspace_list(self):
+        self.select_workspace("default")
+        return_code, out, err = self.terraform.cmd('workspace', 'list')
+        if return_code != 0:
+            raise CwsCommandError(err)
+        values = out[1:].translate(str.maketrans('', '', ' \t\r')).split('\n')
+        return filter(None, values)
+
+    def select_workspace(self, workspace):
+        return_code, out, err = self.terraform.workspace('select', workspace)
+        if workspace != 'default' and return_code != 0:
+            _, out, err = self.terraform.workspace('new', workspace, raise_on_error=True)
+        if not (Path(self.working_dir) / '.terraform').exists():
+            self.terraform.init(input=False, raise_on_error=True)
 
 
 @dataclass
@@ -56,6 +106,8 @@ class TerraformResource:
 class CwsTerraformCommand(CwsCommand, ABC):
     WRITER_CMD = 'export'
 
+    terraform = Terraform()
+
     @property
     def options(self):
         return [
@@ -65,8 +117,8 @@ class CwsTerraformCommand(CwsCommand, ABC):
         ]
 
     def __init__(self, app=None, **kwargs):
-        self.writer_cmd = self.add_writer_command(app)
         super().__init__(app, **kwargs)
+        self.writer_cmd = self.add_writer_command(app)
 
     def add_writer_command(self, app):
         """Default writer command added if not already defined."""
@@ -185,9 +237,8 @@ class CwsTerraformDeployer(CwsTerraformCommand):
             output = output or options.pop('output', False)
             init = init or options.pop('init', False)
 
-        terraform = Terraform(init)
         if output:  # Stop if only print output
-            print(f"terraform output : {terraform.output()}", flush=True)
+            print(f"terraform output : {cls.terraform.output()}", flush=True)
             return
 
         # Transfert zip file to S3 (to be done on each service)
@@ -198,15 +249,16 @@ class CwsTerraformDeployer(CwsTerraformCommand):
             options.pop('hash')
             command.app.execute(cls.ZIP_CMD, ignore=ignore, module_name=module_name, hash=True, dry=dry, **options)
 
-        # Generates default provider
-        # cls.generate_common_terraform_files()
+        # Generates common terraform files
+        cls.generate_common_terraform_files(execution_list)
 
         # Get all terraform resources
         terraform_api_ressources = []
         for command, options in execution_list:
             terraform_filename = f"{command.app.name}.{command.app.ms_type}.txt"
             msg = f"Generate resources list for {command.app.name}"
-            res = cls.generate_terraform_resources_list_file(command.app, terraform, terraform_filename, msg, **options)
+            res = cls.generate_terraform_resources_list_file(command.app, cls.terraform, terraform_filename, msg,
+                                                             **options)
             terraform_api_ressources.extend(res)
 
         # Generates terraform files (create step)
@@ -214,35 +266,39 @@ class CwsTerraformDeployer(CwsTerraformCommand):
             for command, options in execution_list:
                 terraform_filename = f"{command.app.name}.{command.app.ms_type}.tf"
                 msg = f"Generate terraform files for creating API and lambdas for {command.app.name}"
-                cls.generate_terraform_files("create", command.app, terraform, "deploy.j2", terraform_filename, msg,
+                cls.generate_terraform_files("create", command.app, cls.terraform, "deploy.j2", terraform_filename, msg,
                                              dry=dry, **options)
 
             # Apply terraform if not dry (create API with null resources and lambda step)
             # or in case of only updating lambda code
             if not dry:
                 msg = ["Create or reset API", f"Create lambda {workspace}"]
-                cls.terraform_apply(terraform, workspace, terraform_api_ressources, msg)
+                cls.terraform_apply(cls.terraform, workspace, terraform_api_ressources, msg)
 
         # Stop on create step if needed
         if create:
-            terraform.select_workspace("default")
+            cls.terraform.select_workspace("default")
             return
 
         # Generates terraform files (update step)
         for command, options in execution_list:
             terraform_filename = f"{command.app.name}.{command.app.ms_type}.tf"
             msg = f"Generate terraform files for updating API routes and deploiement for {command.app.name}"
-            cls.generate_terraform_files("update", command.app, terraform, "deploy.j2", terraform_filename, msg,
+            cls.generate_terraform_files("update", command.app, cls.terraform, "deploy.j2", terraform_filename, msg,
                                          dry=dry, **options)
 
         # Apply terraform if not dry (update API routes and deploy step)
         if not dry:
             msg = ["Update API routes", f"Deploy API {workspace}"]
-            cls.terraform_apply(terraform, workspace, terraform_api_ressources, msg,
+            cls.terraform_apply(cls.terraform, workspace, terraform_api_ressources, msg,
                                 update_lambda_only=update_lambda_only)
 
         # Traces output
-        print(f"terraform output : {terraform.output()}", flush=True)
+        print(f"terraform output : {cls.terraform.output()}", flush=True)
+
+    @classmethod
+    def generate_common_terraform_files(cls, execution_list):
+        pass
 
     def __init__(self, app=None, name='deploy'):
         self.zip_cmd = self.add_zip_command(app)
@@ -325,33 +381,32 @@ class CwsTerraformDestroyer(CwsTerraformCommand):
                 print(f"Successfully removed sources at s3://{bucket}/{key}")
 
     def terraform_destroy(self, *, workspace, debug, dry, **options):
-        terraform = Terraform(False)
-
         all_workspaces = options['all']
         terraform_resources_filename = f"{self.app.name}.{self.app.ms_type}.txt"
         if not dry:
 
             # Get terraform resources
             try:
-                targets = self.read_terraform_resources_list_file(terraform, terraform_resources_filename, **options)
+                targets = self.read_terraform_resources_list_file(self.terraform, terraform_resources_filename,
+                                                                  **options)
             except OSError:
                 print(f"The resouces have been already removed ({terraform_resources_filename}).")
                 return
 
             # Destroy resources (except default)
-            for w in terraform.workspace_list():
+            for w in self.terraform.workspace_list():
                 if w in [workspace] or (all_workspaces and w != 'default'):
                     print(f"Terraform destroy ({w})", flush=True)
-                    terraform.destroy(w, targets)
+                    self.terraform.destroy(w, targets)
 
             if all_workspaces:
 
                 # Remove default workspace
                 # --create --dry
-                terraform.destroy('default', targets)
+                self.terraform.destroy('default', targets)
 
                 # Removes terraform resource file
-                output = Path(terraform.working_dir) / terraform_resources_filename
+                output = Path(self.terraform.working_dir) / terraform_resources_filename
                 if debug:
                     print(f"Removing terraform resource file: {output} {'(not done)' if dry else ''}")
                 if not dry:
@@ -359,69 +414,15 @@ class CwsTerraformDestroyer(CwsTerraformCommand):
 
                 # Removes terraform file
                 terraform_filename = f"{self.app.name}.{self.app.ms_type}.tf"
-                output = Path(terraform.working_dir) / terraform_filename
+                output = Path(self.terraform.working_dir) / terraform_filename
                 if debug:
                     print(f"Removing terraform file: {output} {'(not done)' if dry else ''}")
                 if not dry:
                     output.unlink(missing_ok=True)
                     terraform_filename = f"{self.app.name}.{self.app.ms_type}.tf"
                     msg = f"Generate minimal destroy file for {self.app.name}"
-                    self.__class__.generate_terraform_files("create", self.app, terraform, "destroy.j2", terraform_filename,
+                    self.__class__.generate_terraform_files("create", self.app, self.terraform, "destroy.j2",
+                                                            terraform_filename,
                                                             msg, dry=dry, debug=debug, **options)
 
-        terraform.select_workspace("default")
-
-
-class Terraform:
-
-    def __init__(self, init):
-        from python_terraform import Terraform as PythonTerraform
-
-        self.terraform = PythonTerraform(working_dir='terraform')
-        Path(self.working_dir).mkdir(exist_ok=True)
-        if init:
-            return_code, _, err = self.terraform.init(dir_or_plan=self.working_dir)
-            if return_code != 0:
-                raise CwsCommandError(err)
-
-    @property
-    def working_dir(self):
-        return self.terraform.working_dir
-
-    def init(self):
-        return_code, _, err = self.terraform.init()
-        if return_code != 0:
-            raise CwsCommandError(err)
-
-    def apply(self, workspace, targets):
-        self.select_workspace(workspace)
-        return_code, _, err = self.terraform.apply(target=targets, skip_plan=True, input=False, raise_on_error=False,
-                                                   parallelism=1)
-        if return_code != 0:
-            raise CwsCommandError(err)
-
-    def destroy(self, workspace, targets):
-        self.select_workspace(workspace)
-        return_code, _, err = self.terraform.destroy(target=targets)
-        if return_code != 0:
-            raise CwsCommandError(err)
-
-    def output(self):
-        self.select_workspace("default")
-        values = self.terraform.output(capture_output=True)
-        return {key: value['value'] for key, value in values.items()} if values else "{}"
-
-    def workspace_list(self):
-        self.select_workspace("default")
-        return_code, out, err = self.terraform.cmd('workspace', 'list')
-        if return_code != 0:
-            raise CwsCommandError(err)
-        values = out[1:].translate(str.maketrans('', '', ' \t\r')).split('\n')
-        return filter(None, values)
-
-    def select_workspace(self, workspace):
-        return_code, out, err = self.terraform.workspace('select', workspace)
-        if workspace != 'default' and return_code != 0:
-            _, out, err = self.terraform.workspace('new', workspace, raise_on_error=True)
-        if not (Path(self.working_dir) / '.terraform').exists():
-            self.terraform.init(input=False, raise_on_error=True)
+        self.terraform.select_workspace("default")
