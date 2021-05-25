@@ -4,13 +4,11 @@ import cgi
 import inspect
 import io
 import json
-import urllib
 from abc import abstractmethod
 from aws_xray_sdk.core import xray_recorder
 from botocore.exceptions import BotoCoreError
-from chalice import AuthResponse, Response, ChaliceViewError
-from functools import update_wrapper, partial
-from requests_toolbelt.multipart import MultipartDecoder
+from chalice import AuthResponse, Response
+from functools import update_wrapper
 
 from .aws import AwsS3Session
 from .error import CwsError
@@ -226,7 +224,7 @@ class CoworksMixin:
                         kwargs = dict(**kwargs, **params)
 
                     # adds parameters from body parameter
-                    elif req.method == 'POST':
+                    elif req.method in ['POST', 'PUT']:
                         try:
                             content_type = req.headers.get('content-type', 'application/json')
                             if content_type.startswith('multipart/form-data'):

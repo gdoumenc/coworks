@@ -21,7 +21,7 @@ class TestClass:
             counter += 1
         response = requests.get(f'http://localhost:{port}/', headers={'Authorization': "token"})
         assert response.text == "Stored value 0.\n"
-        response = requests.post(f'http://localhost:{port}/', params={'value': 1}, headers={'Authorization': "token"})
+        response = requests.post(f'http://localhost:{port}/', json={'value': 1}, headers={'Authorization': "token"})
         assert response.text == "Value stored (1).\n"
         response = requests.get(f'http://localhost:{port}/', headers={'Authorization': "token"})
         assert response.text == "Stored value 1.\n"

@@ -74,17 +74,24 @@ class TestClass:
         assert response.text == "get **param with only 5"
         response = local_server.make_call(requests.get, '/kwparam1', params={"other": 'other', "value": 5})
         assert response.status_code == 400
-        response = local_server.make_call(requests.get, '/kwparam1', json={"value": 5})
+        response = local_server.make_call(requests.get, '/kwparam1', params={"value": 5})
         assert response.status_code == 200
         assert response.text == "get **param with only 5"
         response = local_server.make_call(requests.get, '/kwparam1', json={"other": 'other', "value": 5})
-        assert response.status_code == 400
+        assert response.status_code == 200
+        assert response.text == "get **param with only 0"
         response = local_server.make_call(requests.get, '/kwparam2', params={"other": 'other', "value": 5})
         assert response.status_code == 200
         assert response.text == "get **param with 5 and ['other']"
         response = local_server.make_call(requests.get, '/kwparam2', json={"other": 'other', "value": 5})
         assert response.status_code == 200
+        assert response.text == "get **param with 0 and []"
+        response = local_server.make_call(requests.put, '/kwparam2', json={"other": 'other', "value": 5})
+        assert response.status_code == 200
         assert response.text == "get **param with 5 and ['other']"
+        response = local_server.make_call(requests.put, '/kwparam2', params={"other": 'other', "value": 5})
+        assert response.status_code == 200
+        assert response.text == "get **param with None and []"
 
         response = local_server.make_call(requests.get, '/extended/content')
         assert response.status_code == 200
