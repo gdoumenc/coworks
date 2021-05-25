@@ -1,1 +1,1 @@
-from .admin import Admin
+from .admin_blueprint import Admin
