@@ -1,8 +1,7 @@
 import os
+from coworks import Blueprint, entry
 from okta.client import Client
 from typing import Dict
-
-from coworks import Blueprint, entry
 
 
 class OktaDict(dict):
@@ -28,6 +27,21 @@ class OktaClient(Client):
 
 
 class OktaResponse:
+    """Class to manipulate results from okta client.
+    value: value returned as dict
+    err: Not None if error
+
+    OktaRespons are used as global variables from asynchronous functions.
+
+    To set the value from an asynchronous function:
+    resp.set(await self.okta_client.function(query_parameters))
+
+    The property response must be used as microservice returned value:
+    return resp.response
+
+    To combine results in microservice:
+    return OktaResponse.combine({'user': resp_user, 'groups': resp_groups})
+    """
 
     def __init__(self):
         self.value = self.api_resp = self.err = None
@@ -42,20 +56,23 @@ class OktaResponse:
         value, self.api_resp, self.err = await_result
         self.value = [as_dict(val) for val in value] if type(value) is list else as_dict(value)
 
-    def extract(self, dest, fun):
-        dest.api_resp = self.api_resp
-        dest.err = self.err
-        if not self.err:
-            dest.value = [val for val in self.value if fun(val)]
-            self.value = [val for val in self.value if not fun(val)]
-
     @property
     def response(self):
+        """Cast the Okta response as microservice response."""
         if self.err:
             return self.value, self.err
         if type(self.value) is list:
             return {'value': self.value, 'next': self.api_resp._next}
         return self.value
+
+    def filter(self, fun, map=lambda x: x):
+        dest = OktaResponse()
+        if not self.err:
+            dest.value = [map(val) for val in self.value if fun(val)]
+            dest.api_resp = self.api_resp
+        else:
+            dest.err = self.err
+        return dest
 
     @classmethod
     def combine(cls, responses: Dict[str, "OktaResponse"]):
