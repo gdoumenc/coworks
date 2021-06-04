@@ -53,14 +53,19 @@ class OktaResponse:
                 return {k: v for k, v in val.as_dict().items() if not k.startswith('_')}
             return {k: v for k, v in val.as_dict().items() if k in fields}
 
-        value, self.api_resp, self.err = await_result
-        self.value = [as_dict(val) for val in value] if type(value) is list else as_dict(value)
+        if len(await_result) == 3:
+            value, self.api_resp, self.err = await_result
+            if not self.err:
+                self.value = [as_dict(val) for val in value] if type(value) is list else as_dict(value)
+        else:
+            self.api_resp, self.err = await_result
+            self.value = None
 
     @property
     def response(self):
         """Cast the Okta response as microservice response."""
         if self.err:
-            return self.value, self.err
+            return self.err.message, 400
         if type(self.value) is list:
             return {'value': self.value, 'next': self.api_resp._next}
         return self.value
@@ -75,7 +80,7 @@ class OktaResponse:
         return dest
 
     @classmethod
-    def combine(cls, responses: Dict[str, "OktaResponse"]):
+    def combine_response(cls, responses: Dict[str, "OktaResponse"]):
         for resp in responses.values():
             if resp.err:
                 return resp.err.message, 400
