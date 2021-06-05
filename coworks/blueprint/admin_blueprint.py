@@ -25,7 +25,7 @@ class Admin(Blueprint):
                 }
             routes[make_absolute(path)] = route
 
-        return jsonify(routes, pretty)
+        return jsonify({k: routes[k] for k in sorted(routes.keys())}, pretty)
 
     @entry
     def get_context(self):
