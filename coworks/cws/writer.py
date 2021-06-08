@@ -81,22 +81,22 @@ class CwsTemplateWriter(CwsWriter):
         environment_variable_files = [p.as_posix() for p in
                                       config.existing_environment_variables_files(project_dir)]
         data = {
-            'writer': self,
-            'project_dir': project_dir,
-            'source_file': pathlib.PurePath(project_dir, *module_path),
-            'module': module,
-            'module_path': pathlib.PurePath(*module_path),
-            'module_dir': pathlib.PurePath(*module_path[:-1]),
-            'module_file': module_path[-1],
-            'handler': service,
+            'account_number': options.get('account_number'),
             'app': self.app,
-            'ms_name': self.app.name,
-            'workspace': workspace,
             'app_config': config,
+            'description': inspect.getdoc(self.app) or "",
             'environment_variables': config.environment_variables,
             'environment_variable_files': environment_variable_files,
-            'account_number': options.get('account_number'),
-            'description': inspect.getdoc(self.app) or "",
+            'handler': service,
+            'module': module,
+            'module_dir': pathlib.PurePath(*module_path[:-1]),
+            'module_file': module_path[-1],
+            'module_path': pathlib.PurePath(*module_path),
+            'ms_name': self.app.name,
+            'project_dir': project_dir,
+            'source_file': pathlib.PurePath(project_dir, *module_path),
+            'workspace': workspace,
+            'writer': self,
             **options
         }
         data.update(self.data)

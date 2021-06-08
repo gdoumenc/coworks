@@ -8,9 +8,6 @@ locals {
 }
 
 locals {
-  {{ resource_name }}_bucket = "{{ bucket }}"
-  {{ resource_name }}_key = "{{ key }}"
-  {{ resource_name }}_python = "python{{ python }}"
   {{ resource_name }}_role_arn = join("", aws_iam_role.{{ resource_name }}_microservice.*.arn, data.aws_iam_role.{{ resource_name }}_microservice.*.arn)
   {{ resource_name }}_security_group_ids = []
   {{ resource_name }}_vpc_id = []
@@ -22,9 +19,5 @@ data "aws_lambda_layer_version" "{{ resource_name }}" {
   provider = aws.{{ resource_name }}
   for_each = {for layer_name in [{% for  layer in layers %}"{{ layer }}",{% endfor %}]: layer_name => layer_name}
   layer_name = each.value
-}
-
-locals {
-  {{ resource_name }}_layer_arns = [for layer in data.aws_lambda_layer_version.{{ resource_name }} : layer.arn]
 }
 {%- endif %}

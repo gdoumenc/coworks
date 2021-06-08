@@ -4,10 +4,12 @@ import boto3
 import click
 import itertools
 import logging
+import subprocess
 import sys
 from abc import ABC
 from pathlib import Path
 from python_terraform import Terraform as PythonTerraform
+from shutil import copy
 from threading import Thread
 from time import sleep
 from typing import List, Optional
@@ -26,8 +28,9 @@ logging.getLogger("python_terraform").setLevel(logging.ERROR)
 
 class Terraform:
 
-    def __init__(self):
+    def __init__(self, parallelism=None):
         self.terraform = PythonTerraform(working_dir='terraform')
+        self.parallelism = parallelism
         Path(self.working_dir).mkdir(exist_ok=True)
 
     @property
@@ -41,8 +44,10 @@ class Terraform:
 
     def apply(self, workspace, targets):
         self.select_workspace(workspace)
-        return_code, _, err = self.terraform.apply(target=targets, skip_plan=True, input=False, raise_on_error=False,
-                                                   parallelism=1)
+        terraform_options = {'skip_plan': True, 'input': False, 'raise_on_error': False}
+        if self.parallelism:
+            terraform_options['parallelism'] = self.parallelism
+        return_code, _, err = self.terraform.apply(target=targets, **terraform_options)
         if return_code != 0:
             raise CwsCommandError(err)
 
@@ -106,7 +111,7 @@ class TerraformResource:
 class CwsTerraformCommand(CwsCommand, ABC):
     WRITER_CMD = 'export'
 
-    terraform = Terraform()
+    terraform = Terraform(parallelism=1)
 
     @property
     def options(self):
@@ -269,6 +274,14 @@ class CwsTerraformDeployer(CwsTerraformCommand):
                 cls.generate_terraform_files("create", command.app, cls.terraform, "deploy.j2", terraform_filename, msg,
                                              dry=dry, **options)
 
+            # Copy environment variable files in terraform working dir for provisionning
+            for command, options in execution_list:
+                config = command.app.get_config(workspace)
+                environment_variable_files = [p.as_posix() for p in
+                                              config.existing_environment_variables_files(project_dir)]
+                for file in environment_variable_files:
+                    copy(file, cls.terraform.working_dir)
+
             # Apply terraform if not dry (create API with null resources and lambda step)
             # or in case of only updating lambda code
             if not dry:
@@ -380,10 +393,14 @@ class CwsTerraformDestroyer(CwsTerraformCommand):
             if debug:
                 print(f"Successfully removed sources at s3://{bucket}/{key}")
 
-    def terraform_destroy(self, *, workspace, debug, dry, **options):
+    def terraform_destroy(self, *, project_dir, workspace, debug, dry, **options):
         all_workspaces = options['all']
         terraform_resources_filename = f"{self.app.name}.{self.app.ms_type}.txt"
         if not dry:
+
+            # perform dry create deployment to have updated terraform files
+            cmds = f"cws -p {project_dir} -w {workspace} deploy --dry --create".split(' ')
+            p = subprocess.Popen(cmds, stdout=sys.stdout, stderr=sys.stderr)
 
             # Get terraform resources
             try:
