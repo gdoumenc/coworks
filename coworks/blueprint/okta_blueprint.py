@@ -1,7 +1,9 @@
 import os
-from coworks import Blueprint, entry
+from aws_xray_sdk.core import xray_recorder
 from okta.client import Client
 from typing import Dict
+
+from coworks import Blueprint, entry
 
 
 class OktaDict(dict):
@@ -12,6 +14,7 @@ class OktaDict(dict):
 
 class OktaClient(Client):
 
+    @xray_recorder.capture()
     async def next(self, next):
         request, error = await self._request_executor.create_request("GET", next, {}, {})
         if error:
@@ -46,6 +49,7 @@ class OktaResponse:
     def __init__(self):
         self.value = self.api_resp = self.err = None
 
+    @xray_recorder.capture()
     def set(self, await_result, fields=None):
 
         def as_dict(val):
