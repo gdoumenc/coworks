@@ -68,8 +68,6 @@ class CwsTemplateWriter(CwsWriter):
             autoescape=select_autoescape(['html', 'xml']))
 
     def _export_content(self, *, project_dir, module, service, workspace, **options):
-        super()._export_content(**options)
-
         module_path = module.split('.')
         template_filenames = options.get('template') or self.template_filenames
 
