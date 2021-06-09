@@ -144,12 +144,7 @@ class ProjectConfig:
         self.params = {}
         getLogger('anyconfig').setLevel(WARNING)
 
-        # Loads project configuration file at project dir then at root if not found
         self.params = self._load_config(project_dir, file_name, file_suffix)
-        if not self.params:
-            self.params = self._load_config('.', file_name, file_suffix)
-
-        # Checks results
         if not self.params:
             raise CwsClientError(f"Cannot find project file ({file_name + file_suffix}).\n")
         if self.params.get('version') != PROJECT_CONFIG_VERSION:
@@ -188,10 +183,18 @@ class ProjectConfig:
     @staticmethod
     def _load_config(dir, file_name, file_suffix):
         """Loads the project configuration file."""
-        project_dir_path = Path(dir)
-        project_file = project_dir_path / (file_name + file_suffix)
-        project_secret_file = project_dir_path / (file_name + '.secret' + file_suffix)
-        return anyconfig.multi_load([project_file, project_secret_file], ac_ignore_missing=True)
+
+        def load(_dir):
+            project_dir_path = Path(_dir)
+            project_file = project_dir_path / (file_name + file_suffix)
+            project_secret_file = project_dir_path / (file_name + '.secret' + file_suffix)
+            return anyconfig.multi_load([project_file, project_secret_file], ac_ignore_missing=True)
+
+        params = load('.')
+        if not params:
+            params = load(dir)
+
+        return params
 
     @staticmethod
     def _get_workspace_options(options, workspace):

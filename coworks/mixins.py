@@ -4,13 +4,11 @@ import cgi
 import inspect
 import io
 import json
-import urllib
 from abc import abstractmethod
 from aws_xray_sdk.core import xray_recorder
 from botocore.exceptions import BotoCoreError
-from chalice import AuthResponse, Response, ChaliceViewError
-from functools import update_wrapper, partial
-from requests_toolbelt.multipart import MultipartDecoder
+from chalice import AuthResponse, Response
+from functools import update_wrapper
 
 from .aws import AwsS3Session
 from .error import CwsError
@@ -177,6 +175,14 @@ class CoworksMixin:
         return self.authorizer(name='auth')(proxy)
 
     def _create_rest_proxy(self, func, kwarg_keys, args, varkw):
+        import traceback
+
+        import urllib
+        from aws_xray_sdk.core import xray_recorder
+        from chalice import Response, ChaliceViewError
+        from functools import update_wrapper, partial
+        from requests_toolbelt.multipart import MultipartDecoder
+
         original_app_class = self.__class__
 
         def proxy(**kws):
@@ -205,9 +211,20 @@ class CoworksMixin:
                         params[param_name] = param_value
 
                 req = self.current_request
+
+                # get keyword arguments from request
                 if kwarg_keys or varkw:
                     params = {}
-                    if req.raw_body:  # POST request
+
+                    # adds parameters from query parameters
+                    if req.method == 'GET':
+                        for k in req.query_params or []:
+                            value = req.query_params.getlist(k)
+                            add_param(k, value if len(value) > 1 else value[0])
+                        kwargs = dict(**kwargs, **params)
+
+                    # adds parameters from body parameter
+                    elif req.method in ['POST', 'PUT']:
                         try:
                             content_type = req.headers.get('content-type', 'application/json')
                             if content_type.startswith('multipart/form-data'):
@@ -240,13 +257,10 @@ class CoworksMixin:
                             self.current_app.log.debug(e)
                             return Response(body=str(e), status_code=400)
 
-                    else:  # GET request
+                    else:
+                        err = f"Keyword arguments are not permitted for {req.method} method."
+                        return Response(body=err, status_code=400)
 
-                        # adds parameters from qurey parameters
-                        for k in req.query_params or []:
-                            value = req.query_params.getlist(k)
-                            add_param(k, value if len(value) > 1 else value[0])
-                        kwargs = dict(**kwargs, **params)
                 else:
                     if not args:
                         if req.raw_body and req.json_body:

@@ -1,13 +1,13 @@
+from dataclasses import dataclass
+from json import JSONDecodeError
+
 import json
 import os
 import re
-from dataclasses import dataclass
-from json import JSONDecodeError
-from pathlib import Path
-from typing import Callable, Union, List, Tuple
-
 from chalice import CORSConfig as ChaliceCORSConfig, AuthResponse
 from chalice.app import AuthRequest as ChaliceAuthRequest
+from pathlib import Path
+from typing import Callable, Union, List, Tuple
 
 from .mixins import CoworksMixin
 from .utils import as_list
@@ -73,7 +73,7 @@ class Config:
 
         # Environment variables from files and from config
         for file in self.existing_environment_variables_files(project_dir):
-            environment_variables.update(self._load_file(file))
+            environment_variables.update(self._load_file(file, project_dir))
         if self.environment_variables:
             environment_variables.update(self.environment_variables)
 
@@ -96,15 +96,17 @@ class Config:
             setattr(self, key, value)
 
     @staticmethod
-    def _load_file(var_file):
+    def _load_file(var_file, project_dir):
         try:
-            with var_file.open() as f:
-                return json.loads(f.read())
+            if var_file.exists():
+                with var_file.open() as f:
+                    return json.loads(f.read())
+            if (project_dir / var_file).exists():
+                with (project_dir / var_file).open() as f:
+                    return json.loads(f.read())
+            raise FileNotFoundError(f"Error when loading environment variables files {str(e)}.\n")
         except JSONDecodeError as e:
             raise FileNotFoundError(f"Syntax error when in e{var_file}: {str(e)}.\n")
-        except Exception as e:
-            print(type(e))
-            raise FileNotFoundError(f"Error when loading environment variables files {str(e)}.\n")
 
 
 class LocalConfig(Config):

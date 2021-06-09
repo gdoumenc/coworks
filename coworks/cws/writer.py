@@ -52,9 +52,7 @@ class CwsTemplateWriter(CwsWriter):
         super().__init__(app, name=name)
         self.data = data or {}
         self.template_filenames = template or []
-        self.env = env or Environment(
-            loader=PackageLoader(sys.modules[__name__].__package__),
-            autoescape=select_autoescape(['html', 'xml']))
+        self.env = env or self.get_jinja_env()
 
     @property
     def options(self):
@@ -63,9 +61,13 @@ class CwsTemplateWriter(CwsWriter):
             click.option('--template', '-t', multiple=True),
         ]
 
-    def _export_content(self, *, project_dir, module, service, workspace, **options):
-        super()._export_content(**options)
+    @classmethod
+    def get_jinja_env(cls):
+        return Environment(
+            loader=PackageLoader(sys.modules[__name__].__package__),
+            autoescape=select_autoescape(['html', 'xml']))
 
+    def _export_content(self, *, project_dir, module, service, workspace, **options):
         module_path = module.split('.')
         template_filenames = options.get('template') or self.template_filenames
 
@@ -77,22 +79,22 @@ class CwsTemplateWriter(CwsWriter):
         environment_variable_files = [p.as_posix() for p in
                                       config.existing_environment_variables_files(project_dir)]
         data = {
-            'writer': self,
-            'project_dir': project_dir,
-            'source_file': pathlib.PurePath(project_dir, *module_path),
-            'module': module,
-            'module_path': pathlib.PurePath(*module_path),
-            'module_dir': pathlib.PurePath(*module_path[:-1]),
-            'module_file': module_path[-1],
-            'handler': service,
+            'account_number': options.get('account_number'),
             'app': self.app,
-            'ms_name': self.app.name,
-            'workspace': workspace,
             'app_config': config,
+            'description': inspect.getdoc(self.app) or "",
             'environment_variables': config.environment_variables,
             'environment_variable_files': environment_variable_files,
-            'account_number': options.get('account_number'),
-            'description': inspect.getdoc(self.app) or "",
+            'handler': service,
+            'module': module,
+            'module_dir': pathlib.PurePath(*module_path[:-1]),
+            'module_file': module_path[-1],
+            'module_path': pathlib.PurePath(*module_path),
+            'ms_name': self.app.name,
+            'project_dir': project_dir,
+            'source_file': pathlib.PurePath(project_dir, *module_path),
+            'workspace': workspace,
+            'writer': self,
             **options
         }
         data.update(self.data)

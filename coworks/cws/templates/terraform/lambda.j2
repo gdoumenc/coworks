@@ -15,13 +15,13 @@ locals {
 
 data "aws_s3_bucket_object" "{{ resource_name }}-b64sha256" {
   provider = aws.{{ resource_name }}
-  bucket = local.{{ resource_name }}_bucket
-  key = "${local.{{ resource_name }}_key}.b64sha256"
+  bucket = "{{ bucket }}"
+  key = "{{ key }}.b64sha256"
 }
 
 {% if environment_variable_files -%}
 data "local_file" "{{ resource_name }}_environment_variables_files" {
-  for_each = {for envar_file in {{ environment_variable_files | tojson }}: envar_file => "../${envar_file}"}
+  for_each = {for envar_file in {{ environment_variable_files | tojson }}: envar_file => "${envar_file}"}
   filename = each.value
 }
 {%- endif %}
@@ -30,20 +30,23 @@ resource "aws_lambda_function" "{{ resource_name }}" {
   provider = aws.{{ resource_name }}
   count = local.{{ resource_name }}_when_stage
   function_name = local.{{ resource_name }}_lambda_name
-  s3_bucket = local.{{ resource_name }}_bucket
-  s3_key = local.{{ resource_name }}_key
+  s3_bucket = "{{ bucket }}"
+  s3_key = "{{ key }}"
   source_code_hash = local.{{ resource_name }}_when_stage > 0 ? data.aws_s3_bucket_object.{{ resource_name }}-b64sha256.body : ""
   role = local.{{ resource_name }}_role_arn
   handler = "{{ module_file }}.{{ handler }}"
   {%- if layers %}
-  layers = local.{{ resource_name }}_layer_arns
+  layers = [for layer in data.aws_lambda_layer_version.{{ resource_name }} : layer.arn]
   {%- endif %}
-  runtime = local.{{ resource_name }}_python
+  runtime = "python{{ python }}"
   timeout = {{ timeout }}
   memory_size = {{ memory_size }}
   {%- if environment_variable_files != [] %}
   environment {
-    variables = merge({{ environment_variables | tojson }},[for item in local.{{ resource_name }}_environment_variables: merge(item,local.{{ resource_name }}_environment_variables...)][0], {"WORKSPACE":"{{ workspace }}"})
+    variables = merge(
+      {{ environment_variables | tojson }},
+      [for item in local.{{ resource_name }}_environment_variables: merge(item,local.{{ resource_name }}_environment_variables...)][0],
+      {"WORKSPACE":"{{ workspace }}"})
   }
   {%- else %}
   environment {

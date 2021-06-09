@@ -20,12 +20,12 @@ class Admin(Blueprint):
                 function_called = route_entry.fun
                 doc = inspect.getdoc(function_called)
                 route[http_method] = {
-                    'doc': doc if doc else '',
+                    'doc': doc.replace('\n', ' ') if doc else '',
                     'signature': get_signature(function_called)
                 }
             routes[make_absolute(path)] = route
 
-        return jsonify(routes, pretty)
+        return jsonify({k: routes[k] for k in sorted(routes.keys())}, pretty)
 
     @entry
     def get_context(self):
