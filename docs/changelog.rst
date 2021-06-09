@@ -4,10 +4,19 @@ Changelogs
 ==========
 
 
+Version 0.5
+^^^^^^^^^^^
+
+First released 2021-02-03
+
+* Configuration files search in root before project dir.
+* Deploy/destroy comand enhanced.
+* More blueprints.
+
 Version 0.4
 ^^^^^^^^^^^
 
-First released 2021-01-6
+First released 2021-01-06
 
 * Global project configuration file.
 * Middleware renamed as Context Manager.

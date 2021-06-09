@@ -4,7 +4,7 @@ import requests
 from aws_xray_sdk.core import xray_recorder
 from typing import List, Tuple, Union, Any
 
-from .. import Blueprint, entry
+from .. import Blueprint
 from ..error import NotFoundError, InternalServerError
 
 Response = Tuple[dict, int]
@@ -19,6 +19,7 @@ class AccessDenied(Exception):
 
 class Odoo(Blueprint):
     """Odoo blueprint.
+    This blueprint uses the API Rest application which must be installed on ODOO server.
     Environment variables needed:
     - env_url_var_name: Variable name for the odoo server URL.
     - env_dbname_var_name: Variable name for the odoo database.
@@ -72,7 +73,6 @@ class Odoo(Blueprint):
                 return "AccessDenied", 401
             raise
 
-    @entry
     def get(self, model: str, query: str = "{*}", order: str = None, filters: Filters = None,
             limit: int = 300, page_size=None, page=0, ensure_one=False) -> GetResponse:
         params = {'query': query, 'limit': limit}
@@ -98,7 +98,6 @@ class Odoo(Blueprint):
             raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
         return res, status_code
 
-    @entry
     def get_(self, model: str, rec_id: int, query="{*}") -> Response:
         params = {'query': query}
         res, status_code = self.odoo_get(f'{self.url}/api/{model}/{rec_id}', params)
@@ -106,11 +105,9 @@ class Odoo(Blueprint):
             raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
         return res, status_code
 
-    @entry
     def get_call(self, model: str):
         return "Not done", 500
 
-    @entry
     def get_call_(self, model: str, rec_id: int, function, *args, **kwargs) -> Response:
         params = {'params': {'args': json.dumps(args) if args else '[]',
                              'kwargs': json.dumps(kwargs) if kwargs else '{}'}}
@@ -121,7 +118,6 @@ class Odoo(Blueprint):
             raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
         return res, status_code
 
-    @entry
     def get_pdf(self, report_id: int, rec_ids: Ids) -> Response:
         params = {'params': {'res_ids': json.dumps(rec_ids)}}
         res, status_code = self.odoo_post(f"{self.url}/report/{report_id}", params=params)
@@ -131,7 +127,6 @@ class Odoo(Blueprint):
             raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
         return res, status_code
 
-    @entry
     def post(self, model: str, data=None, context=None) -> Response:
         params = {'params': {'data': data or {}}}
         if context:
@@ -143,7 +138,6 @@ class Odoo(Blueprint):
             raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
         return res, status_code
 
-    @entry
     def put(self, model: str, rec_id: int, data=None) -> Response:
         params = {'params': {'data': data or {}}}
         res, status_code = self.odoo_put(f'{self.url}/api/{model}/{rec_id}', params)
@@ -151,7 +145,6 @@ class Odoo(Blueprint):
             raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
         return res, status_code
 
-    @entry
     def put_(self, model: str, filters: Filters = None, data=None) -> Response:
         """Bulk update."""
         params = {'params': {'data': data or {}}}
@@ -162,7 +155,6 @@ class Odoo(Blueprint):
             raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
         return res, status_code
 
-    @entry
     def delete(self, model: str, rec_id: int) -> Response:
         res, status_code = self.odoo_delete(f'{self.url}/api/{model}/{rec_id}')
         if status_code == 500:
