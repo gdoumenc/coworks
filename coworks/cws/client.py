@@ -181,18 +181,18 @@ class ProjectConfig:
         return self.params.get('commands', {})
 
     @staticmethod
-    def _load_config(dir, file_name, file_suffix):
+    def _load_config(project_dir, file_name, file_suffix):
         """Loads the project configuration file."""
 
-        def load(_dir):
-            project_dir_path = Path(_dir)
+        def load(dir):
+            project_dir_path = Path(dir)
             project_file = project_dir_path / (file_name + file_suffix)
             project_secret_file = project_dir_path / (file_name + '.secret' + file_suffix)
             return anyconfig.multi_load([project_file, project_secret_file], ac_ignore_missing=True)
 
-        params = load('.')
+        params = load(project_dir)
         if not params:
-            params = load(dir)
+            params = load('.')
 
         return params
 
