@@ -31,6 +31,8 @@ class Odoo(Blueprint):
                  env_url_var_name=None, env_dbname_var_name=None, env_user_var_name=None, env_passwd_var_name=None,
                  env_var_prefix=None, **kwargs):
         super().__init__(**kwargs)
+        self.url = self.dbname = self.user = self.passwd = None
+        self.session_id = None
         if env_var_prefix:
             self.env_url_var_name = f"{env_var_prefix}_URL"
             self.env_dbname_var_name = f"{env_var_prefix}_DBNAME"
@@ -41,8 +43,6 @@ class Odoo(Blueprint):
             self.env_dbname_var_name = env_dbname_var_name
             self.env_user_var_name = env_user_var_name
             self.env_passwd_var_name = env_passwd_var_name
-        self.url = self.dbname = self.user = self.passwd = None
-        self.session_id = None
 
         @self.before_first_activation
         def check_env_vars(event, context):

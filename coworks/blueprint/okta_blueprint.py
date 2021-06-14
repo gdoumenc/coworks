@@ -95,13 +95,13 @@ class Okta(Blueprint):
 
     def __init__(self, env_url_var_name=None, env_token_var_name=None, env_var_prefix="OKTA", **kwargs):
         super().__init__(name='okta', **kwargs)
+        self.org_url = self.okta_client = None
         if env_var_prefix:
             self.env_url_var_name = f"{env_var_prefix}_URL"
             self.env_token_var_name = f"{env_var_prefix}_TOKEN"
         else:
             self.env_url_var_name = env_url_var_name
             self.env_token_var_name = env_token_var_name
-        self.org_url = self.okta_client = None
 
         @self.before_first_activation
         def client(event, context):
