@@ -1,16 +1,22 @@
 import traceback
 
 from aws_xray_sdk.core import AWSXRayRecorder
+from contextlib import contextmanager, nullcontext
 from functools import partial, update_wrapper
+
+from ..coworks import ContextManager
 
 LAMBDA_NAMESPACE = 'lambda'
 COWORKS_NAMESPACE = 'coworks'
 
 
-class XRayContextManager:
+class XRayContextManager(ContextManager):
+    NAME = 'xray'
 
-    def __init__(self, app, recorder):
-        app.log.debug("initializing xray context manager")
+    def __init__(self, app, recorder, name=NAME):
+        super().__init__(app, name)
+        self.recorder = recorder
+        app.log.debug(f"initializing xray context manager at {name}")
 
         @app.before_first_activation
         def capture_routes(event, context):
@@ -23,6 +29,7 @@ class XRayContextManager:
                         def captured(_view_function, *args, **kwargs):
                             subsegment = recorder.current_subsegment()
                             if subsegment:
+                                # TODO event and global should be taken from global
                                 subsegment.put_metadata('event', event, LAMBDA_NAMESPACE)
                                 subsegment.put_metadata('context', context, LAMBDA_NAMESPACE)
                                 subsegment.put_annotation('service', app.name)
@@ -97,3 +104,11 @@ class XRayContextManager:
             return recorder.capture(function.__name__)(wrapped_fun)
 
         return decorator
+
+    @contextmanager
+    def __call__(self, key, *args, **kwargs):
+        subsegment = self.recorder.current_subsegment()
+        if subsegment:
+            subsegment.put_metadata(key, args, COWORKS_NAMESPACE)
+
+        yield nullcontext()
