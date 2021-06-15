@@ -106,9 +106,10 @@ class XRayContextManager(ContextManager):
         return decorator
 
     @contextmanager
-    def __call__(self, key, *args, **kwargs):
+    def __call__(self, *, key=NAME, **kwargs):
+        """Traces any dictionnary defined by the keyword arguments."""
         subsegment = self.recorder.current_subsegment()
         if subsegment:
-            subsegment.put_metadata(key, args, COWORKS_NAMESPACE)
+            subsegment.put_metadata(key, kwargs, COWORKS_NAMESPACE)
 
         yield nullcontext()

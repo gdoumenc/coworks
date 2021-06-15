@@ -6,6 +6,7 @@ aws_iam_role.{{ resource_name }}_microservice
 aws_iam_role_policy_attachment.{{ resource_name }}_s3
 aws_iam_role_policy_attachment.{{ resource_name }}_cloud_watch
 aws_iam_role_policy_attachment.{{ resource_name }}_xray
+aws_iam_role_policy.{{ resource_name }}_vpc
 aws_iam_role_policy.{{ resource_name }}_destination
 
 data.aws_api_gateway_rest_api.{{ resource_name }}

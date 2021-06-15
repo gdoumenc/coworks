@@ -1,3 +1,7 @@
+locals {
+  {{ resource_name }}_role_arn = join("", aws_iam_role.{{ resource_name }}_microservice.*.arn, data.aws_iam_role.{{ resource_name }}_microservice.*.arn)
+}
+
 # ---------------------------------------------------------------------------------------------------------------------
 # ROLE
 # ---------------------------------------------------------------------------------------------------------------------
@@ -13,14 +17,12 @@ resource "aws_iam_role" "{{ resource_name }}_microservice" {
       {
         Action: "sts:AssumeRole",
         Principal: {
-          Service: [
-            "lambda.amazonaws.com"
-          ]
+          Service: ["lambda.amazonaws.com"]
         },
         Effect: "Allow",
         Sid: ""
       }
-    ]
+   ]
   })
 
   tags = local.{{ resource_name }}_tags
@@ -47,11 +49,33 @@ resource "aws_iam_role_policy_attachment" "{{ resource_name }}_xray" {
   policy_arn = "arn:aws:iam::aws:policy/AWSXrayFullAccess"
 }
 
+resource "aws_iam_role_policy" "{{ resource_name }}_vpc" {
+  provider = aws.{{ resource_name }}
+  count = local.{{ resource_name }}_when_default
+  name = "{{ resource_name }}_vpc"
+  role = join("", aws_iam_role.{{ resource_name }}_microservice.*.name)
+  policy = jsonencode({
+    Version: "2012-10-17",
+    Statement: [
+      {
+        Effect: "Allow",
+        Action: [
+          "ec2:CreateNetworkInterface",
+          "ec2:DescribeNetworkInterfaces",
+          "ec2:DeleteNetworkInterface"
+        ],
+        Resource: "*"
+      }
+    ]
+  })
+}
+
 data "aws_sqs_queue" "{{ resource_name }}_destination" {
   provider = aws.{{ resource_name }}
   count = local.{{ resource_name }}_when_default
   name = "microservice-error-destination"
 }
+
 resource "aws_iam_role_policy" "{{ resource_name }}_destination" {
   provider = aws.{{ resource_name }}
   count = local.{{ resource_name }}_when_default
@@ -64,7 +88,7 @@ resource "aws_iam_role_policy" "{{ resource_name }}_destination" {
         Effect: "Allow",
         Action: "sqs:SendMessage",
         Resource: data.aws_sqs_queue.{{ resource_name }}_destination[0].arn
-      },
+      }
     ]
   })
 }
