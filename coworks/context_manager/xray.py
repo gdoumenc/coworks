@@ -1,8 +1,11 @@
 import traceback
-
-from aws_xray_sdk.core import AWSXRayRecorder
-from contextlib import contextmanager, nullcontext
+from contextlib import contextmanager
 from functools import partial, update_wrapper
+
+from aws_xray_sdk import global_sdk_config
+from aws_xray_sdk.core import AWSXRayRecorder
+from aws_xray_sdk.core.models.dummy_entities import DummySegment, DummySubsegment
+from aws_xray_sdk.core.models.subsegment import Subsegment
 
 from ..coworks import ContextManager
 
@@ -106,10 +109,10 @@ class XRayContextManager(ContextManager):
         return decorator
 
     @contextmanager
-    def __call__(self, *, key=NAME, **kwargs):
+    def __call__(self) -> Subsegment:
         """Traces any dictionnary defined by the keyword arguments."""
         subsegment = self.recorder.current_subsegment()
         if subsegment:
-            subsegment.put_metadata(key, kwargs, COWORKS_NAMESPACE)
+            subsegment = DummySubsegment(DummySegment(global_sdk_config.DISABLED_ENTITY_NAME))
 
-        yield nullcontext()
+        yield subsegment

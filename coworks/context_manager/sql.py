@@ -1,10 +1,10 @@
 import os
-import sqlalchemy
 from contextlib import contextmanager
+
+import sqlalchemy
+from coworks.coworks import ContextManager
 from sqlalchemy import create_engine, MetaData, Table
 from sqlalchemy.orm import sessionmaker, scoped_session
-
-from coworks.coworks import ContextManager
 
 
 class SqlContextManager(ContextManager):
@@ -68,7 +68,7 @@ class SqlContextManager(ContextManager):
             self.scoped_session.remove()
 
     @contextmanager
-    def __call__(self, **kwargs):
+    def __call__(self, **kwargs) -> scoped_session:
         session = self.scoped_session(future=True, **kwargs)
 
         if self.read_only:
