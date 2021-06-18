@@ -1,9 +1,9 @@
 import os
-from aws_xray_sdk.core import xray_recorder
-from okta.client import Client
-from typing import Dict
+from typing import Dict, Callable
 
+from aws_xray_sdk.core import xray_recorder
 from coworks import Blueprint, entry
+from okta.client import Client
 
 
 class OktaDict(dict):
@@ -65,19 +65,34 @@ class OktaResponse:
             self.api_resp, self.err = await_result
             self.value = None
 
+    @staticmethod
+    def empty_value():
+        empty = OktaResponse()
+        empty.value= []
+        return empty
+
     @property
     def response(self):
         """Cast the Okta response as microservice response."""
         if self.err:
             return self.err.message, 400
-        if type(self.value) is list:
-            return {'value': self.value, 'next': self.api_resp._next}
-        return self.value
+        return {'value': self.value, 'next': self.api_resp._next if self.api_resp else None}
 
-    def filter(self, fun, map=lambda x: x):
+    def filter(self, fun: Callable[[dict], bool], map=lambda x: x):
+        """Filters the response by the fun parameters and apply map on each."""
         dest = OktaResponse()
         if not self.err:
             dest.value = [map(val) for val in self.value if fun(val)]
+            dest.api_resp = self.api_resp
+        else:
+            dest.err = self.err
+        return dest
+
+    def reduce(self, key):
+        """Reduces the response with same key value."""
+        dest = OktaResponse()
+        if not self.err:
+            dest.value = [v for v in {t[key]: t for t in self.value}.values()]
             dest.api_resp = self.api_resp
         else:
             dest.err = self.err
