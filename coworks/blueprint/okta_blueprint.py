@@ -80,7 +80,7 @@ class OktaResponse:
     def response(self):
         """Cast the Okta response as microservice response."""
         if self.err:
-            return str(self.err), 400
+            return str(self.err), self.err.status
         return {'value': self.value, 'next': self.next_url}
 
     def filter(self, fun: Callable[[dict], bool], map=lambda x: x):
@@ -107,7 +107,7 @@ class OktaResponse:
     def combine_response(cls, responses: Dict[str, "OktaResponse"]):
         for resp in responses.values():
             if resp.err:
-                return resp.err.message, 400
+                return str(resp.err), resp.err.status
         return {k: v.response for k, v in responses.items()}
 
 
