@@ -12,4 +12,4 @@ deploy-test: clean sdist
 clean:
 	rm -rf dist build coworks.egg-info
 	find . -type f -name \*.pyc -delete
-	find . -type d -name __pycache__ -exec rm -rf {} \;
+	find . -type d -name __pycache__ -exec rm -rf {} \; || true
