@@ -3,21 +3,7 @@
 # ---------------------------------------------------------------------------------------------------------------------
 
 locals {
-  {{ resource_name }}_when_default = terraform.workspace == "default" ? 1 : 0
-  {{ resource_name }}_when_stage = terraform.workspace != "default" ? 1 : 0
-}
-
-locals {
-  {{ resource_name }}_role_arn = join("", aws_iam_role.{{ resource_name }}_microservice.*.arn, data.aws_iam_role.{{ resource_name }}_microservice.*.arn)
   {{ resource_name }}_security_group_ids = []
   {{ resource_name }}_vpc_id = []
   {{ resource_name }}_subnet_ids = []
 }
-
-{% if layers -%}
-data "aws_lambda_layer_version" "{{ resource_name }}" {
-  provider = aws.{{ resource_name }}
-  for_each = {for layer_name in [{% for  layer in layers %}"{{ layer }}",{% endfor %}]: layer_name => layer_name}
-  layer_name = each.value
-}
-{%- endif %}

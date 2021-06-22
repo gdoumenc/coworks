@@ -23,12 +23,17 @@ class Mail(Blueprint):
     - env_passwd_var_name: Variable name for the password.
     """
 
-    def __init__(self, env_server_var_name, env_login_var_name, env_passwd_var_name, **kwargs):
+    def __init__(self, env_server_var_name, env_login_var_name, env_passwd_var_name, env_var_prefix=None, **kwargs):
         super().__init__(**kwargs)
-        self.env_server_var_name = env_server_var_name
-        self.env_login_var_name = env_login_var_name
-        self.env_passwd_var_name = env_passwd_var_name
         self.smtp_server = self.smtp_login = self.smtp_passwd = None
+        if env_var_prefix:
+            self.env_server_var_name = f"{env_var_prefix}_SERVER"
+            self.env_login_var_name = f"{env_var_prefix}_USER"
+            self.env_passwd_var_name = f"{env_var_prefix}_PASSWD"
+        else:
+            self.env_server_var_name = env_server_var_name
+            self.env_login_var_name = env_login_var_name
+            self.env_passwd_var_name = env_passwd_var_name
 
         @self.before_first_activation
         def check_env_vars(event, context):
@@ -43,7 +48,6 @@ class Mail(Blueprint):
                 raise EnvironmentError(f'{self.env_passwd_var_name} not defined in environment.')
 
     @entry
-    @XRayContextManager.capture(xray_recorder)
     def post_send(self, subject="", from_addr: str = None, from_name: str = '', to_addrs: [str] = None,
                   cc_addrs: [str] = None, bcc_addrs: [str] = None, body="",
                   attachments: [FileParam] = None, attachment_urls: dict = None, subtype="plain", starttls=True):

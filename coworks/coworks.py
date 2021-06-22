@@ -3,9 +3,11 @@ from dataclasses import dataclass
 import json
 import os
 import re
+from abc import ABCMeta, abstractmethod
 from chalice import AuthResponse
 from chalice import Chalice, Blueprint as ChaliceBlueprint
 from chalice.app import AuthRequest
+from contextlib import contextmanager
 from typing import Callable
 from typing import Dict, List, Union, Optional
 
@@ -73,11 +75,10 @@ class ScheduleEntry:
     fun: Callable
 
 
-class Blueprint(CoworksMixin, ChaliceBlueprint):
+class Blueprint(CoworksMixin, ChaliceBlueprint, metaclass=ABCMeta):
     """ Represents a blueprint, list of routes that will be added to microservice when registered.
 
     See :ref:`Blueprint <blueprint>` for more information.
-
     """
 
     def __init__(self, name=None, **kwargs):
@@ -100,10 +101,13 @@ class Blueprint(CoworksMixin, ChaliceBlueprint):
 
     @property
     def logger(self):
-        return self._current_app.logger
+        return self.current_app.logger
 
     def entry(self, route):
         return self.current_app.entry(route)
+
+    def context_manager(self, name, *args, **kwarsg):
+        return self.current_app.context_manager(name, *args, **kwarsg)
 
     def deferred_init(self, workspace):
         for func in self.before_first_activation_funcs:
@@ -116,11 +120,29 @@ class Blueprint(CoworksMixin, ChaliceBlueprint):
             self.current_app.handle_exception(func)
 
 
+class ContextManager(metaclass=ABCMeta):
+    """ Represents a context manager that will be added to microservice when created.
+
+    See :ref:`ContextManager <contextmanager>` for more information.
+    """
+
+    def __init__(self, app, name):
+        app.add_context_manager(self, name)
+        self._current_app = app
+
+    @property
+    def current_app(self):
+        return self._current_app
+
+    @abstractmethod
+    def __call__(self, *args, **kwargs):
+        ...
+
+
 class TechMicroService(CoworksMixin, Chalice):
     """Simple tech microservice.
     
     See :ref:`tech` for more information.
-    
     """
 
     def __init__(self, name: str = None, configs: Union[Config, List[Config]] = None, **kwargs):
@@ -143,6 +165,7 @@ class TechMicroService(CoworksMixin, Chalice):
             'BLUEPRINTS'
         ])
         self.blueprints: Dict[str, Blueprint] = {}
+        self.context_managers: Dict[str, ContextManager] = {}
         self.commands = {}
         self.entries: Optional[Dict[str, Dict[str, Entry]]] = None
 
@@ -182,7 +205,8 @@ class TechMicroService(CoworksMixin, Chalice):
             for blueprint in self.blueprints.values():
                 blueprint.deferred_init(workspace)
 
-    def register_blueprint(self, blueprint: Blueprint, name=None, url_prefix='', hide_routes=False, show_routes=None):
+    def register_blueprint(self, blueprint: Blueprint, name: str = None, url_prefix: str = '',
+                           hide_routes=False, show_routes=None) -> None:
         """ Register a :class:`Blueprint` on the microservice.
 
         :param blueprint: blueprint to register.
@@ -190,11 +214,10 @@ class TechMicroService(CoworksMixin, Chalice):
         :param url_prefix: url prefix for the routes added (must be unique for each blueprints).
         :param hide_routes: Hide all routes in blueprint.
         :param show_routes:
-        :return:
         """
         name = name or blueprint.name
         if name in self.blueprints:
-            raise NameError(f"A blueprint is already defined with the name : {name}.")
+            raise KeyError(f"A blueprint is already defined with the name : {name}.")
         self.blueprints[name] = blueprint
 
         # use old syntax for super as local server changes type
@@ -206,8 +229,28 @@ class TechMicroService(CoworksMixin, Chalice):
 
             self.deferred_inits.append(deferred)
 
+    @contextmanager
+    def context_manager(self, name, *args, **kwargs):
+        try:
+            with self.context_managers[name](*args, **kwargs) as cm:
+                yield cm
+        except KeyError:
+            self.log.error(f"Undefined context manager {name}")
+            raise
+
     def add_entry(self, path, method, auth, fun):
         self.entries[path][method] = Entry(auth, fun)
+
+    def add_context_manager(self, context_manager: ContextManager, name: str) -> None:
+        """ Register a context manager.
+
+        :param context_manager: context manager to register.
+        :param name: name registration (needed to retrieve it).
+        """
+        if name in self.context_managers:
+            raise KeyError(f"A context manager is already defined with the name : {name}.")
+
+        self.context_managers[name] = context_manager
 
     def execute(self, command, *, project_dir=DEFAULT_PROJECT_DIR, module=None, service=None,
                 workspace=DEFAULT_WORKSPACE, output=None, error=None, **options):

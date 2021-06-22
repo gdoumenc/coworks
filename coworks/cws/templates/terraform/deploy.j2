@@ -1,3 +1,8 @@
+locals {
+  {{ resource_name }}_when_default = terraform.workspace == "default" ? 1 : 0
+  {{ resource_name }}_when_stage = terraform.workspace != "default" ? 1 : 0
+}
+
 {% include 'terraform/provider.j2' with context %}
 
 {% include "terraform/tags.j2" with context %}

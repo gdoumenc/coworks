@@ -9,6 +9,14 @@ locals {
   {%- endif %}
 }
 
+{% if layers -%}
+data "aws_lambda_layer_version" "{{ resource_name }}" {
+  provider = aws.{{ resource_name }}
+  for_each = {for layer_name in [{% for  layer in layers %}"{{ layer }}",{% endfor %}]: layer_name => layer_name}
+  layer_name = each.value
+}
+{%- endif %}
+
 # ---------------------------------------------------------------------------------------------------------------------
 # LAMBDA
 # ---------------------------------------------------------------------------------------------------------------------

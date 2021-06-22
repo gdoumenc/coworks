@@ -55,17 +55,25 @@ class Config:
 
     def existing_environment_variables_files(self, project_dir):
         """Returns a list containing the paths to environment variables files that actually exist """
+
+        # store in a dict to allow specific environment variable files to be overloaded
+        files = {}
+
+        def add_file(dir):
+            for file in environment_variables_file:
+                var_file = Path(dir) / file
+                if var_file.is_file():
+                    files[file] = var_file
+                var_secret_file = var_file.with_suffix(SECRET_ENV_FILE_SUFFIX)
+                if var_secret_file.is_file():
+                    files[var_secret_file] = var_secret_file
+
         environment_variables_file = as_list(self.environment_variables_file)
-        files = []
-        parent = Path(project_dir)
-        for file in environment_variables_file:
-            var_file = parent / file
-            if var_file.is_file():
-                files.append(var_file)
-            var_secret_file = var_file.with_suffix(SECRET_ENV_FILE_SUFFIX)
-            if var_secret_file.is_file():
-                files.append(var_secret_file)
-        return files
+
+        # get default then specific
+        add_file('.')
+        add_file(project_dir)
+        return files.values()
 
     def load_environment_variables(self, project_dir):
         """Uploads environment variables from the environment variables files and variables."""
@@ -73,7 +81,12 @@ class Config:
 
         # Environment variables from files and from config
         for file in self.existing_environment_variables_files(project_dir):
-            environment_variables.update(self._load_file(file, project_dir))
+            try:
+                with file.open() as f:
+                    environment_variables.update(json.loads(f.read()))
+            except JSONDecodeError as e:
+                raise FileNotFoundError(f"Syntax error in file {file}: {str(e)}.\n")
+
         if self.environment_variables:
             environment_variables.update(self.environment_variables)
 
@@ -94,19 +107,6 @@ class Config:
         """Same as for dict."""
         if not hasattr(self, key):
             setattr(self, key, value)
-
-    @staticmethod
-    def _load_file(var_file, project_dir):
-        try:
-            if var_file.exists():
-                with var_file.open() as f:
-                    return json.loads(f.read())
-            if (project_dir / var_file).exists():
-                with (project_dir / var_file).open() as f:
-                    return json.loads(f.read())
-            raise FileNotFoundError(f"Error when loading environment variables files {str(e)}.\n")
-        except JSONDecodeError as e:
-            raise FileNotFoundError(f"Syntax error when in e{var_file}: {str(e)}.\n")
 
 
 class LocalConfig(Config):
