@@ -1,15 +1,14 @@
-version: ">=1"
+version: 2
 services:
   - module: website
     services:
-      - service: app
+      - app
 commands:
   run:
     class: coworks.cws.runner.CwsRunner
     autoreload: true
   deploy:
     class: coworks.cws.deployer.CwsTerraformDeployer
-    project_name: cms
     profile_name: fpr-customer
     bucket: coworks-microservice
     ignore:
@@ -17,7 +16,7 @@ commands:
       - images
       - terraform
     customer: yopp
-    layers: [arn:aws:lambda:eu-west-1:935392763270:layer:coworks-0_5_2]
+    layers: [ arn:aws:lambda:eu-west-1:935392763270:layer:coworks-0_5_8 ]
   destroy:
     class: coworks.cws.deployer.CwsTerraformDestroyer
     profile_name: fpr-customer
