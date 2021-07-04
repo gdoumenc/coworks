@@ -75,12 +75,6 @@ resource "aws_lambda_function" "{{ resource_name }}" {
   ]
 }
 
-data "aws_lambda_function" "{{ resource_name }}" {
-  provider = aws.{{ resource_name }}
-  count = {{ 'local.{}_when_default'.format(resource_name) if step == "update" else 0}}
-  function_name = local.{{ resource_name }}_lambda_name
-}
-
 resource "aws_lambda_permission" "{{ resource_name }}_allow_apigateway" {
   provider = aws.{{ resource_name }}
   count = local.{{ resource_name }}_when_stage

@@ -3,7 +3,7 @@ from aws_xray_sdk.core import xray_recorder
 from okta.api_response import OktaAPIResponse as APIResponse
 from okta.client import Client
 from okta.okta_object import OktaObject
-from typing import Dict, Callable
+from typing import Callable
 
 from coworks import Blueprint, entry
 
@@ -46,7 +46,7 @@ class OktaResponse:
 
     def __init__(self, value=None):
         self.value = value
-        self.next_url = self.err = None
+        self.api_resp = self.next_url = self.err = None
 
     @xray_recorder.capture()
     def set(self, await_result, fields=None):
@@ -59,16 +59,16 @@ class OktaResponse:
             return {k: v for k, v in val.as_dict().items() if k in fields}
 
         if len(await_result) == 3:
-            value, api_resp, self.err = await_result
+            value, self.api_resp, self.err = await_result
             if not self.err:
                 self.value = [as_dict(val) for val in value] if type(value) is list else [as_dict(value)]
             else:
                 self.value = []
         else:
-            api_resp, self.err = await_result
+            self.api_resp, self.err = await_result
             self.value = []
 
-        self.next_url = next_url(api_resp)
+        self.next_url = next_url(self.api_resp)
 
     @staticmethod
     def empty_value():
@@ -102,13 +102,6 @@ class OktaResponse:
         else:
             dest.err = self.err
         return dest
-
-    @classmethod
-    def combine_response(cls, responses: Dict[str, "OktaResponse"]):
-        for resp in responses.values():
-            if resp.err:
-                return str(resp.err), resp.err.status
-        return {k: v.response for k, v in responses.items()}
 
 
 class Okta(Blueprint):

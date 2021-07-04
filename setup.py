@@ -30,7 +30,6 @@ setup(
         'jinja2==2.11.0',
         'pyyaml>=5.3.1',
         'requests_toolbelt>=0.9.1',
-        'python_terraform>=0.10.1'
     ],
     keywords='python3 serverless microservice aws-lambda aws step-functions',
     entry_points={

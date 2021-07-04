@@ -20,7 +20,7 @@
       #foreach($key in $method.request.multivaluequerystring.keySet())
       "$key" : [
         #foreach($val in $method.request.multivaluequerystring.get($key))
-       "$val"#if($foreach.hasNext),#end
+        "$util.escapeJavaScript($val)"#if($foreach.hasNext),#end
         #end
         ]#if($foreach.hasNext),#end
       #end
