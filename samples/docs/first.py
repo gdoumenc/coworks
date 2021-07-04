@@ -1,9 +1,7 @@
 from aws_xray_sdk.core import xray_recorder
 
 from coworks import TechMicroService, entry
-from coworks.config import Config
 from coworks.context_manager import XRayContextManager
-from coworks.cws.deployer import CwsTerraformDeployer
 from coworks.cws.runner import CwsRunner
 
 
@@ -27,9 +25,7 @@ class SimpleMicroService(TechMicroService):
         return f"Value stored ({value}).\n"
 
 
-CONFIG = Config(workspace="dev")
-
-app = SimpleMicroService(name="sample-first-microservice", configs=[CONFIG])
+app = SimpleMicroService(name="sample-first-microservice")
 CwsRunner(app)
 XRayContextManager(app, xray_recorder)
 

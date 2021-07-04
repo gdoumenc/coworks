@@ -26,6 +26,9 @@ This first example defines a very simple microservice ``app`` with a simple ``GE
 (see :ref:`routing` for more details on entry)
 and adds it a local ``run`` command (see :ref:`command` for more details on command).
 
+We have to add a new function ``auth`` to define an authorizer (see :ref:`auth` for more details on authorizer).
+For this simple test, the authorizer validates all the routes by returning ``True``.
+
 This ``run`` command is defined by the ``CwsRunner`` extension added to the microservice.
 
 Test this microservice locally::
@@ -50,9 +53,6 @@ For that purpose, we add the ``deploy`` command to the microservice defined with
 (see `Terraform <https://www.terraform.io/>`_ for more details on Terraform).
 
 .. literalinclude:: ../samples/docs/quickstart2.py
-
-We have to add a new function ``auth`` to define an authorizer (see :ref:`auth` for more details on authorizer).
-For this simple test, the authorizer validates all the routes by returning ``True``.
 
 As you can see we have added the command ``CwsTerraformDeployer`` to this microservice.
 This command is a combinaison of two other commmands ``CwsZipArchiver`` and ``CwsTemplateWriter``::
