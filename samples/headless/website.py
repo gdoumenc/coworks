@@ -1,10 +1,8 @@
 import mimetypes
 import os
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 from pathlib import Path
 
-from jinja2 import Environment, FileSystemLoader, select_autoescape
-
-from config import DevConfig, LocalConfig
 from cosmicjs import CosmicCmsClient
 from coworks import TechMicroService, entry
 from coworks.blueprint import Admin
@@ -54,8 +52,7 @@ class WebsiteMicroService(TechMicroService):
     def render(self, template, **data):
         assets_url = os.getenv('ASSETS_URL')
         headers = {'Content-Type': 'text/html; charset=utf-8'}
-        root = self.config.root
-        return template.render(assets_url=assets_url, root=root, **data), 200, headers
+        return template.render(assets_url=assets_url, root='.', **data), 200, headers
 
     @staticmethod
     def get_file_content(file: Path):
@@ -67,15 +64,8 @@ class WebsiteMicroService(TechMicroService):
             return content, 200, {'Content-Type': mt[0]}
 
 
-app = WebsiteMicroService(configs=[LocalConfig(), DevConfig()])
+app = WebsiteMicroService()
 app.register_blueprint(Admin(), url_prefix='admin')
 
 if __name__ == '__main__':
-    import sys
-
-    if len(sys.argv) < 2:
-        print("Command arg missing")
-    elif sys.argv[1] == "run":
-        app.execute("run", project_dir='.', module='website', workspace='local', service='app', auto_reload=True)
-    elif sys.argv[1] == "deploy":
-        app.execute("deploy", project_dir='.', module='website', workspace='prod', service='app')
+    app.execute("run", project_dir='.', module='website', workspace='local', service='app', auto_reload=True)
