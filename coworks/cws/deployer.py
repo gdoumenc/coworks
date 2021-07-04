@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from shutil import copy
 
 import boto3
 import click
@@ -64,7 +65,7 @@ class Terraform:
             self.__execute(["workspace", "new", workspace])
 
     def __execute(self, cmds):
-        p = subprocess.run(["terraform", *cmds], capture_output=True, cwd=self.working_dir, timeout=30)
+        p = subprocess.run(["terraform", *cmds], capture_output=True, cwd=self.working_dir, timeout=60)
         try:
             p.check_returncode()
             return p
@@ -244,7 +245,6 @@ class CwsTerraformDeployer(CwsTerraformCommand):
 
         # Get all terraform resources
         terraform_api_ressources = []
-
         for command, options in execution_list:
             terraform_filename = f"{command.app.name}.{command.app.ms_type}.txt"
             msg = f"Generate resources list for {command.app.name}."
@@ -256,6 +256,14 @@ class CwsTerraformDeployer(CwsTerraformCommand):
             terraform_filename = f"{command.app.name}.{command.app.ms_type}.tf"
             msg = f"Generate terraform files for updating API routes and deploiement for {command.app.name}"
             command.generate_terraform_files("deploy.j2", terraform_filename, msg, dry=dry, **options)
+
+        # Copy environment variable files in terraform working dir for provisionning
+        for command, options in execution_list:
+            config = command.app.get_config(workspace)
+            environment_variable_files = [p.as_posix() for p in
+                                          config.existing_environment_variables_files(project_dir)]
+            for file in environment_variable_files:
+                copy(file, cls.terraform.working_dir)
 
         # Apply terraform if not dry
         if not dry:
@@ -349,7 +357,7 @@ class CwsTerraformDestroyer(CwsTerraformCommand):
         if not dry:
             # perform dry deployment to have updated terraform files
             cmds = ['cws', '-p', project_dir, '-w', workspace, 'deploy', '--dry']
-            p = subprocess.run(cmds, capture_output=True, timeout=30)
+            p = subprocess.run(cmds, capture_output=True, timeout=60)
 
             # Get terraform resources
             try:
