@@ -170,6 +170,7 @@ Documentation
   command
   configuration
   context_manager
+  proxy
   biz_quickstart
   biz
   api
