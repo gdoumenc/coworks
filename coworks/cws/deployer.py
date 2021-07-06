@@ -1,18 +1,18 @@
+import logging
+import subprocess
+from abc import ABC
 from dataclasses import dataclass
+from pathlib import Path
 from shutil import copy
+from subprocess import CalledProcessError
+from threading import Thread
+from typing import Optional, Dict
 
 import boto3
 import click
 import itertools
-import logging
-import subprocess
 import sys
-from abc import ABC
-from pathlib import Path
-from subprocess import CalledProcessError
-from threading import Thread
 from time import sleep
-from typing import Optional, Dict
 
 from coworks.aws import AwsS3Session
 from coworks.coworks import Entry
@@ -35,7 +35,7 @@ class Terraform:
     def init(self):
         self.__execute(['init', '-input=false'])
 
-    def apply(self, workspace, targets):
+    def apply(self, workspace, targets=None):
         self.select_workspace(workspace)
         terraform_targets = [f'-target={t}' for t in targets]
         self.__execute(['apply', '-auto-approve', '-parallelism=1', *terraform_targets])
@@ -208,6 +208,7 @@ class CwsTerraformDeployer(CwsTerraformCommand):
         return [
             *super().options,
             *self.zip_cmd.options,
+            click.option('--all', is_flag=True, help="Force apply on all ressources."),
             click.option('--binary_media_types'),
             click.option('--cloud', is_flag=True, help="Use cloud workspaces."),
             click.option('--dry', is_flag=True, help="Doesn't perform deploy [Global option only]."),
@@ -219,9 +220,10 @@ class CwsTerraformDeployer(CwsTerraformCommand):
 
     @classmethod
     def multi_execute(cls, project_dir, workspace, execution_list):
-        # Output, dry are global options
-        dry = output = False
+        # Output, dry and all are global options
+        all = dry = output = False
         for command, options in execution_list:
+            all = options.pop('create', False) or all
             dry = options.pop('dry', False) or dry
 
             # Set default bucket key value
@@ -268,7 +270,7 @@ class CwsTerraformDeployer(CwsTerraformCommand):
         # Apply terraform if not dry
         if not dry:
             msg = ["Create API routes", f"Deploy API and Lambda for the {workspace} stage"]
-            cls.terraform_apply(workspace, terraform_api_ressources, msg)
+            cls.terraform_apply(workspace, all, terraform_api_ressources, msg)
 
         # Traces output
         print(f"terraform output : {cls.terraform.output()}", flush=True)
@@ -286,7 +288,7 @@ class CwsTerraformDeployer(CwsTerraformCommand):
         return app.commands.get(self.ZIP_CMD) or CwsZipArchiver(app)
 
     @classmethod
-    def terraform_apply(cls, workspace, targets, traces):
+    def terraform_apply(cls, workspace, create, targets, traces):
         """In the default terraform workspace, we have the API.
         In the specific workspace, we have the corresponding stagging lambda.
         """
@@ -305,9 +307,9 @@ class CwsTerraformDeployer(CwsTerraformCommand):
 
         try:
             print(f"Terraform apply ({traces[0]})", flush=True)
-            cls.terraform.apply("default", targets)
+            cls.terraform.apply("default", targets if not all else [])
             print(f"Terraform apply ({traces[1]})", flush=True)
-            cls.terraform.apply(workspace, targets)
+            cls.terraform.apply(workspace, targets if not all else [])
         finally:
             stop = True
 
