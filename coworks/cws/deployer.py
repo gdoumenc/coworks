@@ -35,14 +35,15 @@ class Terraform:
     def init(self):
         self.__execute(['init', '-input=false'])
 
-    def apply(self, workspace, ):
+    def apply(self, workspace):
         self.select_workspace(workspace)
         self.__execute(['apply', '-auto-approve', '-parallelism=1'])
 
-    def destroy(self, workspace, targets):
+    def destroy(self, workspace):
         self.select_workspace(workspace)
-        terraform_targets = [f'-target={t}' for t in targets]
-        self.__execute(['apply', '-destroy', '-auto-approve', '-parallelism=1', *terraform_targets])
+        self.__execute(['apply', '-destroy', '-auto-approve', '-parallelism=1'])
+        if workspace != "default":
+            self.__execute(['workspace', 'delete', workspace])
 
     def output(self):
         self.select_workspace("default")
@@ -325,30 +326,16 @@ class CwsTerraformDestroyer(CwsTerraformCommand):
             cmds = ['cws', '-p', project_dir, '-w', workspace, 'deploy', '--dry']
             p = subprocess.run(cmds, capture_output=True, timeout=60)
 
-            # Get terraform resources
-            try:
-                targets = self.read_terraform_resources_list_file(terraform_resources_filename, **options)
-            except OSError:
-                print(f"The resouces have been already removed ({terraform_resources_filename}).")
-                return
-
             # Destroy resources (except default)
             for w in self.terraform.workspace_list():
                 if w in [workspace] or (all_workspaces and w != 'default'):
                     print(f"Terraform destroy ({w})", flush=True)
-                    self.terraform.destroy(w, targets)
+                    self.terraform.destroy(w)
 
             if all_workspaces:
 
                 # Removes default workspace
-                self.terraform.destroy('default', targets)
-
-                # Removes terraform resource file
-                output = Path(self.terraform.working_dir) / terraform_resources_filename
-                if debug:
-                    print(f"Removing terraform resource file: {output} {'(not done)' if dry else ''}")
-                if not dry:
-                    output.unlink(missing_ok=True)
+                self.terraform.destroy('default')
 
                 # Removes terraform file
                 terraform_filename = f"{self.app.name}.{self.app.ms_type}.tf"
