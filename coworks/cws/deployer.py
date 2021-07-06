@@ -35,10 +35,9 @@ class Terraform:
     def init(self):
         self.__execute(['init', '-input=false'])
 
-    def apply(self, workspace, targets=None):
+    def apply(self, workspace, ):
         self.select_workspace(workspace)
-        terraform_targets = [f'-target={t}' for t in targets]
-        self.__execute(['apply', '-auto-approve', '-parallelism=1', *terraform_targets])
+        self.__execute(['apply', '-auto-approve', '-parallelism=1'])
 
     def destroy(self, workspace, targets):
         self.select_workspace(workspace)
@@ -137,29 +136,6 @@ class CwsTerraformCommand(CwsCommand, ABC):
         self.app.execute(self.WRITER_CMD, template=[template], output=output, aws_region=aws_region,
                          api_resources=self.terraform_api_resources(), **options)
 
-    def generate_terraform_resources_list_file(self, filename, msg, **options):
-        debug = options['debug']
-        profile_name = options['profile_name']
-        aws_region = boto3.Session(profile_name=profile_name).region_name
-        if not aws_region:
-            raise CwsCommandError("No region defined for this profile.")
-
-        if debug:
-            print(msg)
-
-        output = Path(self.terraform.working_dir) / filename
-        self.app.execute(self.WRITER_CMD, template=["resources.j2"], output=str(output), aws_region=aws_region,
-                         api_resources=self.terraform_api_resources(), **options)
-
-        return self.read_terraform_resources_list_file(filename, **options)
-
-    @classmethod
-    def read_terraform_resources_list_file(cls, filename, **options):
-        output = Path(cls.terraform.working_dir) / filename
-        with output.open('r') as res_file:
-            lines = res_file.readlines()[1:]
-            return [line[:-1] for line in lines if line.rstrip()]
-
     def terraform_api_resources(self):
         """Returns the list of flatten path (prev, last, entry)."""
         resources = {}
@@ -208,7 +184,6 @@ class CwsTerraformDeployer(CwsTerraformCommand):
         return [
             *super().options,
             *self.zip_cmd.options,
-            click.option('--all', is_flag=True, help="Force apply on all ressources."),
             click.option('--binary_media_types'),
             click.option('--cloud', is_flag=True, help="Use cloud workspaces."),
             click.option('--dry', is_flag=True, help="Doesn't perform deploy [Global option only]."),
@@ -220,10 +195,9 @@ class CwsTerraformDeployer(CwsTerraformCommand):
 
     @classmethod
     def multi_execute(cls, project_dir, workspace, execution_list):
-        # Output, dry and all are global options
-        all = dry = output = False
+        # Output, dry are global options
+        dry = output = False
         for command, options in execution_list:
-            all = options.pop('create', False) or all
             dry = options.pop('dry', False) or dry
 
             # Set default bucket key value
@@ -245,22 +219,12 @@ class CwsTerraformDeployer(CwsTerraformCommand):
         # Generates common terraform files
         cls.generate_common_terraform_files(workspace, execution_list)
 
-        # Get all terraform resources
-        terraform_api_ressources = []
-        for command, options in execution_list:
-            terraform_filename = f"{command.app.name}.{command.app.ms_type}.txt"
-            msg = f"Generate resources list for {command.app.name}."
-            res = command.generate_terraform_resources_list_file(terraform_filename, msg, **options)
-            terraform_api_ressources.extend(res)
-
-        # Generates terraform files
+        # Generates terraform files and copy environment variable files in terraform working dir for provisionning
         for command, options in execution_list:
             terraform_filename = f"{command.app.name}.{command.app.ms_type}.tf"
             msg = f"Generate terraform files for updating API routes and deploiement for {command.app.name}"
             command.generate_terraform_files("deploy.j2", terraform_filename, msg, dry=dry, **options)
 
-        # Copy environment variable files in terraform working dir for provisionning
-        for command, options in execution_list:
             config = command.app.get_config(workspace)
             environment_variable_files = [p.as_posix() for p in
                                           config.existing_environment_variables_files(project_dir)]
@@ -270,7 +234,7 @@ class CwsTerraformDeployer(CwsTerraformCommand):
         # Apply terraform if not dry
         if not dry:
             msg = ["Create API routes", f"Deploy API and Lambda for the {workspace} stage"]
-            cls.terraform_apply(workspace, all, terraform_api_ressources, msg)
+            cls.terraform_apply(workspace, msg)
 
         # Traces output
         print(f"terraform output : {cls.terraform.output()}", flush=True)
@@ -288,7 +252,7 @@ class CwsTerraformDeployer(CwsTerraformCommand):
         return app.commands.get(self.ZIP_CMD) or CwsZipArchiver(app)
 
     @classmethod
-    def terraform_apply(cls, workspace, create, targets, traces):
+    def terraform_apply(cls, workspace, traces):
         """In the default terraform workspace, we have the API.
         In the specific workspace, we have the corresponding stagging lambda.
         """
@@ -307,9 +271,9 @@ class CwsTerraformDeployer(CwsTerraformCommand):
 
         try:
             print(f"Terraform apply ({traces[0]})", flush=True)
-            cls.terraform.apply("default", targets if not all else [])
+            cls.terraform.apply("default")
             print(f"Terraform apply ({traces[1]})", flush=True)
-            cls.terraform.apply(workspace, targets if not all else [])
+            cls.terraform.apply(workspace)
         finally:
             stop = True
 
