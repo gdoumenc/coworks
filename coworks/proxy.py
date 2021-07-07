@@ -6,7 +6,12 @@ import requests
 
 class MicroServiceProxy:
 
-    def __init__(self, env_name, config=None, **kwargs):
+    def __init__(self, env_name, config=None):
+        """Proxy class to access deployed CoWorks microservice.
+        Get id, token and stage from environment name
+        :param env_name: if XX then XXX_CWS_ID for id, XXX_CWS_TOKEN for token and XXX_CWS_STAGE for stage.
+        :param config: if defined must be dict like variable to retrieve id, token and stage.
+        """
         self.session = requests.Session()
 
         if config is not None:
