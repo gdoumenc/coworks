@@ -1,9 +1,10 @@
 import os
+from typing import Callable
+
 from aws_xray_sdk.core import xray_recorder
 from okta.api_response import OktaAPIResponse as APIResponse
 from okta.client import Client
 from okta.okta_object import OktaObject
-from typing import Callable
 
 from coworks import Blueprint, entry
 
@@ -75,6 +76,11 @@ class OktaResponse:
         empty = OktaResponse()
         empty.value = []
         return empty
+
+    @property
+    def body(self):
+        """Get OKTA body response."""
+        return self.api_resp.get_body()
 
     @property
     def response(self):
