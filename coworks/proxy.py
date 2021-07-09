@@ -55,6 +55,15 @@ class MicroServiceProxy:
         resp = self.session.post(urljoin(self.url, path), json=json or {}, headers=headers)
         return self.convert(resp, response_content_type)
 
+    def put(self, path, json=None, headers=None, sync=True, response_content_type='json'):
+        if path.startswith('/'):
+            path = path[1:]
+        headers = {**self.session.headers, **headers} if headers else self.session.headers
+        if not sync:
+            headers.update({'InvocationType': 'Event'})
+        resp = self.session.put(urljoin(self.url, path), json=json or {}, headers=headers)
+        return self.convert(resp, response_content_type)
+
     @property
     def routes(self):
         return self.get('/admin/route')
@@ -69,5 +78,5 @@ class MicroServiceProxy:
             else:
                 content = resp.content
         else:
-            content = resp.reason
+            content = resp.content or resp.reason
         return content, resp.status_code
