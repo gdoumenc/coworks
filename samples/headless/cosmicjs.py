@@ -37,6 +37,9 @@ class CosmicCmsClient:
         objects = r.json()['objects'] if r.status_code == 200 else None
         return objects or []
 
+    def fields(self, response):
+        return {k: v for field in response['metafields'] for k, v in self.to_dict(field).items()}
+
     def to_dict(self, data):
         if 'metafields' in data:
             metafields = {k: v for d in data['metafields'] for k, v in self.to_dict(d).items()}

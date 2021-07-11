@@ -1,7 +1,8 @@
 import mimetypes
 import os
-from jinja2 import Environment, FileSystemLoader, select_autoescape
 from pathlib import Path
+
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from cosmicjs import CosmicCmsClient
 from coworks import TechMicroService, entry
@@ -14,7 +15,7 @@ class WebsiteMicroService(TechMicroService):
         super().__init__(name="sample-headless-microservice", **kwargs)
         self.jinja_env = env or Environment(
             loader=FileSystemLoader("templates"),
-            autoescape=select_autoescape(['html', 'xml'], default_for_string=True)
+            autoescape=select_autoescape(['j2', 'html', 'xml'], default_for_string=True)
         )
         self.cosmic_client = None
 
@@ -22,11 +23,25 @@ class WebsiteMicroService(TechMicroService):
         def init(*args):
             self.cosmic_client = CosmicCmsClient()
 
+    def auth(self, auth_request):
+        return True
+
     @entry
     def get(self):
         template_filename = 'home.j2'
         template = self.jinja_env.get_template(template_filename)
         return self.render(template, **self.home)
+
+    @entry
+    def get_biere(self, name=None):
+        template_filename = 'one-beer.j2' if name else 'all-beer.j2'
+        template = self.jinja_env.get_template(template_filename)
+
+        if name is None:
+            return self.render(template)
+
+        beer = self.get_beers(name)
+        return self.render(template, beer=beer)
 
     @entry
     def get_assets(self, folder, filename):
@@ -42,17 +57,28 @@ class WebsiteMicroService(TechMicroService):
     @property
     def home(self):
         response = self.cosmic_client.object('home')
-        home = {k: v for field in response['metafields'] for k, v in self.cosmic_client.to_dict(field).items()}
+        home = self.cosmic_client.fields(response)
         return {
             'carousel': home.get('carousel'),
             'sections': home.get('sections'),
-            'footer': home.get('footer'),
+            # 'footer': home.get('footer'),
         }
 
+    def get_beers(self, name=None):
+        response = self.cosmic_client.objects('bieres')
+        if name is None:
+            return {resp['slug']: self.cosmic_client.fields(resp) for resp in response}
+        for resp in response:
+            if resp['slug'] == name:
+                return self.cosmic_client.fields(resp)
+
     def render(self, template, **data):
+        response = self.cosmic_client.objects('bieres')
+        beers = self.get_beers()
+        data['footer'] = ""
         assets_url = os.getenv('ASSETS_URL')
         headers = {'Content-Type': 'text/html; charset=utf-8'}
-        return template.render(assets_url=assets_url, root='.', **data), 200, headers
+        return template.render(assets_url=assets_url, root='.', beers=beers, **data), 200, headers
 
     @staticmethod
     def get_file_content(file: Path):
@@ -68,4 +94,5 @@ app = WebsiteMicroService()
 app.register_blueprint(Admin(), url_prefix='admin')
 
 if __name__ == '__main__':
-    app.execute("run", project_dir='.', module='website', workspace='local', service='app', auto_reload=True)
+    app.execute("run", project_dir='.', module='website', workspace='local', service='app', auto_reload=True,
+                authorization='test')

@@ -1,103 +1,17 @@
 {% extends "base.j2" %}
-{% block wrapper %}
+{% block content %}
 
-    <!-- Navigation -->
-    <div class="navbar section no-padding" role="navigation">
-        <!-- Heading -->
-        <div class="heading">
-            <div class="container">
-                <div class="row">
-                    <div class="col-sm-4 hidden-xs">
-                        <ul class="social">
-                            <li><a href="#" class="fa fa-instagram"></a></li>
-                            <li><a href="#" class="fa fa-facebook-square"></a></li>
-                            <li><a href="#" class="fa fa-twitter-square"></a></li>
-                        </ul>
-                    </div>
-                    {#							<div class="col-sm-8">#}
-                    {#								<div class="finder">#}
-                    {#									<a href="#">#}
-                    {#										<span class="fa fa-map-marker"></span> Find our beer#}
-                    {#									</a>#}
-                    {#								</div>#}
-                    {#								<div class="cart">#}
-                    {#									<a href="cart.html">#}
-                    {#										<span class="fa fa-shopping-cart"></span> Empty#}
-                    {#									</a>#}
-                    {#								</div>#}
-                    {#							</div>#}
-                </div>
-            </div>
-        </div>
-
-        <div class="container">
-            <div class="navbar-header">
-                <a href="index.html" class="logo" title="Brasserie des Alpages">
-                    <img src="images/logo.png" alt="Brasserie des Alpages">
-                </a>
-                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
-                    <span class="sr-only">Toggle navigation</span>
-                    <span class="icon-bar top-bar"></span>
-                    <span class="icon-bar middle-bar"></span>
-                    <span class="icon-bar bottom-bar"></span>
-                </button>
-            </div>
-            <div class="navbar-collapse collapse">
-                <ul id="menu-primary" class="nav navbar-nav">
-                    <li class="active">
-								<span>
-									<a href="/">Accueil</a>
-								</span>
-                    </li>
-                    {#							<li>#}
-                    {#								<span>#}
-                    {#									<a href="shop.html">Shop</a>#}
-                    {#								</span>#}
-                    {#							</li>#}
-                    {#							<li class="dropdown">#}
-                    {#								<span>#}
-                    {#									<a href="our-beer.html">Our beer</a>#}
-                    {#								</span>#}
-                    {#								<ul class="dropdown-menu">#}
-                    {#									<li><a href="our-beer.html">Sugar Skull</a></li>#}
-                    {#									<li><a href="our-beer.html">BraveHeart</a></li>#}
-                    {#									<li><a href="our-beer.html">The Drunk Indian</a></li>#}
-                    {#								</ul>#}
-                    {#							</li>#}
-                    {#							<li>#}
-                    {#								<span>#}
-                    {#									<a href="our-story.html">Our story</a>#}
-                    {#								</span>#}
-                    {#							</li>#}
-                    {#							<li>#}
-                    {#								<span>#}
-                    {#									<a href="contact.html">Contact</a>#}
-                    {#								</span>#}
-                    {#							</li>#}
-                    {#							<li class="dropdown">#}
-                    {#								<span>#}
-                    {#									<a href="blog.html">Blog</a>#}
-                    {#								</span>#}
-                    {#								<ul class="dropdown-menu">#}
-                    {#									<li><a href="blog-single.html">Single post</a></li>#}
-                    {#								</ul>#}
-                    {#							</li>#}
-                </ul>
-            </div>
-        </div>
-    </div>
-
-    <!-- Hero -->
+    {#    <!-- Hero -->#}
     <div id="hero" class="carousel slide carousel-fade section no-padding" data-ride="carousel">
 
-        <!-- Indicators -->
+        {#        <!-- Indicators -->#}
         <ol class="carousel-indicators">
             {% for item in carousel %}
                 <li data-target="#hero" data-slide-to="{{ loop.index0 }}" {{ 'class="active"' if loop.first }}></li>
             {% endfor %}
         </ol>
 
-        <!-- Wrapper for slides -->
+        {#        <!-- Wrapper for slides -->#}
         <div class="carousel-inner">
 
             {% for item in carousel %}
@@ -402,4 +316,4 @@
     {#            </div>#}
     {#        </div>#}
     {#    </div>#}
-{% endblock %}
+{% endblock content %}
