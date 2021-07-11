@@ -1,0 +1,222 @@
+{% extends "base.j2" %}
+{% block content %}
+    {# Hero #}
+    <div id="hero" class="single-page section" style="background-image: url(http://placehold.it/1500x500)">
+        <div class="container">
+            <div class="row blurb scrollme animateme" data-when="exit" data-from="0" data-to="1" data-opacity="0"
+                 data-translatey="100">
+                <div class="col-md-10 col-md-offset-1">
+                    <h1>En savoir plus sur</h1>
+                    <h2>Nos bières</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Section #}
+    <div class="container-fluid dark section no-padding">
+        <div class="row">
+            <div class="col-sm-3 col-xs-6 icon-grid">
+                <img src="images/Hops.svg" class="svg" alt="Quality Ingredients"/>
+                <h4>All natural</h4>
+                <p>Claritas est etiam processus dynamicus, qui sequitur mutationem.</p>
+            </div>
+            <div class="col-sm-3 col-xs-6 icon-grid">
+                <img src="images/Mill.svg" class="svg" alt="Quality Ingredients"/>
+                <h4>MAde in the UK</h4>
+                <p>Claritas est etiam processus dynamicus, qui sequitur mutationem.</p>
+            </div>
+            <div class="col-sm-3 col-xs-6 icon-grid">
+                <img src="images/3DSixPack.svg" class="svg" alt="Quality Ingredients"/>
+                <h4>Huge variety</h4>
+                <p>Claritas est etiam processus dynamicus, qui sequitur mutationem.</p>
+            </div>
+            <div class="col-sm-3 col-xs-6 icon-grid">
+                <img src="images/Pint.svg" class="svg" alt="Quality Ingredients"/>
+                <h4>Stocked locally</h4>
+                <p>Claritas est etiam processus dynamicus, qui sequitur mutationem.</p>
+            </div>
+        </div>
+    </div>
+
+    {# Beer Carousel #}
+    <div class="container-fluid light section">
+        <div class="row">
+            <div id="carousel-1" class="carousel slide carousel-fade bs-carousel our-beers" data-ride="carousel">
+
+                <div class="carousel-inner" role="listbox">
+                    {% set selected =  beers.values() | list | random %}
+                    {% for beer in beers.values() %}
+                        <div class="item {{ 'active' if selected == beer else '' }}">
+                            <div class="container">
+                                <div class="row">
+                                    <div class="col-sm-5 matchHeight">
+                                        <img src="http://placehold.it/475x550" alt="About our Brewery"
+                                             class="alignMiddle"/>
+                                    </div>
+                                    <div class="col-sm-6 col-sm-push-1 matchHeight">
+                                        <section class="alignMiddle mobile-center">
+                                            <header>
+                                                <h1>{{ beer['style_de_biere'] }}</h1>
+                                                <h2>{{ beer['nom_de_la_biere'] }}</h2>
+                                            </header>
+                                            {{ beer['descriptif_de_la_biere']|safe }}
+                                            <a href="#" class="btn btn-default"><span>Go to shop</span></a>
+                                        </section>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <a class="left carousel-control" href="#carousel-1" data-slide="prev">
+                    <span class="fa fa-chevron-left" aria-hidden="true"></span>
+                </a>
+                <a class="right carousel-control" href="#carousel-1" data-slide="next">
+                    <span class="fa fa-chevron-right" aria-hidden="true"></span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section -->
+    <div class="container-fluid dark section" style="background-image: url(http://placehold.it/880x650);">
+        <div class="container">
+            <div class="row">
+                <div class="col-sm-5 matchHeight scrollme animateme" data-when="enter" data-from="0.75" data-to="0"
+                     data-opacity="0" data-translatex="-75">
+                    <div class="alignMiddle mobile-center">
+                        <header>
+                            <h1>Check out more of our</h1>
+                            <h2>Our stock</h2>
+                        </header>
+                        <p>Malt character and sweetness is pretty bland, with a weak toasty note as the highlight.
+                            Finish is drying, with a lingering hop character and sourness that just doesn't seem
+                            right.</p>
+                    </div>
+                </div>
+                <div class="col-sm-6 col-sm-push-1 matchHeight">
+                    <div class="owl-carousel">
+                        <!-- Products -->
+                        <div class="product item">
+                            <a href="our-beer.html">
+                                <span>Buy it</span>
+                                <img src="http://placehold.it/169x299" alt="Beer can mockup">
+                            </a>
+                            <h3>Pale ale</h3>
+                            <h4>4.5%</h4>
+                        </div>
+                        <div class="product item">
+                            <a href="our-beer.html">
+                                <span>Buy it</span>
+                                <img src="http://placehold.it/169x299" alt="Beer can mockup">
+                            </a>
+                            <h3>Golden ale</h3>
+                            <h4>4.2%</h4>
+                        </div>
+                        <div class="product item">
+                            <a href="our-beer.html">
+                                <span>Buy it</span>
+                                <img src="http://placehold.it/169x299" alt="Beer can mockup">
+                            </a>
+                            <h3>IPA</h3>
+                            <h4>7%</h4>
+                        </div>
+                        <div class="product item">
+                            <a href="our-beer.html">
+                                <span>Buy it</span>
+                                <img src="http://placehold.it/169x299" alt="Beer can mockup">
+                            </a>
+                            <h3>Zombie</h3>
+                            <h4>8.2%</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section -->
+    <div class="container-fluid light section no-padding">
+        <div class="container">
+            <div class="row">
+                <div class="col-sm-6 latest-post odd matchHeight">
+                    <a href="#"></a>
+                    <div class="row">
+                        <div class="col-sm-10 col-sm-push-1">
+                            <header>
+                                <span class="date">21 December</span>
+                                <h2>Oktoberfest</h2>
+                            </header>
+                            <p>Brewed with licorice; a proprietary, hand-smoked malt; and almost a pound of East
+                                Kent Goldings hops per barrel.</p>
+                            <p>Opaque brown in color, with muddy brown edges and a cola-colored head that drops
+                                quickly to a ringed lace. Strong and dominating licorice aroma with an underlying
+                                robust molasses-ness and highly roasted malts. Thick-ish, deep blackstrap molasses
+                                character (sweet, tangy nectar), quite robust.</p>
+                            <p><a href="#" class="underline">Read more</a></p>
+                        </div>
+                    </div>
+                    <div class="background" style="background-image: url(http://placehold.it/750x535);"></div>
+                </div>
+                <div class="col-sm-6 latest-post even matchHeight">
+                    <a href="#"></a>
+                    <div class="row">
+                        <div class="col-sm-10 col-sm-push-1">
+                            <header>
+                                <span class="date">14 December</span>
+                                <h2>Now stocked in NYC</h2>
+                            </header>
+                            <p>Brewed with licorice; a proprietary, hand-smoked malt; and almost a pound of East
+                                Kent Goldings hops per barrel.</p>
+                            <p>Opaque brown in color, with muddy brown edges and a cola-colored head that drops
+                                quickly to a ringed lace. Strong and dominating licorice aroma with an underlying
+                                robust molasses-ness and highly roasted malts. Thick-ish, deep blackstrap molasses
+                                character (sweet, tangy nectar), quite robust.</p>
+                            <p><a href="#" class="underline">Read more</a></p>
+                        </div>
+                    </div>
+                    <div class="background" style="background-image: url(http://placehold.it/750x535);"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section -->
+    <div class="container-fluid super-dark section">
+        <div class="container">
+            <div class="row">
+                <div class="col-xs-6 col-sm-3">
+                    <div class="counter">
+                        <img src="images/Can.svg" class="svg" alt=""/>
+                        <span>207</span>
+                        Flavours
+                    </div>
+                </div>
+                <div class="col-xs-6 col-sm-3">
+                    <div class="counter">
+                        <img src="images/Sign.svg" class="svg" alt=""/>
+                        <span class="one">396</span>
+                        Outlets
+                    </div>
+                </div>
+                <div class="col-xs-6 col-sm-3">
+                    <div class="counter">
+                        <img src="images/Badge.svg" class="svg" alt=""/>
+                        <span>60</span>
+                        Years brewing
+                    </div>
+                </div>
+                <div class="col-xs-6 col-sm-3">
+                    <div class="counter">
+                        <img src="images/BarrelSide.svg" class="svg" alt=""/>
+                        <span>21</span>
+                        Days til ready
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
