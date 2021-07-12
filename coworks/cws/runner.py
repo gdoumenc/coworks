@@ -2,13 +2,14 @@ import contextlib
 import logging
 import os
 import socket
-import sys
 from threading import Thread, Event
 
 import click
+import sys
 from aws_xray_sdk.core import xray_recorder
 from chalice.cli import run_local_server, reloader
 from chalice.config import Config
+from chalice.local import ChaliceRequestHandler
 from chalice.local import LocalDevServer
 
 from .command import CwsCommand
@@ -21,6 +22,7 @@ class CwsRunner(CwsCommand):
             *super().options,
             click.option('-h', '--host', default='127.0.0.1'),
             click.option('-p', '--port', default=8000, type=click.INT),
+            click.option('--authorization_value', help='If set, adds this authorization value to the header.'),
             click.option('--autoreload', is_flag=True, help='Reload server on source changes.'),
             click.option('--debug', is_flag=True, help='Print debug logs to stderr.')
         ]
@@ -45,18 +47,26 @@ class CwsRunner(CwsCommand):
                 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')
 
             if autoreload:
+                authorization_value = options['authorization_value']
+
                 if not options['_from_cws']:
                     sys.argv = [sys.executable, sys.argv[0]]
+
+                class CwsRequestHandler(ChaliceRequestHandler):
+                    def _parse_payload(self):
+                        headers, body = super()._parse_payload()
+                        headers['Authorization'] = authorization_value
+                        return headers, body
 
                 class _ThreadedLocalServer(ThreadedLocalServer):
 
                     def __init__(self):
-                        super().__init__()
+                        super().__init__(host=options['host'], port=options['port'])
                         self._app_object = self
                         self._config = Config()
-                        self._host = options['host']
-                        self._port = options['port']
-                        self._server = LocalDevServer(command.app, self._config, self._host, self._port)
+                        handler_cls = CwsRequestHandler if authorization_value else ChaliceRequestHandler
+                        self._server = LocalDevServer(command.app, self._config, self._host, self._port,
+                                                      handler_cls=handler_cls)
 
                 rc = reloader.run_with_reloader(_ThreadedLocalServer, os.environ, project_dir)
                 sys.exit(rc)
@@ -70,7 +80,7 @@ class CwsRunner(CwsCommand):
 
 
 class ThreadedLocalServer(Thread):
-    def __init__(self, *, port=None, host='localhost'):
+    def __init__(self, *, port=None, host='localhost', authorization_value=None):
         super().__init__()
         self._app_object = None
         self._config = None
@@ -79,12 +89,21 @@ class ThreadedLocalServer(Thread):
         self._server = None
         self._server_ready = Event()
 
+        class CwsRequestHandler(ChaliceRequestHandler):
+            def _parse_payload(self):
+                headers, body = super()._parse_payload()
+                headers['Authorization'] = authorization_value
+                return headers, body
+
+        self.handler_cls = CwsRequestHandler if authorization_value else ChaliceRequestHandler
+
     def configure(self, app_object, config=None, **kwargs):
         self._app_object = app_object
         self._config = config
 
     def run(self):
-        self._server = LocalDevServer(self._app_object, self._config, self._host, self._port, )
+        self._server = LocalDevServer(self._app_object, self._config, self._host, self._port,
+                                      handler_cls=self.handler_cls)
         self._server_ready.set()
         self._server.serve_forever()
 
@@ -97,7 +116,8 @@ class ThreadedLocalServer(Thread):
 
     def make_call(self, method, path, timeout=0.5, **kwarg):
         self._server_ready.wait()
-        return method(f'http://{self._host}:{self._port}{path}', timeout=timeout, **kwarg)
+        protocol = "http"
+        return method(f'{protocol}://{self._host}:{self._port}{path}', timeout=timeout, **kwarg)
 
     @classmethod
     def unused_tcp_port(cls):

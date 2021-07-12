@@ -41,7 +41,7 @@ The ``-m`` option defines the python module and ``-s`` the variable in this modu
 
 On another terminal enter::
 
-	(project) $ curl http://127.0.0.1:8000
+	(project) $ curl http://127.0.0.1:8000 -H Authorization=anyvalue
 	Simple microservice ready.
 
 Looks good...

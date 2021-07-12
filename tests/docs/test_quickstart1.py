@@ -25,4 +25,4 @@ class TestClass:
 
 def run_server_quickstart(app, port, samples_docs_dir):
     print(f"Server starting on port {port}")
-    app.execute('run', host='localhost', port=port, project_dir=samples_docs_dir, module='quickstart1', workspace='dev')
+    app.execute('run', host='localhost', port=port, project_dir=samples_docs_dir, module='quickstart1')
