@@ -173,6 +173,7 @@ Documentation
   proxy
   biz_quickstart
   biz
+  samples
   api
   faq
   contributing

@@ -22,7 +22,7 @@ class CwsRunner(CwsCommand):
             *super().options,
             click.option('-h', '--host', default='127.0.0.1'),
             click.option('-p', '--port', default=8000, type=click.INT),
-            click.option('--authorization_value', help='If set, adds this authorization value to the header.'),
+            click.option('--authorization-value', help='Adds this authorization value to the header.'),
             click.option('--autoreload', is_flag=True, help='Reload server on source changes.'),
             click.option('--debug', is_flag=True, help='Print debug logs to stderr.')
         ]
@@ -64,7 +64,7 @@ class CwsRunner(CwsCommand):
                         super().__init__(host=options['host'], port=options['port'])
                         self._app_object = self
                         self._config = Config()
-                        handler_cls = CwsRequestHandler if authorization_value else ChaliceRequestHandler
+                        handler_cls = get_request_handler(authorization_value)
                         self._server = LocalDevServer(command.app, self._config, self._host, self._port,
                                                       handler_cls=handler_cls)
 
@@ -80,6 +80,8 @@ class CwsRunner(CwsCommand):
 
 
 class ThreadedLocalServer(Thread):
+    """Local threaded server."""
+
     def __init__(self, *, port=None, host='localhost', authorization_value=None):
         super().__init__()
         self._app_object = None
@@ -88,14 +90,7 @@ class ThreadedLocalServer(Thread):
         self._port = port or self.unused_tcp_port()
         self._server = None
         self._server_ready = Event()
-
-        class CwsRequestHandler(ChaliceRequestHandler):
-            def _parse_payload(self):
-                headers, body = super()._parse_payload()
-                headers['Authorization'] = authorization_value
-                return headers, body
-
-        self.handler_cls = CwsRequestHandler if authorization_value else ChaliceRequestHandler
+        self.handler_cls = get_request_handler(authorization_value)
 
     def configure(self, app_object, config=None, **kwargs):
         self._app_object = app_object
@@ -124,3 +119,15 @@ class ThreadedLocalServer(Thread):
         with contextlib.closing(socket.socket()) as sock:
             sock.bind(('localhost', 0))
             return sock.getsockname()[1]
+
+
+def get_request_handler(authorization_value):
+    """If an authorization value is defined, the request handler adds it to the header."""
+
+    class CwsRequestHandler(ChaliceRequestHandler):
+        def _parse_payload(self):
+            headers, body = super()._parse_payload()
+            headers['Authorization'] = authorization_value
+            return headers, body
+
+    return CwsRequestHandler if authorization_value else ChaliceRequestHandler

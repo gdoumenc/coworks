@@ -1,7 +1,8 @@
 import inspect
-import sys
+import os
 from inspect import Parameter
 
+import sys
 from jinja2 import Environment, PackageLoader, select_autoescape
 
 from coworks import Blueprint, entry, jsonify
@@ -31,6 +32,11 @@ class Admin(Blueprint):
     def get_context(self):
         """Returns the calling context."""
         return self.current_request.to_dict()
+
+    @entry
+    def get_env(self):
+        """Returns the stage environment."""
+        return os.environ
 
     @entry
     def get_proxy(self):

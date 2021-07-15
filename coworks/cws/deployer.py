@@ -28,9 +28,10 @@ logging.getLogger("python_terraform").setLevel(logging.ERROR)
 
 class Terraform:
 
-    def __init__(self, working_dir='terraform'):
+    def __init__(self, working_dir='terraform', timeout=240):
         self.working_dir = working_dir
         Path(self.working_dir).mkdir(exist_ok=True)
+        self.timeout = timeout
 
     def init(self):
         self.__execute(['init', '-input=false'])
@@ -65,7 +66,7 @@ class Terraform:
             self.__execute(["workspace", "new", workspace])
 
     def __execute(self, cmds):
-        p = subprocess.run(["terraform", *cmds], capture_output=True, cwd=self.working_dir, timeout=60)
+        p = subprocess.run(["terraform", *cmds], capture_output=True, cwd=self.working_dir, timeout=self.timeout)
         try:
             p.check_returncode()
             return p
@@ -112,8 +113,7 @@ class CwsTerraformCommand(CwsCommand, ABC):
     def options(self):
         return [
             *super().options,
-            click.option('--memory_size', default=128),
-            click.option('--timeout', default=30),
+            click.option('--terraform-timeout', default=60),
         ]
 
     def __init__(self, app=None, **kwargs):
@@ -185,13 +185,15 @@ class CwsTerraformDeployer(CwsTerraformCommand):
         return [
             *super().options,
             *self.zip_cmd.options,
-            click.option('--binary_media_types'),
+            click.option('--binary-media-types'),
             click.option('--cloud', is_flag=True, help="Use cloud workspaces."),
             click.option('--dry', is_flag=True, help="Doesn't perform deploy [Global option only]."),
             click.option('--layers', '-l', multiple=True, help="Add layer (full arn: aws:lambda:...)"),
+            click.option('--memory-size', default=128),
             click.option('--output', '-o', is_flag=True, help="Print terraform output values."),
             click.option('--python', '-p', type=click.Choice(['3.7', '3.8']), default='3.8',
                          help="Python version for the lambda."),
+            click.option('--timeout', default=60),
         ]
 
     @classmethod
@@ -324,7 +326,7 @@ class CwsTerraformDestroyer(CwsTerraformCommand):
         if not dry:
             # perform dry deployment to have updated terraform files
             cmds = ['cws', '-p', project_dir, '-w', workspace, 'deploy', '--dry']
-            p = subprocess.run(cmds, capture_output=True, timeout=60)
+            p = subprocess.run(cmds, capture_output=True, timeout=self.terraform.timeout)
 
             # Destroy resources (except default)
             for w in self.terraform.workspace_list():
