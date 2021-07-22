@@ -78,5 +78,5 @@ class MicroServiceProxy:
             else:
                 content = resp.content
         else:
-            content = resp.content or resp.reason
+            content = resp.text or resp.reason
         return content, resp.status_code
