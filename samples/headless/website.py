@@ -23,9 +23,6 @@ class WebsiteMicroService(TechMicroService):
         def init(*args):
             self.cosmic_client = CosmicCmsClient()
 
-    def auth(self, auth_request):
-        return True
-
     @entry
     def get(self):
         """Entry for the home page."""
