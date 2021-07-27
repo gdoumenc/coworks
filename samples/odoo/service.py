@@ -5,7 +5,7 @@ from typing import cast
 
 from coworks import TechMicroService, entry
 from coworks.blueprint import Admin
-from coworks.blueprint.odoo import Odoo
+from coworks.blueprint.odoo_blueprint import Odoo
 from coworks.context_manager import XRayContextManager
 
 
@@ -13,7 +13,8 @@ class SimpleOdooMicroService(TechMicroService):
 
     def __init__(self, env_var_prefix, **kwargs):
         super().__init__(**kwargs)
-        self.register_blueprint(Odoo(env_var_prefix=env_var_prefix), hide_routes=True)
+        self.register_blueprint(Admin(), url_prefix='admin')
+        self.register_blueprint(Odoo(env_var_prefix=env_var_prefix))
         self.jinja_env = Environment(
             loader=FileSystemLoader("templates"),
             autoescape=select_autoescape(['html', 'xml'], default_for_string=True)
@@ -25,6 +26,7 @@ class SimpleOdooMicroService(TechMicroService):
 
     @entry
     def get_invoice(self):
+        """Get today invoices."""
         filters = [("date_invoice", '=', datetime.date.today().strftime("%Y-%m-%d"))]
         query = "{id,name,amount_untaxed}"
         data, status_code = self.odoo.get('account.invoice', filters=filters, query=query)
@@ -44,7 +46,6 @@ class SimpleOdooMicroService(TechMicroService):
 
 
 odoo = SimpleOdooMicroService("ADZ_BILLING_ODOO")
-odoo.register_blueprint(Admin(), url_prefix='admin')
 XRayContextManager(odoo, xray_recorder)
 
 if __name__ == '__main__':

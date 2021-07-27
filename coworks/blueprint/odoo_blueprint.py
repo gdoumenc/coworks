@@ -1,11 +1,12 @@
 import json
 import os
-import requests
-from aws_xray_sdk.core import xray_recorder
 from typing import List, Tuple, Union, Any
 
+import requests
+from aws_xray_sdk.core import xray_recorder
+
 from .. import Blueprint
-from ..error import NotFoundError, InternalServerError
+from ..error import NotFoundError, InternalServerError, BadRequestError
 
 Response = Tuple[dict, int]
 GetResponse = Tuple[Union[dict, List[dict]], int]
@@ -75,6 +76,17 @@ class Odoo(Blueprint):
 
     def get(self, model: str, query: str = "{*}", order: str = None, filters: Filters = None,
             limit: int = 300, page_size=None, page=0, ensure_one=False) -> GetResponse:
+        """Searches for records based on the args.
+        See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.search
+        @param model: python as a dot separated class name.
+        @param query: graphQL notation for result.
+        @param order: oder of result.
+        @param filters: filter for records.
+        @param limit: maximum number of records to return from odoo (default: all).
+        @param page_size: pagination done by the microservice.
+        @param page: current page searched.
+        @param ensure_one: raise error if result is not one (404) and only one (400) object.
+        """
         params = {'query': query, 'limit': limit}
         if order:
             params.update({'order': order})
@@ -90,7 +102,7 @@ class Odoo(Blueprint):
                 if len(res['result']) == 0:
                     raise NotFoundError(f"Nothing found for {model} with {filters} [Odoo blueprint {self.name}]")
                 if len(res['result']) > 1:
-                    raise InternalServerError("More than one result")
+                    raise BadRequestError("More than one result")
                 else:
                     return res['result'][0], 200
             return res['result'], 200
@@ -99,6 +111,11 @@ class Odoo(Blueprint):
         return res, status_code
 
     def get_(self, model: str, rec_id: int, query="{*}") -> Response:
+        """Searches for one record based on its id.
+        @param model: python as a dot separated class name.
+        @param rec_id: id of the record.
+        @param query: graphQL notation for result.
+        """
         params = {'query': query}
         res, status_code = self.odoo_get(f'{self.url}/api/{model}/{rec_id}', params)
         if status_code == 500:
@@ -109,6 +126,13 @@ class Odoo(Blueprint):
         return "Not done", 500
 
     def get_call_(self, model: str, rec_id: int, function, *args, **kwargs) -> Response:
+        """Call a class function on a record.
+        @param model: python as a dot separated class name.
+        @param rec_id: id of the record.
+        @param function: name of the function.
+        @param args: args for the function call.
+        @param kwargs: kwargs for the function call.
+        """
         params = {'params': {'args': json.dumps(args) if args else '[]',
                              'kwargs': json.dumps(kwargs) if kwargs else '{}'}}
         res, status_code = self.odoo_post(f"{self.url}/object/{model}/{rec_id}/{function}", params=params)
@@ -119,6 +143,10 @@ class Odoo(Blueprint):
         return res, status_code
 
     def get_pdf(self, report_id: int, rec_ids: Ids) -> Response:
+        """Returns the PDF document attached to a report.
+        @param report_id: id of the record.
+        @param rec_ids: records needed to generate the report.
+        """
         params = {'params': {'res_ids': json.dumps(rec_ids)}}
         res, status_code = self.odoo_post(f"{self.url}/report/{report_id}", params=params)
         if status_code == 200:
@@ -128,6 +156,13 @@ class Odoo(Blueprint):
         return res, status_code
 
     def post(self, model: str, data=None, context=None) -> Response:
+        """Creates new records for the model..
+        See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.create
+        @param model: python as a dot separated class name.
+        @param data: fields to initialize and the value to set on them.
+        @param context: fields to initialize and the value to set on them.
+        See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.with_context
+        """
         params = {'params': {'data': data or {}}}
         if context:
             params.update({'context': context})
@@ -139,6 +174,12 @@ class Odoo(Blueprint):
         return res, status_code
 
     def put(self, model: str, rec_id: int, data=None) -> Response:
+        """Updates one record with the provided values.
+        See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.write
+        @param model: python as a dot separated class name.
+        @param rec_id: id of the record.
+        @param data: fields to update and the value to set on them.
+        """
         params = {'params': {'data': data or {}}}
         res, status_code = self.odoo_put(f'{self.url}/api/{model}/{rec_id}', params)
         if status_code == 500:
@@ -146,7 +187,12 @@ class Odoo(Blueprint):
         return res, status_code
 
     def put_(self, model: str, filters: Filters = None, data=None) -> Response:
-        """Bulk update."""
+        """Updates all records in the current set with the provided values (bulk update).
+        See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.write
+        @param model: python as a dot separated class name.
+        @param filters: filter for records.
+        @param data: fields to update and the value to set on them.
+        """
         params = {'params': {'data': data or {}}}
         if filters:
             params.update({'filter': filters})
@@ -156,6 +202,11 @@ class Odoo(Blueprint):
         return res, status_code
 
     def delete(self, model: str, rec_id: int) -> Response:
+        """delete the record.
+        See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.unlink
+        @param model: python as a dot separated class name.
+        @param rec_id: id of the record.
+        """
         res, status_code = self.odoo_delete(f'{self.url}/api/{model}/{rec_id}')
         if status_code == 500:
             raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
