@@ -36,7 +36,7 @@ class Admin(Blueprint):
     @entry
     def get_env(self):
         """Returns the stage environment."""
-        return os.environ
+        return {k: v for k, v in os.environ.items()}
 
     @entry
     def get_proxy(self):
