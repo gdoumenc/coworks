@@ -5,7 +5,6 @@ from collections import defaultdict
 
 import click
 
-from .error import CwsCommandError
 from ..coworks import TechMicroService
 
 

@@ -1,10 +1,12 @@
 import pytest
 import requests
 
-from tests.coworks.biz_ms import BizMS
-from tests.coworks.test_ms import SimpleMS
+from tests.coworks.biz.biz_ms import BizMS
+from tests.coworks.tech.test_ms import SimpleMS
 
 
+import pytest
+@pytest.mark.skip
 class TestClass:
 
     def test_ms(self, local_server_factory):

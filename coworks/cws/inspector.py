@@ -1,6 +1,5 @@
 import click
 
-from .command import CwsCommand, CwsCommandError
 from .. import aws
 
 

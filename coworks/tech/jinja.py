@@ -3,7 +3,6 @@ import urllib.parse
 from json import JSONDecodeError
 
 import jinja2
-from chalice import NotFoundError
 
 from coworks import TechMicroService, entry
 

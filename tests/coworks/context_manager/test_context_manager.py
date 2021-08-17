@@ -3,7 +3,7 @@ from unittest.mock import Mock
 import requests
 
 from coworks.context_manager import XRayContextManager
-from tests.coworks.tech_ms import *
+from tests.coworks.ms import *
 
 
 def const_id(*args):
@@ -41,6 +41,8 @@ class TestMiddleware:
         self.evts.append("exception")
 
 
+import pytest
+@pytest.mark.skip
 class TestClass:
 
     def test_decorators(self, local_server_factory):

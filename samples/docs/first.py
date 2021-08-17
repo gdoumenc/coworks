@@ -26,8 +26,10 @@ class SimpleMicroService(TechMicroService):
 
 
 app = SimpleMicroService(name="sample-first-microservice")
-CwsRunner(app)
-XRayContextManager(app, xray_recorder)
+
+# app.route("/")(SimpleMicroService.get)
+# CwsRunner(app)
+# XRayContextManager(app, xray_recorder)
 
 if __name__ == '__main__':
-    app.execute('run')
+    app.run()

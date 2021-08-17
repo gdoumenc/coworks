@@ -1,6 +1,5 @@
 import json
 
-from chalice import BadRequestError, NotFoundError
 
 from ..coworks import TechMicroService
 

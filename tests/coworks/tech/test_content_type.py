@@ -27,6 +27,8 @@ s3_object = {'Body': io.BytesIO(b'test'), 'ContentType': 'text/plain'}
 session.client.get_object = MagicMock(return_value=s3_object)
 
 
+import pytest
+@pytest.mark.skip
 class TestClass:
 
     def test_text_dummy(self, local_server_factory):

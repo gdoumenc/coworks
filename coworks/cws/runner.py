@@ -7,15 +7,12 @@ from threading import Thread, Event
 import click
 import sys
 from aws_xray_sdk.core import xray_recorder
-from chalice.cli import run_local_server, reloader
-from chalice.config import Config
-from chalice.local import ChaliceRequestHandler
-from chalice.local import LocalDevServer
-
+import click
+from flask.cli import with_appcontext
 from .command import CwsCommand
 
 
-class CwsRunner(CwsCommand):
+class CwsRunner():
     @property
     def options(self):
         return [

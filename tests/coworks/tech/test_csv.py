@@ -10,6 +10,8 @@ csv_content = json.dumps([
 ])
 
 
+import pytest
+@pytest.mark.skip
 class ToBeRedoneTestCSV:
 
     def test_format(self, local_server_factory):

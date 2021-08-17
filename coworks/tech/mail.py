@@ -4,7 +4,6 @@ from email.message import EmailMessage
 
 import requests
 from aws_xray_sdk.core import xray_recorder
-from chalice import ChaliceViewError, BadRequestError
 
 from coworks import TechMicroService, FileParam
 

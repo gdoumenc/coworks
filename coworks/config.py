@@ -1,15 +1,14 @@
-from dataclasses import dataclass
-from json import JSONDecodeError
-
+import dataclasses
 import json
 import os
 import re
-from chalice import CORSConfig as ChaliceCORSConfig, AuthResponse
-from chalice.app import AuthRequest as ChaliceAuthRequest
+from dataclasses import dataclass
+from json import JSONDecodeError
+# from chalice import CORSConfig as ChaliceCORSConfig, AuthResponse
+# from chalice.app import AuthRequest as ChaliceAuthRequest
 from pathlib import Path
-from typing import Callable, Union, List, Tuple
+from typing import List, Tuple, Union
 
-from .mixins import CoworksMixin
 from .utils import as_list
 
 DEFAULT_PROJECT_DIR = '.'
@@ -19,21 +18,21 @@ ENV_FILE_SUFFIX = '.json'
 SECRET_ENV_FILE_SUFFIX = '.secret.json'
 
 
-class AuthRequest(ChaliceAuthRequest):
-    def __init__(self, auth_type, token, method_arn):
-        self.auth_type = auth_type
-        self.token = token
-        self.method_arn = method_arn
-
-        _, self.workspace, self.method, self.route = method_arn.split('/', 3)
-
-
-class CORSConfig(ChaliceCORSConfig):
-
-    def get_access_control_headers(self):
-        if not self.allow_origin:
-            return {}
-        return super().get_access_control_headers()
+# class AuthRequest(ChaliceAuthRequest):
+#     def __init__(self, auth_type, token, method_arn):
+#         self.auth_type = auth_type
+#         self.token = token
+#         self.method_arn = method_arn
+#
+#         _, self.workspace, self.method, self.route = method_arn.split('/', 3)
+#
+#
+# class CORSConfig(ChaliceCORSConfig):
+#
+#     def get_access_control_headers(self):
+#         if not self.allow_origin:
+#             return {}
+#         return super().get_access_control_headers()
 
 
 @dataclass
@@ -43,14 +42,15 @@ class Config:
     workspace: str = DEFAULT_WORKSPACE
     environment_variables_file: Union[str, List[str]] = 'vars.json'
     environment_variables: Union[dict, List[dict]] = None
-    auth: Union[
-        Callable[[AuthRequest], Union[bool, list, AuthResponse]],
-        Callable[[CoworksMixin, AuthRequest], Union[bool, list, AuthResponse]],
-    ] = None
-    cors: CORSConfig = CORSConfig(allow_origin='')
+    auth = None
+    # auth: Union[
+    #     Callable[[AuthRequest], Union[bool, list, AuthResponse]],
+    #     Callable[[CoworksMixin, AuthRequest], Union[bool, list, AuthResponse]],
+    # ] = None
+    # cors: CORSConfig = CORSConfig(allow_origin='')
     content_type: Tuple[str] = ('multipart/form-data', 'application/json', 'text/plain')
 
-    def is_valid_for(self, workspace) -> bool:
+    def is_valid_for(self, workspace: str) -> bool:
         return self.workspace == workspace
 
     def existing_environment_variables_files(self, project_dir):
@@ -107,6 +107,9 @@ class Config:
         """Same as for dict."""
         if not hasattr(self, key):
             setattr(self, key, value)
+
+    def asdict(self):
+        return dataclasses.asdict(self)
 
 
 class LocalConfig(Config):

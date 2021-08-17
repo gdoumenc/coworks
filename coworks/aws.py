@@ -2,8 +2,6 @@ import os
 
 import boto3
 
-from coworks.error import CwsError
-
 
 class Boto3Mixin:
 

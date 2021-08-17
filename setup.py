@@ -14,7 +14,7 @@ with open(os.path.join(_here, 'coworks', 'version.py')) as f:
 setup(
     name='coworks',
     version=version['__version__'],
-    description='Coworks is a unified compositional microservices framework over AWS serverless technologies.',
+    description='Coworks is a unified compositional microservices framework using Flask on AWS serverless technologies.',
     long_description=long_description,
     author='Guillaume Doumenc',
     author_email='gdoumenc@fpr-coworks.com',
@@ -26,12 +26,12 @@ setup(
         'anyconfig>=0.9.11',
         'aws_xray_sdk>=2.5.0',
         'boto3>=1.13.15',
-        'chalice>=1.14.1',
+        'flask>=2.0.1',
         'jinja2==2.11.0',
         'pyyaml>=5.3.1',
         'requests_toolbelt>=0.9.1',
     ],
-    keywords='python3 serverless microservice aws-lambda aws step-functions',
+    keywords='python3 serverless microservice flask aws-lambda aws',
     entry_points={
         'console_scripts': ['cws=coworks.cws.client:main'],
     },
