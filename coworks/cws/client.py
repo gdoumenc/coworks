@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import List, Tuple
 
 from .command import CwsMultiCommands
-from .error import CwsClientError
 from ..config import DEFAULT_PROJECT_DIR, DEFAULT_WORKSPACE
 from ..utils import import_attr, get_system_info
 from ..version import __version__

@@ -1,17 +1,15 @@
-import traceback
-
 import cgi
 import inspect
 import io
 import json
-from abc import abstractmethod
-from aws_xray_sdk.core import xray_recorder
-from botocore.exceptions import BotoCoreError
-from chalice import AuthResponse, Response
+import traceback
 from functools import update_wrapper
 
-from .aws import AwsS3Session
-from .error import CwsError
+from aws_xray_sdk.core import xray_recorder
+from aws_xray_sdk.core.exceptions.exceptions import SegmentNotFoundException
+from botocore.exceptions import BotoCoreError
+from flask import Response, current_app, request
+
 from .utils import class_auth_methods, class_cws_methods, make_absolute, path_join
 
 
@@ -19,91 +17,107 @@ class CoworksMixin:
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.debug = kwargs.pop('debug', False)
 
-        # A list of functions that will be called at the first activation.
-        # To register a function, use the :meth:`before_first_request` decorator.
-        self.before_first_activation_funcs = []
+    #     self.debug = kwargs.pop('debug', False)
+    #
+    #     # A list of functions that will be called at the first activation.
+    #     # To register a function, use the :meth:`before_first_request` decorator.
+    #     self.before_first_activation_funcs = []
+    #
+    #     # A list of functions that will be called at the beginning of each activation.
+    #     # To register a function, use the :meth:`before_activation` decorator.
+    #     self.before_activation_funcs = []
+    #
+    #     # A list of functions that will be called after each activation.
+    #     # To register a function, use the :meth:`after_activation` decorator.
+    #     self.after_activation_funcs = []
+    #
+    #     # A list of functions that will be called in case of exception.
+    #     # To register a function, use the :meth:`handle_exception` decorator.
+    #     self.handle_exception_funcs = []
+    #
+    #     self.aws_s3_sfn_data_session = AwsS3Session(env_var_access_key="AWS_RUN_ACCESS_KEY_ID",
+    #                                                 env_var_secret_key="AWS_RUN_SECRET_KEY",
+    #                                                 env_var_region="AWS_RUN_REGION")
+    #     self.aws_s3_form_data_session = AwsS3Session(env_var_access_key="AWS_FORM_DATA_ACCESS_KEY_ID",
+    #                                                  env_var_secret_key="AWS_FORM_DATA_SECRET_KEY",
+    #                                                  env_var_region="AWS_FORM_DATA_REGION")
+    #
+    # def before_first_activation(self, f):
+    #     """Registers a function to be run before the first activation of the microservice.
+    #
+    #     May be used as a decorator.
+    #
+    #     The function will be called with event and context positional arguments and its return value is ignored.
+    #     """
+    #
+    #     self.before_first_activation_funcs.append(f)
+    #     return f
 
-        # A list of functions that will be called at the beginning of each activation.
-        # To register a function, use the :meth:`before_activation` decorator.
-        self.before_activation_funcs = []
+    # def before_activation(self, f):
+    #     """Registers a function to called before each activation of the microservice.
+    #     :param f:  Function added to the list.
+    #     :return: None.
+    #
+    #     May be used as a decorator.
+    #
+    #     The function will be called with event and context positional arguments and its return value is ignored.
+    #     """
+    #
+    #     self.before_activation_funcs.append(f)
+    #     return f
 
-        # A list of functions that will be called after each activation.
-        # To register a function, use the :meth:`after_activation` decorator.
-        self.after_activation_funcs = []
+    # def after_activation(self, f):
+    #     """Registers a function to be called after each activation of the microservice.
+    #
+    #     May be used as a decorator.
+    #
+    #     The function will be called with the response and its return value is the final response.
+    #     """
+    #
+    #     self.after_activation_funcs.append(f)
+    #     return f
 
-        # A list of functions that will be called in case of exception.
-        # To register a function, use the :meth:`handle_exception` decorator.
-        self.handle_exception_funcs = []
+    # def handle_exception(self, f):
+    #     """Registers a function to be called in case of exception.
+    #
+    #     May be used as a decorator.
+    #
+    #     The function will be called with event, context and the exception. If a response is returned, the microservice
+    #     returns directly this reponse.
+    #     """
+    #
+    #     self.handle_exception_funcs.append(f)
+    #     return f
 
-        self.aws_s3_sfn_data_session = AwsS3Session(env_var_access_key="AWS_RUN_ACCESS_KEY_ID",
-                                                    env_var_secret_key="AWS_RUN_SECRET_KEY",
-                                                    env_var_region="AWS_RUN_REGION")
-        self.aws_s3_form_data_session = AwsS3Session(env_var_access_key="AWS_FORM_DATA_ACCESS_KEY_ID",
-                                                     env_var_secret_key="AWS_FORM_DATA_SECRET_KEY",
-                                                     env_var_region="AWS_FORM_DATA_REGION")
+    def entry_to_route(self, fun, method, entry_path):
+        # Get parameters
+        args = inspect.getfullargspec(fun).args[1:]
+        defaults = inspect.getfullargspec(fun).defaults
+        varkw = inspect.getfullargspec(fun).varkw
+        if defaults:
+            len_defaults = len(defaults)
+            for index, arg in enumerate(args[:-len_defaults]):
+                entry_path = path_join(entry_path, f"/<{arg}>")
+            kwarg_keys = args[-len_defaults:]
+        else:
+            for index, arg in enumerate(args):
+                entry_path = path_join(entry_path, f"/<{arg}>")
+            kwarg_keys = {}
 
-    def before_first_activation(self, f):
-        """Registers a function to be run before the first activation of the microservice.
+        proxy = self._create_rest_proxy(fun, kwarg_keys, args, varkw)
 
-        May be used as a decorator.
+        self.add_url_rule(make_absolute(entry_path), None, proxy, True, methods=[method])
 
-        The function will be called with event and context positional arguments and its return value is ignored.
-        """
-
-        self.before_first_activation_funcs.append(f)
-        return f
-
-    def before_activation(self, f):
-        """Registers a function to called before each activation of the microservice.
-        :param f:  Function added to the list.
-        :return: None.
-
-        May be used as a decorator.
-
-        The function will be called with event and context positional arguments and its return value is ignored.
-        """
-
-        self.before_activation_funcs.append(f)
-        return f
-
-    def after_activation(self, f):
-        """Registers a function to be called after each activation of the microservice.
-
-        May be used as a decorator.
-
-        The function will be called with the response and its return value is the final response.
-        """
-
-        self.after_activation_funcs.append(f)
-        return f
-
-    def handle_exception(self, f):
-        """Registers a function to be called in case of exception.
-
-        May be used as a decorator.
-
-        The function will be called with event, context and the exception. If a response is returned, the microservice
-        returns directly this reponse.
-        """
-
-        self.handle_exception_funcs.append(f)
-        return f
-
-    @property
-    @abstractmethod
-    def current_app(self):
-        ...
-
-    def _init_routes(self, *, url_prefix='', hide_routes=False):
+    def init_routes(self, app_or_bp_state, hide_routes=False):
         """ Creates all routes for a microservice.
+        :param app_or_bp_state application or blueprint state
         :param hide_routes list of routes to be hidden.
         """
 
         # Global authorization function may be redefined by config
-        auth_fun = class_auth_methods(self.current_app)
-        auth_fun = auth_fun or self.current_app.config.auth
+        auth_fun = class_auth_methods(current_app)
+        auth_fun = auth_fun or current_app.config.get('auth', None)
         auth = self._create_auth_proxy(auth_fun) if auth_fun else None
 
         # Adds entrypoints
@@ -113,8 +127,7 @@ class CoworksMixin:
                 continue
 
             method = getattr(fun, '__CWS_METHOD')
-            path = getattr(fun, '__CWS_PATH')
-            entry_path = route = path_join(url_prefix, path)
+            entry_path = getattr(fun, '__CWS_PATH')
 
             # Get parameters
             args = inspect.getfullargspec(fun).args[1:]
@@ -123,29 +136,21 @@ class CoworksMixin:
             if defaults:
                 len_defaults = len(defaults)
                 for index, arg in enumerate(args[:-len_defaults]):
-                    entry_path = path_join(entry_path, f"/{{{arg}}}")
-                    route = path_join(route, f"/{{_{index}}}")
+                    entry_path = path_join(entry_path, f"/<{arg}>")
                 kwarg_keys = args[-len_defaults:]
             else:
                 for index, arg in enumerate(args):
-                    entry_path = path_join(entry_path, f"/{{{arg}}}")
-                    route = path_join(route, f"/{{_{index}}}")
+                    entry_path = path_join(entry_path, f"/<{arg}>")
                 kwarg_keys = {}
 
             proxy = self._create_rest_proxy(fun, kwarg_keys, args, varkw)
 
             # Creates the entry
             if hide_routes is False or (type(hide_routes) is list and entry_path not in hide_routes):
-                if self.current_app.entries is None:
-                    self.current_app.entries = {}
-                if entry_path not in self.current_app.entries:
-                    self.current_app.entries[entry_path] = {}
-                if method in self.current_app.entries[entry_path]:
-                    raise CwsError(f"The method {method} is already defined for the route {make_absolute(entry_path)}")
-                self.current_app.add_entry(entry_path, method, auth, fun)
-                self.current_app.route(f"{make_absolute(route)}", methods=[method], authorizer=auth,
-                                       cors=self.current_app.config.cors,
-                                       content_types=list(self.current_app.config.content_type))(proxy)
+                app_or_bp_state.add_url_rule(rule=make_absolute(entry_path), view_func=proxy, methods=[method])
+                # authorizer=auth,
+                # cors=self.current_app.config.cors,
+                # content_types=list(self.current_app.config.content_type)
 
     def _create_auth_proxy(self, auth_method):
 
@@ -156,7 +161,7 @@ class CoworksMixin:
                 if subsegment:
                     subsegment.put_metadata('result', auth)
             except Exception as e:
-                self.current_app.log.info(f"Exception : {str(e)}")
+                current_app.logger.info(f"Exception : {str(e)}")
                 traceback.print_exc()
                 if subsegment:
                     subsegment.add_exception(e, traceback.extract_stack())
@@ -172,33 +177,27 @@ class CoworksMixin:
 
         proxy = update_wrapper(proxy, auth_method)
         proxy.__name__ = 'app'
-        return self.authorizer(name='auth')(proxy)
+        # return self.authorizer(name='auth')(proxy)
+        return proxy
 
     def _create_rest_proxy(self, func, kwarg_keys, args, varkw):
         import traceback
 
         import urllib
         from aws_xray_sdk.core import xray_recorder
-        from chalice import Response, ChaliceViewError
         from functools import update_wrapper, partial
         from requests_toolbelt.multipart import MultipartDecoder
 
         original_app_class = self.__class__
 
-        def proxy(**kws):
+        def proxy(**kwargs):
             try:
-                # Renames positional parameters (index added in label)
-                kwargs = {}
-                for kw, value in kws.items():
-                    param = args[int(kw[1:])]
-                    kwargs[param] = value
-
                 # Adds kwargs parameters
                 def check_param_expected_in_lambda(param_name):
                     """Alerts when more parameters than expected are defined in request."""
                     if param_name not in kwarg_keys and varkw is None:
                         err_msg = f"TypeError: got an unexpected keyword argument '{param_name}'"
-                        return Response(body=err_msg, status_code=400)
+                        return Response(err_msg, 400)
 
                 def add_param(param_name, param_value):
                     check_param_expected_in_lambda(param_name)
@@ -210,65 +209,63 @@ class CoworksMixin:
                     else:
                         params[param_name] = param_value
 
-                req = self.current_request
-
                 # get keyword arguments from request
                 if kwarg_keys or varkw:
                     params = {}
 
                     # adds parameters from query parameters
-                    if req.method == 'GET':
-                        for k in req.query_params or []:
-                            value = req.query_params.getlist(k)
-                            add_param(k, value if len(value) > 1 else value[0])
+                    if request.method == 'GET':
+                        for k in request.values or {}:
+                            v = request.values.getlist(k)
+                            add_param(k, v if len(v) > 1 else v[0])
                         kwargs = dict(**kwargs, **params)
 
                     # adds parameters from body parameter
-                    elif req.method in ['POST', 'PUT']:
+                    elif request.method in ['POST', 'PUT']:
                         try:
-                            content_type = req.headers.get('content-type', 'application/json')
+                            content_type = request.headers.get('content-type', 'application/json')
                             if content_type.startswith('multipart/form-data'):
                                 try:
-                                    multipart_decoder = MultipartDecoder(req.raw_body, content_type)
+                                    multipart_decoder = MultipartDecoder(request.raw_body, content_type)
                                     for part in multipart_decoder.parts:
                                         name, content = self._get_multipart_content(part)
                                         add_param(name, content)
                                 except Exception as e:
-                                    return Response(body=str(e), status_code=400)
+                                    return Response(str(e), 400)
                                 kwargs = dict(**kwargs, **params)
                             elif content_type.startswith('application/x-www-form-urlencoded'):
-                                params = urllib.parse.parse_qs(req.raw_body.decode("utf-8"))
+                                params = urllib.parse.parse_qs(request.raw_body.decode("utf-8"))
                                 kwargs = dict(**kwargs, **params)
                             elif content_type.startswith('application/json'):
-                                if hasattr(req.json_body, 'items'):
+                                if hasattr(request.json, 'items'):
                                     params = {}
-                                    for k, v in req.json_body.items():
+                                    for k, v in request.json.items():
                                         add_param(k, v)
                                     kwargs = dict(**kwargs, **params)
                                 else:
-                                    kwargs[kwarg_keys[0]] = req.json_body
+                                    kwargs[kwarg_keys[0]] = request.json
                             elif content_type.startswith('text/plain'):
-                                kwargs[kwarg_keys[0]] = req.json_body
+                                kwargs[kwarg_keys[0]] = request.json
                             else:
                                 err = f"Cannot manage content type {content_type} for {self}"
-                                return Response(body=err, status_code=400)
+                                return Response(err, 400)
                         except Exception as e:
-                            self.current_app.log.error(traceback.print_exc())
-                            self.current_app.log.debug(e)
-                            return Response(body=str(e), status_code=400)
+                            current_app.logger.error(traceback.print_exc())
+                            current_app.logger.debug(e)
+                            return Response(str(e), 400)
 
                     else:
-                        err = f"Keyword arguments are not permitted for {req.method} method."
-                        return Response(body=err, status_code=400)
+                        err = f"Keyword arguments are not permitted for {request.method} method."
+                        return Response(err, 400)
 
                 else:
                     if not args:
-                        if req.raw_body and req.json_body:
-                            err = f"TypeError: got an unexpected arguments (body: {req.json_body})"
-                            return Response(body=err, status_code=400)
-                        if req.query_params:
-                            err = f"TypeError: got an unexpected arguments (query: {req.query_params})"
-                            return Response(body=err, status_code=400)
+                        if request.content_length is not None:
+                            err = f"TypeError: got an unexpected arguments (body: {request.json})"
+                            return Response(err, 400)
+                        if request.query_string:
+                            err = f"TypeError: got an unexpected arguments (query: {request.query_string})"
+                            return Response(err, 400)
 
                 # chalice is changing class for local server for threading reason (why not mixin..?)
                 self_class = self.__class__
@@ -278,14 +275,15 @@ class CoworksMixin:
                 resp = func(self, **kwargs)
                 self.__class__ = self_class
                 return self._convert_response(resp)
-            except ChaliceViewError:
-                raise
             except TypeError as e:
-                return Response(body=str(e), status_code=400)
+                return Response(str(e), 400)
             except Exception:
-                subsegment = xray_recorder.current_subsegment()
-                if subsegment:
-                    subsegment.add_error_flag()
+                try:
+                    subsegment = xray_recorder.current_subsegment()
+                    if subsegment:
+                        subsegment.add_error_flag()
+                except SegmentNotFoundException:
+                    pass
                 raise
 
         proxy = update_wrapper(proxy, func)
@@ -397,18 +395,26 @@ class CoworksMixin:
                 data[k] = self._get_data_on_s3(v)
         return data
 
-    @staticmethod
-    def _convert_response(resp):
+    def _convert_response(self, resp):
+        """Convert response in serailizable content, status and header."""
+        dumps = current_app.response_class.json_module.dumps
+
         if type(resp) is tuple:
+            content = resp[0]
+            if type(content) is dict:
+                content = dumps(content)
             if len(resp) == 2:
                 if type(resp[1]) is int:
-                    return Response(body=resp[0], status_code=resp[1])
+                    return current_app.response_class(content, resp[1])
                 elif type(resp[1]) is dict:
-                    return Response(body=resp[0], status_code=200, headers=resp[1])
+                    return current_app.response_class(content, 200, resp[1])
                 else:
-                    return Response(body="Internal error (wrong result type)", status_code=500)
+                    return current_app.response_class("Internal error (wrong result type)", 500)
             else:
-                return Response(body=resp[0], status_code=resp[1], headers=resp[2])
+                return current_app.response_class(content, resp[1], resp[2])
+
+        if type(resp) is dict:
+            return dumps(resp)
 
         return resp
 

@@ -1,19 +1,16 @@
-from dataclasses import dataclass
-
-import json
 import os
-import re
-from abc import ABCMeta, abstractmethod
-from chalice import AuthResponse
-from chalice import Chalice, Blueprint as ChaliceBlueprint
-from chalice.app import AuthRequest
-from contextlib import contextmanager
-from typing import Callable
-from typing import Dict, List, Union, Optional
+import typing as t
+from abc import ABCMeta
+from dataclasses import dataclass
+from functools import partial
 
-from .config import Config, LocalConfig, DevConfig, ProdConfig, DEFAULT_PROJECT_DIR, DEFAULT_WORKSPACE
+from flask import Blueprint as FlaskBlueprint, Flask, Response, current_app
+from flask.ctx import AppContext as FlaskAppContext
+
+from .config import Config, DEFAULT_WORKSPACE, DevConfig, LocalConfig, ProdConfig
 from .mixins import CoworksMixin
-from .utils import trim_underscores, HTTP_METHODS
+from .testing import CoworksClient
+from .utils import HTTP_METHODS, trim_underscores
 
 ENTRY_REGEXP = '[^0-9a-zA-Z_]'
 
@@ -23,15 +20,14 @@ ENTRY_REGEXP = '[^0-9a-zA-Z_]'
 #
 
 def entry(fun):
-    """Decorator to create a microservice entrypoint from function name."""
+    """Decorator to create a microservice entry point from function name."""
     name = fun.__name__.upper()
     for method in HTTP_METHODS:
+        fun.__CWS_METHOD = method
         if name == method:
-            fun.__CWS_METHOD = method
             fun.__CWS_PATH = ''
             return fun
         if name.startswith(f'{method}_'):
-            fun.__CWS_METHOD = method
             name = fun.__name__[len(method) + 1:]
             name = trim_underscores(name)  # to allow several functions with different args
             fun.__CWS_PATH = name.replace('_', '/')
@@ -55,13 +51,15 @@ def hide(f):
 # Classes
 #
 
-@dataclass
-class Entry:
-    """An entry is an API entry defined on a microservice, with a specific authorization function and
-    its response function."""
+class AppCtx(FlaskAppContext):
+    """Coworks application context."""
 
-    auth: Callable
-    fun: Callable
+    def push(self) -> None:
+        super().push()
+
+        # Must be done only once the application context is pushed (for global current app)
+        app = t.cast(TechMicroService, self.app)
+        app.deferred_init()
 
 
 @dataclass
@@ -72,10 +70,18 @@ class ScheduleEntry:
     name: str
     exp: str
     desc: str
-    fun: Callable
+    fun: t.Callable
 
 
-class Blueprint(CoworksMixin, ChaliceBlueprint, metaclass=ABCMeta):
+class CoworksResponse(Response):
+    default_mimetype = "application/json"
+
+    @property
+    def text(self):
+        return self.get_data(as_text=True)
+
+
+class Blueprint(CoworksMixin, FlaskBlueprint, metaclass=ABCMeta):
     """ Represents a blueprint, list of routes that will be added to microservice when registered.
 
     See :ref:`Blueprint <blueprint>` for more information.
@@ -84,40 +90,33 @@ class Blueprint(CoworksMixin, ChaliceBlueprint, metaclass=ABCMeta):
     def __init__(self, name=None, **kwargs):
         """Initialize a blueprint.
 
-        :param kwargs: Other Chalice parameters.
+        :param kwargs: Other Flask blueprint parameters.
 
         """
-        self._current_app = self._import_name = None
-        import_name = name or self.__class__.__name__.lower()
-        super().__init__(import_name)
-
-    @property
-    def name(self):
-        return self._import_name
-
-    @property
-    def current_app(self):
-        return self._current_app
+        import_name = self.__class__.__name__.lower()
+        super().__init__(name or import_name, import_name)
+        self.deferred_init_functions: t.List[t.Callable] = []
 
     @property
     def logger(self):
-        return self.current_app.logger
+        return current_app.logger
 
-    def entry(self, route):
-        return self.current_app.entry(route)
+    def make_setup_state(self, app, options, *args):
+        """Stores creation state for deferred initialization."""
+        state = super().make_setup_state(app, options, *args)
 
-    def context_manager(self, name, *args, **kwarsg):
-        return self.current_app.context_manager(name, *args, **kwarsg)
+        # Defer blueprint route initialization.
+        if not options.get('hide_routes', False):
+            self.deferred_init_functions.append(partial(self.init_routes, state))
 
-    def deferred_init(self, workspace):
-        for func in self.before_first_activation_funcs:
-            self.current_app.before_first_activation(func)
-        for func in self.before_activation_funcs:
-            self.current_app.before_activation(func)
-        for func in self.after_activation_funcs:
-            self.current_app.after_activation(func)
-        for func in self.handle_exception_funcs:
-            self.current_app.handle_exception(func)
+        return state
+
+    def deferred_init(self):
+        for fun in self.deferred_init_functions:
+            fun()
+
+    # def context_manager(self, name, *args, **kwarsg):
+    #     return self.current_app.context_manager(name, *args, **kwarsg)
 
 
 class ContextManager(metaclass=ABCMeta):
@@ -126,26 +125,22 @@ class ContextManager(metaclass=ABCMeta):
     See :ref:`ContextManager <contextmanager>` for more information.
     """
 
-    def __init__(self, app, name):
-        app.add_context_manager(self, name)
-        self._current_app = app
-
-    @property
-    def current_app(self):
-        return self._current_app
-
-    @abstractmethod
-    def __call__(self, *args, **kwargs):
-        ...
+    # def __init__(self, app, name):
+    #     app.add_context_manager(self, name)
+    #     self._current_app = app
+    #
+    # @abstractmethod
+    # def __call__(self, *args, **kwargs):
+    #     ...
 
 
-class TechMicroService(CoworksMixin, Chalice):
+class TechMicroService(CoworksMixin, Flask):
     """Simple tech microservice.
     
     See :ref:`tech` for more information.
     """
 
-    def __init__(self, name: str = None, configs: Union[Config, List[Config]] = None, **kwargs):
+    def __init__(self, name=None, *, configs=None, **kwargs):
         """ Initialize a technical microservice.
         :param name: Name used to identify the microservice.
         :param configs: Deployment configurations.
@@ -156,34 +151,41 @@ class TechMicroService(CoworksMixin, Chalice):
         self.configs = configs or [LocalConfig(), DevConfig(), ProdConfig()]
         if type(self.configs) is not list:
             self.configs = [configs]
-        self.config = None
 
-        super().__init__(app_name=name, **kwargs)
+        super().__init__(import_name=name, static_folder=None, **kwargs)
 
-        # Blueprints and extended commands added
-        self.experimental_feature_flags.update([
-            'BLUEPRINTS'
-        ])
-        self.blueprints: Dict[str, Blueprint] = {}
-        self.context_managers: Dict[str, ContextManager] = {}
-        self.commands = {}
-        self.entries: Optional[Dict[str, Dict[str, Entry]]] = None
+        self.response_class = CoworksResponse
+        self.test_client_class = CoworksClient
 
-        # App init deferered functions.
-        self.deferred_inits = []
-        self._got_first_activation = False
+        self._coworks_initialized = False
 
-    @property
-    def name(self):
-        return self.app_name
+    def deferred_init(self):
+        """Deferred initialization.
+        Python initialization is done on module loading, this initialization is done on first use.
+        """
+        if not self._coworks_initialized:
+            workspace = os.environ.get('WORKSPACE', DEFAULT_WORKSPACE)
+            config = self.get_config(workspace)
+            self.config.update(config.asdict())
+
+            # Initializes routes and deferred initializations
+            self.init_routes(self)
+            for bp in self.blueprints.values():
+                t.cast(Blueprint, bp).deferred_init()
+            self._coworks_initialized = True
+
+    def app_context(self):
+        """Override to return CoWorks application context."""
+        return AppCtx(self)
 
     @property
     def ms_type(self):
         return 'tech'
 
     @property
-    def current_app(self):
-        return self
+    def routes(self):
+        """Returns the list of routes defined in the microservice."""
+        return [r.rule for r in self.url_map.iter_rules()]
 
     def get_config(self, workspace):
         for conf in self.configs:
@@ -191,229 +193,148 @@ class TechMicroService(CoworksMixin, Chalice):
                 return conf
         return Config()
 
-    def deferred_init(self, workspace):
-        if self.entries is None:
-            self.entries = {}
+    # @contextmanager
+    # def context_manager(self, name, *args, **kwargs):
+    #     try:
+    #         with self.context_managers[name](*args, **kwargs) as cm:
+    #             yield cm
+    #     except KeyError:
+    #         self.log.error(f"Undefined context manager {name}")
+    #         raise
 
-            # Set workspace config
-            self.config = self.get_config(workspace)
-
-            # Initializes routes and defered initializations
-            self._init_routes()
-            for deferred_init in self.deferred_inits:
-                deferred_init(workspace)
-            for blueprint in self.blueprints.values():
-                blueprint.deferred_init(workspace)
-
-    def register_blueprint(self, blueprint: Blueprint, name: str = None, url_prefix: str = '',
-                           hide_routes=False, show_routes=None) -> None:
-        """ Register a :class:`Blueprint` on the microservice.
-
-        :param blueprint: blueprint to register.
-        :param name: name registration (needed to retrieve it).
-        :param url_prefix: url prefix for the routes added (must be unique for each blueprints).
-        :param hide_routes: Hide all routes in blueprint.
-        :param show_routes:
-        """
-        name = name or blueprint.name
-        if name in self.blueprints:
-            raise KeyError(f"A blueprint is already defined with the name : {name}.")
-        self.blueprints[name] = blueprint
-
-        # use old syntax for super as local server changes type
-        super(TechMicroService, self).register_blueprint(blueprint, url_prefix=url_prefix)
-
-        if not hide_routes:
-            def deferred(*args):
-                blueprint._init_routes(url_prefix=url_prefix)
-
-            self.deferred_inits.append(deferred)
-
-    @contextmanager
-    def context_manager(self, name, *args, **kwargs):
-        try:
-            with self.context_managers[name](*args, **kwargs) as cm:
-                yield cm
-        except KeyError:
-            self.log.error(f"Undefined context manager {name}")
-            raise
-
-    def add_entry(self, path, method, auth, fun):
-        self.entries[path][method] = Entry(auth, fun)
-
-    def add_context_manager(self, context_manager: ContextManager, name: str) -> None:
-        """ Register a context manager.
-
-        :param context_manager: context manager to register.
-        :param name: name registration (needed to retrieve it).
-        """
-        if name in self.context_managers:
-            raise KeyError(f"A context manager is already defined with the name : {name}.")
-
-        self.context_managers[name] = context_manager
-
-    def execute(self, command, *, project_dir=DEFAULT_PROJECT_DIR, module=None, service=None,
-                workspace=DEFAULT_WORKSPACE, output=None, error=None, **options):
-        from .cws.client import CwsClientOptions
-        from .cws.error import CwsCommandError
-
-        # Executes a coworks command.
-        module = __name__ if module is None else module
-        service = self.name if service is None else service
-        cws_options = CwsClientOptions({"project_dir": project_dir, 'module': module, 'service': service})
-        service_config = cws_options.get_service_config(module, service, workspace)
-        if type(command) is str:
-            cmd = service_config.get_command(command, self)
-            if not cmd:
-                raise CwsCommandError(f"The command {command} was not added to the microservice {self.name}.\n")
-        else:
-            cmd = command
-        command_options = service_config.get_command_options(command)
-        execute_options = {**command_options, **options}
-        cmd.execute(output=output, error=error, **execute_options)
-
-    def __call__(self, event, context):
+    # def add_context_manager(self, context_manager: ContextManager, name: str) -> None:
+    #     """ Register a context manager.
+    #
+    #     :param context_manager: context manager to register.
+    #     :param name: name registration (needed to retrieve it).
+    #     """
+    #     if name in self.context_managers:
+    #         raise KeyError(f"A context manager is already defined with the name : {name}.")
+    #
+    #     self.context_managers[name] = context_manager
+    #
+    # def execute(self, command, *, project_dir=DEFAULT_PROJECT_DIR, module=None, service=None,
+    #             workspace=DEFAULT_WORKSPACE, output=None, error=None, **options):
+    #     from .cws.client import CwsClientOptions
+    #     from .cws.error import CwsCommandError
+    #
+    #     # Executes a coworks command.
+    #     module = __name__ if module is None else module
+    #     service = self.name if service is None else service
+    #     cws_options = CwsClientOptions({"project_dir": project_dir, 'module': module, 'service': service})
+    #     service_config = cws_options.get_service_config(module, service, workspace)
+    #     if type(command) is str:
+    #         cmd = service_config.get_command(command, self)
+    #         if not cmd:
+    #             raise CwsCommandError(f"The command {command} was not added to the microservice {self.name}.\n")
+    #     else:
+    #         cmd = command
+    #     command_options = service_config.get_command_options(command)
+    #     execute_options = {**command_options, **options}
+    #     cmd.execute(output=output, error=error, **execute_options)
+    #
+    def __call__(self, arg1, arg2):
         """Lambda handler."""
-        try:
-            self.do_before_first_activation(event, context)
-            self.do_before_activation(event, context)
-            response = self.handler(event, context)
-            self.do_after_activation(response)
-            return self._convert_response(response)
-        except Exception as e:
-            self.log.error(f"exception: {e}")
-            response = self.do_handle_exception(event, context, e)
-            if response is None:
-                raise
-            return self._convert_response(response)
+        buffer: t.List[bytes] = []
 
-    def handler(self, event, context):
-        """Main microservice entry point."""
+        def start_response(status, headers, exc_info=None):  # type: ignore
+            nonlocal response
 
-        if event.get('type') == 'TOKEN':
-            return self._token_handler(event, context)
-        return self._api_handler(event, context)
+            if exc_info:
+                try:
+                    raise exc_info[1].with_traceback(exc_info[2])
+                finally:
+                    exc_info = None
 
-    def deferred(self, f):
-        """Registers a function to be run once the microservice will be initialized.
+            response = (status, headers)
+            return buffer.append
 
-        May be used as a decorator.
-
-        The function will be called with one parameter, the workspace, and its return value is ignored.
-        """
-
-        self.deferred_inits.append(f)
-        return f
-
-    def do_before_first_activation(self, event, context):
-        """Calls all before first activation functions."""
-        if self._got_first_activation:
-            return
-
-        workspace = os.environ['WORKSPACE']
-        self.deferred_init(workspace=workspace)
-
-        for func in self.before_first_activation_funcs:
-            func(event, context)
-        self._got_first_activation = True
-
-    def do_before_activation(self, event, context):
-        """Calls all before activation functions."""
-        for func in self.before_activation_funcs:
-            func(event, context)
-
-    def do_after_activation(self, response):
-        """Calls all after activation functions."""
-        for func in reversed(self.after_activation_funcs):
-            resp = func(response)
-            if resp is not None:
-                response = resp
+        if type(arg2) is dict:
+            wsgi_environ = self._create_environ_from_event_and_context(arg1, arg2)
+            response = self.handler(wsgi_environ, start_response)
+        else:
+            response = self.handler(arg1, arg2)
         return response
 
-    def do_handle_exception(self, event, context, exc):
-        """Calls all exception handlers."""
-        for func in reversed(self.handle_exception_funcs):
-            resp = func(event, context, exc)
-            if resp is not None:
-                return resp
+    def handler(self, eviron, start_response):
+        """Main microservice entry point."""
 
-    def _entry(self, path: str, method: str) -> Optional[Entry]:
-        """Finds the entry corresponding to the route."""
-        pathes = [x for x in path.split('/') if x]
-        for entry_path, result in self.entries.items():
-            entry_pathes = [x for x in entry_path.split('/') if x]
-            if len(pathes) != len(entry_pathes):
-                continue
+        if eviron.get('type') == 'TOKEN':
+            return self._token_handler(eviron, start_response)
+        return self._api_handler(eviron, start_response)
 
-            found = True
-            for index, path in enumerate(entry_pathes):
-                if index < len(pathes):
-                    if path.startswith('{') or path == pathes[index]:
-                        continue
-                found = False
-                break
-
-            if found and method in result:
-                return result[method]
-        return None
+    # def do_handle_exception(self, event, context, exc):
+    #     """Calls all exception handlers."""
+    #     for func in reversed(self.handle_exception_funcs):
+    #         resp = func(event, context, exc)
+    #         if resp is not None:
+    #             return resp
+    #
 
     def _token_handler(self, event, context):
         """Authorization handler."""
-        self.log.debug(f"Calling {self.name} for authorization : {event}")
+        self.logger.debug(f"Calling {self.name} for authorization : {event}")
 
         try:
             *_, method, route = event.get('methodArn').split('/', 3)
             authorizer = self._entry(f'/{route}', method).auth
             return authorizer(event, context)
         except Exception as e:
-            self.log.debug(f"Error in authorization handler for {self.name} : {e}")
+            self.logger.debug(f"Error in authorization handler for {self.name} : {e}")
             request = AuthRequest(event['type'], event['authorizationToken'], event['methodArn'])
             return AuthResponse(routes=[], principal_id='user').to_dict(request)
 
-    def _api_handler(self, event, context):
+    def _api_handler(self, environ, start_response):
         """API rest handler."""
-        self.log.debug(f"Calling {self.name} by api : {event}")
+        self.logger.debug(f"Calling {self.name} by api : {environ}")
 
         try:
             # Chalice accepts only proxy integration and string for body
-            self.complete_for_proxy(event, context)
+            self._complete_for_proxy(environ, start_response)
 
-            res = super().__call__(event, context)
+            res = super().__call__(environ, start_response)
             workspace = os.getenv('WORKSPACE')
             if workspace:
                 res['headers']['x-cws-workspace'] = workspace
 
-            self.log.debug(f"Call {self.name} returns {res}")
+            self.logger.debug(f"Call {self.name} returns {res}")
             return res
         except Exception as e:
-            self.log.debug(f"Error in api handler for {self.name} : {e}")
+            self.logger.debug(f"Error in api handler for {self.name} : {e}")
             raise
 
     @staticmethod
-    def complete_for_proxy(event, context):
+    def _create_environ_from_event_and_context(event, context) -> dict:
+        environ = {
+            '"HTTP_HOST"': "",
+        }
+        return environ
+
+    @staticmethod
+    def _complete_for_proxy(event, context):
         request_context = event.get('requestContext')
-        if 'resourcePath' not in request_context:
-
-            # Creates proxy routes and path parameters
-            entry_path = request_context.get('entryPath')
-            entry_path_parameters = event.get('entryPathParameters')
-            proxy_resource_path = []
-            proxy_path_parameters = {}
-            counter = 0
-            for subpath in entry_path.split('/'):
-                if subpath.startswith('{'):
-                    proxy_resource_path.append(f'{{_{counter}}}')
-                    proxy_path_parameters[f'_{counter}'] = entry_path_parameters.get(subpath[1:-1])
-                    counter = counter + 1
-                else:
-                    proxy_resource_path.append(subpath)
-
-            # Completes the event with proxy parameters
-            request_context['resourcePath'] = '/'.join(proxy_resource_path)
-            event['pathParameters'] = proxy_path_parameters
-
-        if type(event['body']) is dict:
-            event['body'] = json.dumps(event['body'])
+        # if 'resourcePath' not in request_context:
+        #
+        #     # Creates proxy routes and path parameters
+        #     entry_path = request_context.get('entryPath')
+        #     entry_path_parameters = event.get('entryPathParameters')
+        #     proxy_resource_path = []
+        #     proxy_path_parameters = {}
+        #     counter = 0
+        #     for subpath in entry_path.split('/'):
+        #         if subpath.startswith('{'):
+        #             proxy_resource_path.append(f'{{_{counter}}}')
+        #             proxy_path_parameters[f'_{counter}'] = entry_path_parameters.get(subpath[1:-1])
+        #             counter = counter + 1
+        #         else:
+        #             proxy_resource_path.append(subpath)
+        #
+        #     # Completes the event with proxy parameters
+        #     request_context['resourcePath'] = '/'.join(proxy_resource_path)
+        #     event['pathParameters'] = proxy_path_parameters
+        #
+        # if type(event['body']) is dict:
+        #     event['body'] = json.dumps(event['body'])
 
     def schedule(self, *args, **kwargs):
         raise Exception("Schedule decorator is defined on BizMicroService, not on TechMicroService")
@@ -423,71 +344,71 @@ class BizMicroService(TechMicroService):
     """Biz composed microservice activated by events.
     """
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.schedule_entries: Dict[str, ScheduleEntry] = {}
-        self.microservices: Dict[str, TechMicroService] = {}
-
-    @property
-    def ms_type(self):
-        return 'biz'
-
-    def register_microservice(self, service: TechMicroService):
-        """ Register a :class:`MicroService` used by the microservice.
-
-        :param service: service to register.
-        :return:
-        """
-        self.microservices[service.name] = service
-
-        @self.before_first_activation
-        def first(event, context):
-            service.do_before_first_activation(event, context)
-
-        @self.before_activation
-        def before(event, context):
-            service.do_before_activation(event, context)
-
-        @self.after_activation
-        def after(response):
-            return service.do_after_activation(response)
-
-        @self.handle_exception
-        def after(event, context, e):
-            return service.do_handle_exception(event, context, e)
-
-    # noinspection PyMethodOverriding
-    def schedule(self, exp, *, name=None, description=None, workspaces=None):
-        """Registers a a schedule event to trigger the microservice.
-
-        May be used as a decorator.
-
-        The function will be called with the event name.
-        """
-
-        def decorator(f):
-            schedule_name = name if name else exp
-            desc = description if description else f.__doc__
-            entry_key = re.sub(ENTRY_REGEXP, '', exp)
-            self.schedule_entries[f"{f.__name__}_{entry_key}"] = ScheduleEntry(schedule_name, exp, desc, f)
-            return f
-
-        return decorator
-
-    def handler(self, event, context):
-        """Main microservice entry point."""
-
-        if event.get('type') == 'CWS_SCHEDULE_EVENT':
-            return self._schedule_event_handler(event, context)
-        return super().handler(event, context)
-
-    def _schedule_event_handler(self, event, context):
-        """Schedule event handler."""
-        self.log.debug(f"Calling {self.name} by event bridge")
-
-        try:
-            entry_name = event.get('entry_name')
-            return self.schedule_entries[entry_name].fun(event.get('schedule_name'))
-        except Exception as e:
-            self.log.debug(f"Error in schedule event handler for {self.name} : {e}")
-            raise
+    # def __init__(self, **kwargs):
+    #     super().__init__(**kwargs)
+    #     self.schedule_entries: Dict[str, ScheduleEntry] = {}
+    #     self.microservices: Dict[str, TechMicroService] = {}
+    #
+    # @property
+    # def ms_type(self):
+    #     return 'biz'
+    #
+    # def register_microservice(self, service: TechMicroService):
+    #     """ Register a :class:`MicroService` used by the microservice.
+    #
+    #     :param service: service to register.
+    #     :return:
+    #     """
+    #     self.microservices[service.name] = service
+    #
+    #     @self.before_first_activation
+    #     def first(event, context):
+    #         service.do_before_first_activation(event, context)
+    #
+    #     @self.before_activation
+    #     def before(event, context):
+    #         service.do_before_activation(event, context)
+    #
+    #     @self.after_activation
+    #     def after(response):
+    #         return service.do_after_activation(response)
+    #
+    #     @self.handle_exception
+    #     def after(event, context, e):
+    #         return service.do_handle_exception(event, context, e)
+    #
+    # # noinspection PyMethodOverriding
+    # def schedule(self, exp, *, name=None, description=None, workspaces=None):
+    #     """Registers a a schedule event to trigger the microservice.
+    #
+    #     May be used as a decorator.
+    #
+    #     The function will be called with the event name.
+    #     """
+    #
+    #     def decorator(f):
+    #         schedule_name = name if name else exp
+    #         desc = description if description else f.__doc__
+    #         entry_key = re.sub(ENTRY_REGEXP, '', exp)
+    #         self.schedule_entries[f"{f.__name__}_{entry_key}"] = ScheduleEntry(schedule_name, exp, desc, f)
+    #         return f
+    #
+    #     return decorator
+    #
+    # def handler(self, event, context):
+    #     """Main microservice entry point."""
+    #
+    #     if event.get('type') == 'CWS_SCHEDULE_EVENT':
+    #         return self._schedule_event_handler(event, context)
+    #     return super().handler(event, context)
+    #
+    # def _schedule_event_handler(self, event, context):
+    #     """Schedule event handler."""
+    #     self.log.debug(f"Calling {self.name} by event bridge")
+    #
+    #     try:
+    #         entry_name = event.get('entry_name')
+    #         return self.schedule_entries[entry_name].fun(event.get('schedule_name'))
+    #     except Exception as e:
+    #         self.log.debug(f"Error in schedule event handler for {self.name} : {e}")
+    #         raise

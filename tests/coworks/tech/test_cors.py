@@ -1,7 +1,6 @@
 import requests
 
-from coworks.config import Config, CORSConfig
-from .tech_ms import *
+from tests.coworks.ms import *
 
 
 class NoneCorsMS(TechMicroService):
@@ -67,6 +66,8 @@ class OtherCorsMS(TechMicroService):
         return "get"
 
 
+import pytest
+@pytest.mark.skip
 class TestClass:
     def test_authorize_none(self, local_server_factory):
         ms = NoneCorsMS()

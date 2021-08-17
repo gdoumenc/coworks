@@ -7,6 +7,8 @@ from coworks.cws.runner import ThreadedLocalServer
 from coworks.utils import import_attr
 
 
+import pytest
+@pytest.mark.skip
 class TestClass:
 
     def test_run_quickstart1(self, samples_docs_dir):

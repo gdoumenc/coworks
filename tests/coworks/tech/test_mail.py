@@ -12,6 +12,8 @@ env = {
 }
 
 
+import pytest
+@pytest.mark.skip
 @pytest.mark.local
 class ATestMail:
     def test_send(self, local_server_factory, smtp_mock_fixture, email_mock_fixture):

@@ -1,7 +1,5 @@
-import requests
-
 from coworks import Blueprint, entry
-from tests.coworks.tech_ms import TechMS
+from tests.coworks.ms import TechMS
 
 
 class BP(Blueprint):
@@ -12,10 +10,10 @@ class BP(Blueprint):
 
 
 class TestClass:
-    def test_request(self, local_server_factory):
-        ms = TechMS()
-        ms.register_blueprint(BP())
-        local_server = local_server_factory(ms)
-        response = local_server.make_call(requests.get, '/')
-        assert response.status_code == 200
-        assert response.text == 'blueprint test'
+    def test_request(self):
+        app = TechMS()
+        app.register_blueprint(BP("bp"))
+        with app.test_client() as c:
+            response = c.get('/')
+            assert response.status_code == 200
+            assert response.text == 'blueprint test'

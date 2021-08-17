@@ -1,20 +1,18 @@
 import io
 from unittest.mock import MagicMock
 
-from chalice import Response
-
 from coworks import TechMicroService, entry
 from coworks.config import LocalConfig
 
 
 class TechMS(TechMicroService):
     def __init__(self, configs=None, **kwargs):
-        super().__init__(name='test', configs=configs or LocalConfig(), **kwargs)
+        super().__init__('test', configs=configs or LocalConfig(), **kwargs)
 
 
 class S3MockTechMS(TechMicroService):
     def __init__(self):
-        super().__init__(name='test')
+        super().__init__('test')
         session = MagicMock()
         session.client = MagicMock()
         s3_object = {'Body': io.BytesIO(b'test'), 'ContentType': 'text/plain'}
@@ -22,7 +20,7 @@ class S3MockTechMS(TechMicroService):
         self.aws_s3_run_session = session
 
 
-class SimpleMS(TechMS):
+class SimpleMS(TechMicroService):
 
     @entry
     def get(self):
@@ -70,30 +68,5 @@ class SimpleMS(TechMS):
     @entry
     def get_extended_content(self):
         return "hello world"
-
-
-class ParamMS(TechMS):
-    value = "123"
-
-    @entry
-    def get(self, str):
-        return str
-
-    @entry
-    def get_concat(self, str1, str2):
-        return str1 + str2
-
-    @entry
-    def get_value(self):
-        return self.value
-
-    @entry
-    def put_value(self, value=None):
-        self.value = value
-        return self.value
-
-    @entry
-    def get_param(self, str1, param1='default1', param2='default2'):
-        return str1 + str(param1) + param2
 
 

@@ -1,8 +1,9 @@
 import inspect
 import os
+import sys
 from inspect import Parameter
 
-import sys
+from flask import current_app
 from jinja2 import Environment, PackageLoader, select_autoescape
 
 from coworks import Blueprint, entry, jsonify
@@ -15,16 +16,16 @@ class Admin(Blueprint):
     def get_route(self, pretty=False):
         """Returns the list of entrypoints with signature."""
         routes = {}
-        for path, entrypoint in self.current_app.entries.items():
+        for rule in current_app.url_map.iter_rules():
             route = {}
-            for http_method, route_entry in entrypoint.items():
-                function_called = route_entry.fun
+            for http_method in rule.methods:
+                function_called =  current_app.view_functions[rule.endpoint]
                 doc = inspect.getdoc(function_called)
                 route[http_method] = {
                     'doc': doc.replace('\n', ' ') if doc else '',
                     'signature': get_signature(function_called)
                 }
-            routes[make_absolute(path)] = route
+            routes[make_absolute(rule.rule)] = route
 
         return jsonify({k: routes[k] for k in sorted(routes.keys())}, pretty)
 

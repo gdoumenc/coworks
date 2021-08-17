@@ -7,6 +7,8 @@ from coworks.config import LocalConfig
 from coworks.tech.jinja import JinjaRenderMicroService
 
 
+import pytest
+@pytest.mark.skip
 class TestClass:
 
     def test_render_template_in_url(self, local_server_factory):
