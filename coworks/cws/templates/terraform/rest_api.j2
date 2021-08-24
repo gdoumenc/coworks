@@ -51,8 +51,9 @@ resource "aws_api_gateway_resource" "{{ resource_name }}_{{ uid }}" {
   path_part = "{{ resource.path }}"
 }
   {% endif %}
-  {%- if resource.entries %}
-    {%- for method, entry in resource.entries.items() %}
+  {%- if resource.rules %}
+    {%- for rule in resource.rules %}
+    {%- for method in rule.methods %}
 resource "aws_api_gateway_method" "{{ resource_name }}_{{ uid }}_{{ method }}" {
   provider = aws.{{ resource_name }}
   count = {{ "local.{}_when_default".format(resource_name) }}
@@ -63,12 +64,8 @@ resource "aws_api_gateway_method" "{{ resource_name }}_{{ uid }}_{{ method }}" {
   resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
   {%- endif %}
   http_method = "{{ method }}"
-  {%- if entry.auth %}
   authorization = "CUSTOM"
   authorizer_id = aws_api_gateway_authorizer.{{ resource_name }}[0].id
-  {%- else %}
-  authorization = "NONE"
-  {%- endif %}
   request_parameters = {
     "method.request.header.InvocationType" = false
   }
@@ -127,8 +124,9 @@ resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_{
       $inputRoot.body
     EOF
   }
-}    {%- endfor %}
-
+}
+{%- endfor %}
+{%- endfor %}
 {#     Preflighted requests in CORS #}
 
     {%- if resource.cors %}

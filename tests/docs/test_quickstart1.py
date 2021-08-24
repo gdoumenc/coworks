@@ -3,28 +3,24 @@ import time
 
 import requests
 
-from coworks.cws.runner import ThreadedLocalServer
 from coworks.utils import import_attr
 
 
-import pytest
-@pytest.mark.skip
 class TestClass:
 
-    def test_run_quickstart1(self, samples_docs_dir):
+    def test_run_quickstart1(self, samples_docs_dir, unused_tcp_port):
         app = import_attr('quickstart1', 'app', cwd=samples_docs_dir)
-        port = ThreadedLocalServer.unused_tcp_port()
-        server = threading.Thread(target=run_server_quickstart, args=(app, port, samples_docs_dir), daemon=True)
+        server = threading.Thread(target=run_server_quickstart, args=(app, unused_tcp_port), daemon=True)
         server.start()
         counter = 1
         time.sleep(counter)
         while not server.is_alive() and counter < 3:
             time.sleep(counter)
             counter += 1
-        response = requests.get(f'http://localhost:{port}/', headers={'Authorization': "token"})
+        response = requests.get(f'http://localhost:{unused_tcp_port}/', headers={'Authorization': "token"})
         assert response.text == "Simple microservice ready.\n"
 
 
-def run_server_quickstart(app, port, samples_docs_dir):
+def run_server_quickstart(app, port,):
     print(f"Server starting on port {port}")
-    app.execute('run', host='localhost', port=port, project_dir=samples_docs_dir, module='quickstart1')
+    app.run(host='localhost', port=port)

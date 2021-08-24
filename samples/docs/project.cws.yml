@@ -1,16 +1,20 @@
-version: 2
+version: 3
 services:
   - module: first
     services: app
 commands:
+  zip:
+    class: coworks.cws.zip.zip_command
+    bucket: coworks-microservice
+    profile_name: fpr-customer
   deploy:
-    class: coworks.cws.deployer.CwsTerraformDeployer
+    class: coworks.cws.deployer.deploy_command
     project_name: coworks
     profile_name: fpr-customer
     bucket: coworks-microservice
     customer: adz
-    layers: [arn:aws:lambda:eu-west-1:935392763270:layer:coworks-0_5_2]
-  destroy:
-    class: coworks.cws.deployer.CwsTerraformDestroyer
-    profile_name: fpr-customer
-    bucket: coworks-microservice
+    layers: [arn:aws:lambda:eu-west-1:935392763270:layer:coworks-dev]
+#  destroy:
+#    class: coworks.cws.deployer.CwsTerraformDestroyer
+#    profile_name: fpr-customer
+#    bucket: coworks-microservice

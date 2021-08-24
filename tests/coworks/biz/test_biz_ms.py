@@ -5,11 +5,9 @@ from tests.coworks.biz.biz_ms import BizMS
 from tests.coworks.tech.test_ms import SimpleMS
 
 
-import pytest
-@pytest.mark.skip
 class TestClass:
 
-    def test_ms(self, local_server_factory):
+    def atest_ms(self, local_server_factory):
         tech = SimpleMS()
 
         with pytest.raises(Exception) as pytest_wrapped_e:
@@ -17,7 +15,7 @@ class TestClass:
             def every_sample(name):
                 return tech.get(name=name)
 
-    def test_biz(self, local_server_factory):
+    def atest_biz(self, local_server_factory):
         biz = BizMS()
 
         @biz.schedule('rate(1 hour)', name='hourly', description="Test hourly.")

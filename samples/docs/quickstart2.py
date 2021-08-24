@@ -1,6 +1,6 @@
+import click
 from coworks import TechMicroService, entry
-from coworks.cws.deployer import CwsTerraformDeployer
-from coworks.cws.runner import CwsRunner
+# from coworks.cws.deployer import CwsTerraformDeployer
 
 
 class SimpleMicroService(TechMicroService):
@@ -14,5 +14,4 @@ class SimpleMicroService(TechMicroService):
 
 
 app = SimpleMicroService()
-CwsRunner(app)
-CwsTerraformDeployer(app, name='deploy')
+# FLASK_APP=samples.docs.quickstart1:app flask deploy

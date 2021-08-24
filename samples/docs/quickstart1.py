@@ -1,5 +1,4 @@
 from coworks import TechMicroService, entry
-from coworks.cws.runner import CwsRunner
 
 
 class SimpleMicroService(TechMicroService):
@@ -13,4 +12,4 @@ class SimpleMicroService(TechMicroService):
 
 
 app = SimpleMicroService()
-CwsRunner(app)
+# FLASK_APP=samples.docs.quickstart1:app flask run

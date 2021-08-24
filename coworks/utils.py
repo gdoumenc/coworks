@@ -3,9 +3,8 @@ import inspect
 import json
 import os
 import platform
-from functools import partial
-
 import sys
+from functools import partial
 
 HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
 
@@ -94,8 +93,11 @@ def as_list(var):
 
 
 def get_system_info():
+    from flask import __version__ as flask_version
+
+    flask_info = f"flask {flask_version}"
     python_info = f"python {sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}"
     platform_system = platform.system().lower()
     platform_release = platform.release()
     platform_info = f"{platform_system} {platform_release}"
-    return f"{python_info}, {platform_info}"
+    return f"{flask_info}, {python_info}, {platform_info}"

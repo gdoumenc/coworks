@@ -7,8 +7,6 @@ import pytest
 import requests
 
 from coworks.config import Config, ProdConfig
-from coworks.cws.runner import CwsRunner
-from coworks.cws.runner import ThreadedLocalServer
 from tests.coworks.ms import *
 
 

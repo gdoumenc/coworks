@@ -1,3 +1,7 @@
+# ---------------------------------------------------------------------------------------------------------------------
+# LAMBDA
+# ---------------------------------------------------------------------------------------------------------------------
+
 locals {
   {{ resource_name }}_lambda_name = "{{ resource_name }}-{{ workspace }}"
   {%- if environment_variable_files %}
@@ -15,17 +19,13 @@ data "aws_lambda_layer_version" "{{ resource_name }}" {
 }
 {%- endif %}
 
-# ---------------------------------------------------------------------------------------------------------------------
-# LAMBDA
-# ---------------------------------------------------------------------------------------------------------------------
-
 data "aws_s3_bucket_object" "{{ resource_name }}-b64sha256" {
   provider = aws.{{ resource_name }}
   bucket = "{{ bucket }}"
   key = "{{ key }}.b64sha256"
 }
 
-{% if environment_variable_files -%}
+{%- if environment_variable_files -%}
 data "local_file" "{{ resource_name }}_environment_variables_files" {
   for_each = {for envar_file in {{ environment_variable_files | tojson }}: envar_file => "${envar_file}"}
   filename = each.value
@@ -51,7 +51,9 @@ resource "aws_lambda_function" "{{ resource_name }}" {
   environment {
     variables = merge(
       {{ environment_variables | tojson }},
+{%- if environment_variable_files %}
       [for item in local.{{ resource_name }}_environment_variables: merge(item,local.{{ resource_name }}_environment_variables...)][0],
+{%- endif %}
       {"WORKSPACE":"{{ workspace }}"})
   }
   {%- else %}
