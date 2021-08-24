@@ -1,8 +1,9 @@
+import contextlib
 import os
-from unittest.mock import MagicMock
-
 import pytest
+import socket
 from aws_xray_sdk import core as xray_core
+from unittest.mock import MagicMock
 
 
 def fixture_example_dir():
@@ -21,6 +22,13 @@ def example_dir():
 @pytest.fixture
 def samples_docs_dir():
     yield fixture_samples_docs_dir()
+
+
+@pytest.fixture
+def unused_tcp_port():
+    with contextlib.closing(socket.socket()) as sock:
+        sock.bind(('localhost', 0))
+        return sock.getsockname()[1]
 
 
 def pytest_sessionstart():

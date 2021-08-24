@@ -1,8 +1,4 @@
-from aws_xray_sdk.core import xray_recorder
-
 from coworks import TechMicroService, entry
-from coworks.context_manager import XRayContextManager
-from coworks.cws.runner import CwsRunner
 
 
 class SimpleMicroService(TechMicroService):
@@ -26,10 +22,3 @@ class SimpleMicroService(TechMicroService):
 
 
 app = SimpleMicroService(name="sample-first-microservice")
-
-# app.route("/")(SimpleMicroService.get)
-# CwsRunner(app)
-# XRayContextManager(app, xray_recorder)
-
-if __name__ == '__main__':
-    app.run()

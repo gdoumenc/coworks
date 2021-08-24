@@ -1,4 +1,4 @@
-version: 3
+version: 2
 services:
   - module: example
     services:
@@ -19,4 +19,3 @@ commands:
       - module: example
         service: autre
         a: autre1
-

@@ -1,11 +1,11 @@
+from dataclasses import dataclass
+
 import os
 import typing as t
 from abc import ABCMeta
-from dataclasses import dataclass
-from functools import partial
-
 from flask import Blueprint as FlaskBlueprint, Flask, Response, current_app
 from flask.ctx import AppContext as FlaskAppContext
+from functools import partial
 
 from .config import Config, DEFAULT_WORKSPACE, DevConfig, LocalConfig, ProdConfig
 from .mixins import CoworksMixin
@@ -213,26 +213,7 @@ class TechMicroService(CoworksMixin, Flask):
     #
     #     self.context_managers[name] = context_manager
     #
-    # def execute(self, command, *, project_dir=DEFAULT_PROJECT_DIR, module=None, service=None,
-    #             workspace=DEFAULT_WORKSPACE, output=None, error=None, **options):
-    #     from .cws.client import CwsClientOptions
-    #     from .cws.error import CwsCommandError
-    #
-    #     # Executes a coworks command.
-    #     module = __name__ if module is None else module
-    #     service = self.name if service is None else service
-    #     cws_options = CwsClientOptions({"project_dir": project_dir, 'module': module, 'service': service})
-    #     service_config = cws_options.get_service_config(module, service, workspace)
-    #     if type(command) is str:
-    #         cmd = service_config.get_command(command, self)
-    #         if not cmd:
-    #             raise CwsCommandError(f"The command {command} was not added to the microservice {self.name}.\n")
-    #     else:
-    #         cmd = command
-    #     command_options = service_config.get_command_options(command)
-    #     execute_options = {**command_options, **options}
-    #     cmd.execute(output=output, error=error, **execute_options)
-    #
+
     def __call__(self, arg1, arg2):
         """Lambda handler."""
         buffer: t.List[bytes] = []
@@ -262,14 +243,6 @@ class TechMicroService(CoworksMixin, Flask):
         if eviron.get('type') == 'TOKEN':
             return self._token_handler(eviron, start_response)
         return self._api_handler(eviron, start_response)
-
-    # def do_handle_exception(self, event, context, exc):
-    #     """Calls all exception handlers."""
-    #     for func in reversed(self.handle_exception_funcs):
-    #         resp = func(event, context, exc)
-    #         if resp is not None:
-    #             return resp
-    #
 
     def _token_handler(self, event, context):
         """Authorization handler."""
