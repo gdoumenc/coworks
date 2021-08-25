@@ -124,10 +124,11 @@ class TestClass:
                 'memory_size': 100,
             }
             terraform = Terraform(working_dir=Path(example_dir) / "terraform")
-            terraform.generate_files(app, config, "deploy.j2", "test.tf", **options)
+            info = ScriptInfo(create_app=lambda _:app)
+            terraform.generate_files(info, config, "deploy.j2", "test.tf", **options)
         with (Path(example_dir) / "terraform" / "test.tf").open() as f:
             lines = f.readlines()
-        assert len(lines) == 3152
+        assert len(lines) == 1665
         assert lines[3].strip() == 'examplems_when_default = terraform.workspace == "default" ? 1 : 0'
         assert lines[4].strip() == 'examplems_when_stage = terraform.workspace != "default" ? 1 : 0'
         # (Path(example_dir) / "terraform" / "test.tf").unlink()

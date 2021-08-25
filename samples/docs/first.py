@@ -7,8 +7,8 @@ class SimpleMicroService(TechMicroService):
         super().__init__(**kwargs)
         self.value = 0
 
-    def auth(self, auth_request):
-        return auth_request.token == "token"
+    def token_authorizer(self, token):
+        return token == "token"
 
     @entry
     def get(self):

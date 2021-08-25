@@ -3,7 +3,7 @@ from coworks import TechMicroService, entry
 
 class SimpleMicroService(TechMicroService):
 
-    def auth(self, auth_request):
+    def token_authorizer(self, token):
         return True
 
     @entry

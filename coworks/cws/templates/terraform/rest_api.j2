@@ -53,7 +53,7 @@ resource "aws_api_gateway_resource" "{{ resource_name }}_{{ uid }}" {
   {% endif %}
   {%- if resource.rules %}
     {%- for rule in resource.rules %}
-    {%- for method in rule.methods %}
+    {%- for method in rule.methods if method not in ['HEAD', 'OPTIONS'] %}
 resource "aws_api_gateway_method" "{{ resource_name }}_{{ uid }}_{{ method }}" {
   provider = aws.{{ resource_name }}
   count = {{ "local.{}_when_default".format(resource_name) }}
@@ -129,7 +129,6 @@ resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_{
 {%- endfor %}
 {#     Preflighted requests in CORS #}
 
-    {%- if resource.cors %}
 resource "aws_api_gateway_method" "{{ resource_name }}_{{ uid }}_OPTIONS" {
   provider = aws.{{ resource_name }}
   count = {{ "local.{}_when_default".format(resource_name) }}
@@ -170,9 +169,9 @@ resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_O
   {%- endif %}
   http_method =  join("", aws_api_gateway_method.{{ resource_name }}_{{ uid }}_OPTIONS.*.http_method)
   response_parameters = {
-  {%- for k,v in resource.cors.get_access_control_headers().items() %}
-    "method.response.header.{{ k }}" = "'{{ v }}'",
-  {%- endfor %}
+{#  {%- for k,v in resource.cors.get_access_control_headers().items() %}#}
+{#    "method.response.header.{{ k }}" = "'{{ v }}'",#}
+{#  {%- endfor %}#}
   }
   status_code = 200
   response_templates = {
@@ -202,15 +201,14 @@ resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_OPTION
     "method.response.header.Access-Control-Allow-Headers" = true,
     "method.response.header.Access-Control-Allow-Methods" = true,
     "method.response.header.Access-Control-Allow-Origin" = true,
-    {%- if 'Access-Control-Max-Age' in resource.cors.get_access_control_headers() %}
-    "method.response.header.Access-Control-Max-Age" = true,
-    {%- endif %}
+{#    {%- if 'Access-Control-Max-Age' in resource.cors.get_access_control_headers() %}#}
+{#    "method.response.header.Access-Control-Max-Age" = true,#}
+{#    {%- endif %}#}
   }
   depends_on = [
     aws_api_gateway_method.{{ resource_name }}_{{ uid }}_OPTIONS,
   ]
 }
-    {% endif -%}
   {% endif -%}
 {%- endfor %}
 
