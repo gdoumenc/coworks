@@ -53,7 +53,7 @@ class TestClass:
         with app.test_client() as c:
             response = c.get('/admin/route')
             assert response.status_code == 200
-            routes = json.loads(response.text)
+            routes = json.loads(response.get_data(as_text=True))
             assert routes["/"]['GET'] == {
                 "doc": "Root access.",
                 "signature": "()"
@@ -82,5 +82,5 @@ class TestClass:
         with app.test_client() as c:
             response = c.get('/admin/route')
             assert response.status_code == 200
-            routes = json.loads(response.text)
+            routes = json.loads(response.get_data(as_text=True))
             assert '/hidden' not in routes

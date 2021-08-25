@@ -4,8 +4,6 @@ import os
 import re
 from dataclasses import dataclass
 from json import JSONDecodeError
-# from chalice import CORSConfig as ChaliceCORSConfig, AuthResponse
-# from chalice.app import AuthRequest as ChaliceAuthRequest
 from pathlib import Path
 from typing import List, Tuple, Union
 

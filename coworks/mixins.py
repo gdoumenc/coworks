@@ -1,16 +1,8 @@
-import cgi
 import inspect
-import io
-import json
-import traceback
-from functools import update_wrapper
-
-from aws_xray_sdk.core import xray_recorder
 from aws_xray_sdk.core.exceptions.exceptions import SegmentNotFoundException
-from botocore.exceptions import BotoCoreError
 from flask import Response, current_app, request
 
-from .utils import class_auth_methods, class_cws_methods, make_absolute, path_join
+from .utils import class_cws_methods, make_absolute, path_join
 
 
 class CoworksMixin:
@@ -115,11 +107,6 @@ class CoworksMixin:
         :param hide_routes list of routes to be hidden.
         """
 
-        # Global authorization function may be redefined by config
-        auth_fun = class_auth_methods(current_app)
-        auth_fun = auth_fun or current_app.config.get('auth', None)
-        auth = self._create_auth_proxy(auth_fun) if auth_fun else None
-
         # Adds entrypoints
         methods = class_cws_methods(self)
         for fun in methods:
@@ -151,34 +138,6 @@ class CoworksMixin:
                 # authorizer=auth,
                 # cors=self.current_app.config.cors,
                 # content_types=list(self.current_app.config.content_type)
-
-    def _create_auth_proxy(self, auth_method):
-
-        def proxy(auth_activation):
-            subsegment = xray_recorder.current_subsegment()
-            try:
-                auth = auth_method(auth_activation)
-                if subsegment:
-                    subsegment.put_metadata('result', auth)
-            except Exception as e:
-                current_app.logger.info(f"Exception : {str(e)}")
-                traceback.print_exc()
-                if subsegment:
-                    subsegment.add_exception(e, traceback.extract_stack())
-                return AuthResponse(routes=[], principal_id='user')
-
-            if type(auth) is bool:
-                if auth:
-                    return AuthResponse(routes=['*'], principal_id='user')
-                return AuthResponse(routes=[], principal_id='user')
-            elif type(auth) is list:
-                return AuthResponse(routes=auth, principal_id='user')
-            return auth
-
-        proxy = update_wrapper(proxy, auth_method)
-        proxy.__name__ = 'app'
-        # return self.authorizer(name='auth')(proxy)
-        return proxy
 
     def _create_rest_proxy(self, func, kwarg_keys, args, varkw):
         import traceback
@@ -242,8 +201,8 @@ class CoworksMixin:
                                     for k, v in request.json.items():
                                         add_param(k, v)
                                     kwargs = dict(**kwargs, **params)
-                                else:
-                                    kwargs[kwarg_keys[0]] = request.json
+                                # else:
+                                #     kwargs[kwarg_keys[0]] = request.json
                             elif content_type.startswith('text/plain'):
                                 kwargs[kwarg_keys[0]] = request.json
                             else:
@@ -290,114 +249,115 @@ class CoworksMixin:
         proxy.__cws_func__ = update_wrapper(partial(func, self), func)
         return proxy
 
-    def _get_multipart_content(self, part):
-        headers = {k.decode('utf-8'): cgi.parse_header(v.decode('utf-8')) for k, v in part.headers.items()}
-        content = part.content
-        _, content_disposition_params = headers['Content-Disposition']
-        part_content_type, _ = headers.get('Content-Type', (None, None))
-        name = content_disposition_params['name']
+    # def _get_multipart_content(self, part):
+    #     headers = {k.decode('utf-8'): cgi.parse_header(v.decode('utf-8')) for k, v in part.headers.items()}
+    #     content = part.content
+    #     _, content_disposition_params = headers['Content-Disposition']
+    #     part_content_type, _ = headers.get('Content-Type', (None, None))
+    #     name = content_disposition_params['name']
+    #
+    #     # content in a text or json value
+    #     if 'filename' not in content_disposition_params:
+    #         if part_content_type == 'application/json':
+    #             return name, self._get_data_on_s3(json.loads(content.decode('utf-8')))
+    #         return name, self._get_data_on_s3(content.decode('utf-8'))
+    #
+    #     # content in a file (s3 or plain text)
+    #     if part_content_type == 'text/s3':
+    #         pathes = content.decode('utf-8').split('/', 1)
+    #         try:
+    #             s3_object = self.aws_s3_form_data_session.client.get_object(Bucket=pathes[0], Key=pathes[1])
+    #         except BotoCoreError:
+    #             return CwsError(f"Bucket={pathes[0]} Key={pathes[1]} not found on s3")
+    #         file = io.BytesIO(s3_object['Body'].read())
+    #         mime_type = s3_object['ContentType']
+    #     else:
+    #         file = io.BytesIO(content)
+    #         mime_type = part_content_type
+    #     file.name = content_disposition_params['filename']
+    #
+    #     return name, FileParam(file, mime_type)
 
-        # content in a text or json value
-        if 'filename' not in content_disposition_params:
-            if part_content_type == 'application/json':
-                return name, self._get_data_on_s3(json.loads(content.decode('utf-8')))
-            return name, self._get_data_on_s3(content.decode('utf-8'))
+    # def _set_multipart_content(self, form_data):
+    #     def encode_part(_part):
+    #         if type(_part) is str:
+    #             return None, _part, 'text/plain'
+    #
+    #         if 'mime_type' in _part:
+    #             mime_type = _part.get('mime_type')
+    #         elif 'json' in _part:
+    #             _part['content'] = _part.get('json')
+    #             mime_type = 'application/json'
+    #         elif 's3' in _part:
+    #             path = _part.get('s3')
+    #             _part['filename'] = path.split('/')[-1]
+    #             _part['path'] = path
+    #             mime_type = 'text/s3'
+    #         else:
+    #             mime_type = 'text/plain'
+    #
+    #         filename = _part.get('filename')
+    #         if mime_type == 'text/plain':
+    #             content = _part.get('content')
+    #             return filename, content, mime_type
+    #         elif mime_type == 'application/json':
+    #             content = _part.get('content')
+    #             return filename, json.dumps(content), mime_type
+    #         elif mime_type == 'text/s3':
+    #             path = _part.get('path')
+    #             return filename, path, mime_type
+    #         else:
+    #             return Response(body=f"Undefined mime type {mime_type}", status_code=400)
+    #
+    #     parts = []
+    #     for name, part in form_data.items():
+    #         if type(part) is list:
+    #             parts.extend([(name, encode_part(p)) for p in part])
+    #         else:
+    #             parts.append((name, encode_part(part)))
+    #     return parts
 
-        # content in a file (s3 or plain text)
-        if part_content_type == 'text/s3':
-            pathes = content.decode('utf-8').split('/', 1)
-            try:
-                s3_object = self.aws_s3_form_data_session.client.get_object(Bucket=pathes[0], Key=pathes[1])
-            except BotoCoreError:
-                return CwsError(f"Bucket={pathes[0]} Key={pathes[1]} not found on s3")
-            file = io.BytesIO(s3_object['Body'].read())
-            mime_type = s3_object['ContentType']
-        else:
-            file = io.BytesIO(content)
-            mime_type = part_content_type
-        file.name = content_disposition_params['filename']
+    # def _set_data_on_s3(self, data):
+    #     """Saves value on S3 temporary file if content is too big."""
+    #
+    #     def set_on_s3(value):
+    #         s3_client = self.aws_s3_sfn_data_session.client
+    #         context = self.lambda_context
+    #         key = f"tmp/{context.aws_request_id}"
+    #         tags = f"Name={context.function_name}"
+    #         s3_client.put_object(Bucket="coworks-microservice", Key=key, Body=value, Tagging=tags)
+    #         return f"$${key}$$"
+    #
+    #     if type(data) == str:
+    #         return set_on_s3(data) if len(data) > 1000 else data
+    #     if type(data) == list:
+    #         return [self._set_data_on_s3(v) for v in data]
+    #     if type(data) == dict:
+    #         for k, v in data.items():
+    #             data[k] = self._set_data_on_s3(v)
+    #     return data
 
-        return name, FileParam(file, mime_type)
-
-    def _set_multipart_content(self, form_data):
-        def encode_part(_part):
-            if type(_part) is str:
-                return None, _part, 'text/plain'
-
-            if 'mime_type' in _part:
-                mime_type = _part.get('mime_type')
-            elif 'json' in _part:
-                _part['content'] = _part.get('json')
-                mime_type = 'application/json'
-            elif 's3' in _part:
-                path = _part.get('s3')
-                _part['filename'] = path.split('/')[-1]
-                _part['path'] = path
-                mime_type = 'text/s3'
-            else:
-                mime_type = 'text/plain'
-
-            filename = _part.get('filename')
-            if mime_type == 'text/plain':
-                content = _part.get('content')
-                return filename, content, mime_type
-            elif mime_type == 'application/json':
-                content = _part.get('content')
-                return filename, json.dumps(content), mime_type
-            elif mime_type == 'text/s3':
-                path = _part.get('path')
-                return filename, path, mime_type
-            else:
-                return Response(body=f"Undefined mime type {mime_type}", status_code=400)
-
-        parts = []
-        for name, part in form_data.items():
-            if type(part) is list:
-                parts.extend([(name, encode_part(p)) for p in part])
-            else:
-                parts.append((name, encode_part(part)))
-        return parts
-
-    def _set_data_on_s3(self, data):
-        """Saves value on S3 temporary file if content is too big."""
-
-        def set_on_s3(value):
-            s3_client = self.aws_s3_sfn_data_session.client
-            context = self.lambda_context
-            key = f"tmp/{context.aws_request_id}"
-            tags = f"Name={context.function_name}"
-            s3_client.put_object(Bucket="coworks-microservice", Key=key, Body=value, Tagging=tags)
-            return f"$${key}$$"
-
-        if type(data) == str:
-            return set_on_s3(data) if len(data) > 1000 else data
-        if type(data) == list:
-            return [self._set_data_on_s3(v) for v in data]
-        if type(data) == dict:
-            for k, v in data.items():
-                data[k] = self._set_data_on_s3(v)
-        return data
-
-    def _get_data_on_s3(self, data):
-        """Retrieves value from S3 temporary file (content too big)."""
-
-        def get_on_s3(value):
-            s3_client = self.aws_s3_sfn_data_session.client
-            s3_object = s3_client.get_object(Bucket="coworks-microservice", Key=value[2:-2])
-            return s3_object['Body'].read().decode("utf-8")
-
-        if type(data) == str:
-            return get_on_s3(data) if data.startswith('$$') and data.endswith('$$') else data
-        if type(data) == list:
-            return [self._get_data_on_s3(v) for v in data]
-        if type(data) == dict:
-            for k, v in data.items():
-                data[k] = self._get_data_on_s3(v)
-        return data
+    # def _get_data_on_s3(self, data):
+    #     """Retrieves value from S3 temporary file (content too big)."""
+    #
+    #     def get_on_s3(value):
+    #         s3_client = self.aws_s3_sfn_data_session.client
+    #         s3_object = s3_client.get_object(Bucket="coworks-microservice", Key=value[2:-2])
+    #         return s3_object['Body'].read().decode("utf-8")
+    #
+    #     if type(data) == str:
+    #         return get_on_s3(data) if data.startswith('$$') and data.endswith('$$') else data
+    #     if type(data) == list:
+    #         return [self._get_data_on_s3(v) for v in data]
+    #     if type(data) == dict:
+    #         for k, v in data.items():
+    #             data[k] = self._get_data_on_s3(v)
+    #     return data
 
     def _convert_response(self, resp):
-        """Convert response in serailizable content, status and header."""
+        """Convert response in serializable content, status and header."""
         dumps = current_app.response_class.json_module.dumps
+        cls = current_app.response_class
 
         if type(resp) is tuple:
             content = resp[0]
@@ -405,13 +365,13 @@ class CoworksMixin:
                 content = dumps(content)
             if len(resp) == 2:
                 if type(resp[1]) is int:
-                    return current_app.response_class(content, resp[1])
+                    return cls(content, resp[1])
                 elif type(resp[1]) is dict:
-                    return current_app.response_class(content, 200, resp[1])
+                    return cls(content, 200, resp[1])
                 else:
-                    return current_app.response_class("Internal error (wrong result type)", 500)
+                    return cls(f"Internal error (wrong result type {type(resp[1])})", 500)
             else:
-                return current_app.response_class(content, resp[1], resp[2])
+                return cls(content, resp[1], resp[2])
 
         if type(resp) is dict:
             return dumps(resp)

@@ -40,7 +40,7 @@ resource "aws_lambda_function" "{{ resource_name }}" {
   s3_key = "{{ key }}"
   source_code_hash = local.{{ resource_name }}_when_stage > 0 ? data.aws_s3_bucket_object.{{ resource_name }}-b64sha256.body : ""
   role = local.{{ resource_name }}_role_arn
-  handler = "{{ module_file }}.{{ handler }}"
+  handler = "{{ app_import_path }}"
   {%- if layers %}
   layers = [for layer in data.aws_lambda_layer_version.{{ resource_name }} : layer.arn]
   {%- endif %}
@@ -54,7 +54,8 @@ resource "aws_lambda_function" "{{ resource_name }}" {
 {%- if environment_variable_files %}
       [for item in local.{{ resource_name }}_environment_variables: merge(item,local.{{ resource_name }}_environment_variables...)][0],
 {%- endif %}
-      {"WORKSPACE":"{{ workspace }}"})
+      {"WORKSPACE":"{{ workspace }}"}
+    )
   }
   {%- else %}
   environment {

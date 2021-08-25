@@ -1,4 +1,4 @@
-from coworks.coworks import CoworksResponse
+from coworks.coworks import ApiResponse
 from tests.coworks.ms import *
 
 
@@ -38,7 +38,7 @@ class TupleReturnedMS(TechMS):
 
     @entry
     def get_resp(self, str):
-        return CoworksResponse(str, 200)
+        return ApiResponse(str, 200)
 
     @entry
     def get_error(self, str):
@@ -65,33 +65,33 @@ class TestClass:
         with app.test_client() as c:
             response = c.get('/')
             assert response.status_code == 200
-            assert response.text == "get"
+            assert response.get_data(as_text=True) == "get"
             assert 'Content-Type' in response.headers
-            assert response.headers['Content-Type'] == 'application/json'
+            assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
             assert 'Content-Length' in response.headers
-            assert response.headers['Content-Length'] == str(len(response.text))
+            assert response.headers['Content-Length'] == str(len(response.get_data(as_text=True)))
             response = c.post('/')
             assert response.status_code == 405
             response = c.get('/get1')
             assert response.status_code == 404
             response = c.get('/content')
             assert response.status_code == 200
-            assert response.text == "get content"
+            assert response.get_data(as_text=True) == "get content"
             response = c.get('/content/3')
             assert response.status_code == 200
-            assert response.text == "get content with 3"
+            assert response.get_data(as_text=True) == "get content with 3"
             response = c.get('/content/3/other')
             assert response.status_code == 200
-            assert response.text == "get content with 3 and other"
+            assert response.get_data(as_text=True) == "get content with 3 and other"
             response = c.post('/content', json={"other": 'other'})
             assert response.status_code == 200
-            assert response.text == "post content without value but other"
+            assert response.get_data(as_text=True) == "post content without value but other"
             response = c.post('/content/3', json={"other": 'other'})
             assert response.status_code == 200
-            assert response.text == "post content with 3 and other"
+            assert response.get_data(as_text=True) == "post content with 3 and other"
             response = c.post('/content/3', json="other")
             assert response.status_code == 200
-            assert response.text == "post content with 3 and other"
+            assert response.get_data(as_text=True) == "post content with 3 and none"
             response = c.post('/content/3', json={"other": 'other', "value": 5})
             assert response.status_code == 400
 
@@ -100,75 +100,75 @@ class TestClass:
         with app.test_client() as c:
             response = c.get('/kwparam1?value=5')
             assert response.status_code == 200
-            assert response.text == "get **param with only 5"
-            response = c.get('/kwparam1', params={"other": 'other', "value": 5})
+            assert response.get_data(as_text=True) == "get **param with only 5"
+            response = c.get('/kwparam1?other=other&value=5')
             assert response.status_code == 400
-            response = c.get('/kwparam1', params={"value": 5})
+            response = c.get('/kwparam1?value=5')
             assert response.status_code == 200
-            assert response.text == "get **param with only 5"
+            assert response.get_data(as_text=True) == "get **param with only 5"
             response = c.get('/kwparam1', json={"other": 'other', "value": 5})
             assert response.status_code == 200
-            assert response.text == "get **param with only 0"
-            response = c.get('/kwparam2', params={"other": 'other', "value": 5})
+            assert response.get_data(as_text=True) == "get **param with only 0"
+            response = c.get('/kwparam2?other=other&value=5')
             assert response.status_code == 200
-            assert response.text == "get **param with 5 and ['other']"
+            assert response.get_data(as_text=True) == "get **param with 5 and ['other']"
             response = c.get('/kwparam2', json={"other": 'other', "value": 5})
             assert response.status_code == 200
-            assert response.text == "get **param with 0 and []"
+            assert response.get_data(as_text=True) == "get **param with 0 and []"
             response = c.put('/kwparam2', json={"other": 'other', "value": 5})
             assert response.status_code == 200
-            assert response.text == "get **param with 5 and ['other']"
-            response = c.put('/kwparam2', params={"other": 'other', "value": 5})
+            assert response.get_data(as_text=True) == "get **param with 5 and ['other']"
+            response = c.put('/kwparam2?other=other&value=5')
             assert response.status_code == 200
-            assert response.text == "get **param with None and []"
+            assert response.get_data(as_text=True) == "get **param with 0 and []"
 
             response = c.get('/extended/content')
             assert response.status_code == 200
-            assert response.text == "hello world"
+            assert response.get_data(as_text=True) == "hello world"
 
     def test_parameterized(self):
         app = ParamMS()
         with app.test_client() as c:
             response = c.get('/123')
             assert response.status_code == 200
-            assert response.text == '123'
+            assert response.get_data(as_text=True) == '123'
             response = c.get('/concat/123/456')
             assert response.status_code == 200
-            assert response.text == '123456'
+            assert response.get_data(as_text=True) == '123456'
             response = c.get('/value')
             assert response.status_code == 200
-            assert response.text == '123'
+            assert response.get_data(as_text=True) == '123'
             response = c.put("/value", json={'value': "456"})
             assert response.status_code == 200
-            assert response.text == '456'
+            assert response.get_data(as_text=True) == '456'
             response = c.get("/value")
             assert response.status_code == 200
-            assert response.text == '456'
+            assert response.get_data(as_text=True) == '456'
             response = c.get('/param/test1')
             assert response.status_code == 200
-            assert response.text == 'test1default1default2'
-            response = c.get('/param/test1', params={'param1': "value1"})
+            assert response.get_data(as_text=True) == 'test1default1default2'
+            response = c.get('/param/test1?param1=value1')
             assert response.status_code == 200
-            assert response.text == 'test1value1default2'
-            response = c.get('/param/test1', params={'param2': "value2"})
+            assert response.get_data(as_text=True) == 'test1value1default2'
+            response = c.get('/param/test1?param2=value2')
             assert response.status_code == 200
-            assert response.text == 'test1default1value2'
-            response = c.get('/param/test1', params={'param1': "param1", 'param2': "param2"})
+            assert response.get_data(as_text=True) == 'test1default1value2'
+            response = c.get('/param/test1?param1=value1&param2=value2')
             assert response.status_code == 200
-            assert response.text == 'test1param1param2'
-            response = c.get('/param/test1', params={'param1': ['value1', 'value2']})
+            assert response.get_data(as_text=True) == 'test1value1value2'
+            response = c.get('/param/test1?param1=value1&param1=value2')
             assert response.status_code == 200
-            assert response.text == "test1['value1', 'value2']default2"
+            assert response.get_data(as_text=True) == "test1['value1', 'value2']default2"
 
     def test_slug_parameterized(self):
         app = ParamMS()
         with app.test_client() as c:
             response = c.get('/123')
             assert response.status_code == 200
-            assert response.text == '123'
+            assert response.get_data(as_text=True) == '123'
             response = c.get('/concat/123/456')
             assert response.status_code == 200
-            assert response.text == '123456'
+            assert response.get_data(as_text=True) == '123456'
 
     def test_tuple_returned(self):
         app = TupleReturnedMS()
@@ -176,21 +176,21 @@ class TestClass:
             headers = {'Content-type': 'text/plain', 'Accept': 'text/plain'}
             response = c.get('/', headers=headers)
             assert response.status_code == 200
-            assert response.text == 'ok'
-            assert response.headers['content-type'] == 'application/json'
+            assert response.get_data(as_text=True) == 'ok'
+            assert response.headers['content-type'] == 'text/plain; charset=utf-8'
             response = c.get('/json')
             assert response.status_code == 200
             assert response.json['value'] == 'ok'
             assert response.headers['content-type'] == 'application/json'
             response = c.get('/resp/ok')
             assert response.status_code == 200
-            assert response.text == 'ok'
-            assert response.headers['content-type'] == 'application/json'
+            assert response.get_data(as_text=True) == 'ok'
+            assert response.headers['content-type'] == 'text/plain; charset=utf-8'
             response = c.get('/tuple/test')
             assert response.status_code == 200
-            assert response.headers['content-type'] == 'application/json'
+            assert response.headers['content-type'] == 'text/plain; charset=utf-8'
             assert response.headers['x-test'] == 'true'
-            assert response.text == 'test'
+            assert response.get_data(as_text=True) == 'test'
 
     def test_entry_not_unique(self):
         app = AmbiguousMS()
@@ -199,7 +199,7 @@ class TestClass:
         with app.test_client() as c:
             response = c.get('/123')
             assert response.status_code == 200
-            assert response.text == '123'
+            assert response.get_data(as_text=True) == '123'
             response = c.post('/test')
             assert response.status_code == 200
             assert response.json == {'value': "ok"}

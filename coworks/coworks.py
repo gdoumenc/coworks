@@ -1,25 +1,34 @@
 from dataclasses import dataclass
+from json import JSONDecodeError
 
+import logging
 import os
 import typing as t
-from abc import ABCMeta
-from flask import Blueprint as FlaskBlueprint, Flask, Response, current_app
+from flask import Blueprint as FlaskBlueprint
+from flask import Flask
+from flask import Response as FlaskResponse
+from flask import current_app
+from flask.blueprints import BlueprintSetupState
 from flask.ctx import AppContext as FlaskAppContext
+from flask.testing import FlaskClient
 from functools import partial
+from werkzeug.routing import Rule
 
-from .config import Config, DEFAULT_WORKSPACE, DevConfig, LocalConfig, ProdConfig
+from .config import Config
+from .config import DEFAULT_WORKSPACE
+from .config import DevConfig
+from .config import LocalConfig
+from .config import ProdConfig
 from .mixins import CoworksMixin
-from .testing import CoworksClient
 from .utils import HTTP_METHODS, trim_underscores
-
-ENTRY_REGEXP = '[^0-9a-zA-Z_]'
 
 
 #
 # Decorators
 #
 
-def entry(fun):
+
+def entry(fun: t.Callable) -> t.Callable:
     """Decorator to create a microservice entry point from function name."""
     name = fun.__name__.upper()
     for method in HTTP_METHODS:
@@ -35,7 +44,7 @@ def entry(fun):
     raise AttributeError(f"The function name {fun.__name__} doesn't start with a HTTP method name.")
 
 
-def hide(f):
+def hide(fun: t.Callable) -> t.Callable:
     """Hide a route of the microservice.
 
      May be used as a decorator.
@@ -43,13 +52,14 @@ def hide(f):
      Usefull when creating inherited microservice.
      """
 
-    setattr(f, '__cws_hidden', True)
-    return f
+    setattr(fun, '__cws_hidden', True)
+    return fun
 
 
 #
 # Classes
 #
+
 
 class AppCtx(FlaskAppContext):
     """Coworks application context."""
@@ -73,21 +83,64 @@ class ScheduleEntry:
     fun: t.Callable
 
 
-class CoworksResponse(Response):
+class TokenResponse:
+    def __init__(self, value: t.Union[bool, str], arn: str):
+        if type(value) is bool:
+            self.allow = value
+        elif type(value) is str:
+            self.allow = os.getenv('WORKSPACE') == value
+        else:
+            self.allow = False
+
+        self.arn = arn
+
+    @property
+    def json(self) -> t.Optional[t.Any]:
+        workspace = os.getenv('WORKSPACE')
+        return {
+            "principalId": "user",
+            "policyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Action": "execute-api:Invoke",
+                        "Effect": "Allow" if self.allow else "Deny",
+                        "Resource": self.arn
+                    }
+                ]
+            }
+        }
+
+
+class ApiResponse(FlaskResponse):
     default_mimetype = "application/json"
 
     @property
-    def text(self):
+    def text(self) -> str:
         return self.get_data(as_text=True)
 
 
-class Blueprint(CoworksMixin, FlaskBlueprint, metaclass=ABCMeta):
+class CoworksClient(FlaskClient):
+    """Redefined to force mimetype to be 'text/plain' in case of string return.
+    """
+
+    def open(self, *args: t.Any, **kwargs: t.Any):
+        res = super().open(*args, **kwargs)
+        if res.is_json:
+            try:
+                json = res.json
+            except JSONDecodeError:
+                res.mimetype = "text/plain"
+        return res
+
+
+class Blueprint(CoworksMixin, FlaskBlueprint):
     """ Represents a blueprint, list of routes that will be added to microservice when registered.
 
     See :ref:`Blueprint <blueprint>` for more information.
     """
 
-    def __init__(self, name=None, **kwargs):
+    def __init__(self, name: str = None, **kwargs):
         """Initialize a blueprint.
 
         :param kwargs: Other Flask blueprint parameters.
@@ -98,10 +151,10 @@ class Blueprint(CoworksMixin, FlaskBlueprint, metaclass=ABCMeta):
         self.deferred_init_functions: t.List[t.Callable] = []
 
     @property
-    def logger(self):
+    def logger(self) -> logging.Logger:
         return current_app.logger
 
-    def make_setup_state(self, app, options, *args):
+    def make_setup_state(self, app: Flask, options: t.Dict, *args) -> BlueprintSetupState:
         """Stores creation state for deferred initialization."""
         state = super().make_setup_state(app, options, *args)
 
@@ -111,15 +164,12 @@ class Blueprint(CoworksMixin, FlaskBlueprint, metaclass=ABCMeta):
 
         return state
 
-    def deferred_init(self):
+    def deferred_init(self) -> None:
         for fun in self.deferred_init_functions:
             fun()
 
-    # def context_manager(self, name, *args, **kwarsg):
-    #     return self.current_app.context_manager(name, *args, **kwarsg)
 
-
-class ContextManager(metaclass=ABCMeta):
+class ContextManager:
     """ Represents a context manager that will be added to microservice when created.
 
     See :ref:`ContextManager <contextmanager>` for more information.
@@ -140,7 +190,7 @@ class TechMicroService(CoworksMixin, Flask):
     See :ref:`tech` for more information.
     """
 
-    def __init__(self, name=None, *, configs=None, **kwargs):
+    def __init__(self, name: str = None, *, configs: t.Union[Config, t.List[Config]] = None, **kwargs) -> None:
         """ Initialize a technical microservice.
         :param name: Name used to identify the microservice.
         :param configs: Deployment configurations.
@@ -154,12 +204,12 @@ class TechMicroService(CoworksMixin, Flask):
 
         super().__init__(import_name=name, static_folder=None, **kwargs)
 
-        self.response_class = CoworksResponse
         self.test_client_class = CoworksClient
+        self.response_class = ApiResponse
 
         self._coworks_initialized = False
 
-    def deferred_init(self):
+    def deferred_init(self) -> None:
         """Deferred initialization.
         Python initialization is done on module loading, this initialization is done on first use.
         """
@@ -174,20 +224,21 @@ class TechMicroService(CoworksMixin, Flask):
                 t.cast(Blueprint, bp).deferred_init()
             self._coworks_initialized = True
 
-    def app_context(self):
+    def app_context(self) -> AppCtx:
         """Override to return CoWorks application context."""
         return AppCtx(self)
 
     @property
-    def ms_type(self):
+    def ms_type(self) -> str:
         return 'tech'
 
     @property
-    def routes(self):
+    def routes(self) -> t.List[Rule]:
         """Returns the list of routes defined in the microservice."""
         return [r.rule for r in self.url_map.iter_rules()]
 
-    def get_config(self, workspace):
+    def get_config(self, workspace) -> Config:
+        """Returns the configuration corresponding to the workspace."""
         for conf in self.configs:
             if conf.is_valid_for(workspace):
                 return conf
@@ -214,100 +265,103 @@ class TechMicroService(CoworksMixin, Flask):
     #     self.context_managers[name] = context_manager
     #
 
-    def __call__(self, arg1, arg2):
-        """Lambda handler."""
-        buffer: t.List[bytes] = []
+    def token_authorizer(self, token) -> t.Union[bool, str]:
+        """Defined the authorization process.
 
-        def start_response(status, headers, exc_info=None):  # type: ignore
-            nonlocal response
+        If the returned value is False, all routes for all stages are denied.
+        If the returned value is True, all routes for all stages are accepted.
+        If the returned value is a string, then it must be a stage name and all routes are accepted for this stage.
 
-            if exc_info:
-                try:
-                    raise exc_info[1].with_traceback(exc_info[2])
-                finally:
-                    exc_info = None
+        By default no entry are accepted for security reason.
+        """
 
-            response = (status, headers)
-            return buffer.append
+        return False
 
-        if type(arg2) is dict:
-            wsgi_environ = self._create_environ_from_event_and_context(arg1, arg2)
-            response = self.handler(wsgi_environ, start_response)
-        else:
-            response = self.handler(arg1, arg2)
-        return response
-
-    def handler(self, eviron, start_response):
+    def __call__(self, arg1, arg2) -> dict:
         """Main microservice entry point."""
 
-        if eviron.get('type') == 'TOKEN':
-            return self._token_handler(eviron, start_response)
-        return self._api_handler(eviron, start_response)
+        # Lambda event call or Flask call
+        if "LambdaContext" in type(arg2).__name__:
+            res = self._lambda_handler(arg1, arg2)
+        else:
+            res = self._flask_handler(arg1, arg2)
 
-    def _token_handler(self, event, context):
-        """Authorization handler."""
+        # res['headers']['x-cws-workspace'] = os.getenv('WORKSPACE')
+
+        return res
+
+    def _lambda_handler(self, event: t.Dict[str, t.Any], context: t.Dict[str, t.Any]):
+        """Lambda handler.
+        """
+
+        if event.get('type') == 'TOKEN':
+            return self._token_handler(event, context)
+        return self._api_handler(event, context)
+
+    def _token_handler(self, event: t.Dict[str, t.Any], context: t.Dict[str, t.Any]) -> dict:
+        """Authorization token handler.
+        """
         self.logger.debug(f"Calling {self.name} for authorization : {event}")
 
         try:
-            *_, method, route = event.get('methodArn').split('/', 3)
-            authorizer = self._entry(f'/{route}', method).auth
-            return authorizer(event, context)
+            res = self.token_authorizer(event['authorizationToken'])
+            return TokenResponse(res, event['methodArn']).json
         except Exception as e:
-            self.logger.debug(f"Error in authorization handler for {self.name} : {e}")
-            request = AuthRequest(event['type'], event['authorizationToken'], event['methodArn'])
-            return AuthResponse(routes=[], principal_id='user').to_dict(request)
+            self.logger.debug(f"Error in token handler for {self.name} : {e}")
+            return TokenResponse(False, event['methodArn']).json
 
-    def _api_handler(self, environ, start_response):
-        """API rest handler."""
-        self.logger.debug(f"Calling {self.name} by api : {environ}")
+    def _api_handler(self, event: t.Dict[str, t.Any], context: t.Dict[str, t.Any]) -> dict:
+        """API handler.
+        """
+        self.logger.debug(f"Calling {self.name} by api : {event}")
 
+        def full_path():
+            url = event['path']
+            params = event['queryStringParameters']
+            if params:
+                url += '?'
+                for i, (k, v) in enumerate(params.items()):
+                    if i:
+                        url += '&'
+                    if type(v) is list:
+                        for j, vl in enumerate(v):
+                            if j:
+                                url += '&'
+                            url += f"{k}={vl}"
+                    else:
+                        url += f"{k}={v}"
+            return url
+
+        # Transform as simple test call
         try:
-            # Chalice accepts only proxy integration and string for body
-            self._complete_for_proxy(environ, start_response)
+            with self.test_client() as c:
+                method = event['httpMethod']
+                kwargs = {'json': event['body']} if method in ['PUT', 'POST'] else {}
+                res = getattr(c, method.lower())(full_path(), **kwargs)
+                try:
+                    if res.is_json:
+                        return {
+                            "statusCode": res.status_code,
+                            "headers": res.headers.to_wsgi_list(),
+                            "body": res.json,
+                        }
+                except JSONDecodeError:
+                    res.mimetype = "text/plain"
+                return {
+                    "statusCode": res.status_code,
+                    "headers": res.headers.to_wsgi_list(),
+                    "body": res.text,
+                }
 
-            res = super().__call__(environ, start_response)
-            workspace = os.getenv('WORKSPACE')
-            if workspace:
-                res['headers']['x-cws-workspace'] = workspace
-
-            self.logger.debug(f"Call {self.name} returns {res}")
-            return res
         except Exception as e:
-            self.logger.debug(f"Error in api handler for {self.name} : {e}")
+            self.logger.debug(f"Error in Flask handler for {self.name} : {e}")
             raise
 
-    @staticmethod
-    def _create_environ_from_event_and_context(event, context) -> dict:
-        environ = {
-            '"HTTP_HOST"': "",
-        }
-        return environ
-
-    @staticmethod
-    def _complete_for_proxy(event, context):
-        request_context = event.get('requestContext')
-        # if 'resourcePath' not in request_context:
-        #
-        #     # Creates proxy routes and path parameters
-        #     entry_path = request_context.get('entryPath')
-        #     entry_path_parameters = event.get('entryPathParameters')
-        #     proxy_resource_path = []
-        #     proxy_path_parameters = {}
-        #     counter = 0
-        #     for subpath in entry_path.split('/'):
-        #         if subpath.startswith('{'):
-        #             proxy_resource_path.append(f'{{_{counter}}}')
-        #             proxy_path_parameters[f'_{counter}'] = entry_path_parameters.get(subpath[1:-1])
-        #             counter = counter + 1
-        #         else:
-        #             proxy_resource_path.append(subpath)
-        #
-        #     # Completes the event with proxy parameters
-        #     request_context['resourcePath'] = '/'.join(proxy_resource_path)
-        #     event['pathParameters'] = proxy_path_parameters
-        #
-        # if type(event['body']) is dict:
-        #     event['body'] = json.dumps(event['body'])
+    def _flask_handler(self, environ: t.Dict[str, t.Any], start_response: t.Callable[[t.Any], None]):
+        """Flask handler.
+        """
+        res = super().__call__(environ, start_response)
+        return res
 
     def schedule(self, *args, **kwargs):
         raise Exception("Schedule decorator is defined on BizMicroService, not on TechMicroService")
@@ -316,72 +370,3 @@ class TechMicroService(CoworksMixin, Flask):
 class BizMicroService(TechMicroService):
     """Biz composed microservice activated by events.
     """
-
-    # def __init__(self, **kwargs):
-    #     super().__init__(**kwargs)
-    #     self.schedule_entries: Dict[str, ScheduleEntry] = {}
-    #     self.microservices: Dict[str, TechMicroService] = {}
-    #
-    # @property
-    # def ms_type(self):
-    #     return 'biz'
-    #
-    # def register_microservice(self, service: TechMicroService):
-    #     """ Register a :class:`MicroService` used by the microservice.
-    #
-    #     :param service: service to register.
-    #     :return:
-    #     """
-    #     self.microservices[service.name] = service
-    #
-    #     @self.before_first_activation
-    #     def first(event, context):
-    #         service.do_before_first_activation(event, context)
-    #
-    #     @self.before_activation
-    #     def before(event, context):
-    #         service.do_before_activation(event, context)
-    #
-    #     @self.after_activation
-    #     def after(response):
-    #         return service.do_after_activation(response)
-    #
-    #     @self.handle_exception
-    #     def after(event, context, e):
-    #         return service.do_handle_exception(event, context, e)
-    #
-    # # noinspection PyMethodOverriding
-    # def schedule(self, exp, *, name=None, description=None, workspaces=None):
-    #     """Registers a a schedule event to trigger the microservice.
-    #
-    #     May be used as a decorator.
-    #
-    #     The function will be called with the event name.
-    #     """
-    #
-    #     def decorator(f):
-    #         schedule_name = name if name else exp
-    #         desc = description if description else f.__doc__
-    #         entry_key = re.sub(ENTRY_REGEXP, '', exp)
-    #         self.schedule_entries[f"{f.__name__}_{entry_key}"] = ScheduleEntry(schedule_name, exp, desc, f)
-    #         return f
-    #
-    #     return decorator
-    #
-    # def handler(self, event, context):
-    #     """Main microservice entry point."""
-    #
-    #     if event.get('type') == 'CWS_SCHEDULE_EVENT':
-    #         return self._schedule_event_handler(event, context)
-    #     return super().handler(event, context)
-    #
-    # def _schedule_event_handler(self, event, context):
-    #     """Schedule event handler."""
-    #     self.log.debug(f"Calling {self.name} by event bridge")
-    #
-    #     try:
-    #         entry_name = event.get('entry_name')
-    #         return self.schedule_entries[entry_name].fun(event.get('schedule_name'))
-    #     except Exception as e:
-    #         self.log.debug(f"Error in schedule event handler for {self.name} : {e}")
-    #         raise
