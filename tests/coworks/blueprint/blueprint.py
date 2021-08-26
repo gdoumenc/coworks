@@ -1,7 +1,8 @@
 from unittest.mock import Mock
 
 from coworks import Blueprint, entry
-from coworks.globals import event, context
+from coworks.globals import aws_event, aws_context
+
 
 class BP(Blueprint):
 
@@ -24,11 +25,11 @@ class InitBP(BP):
 
         @self.before_app_first_request
         def before_first_activation():
-            self.do_before_first_activation(event, context)
+            self.do_before_first_activation(aws_event, aws_context)
 
         @self.before_app_request
         def before_activation():
-            self.do_before_activation(event, context)
+            self.do_before_activation(aws_event, aws_context)
 
         @self.after_app_request
         def after_activation(response):

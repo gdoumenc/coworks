@@ -1,12 +1,12 @@
 import inspect
 import os
 import sys
-from inspect import Parameter
-
 from flask import current_app
+from inspect import Parameter
 from jinja2 import Environment, PackageLoader, select_autoescape
 
 from coworks import Blueprint, entry, jsonify
+from coworks.globals import aws_event, aws_context
 from coworks.utils import make_absolute
 
 
@@ -19,7 +19,7 @@ class Admin(Blueprint):
         for rule in current_app.url_map.iter_rules():
             route = {}
             for http_method in rule.methods:
-                function_called =  current_app.view_functions[rule.endpoint]
+                function_called = current_app.view_functions[rule.endpoint]
                 doc = inspect.getdoc(function_called)
                 route[http_method] = {
                     'doc': doc.replace('\n', ' ') if doc else '',
@@ -30,16 +30,20 @@ class Admin(Blueprint):
         return jsonify({k: routes[k] for k in sorted(routes.keys())}, pretty)
 
     @entry
+    def get_event(self):
+        """Returns the calling context."""
+        return aws_event
+
+    @entry
     def get_context(self):
         """Returns the calling context."""
-        return self.current_request.to_dict()
+        return aws_context
 
     @entry
     def get_env(self):
         """Returns the stage environment."""
         return {k: v for k, v in os.environ.items()}
 
-    @entry
     def get_proxy(self):
         """Returns the calling context."""
         env = Environment(
@@ -50,8 +54,8 @@ class Admin(Blueprint):
         env.filters["keyword_params"] = keyword_params
 
         data = {
-            'name': self.current_app.name,
-            'entries': self.current_app.entries,
+            'name': current_app.name,
+            'entries': current_app.url_map,
         }
         template = env.get_template("proxy.j2")
         return template.render(**data)

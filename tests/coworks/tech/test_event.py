@@ -1,10 +1,5 @@
 from tests.coworks.ms import SimpleMS
-
-event_token = {
-    'type': 'TOKEN',
-    'methodArn': 'arn:aws:execute-api:eu-west-1:935392763270:htzd2rneg1/dev/GET/',
-    'authorizationToken': 'token'
-}
+from tests.coworks.ms import GlobalMS
 
 
 def get_event(path, method, params=None, body=None):
@@ -91,24 +86,17 @@ def get_event(path, method, params=None, body=None):
     }
 
 
-class LambdaContextTest:
-    ...
-
-
-empty_context = LambdaContextTest()
-
-
 class TestClass:
-    def test_request_arg(self):
+    def test_request_arg(self, empty_context):
         app = SimpleMS()
         with app.app_context() as c:
             response = app(get_event('/', 'get'), empty_context)
             assert response['statusCode'] == 200
             assert response['body'] == "get"
-            assert 'Content-Type' in response['headers']
-            assert response['headers']['Content-Type'] == 'text/plain; charset=utf-8'
-            assert 'Content-Length' in response['headers']
-            assert response['headers']['Content-Length'] == str(len(response['body']))
+            assert 'Content-Type' in [h[0] for h in response['headers']]
+            assert [h for h in response['headers'] if h[0] == 'Content-Type'][0][1] == 'text/plain; charset=utf-8'
+            assert 'Content-Length' in [h[0] for h in response['headers']]
+            assert [h for h in response['headers'] if h[0] == 'Content-Length'][0][1] == str(len(response['body']))
             response = app(get_event('/', 'post'), empty_context)
             assert response['statusCode'] == 405
             response = app(get_event('/get1', 'get'), empty_context)
@@ -134,7 +122,7 @@ class TestClass:
             response = app(get_event('/content/3', 'post', body={"other": 'other', "value": 5}), empty_context)
             assert response['statusCode'] == 400
 
-    def test_request_kwargs(self):
+    def test_request_kwargs(self, empty_context):
         app = SimpleMS()
         with app.app_context() as c:
             response = app(get_event('/kwparam1', 'get', params={'value': 5}), empty_context)
@@ -163,3 +151,10 @@ class TestClass:
             response = app(get_event('/extended/content', 'get'), empty_context)
             assert response['statusCode'] == 200
             assert response['body'] == "hello world"
+
+    def test_request_globals(self, empty_context):
+        app = GlobalMS()
+        with app.app_context() as c:
+            response = app(get_event('/event/method', 'get'), empty_context)
+            assert response['statusCode'] == 200
+            assert response['body'] == "GET"

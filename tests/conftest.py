@@ -31,6 +31,15 @@ def unused_tcp_port():
         return sock.getsockname()[1]
 
 
+@pytest.fixture
+def empty_context():
+    return LambdaContextTest()
+
+
+class LambdaContextTest:
+    ...
+
+
 def pytest_sessionstart():
     if not os.path.exists(fixture_samples_docs_dir()):
         msg = "Undefined samples folder: (var defined in pytest.ini)."

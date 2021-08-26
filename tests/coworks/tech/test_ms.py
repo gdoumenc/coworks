@@ -5,6 +5,9 @@ from tests.coworks.ms import *
 class ParamMS(TechMicroService):
     value = "123"
 
+    def token_authorizer(self, token):
+        return True
+
     @entry
     def get(self, str):
         return str
@@ -28,6 +31,7 @@ class ParamMS(TechMicroService):
 
 
 class TupleReturnedMS(TechMS):
+
     @entry
     def get(self):
         return 'ok', 200

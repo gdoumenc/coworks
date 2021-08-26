@@ -9,13 +9,13 @@ class TestClass:
         with app.test_client() as c:
             response = c.get('/')
             assert response.status_code == 200
-            assert response.text == 'get'
+            assert response.get_data(as_text=True) == 'get'
             response = c.get('/test/3')
             assert response.status_code == 200
-            assert response.text == 'blueprint test 3'
+            assert response.get_data(as_text=True) == 'blueprint test 3'
             response = c.get('/extended/test/3')
             assert response.status_code == 200
-            assert response.text == 'blueprint extended test 3'
+            assert response.get_data(as_text=True) == 'blueprint extended test 3'
 
     def test_prefix(self):
         app = SimpleMS()
@@ -23,10 +23,10 @@ class TestClass:
         with app.test_client() as c:
             response = c.get('/prefix/test/3')
             assert response.status_code == 200
-            assert response.text == 'blueprint test 3'
+            assert response.get_data(as_text=True) == 'blueprint test 3'
             response = c.get('/prefix/extended/test/3')
             assert response.status_code == 200
-            assert response.text == 'blueprint extended test 3'
+            assert response.get_data(as_text=True) == 'blueprint extended test 3'
 
     def test_before_activation(self):
         app = SimpleMS()
@@ -35,7 +35,7 @@ class TestClass:
         with app.test_client() as c:
             response = c.get('/prefix/test/3')
             assert response.status_code == 200
-            assert response.text == 'blueprint test 3'
+            assert response.get_data(as_text=True) == 'blueprint test 3'
             init_bp.do_before_first_activation.assert_called_once()
             init_bp.do_before_activation.assert_called_once()
             init_bp.do_after_activation.assert_called_once()

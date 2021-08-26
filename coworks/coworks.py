@@ -4,12 +4,14 @@ from json import JSONDecodeError
 import logging
 import os
 import typing as t
-from flask import Blueprint as FlaskBlueprint
+from flask import Blueprint as FlaskBlueprint, Response
 from flask import Flask
 from flask import Response as FlaskResponse
+from flask import abort
 from flask import current_app
 from flask.blueprints import BlueprintSetupState
 from flask.ctx import AppContext as FlaskAppContext
+from flask.ctx import RequestContext
 from flask.testing import FlaskClient
 from functools import partial
 from werkzeug.routing import Rule
@@ -62,7 +64,7 @@ def hide(fun: t.Callable) -> t.Callable:
 
 
 class AppCtx(FlaskAppContext):
-    """Coworks application context."""
+    """Coworks application context adding deferred initaliszation."""
 
     def push(self) -> None:
         super().push()
@@ -84,6 +86,8 @@ class ScheduleEntry:
 
 
 class TokenResponse:
+    """AWS authorization response."""
+
     def __init__(self, value: t.Union[bool, str], arn: str):
         if type(value) is bool:
             self.allow = value
@@ -113,16 +117,20 @@ class TokenResponse:
 
 
 class ApiResponse(FlaskResponse):
+    """Default mimetype is redefined."""
     default_mimetype = "application/json"
-
-    @property
-    def text(self) -> str:
-        return self.get_data(as_text=True)
 
 
 class CoworksClient(FlaskClient):
     """Redefined to force mimetype to be 'text/plain' in case of string return.
     """
+
+    def __init__(self, *args: t.Any, aws_event=None, aws_context=None, **kwargs: t.Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.environ_base.update({
+            "aws_event": aws_event,
+            "aws_context": aws_context,
+        })
 
     def open(self, *args: t.Any, **kwargs: t.Any):
         res = super().open(*args, **kwargs)
@@ -228,6 +236,13 @@ class TechMicroService(CoworksMixin, Flask):
         """Override to return CoWorks application context."""
         return AppCtx(self)
 
+    def request_context(self, environ: dict) -> RequestContext:
+        """Redefined to add Lmabda event and context."""
+        ctx = super().request_context(environ)
+        ctx.aws_event = environ.get('aws_event')
+        ctx.aws_context = environ.get('aws_context')
+        return ctx
+
     @property
     def ms_type(self) -> str:
         return 'tech'
@@ -265,7 +280,7 @@ class TechMicroService(CoworksMixin, Flask):
     #     self.context_managers[name] = context_manager
     #
 
-    def token_authorizer(self, token) -> t.Union[bool, str]:
+    def token_authorizer(self, token: str) -> t.Union[bool, str]:
         """Defined the authorization process.
 
         If the returned value is False, all routes for all stages are denied.
@@ -334,7 +349,7 @@ class TechMicroService(CoworksMixin, Flask):
 
         # Transform as simple test call
         try:
-            with self.test_client() as c:
+            with self.test_client(aws_event=event, aws_context=context) as c:
                 method = event['httpMethod']
                 kwargs = {'json': event['body']} if method in ['PUT', 'POST'] else {}
                 res = getattr(c, method.lower())(full_path(), **kwargs)
@@ -350,7 +365,7 @@ class TechMicroService(CoworksMixin, Flask):
                 return {
                     "statusCode": res.status_code,
                     "headers": res.headers.to_wsgi_list(),
-                    "body": res.text,
+                    "body": res.get_data(as_text=True),
                 }
 
         except Exception as e:
@@ -360,8 +375,10 @@ class TechMicroService(CoworksMixin, Flask):
     def _flask_handler(self, environ: t.Dict[str, t.Any], start_response: t.Callable[[t.Any], None]):
         """Flask handler.
         """
-        res = super().__call__(environ, start_response)
-        return res
+        valid = self.token_authorizer(environ.get('HTTP_AUTHORIZATION'))
+        if valid:
+            return super().__call__(environ, start_response)
+        abort(403)
 
     def schedule(self, *args, **kwargs):
         raise Exception("Schedule decorator is defined on BizMicroService, not on TechMicroService")

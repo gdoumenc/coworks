@@ -3,11 +3,15 @@ from unittest.mock import MagicMock
 
 from coworks import TechMicroService, entry
 from coworks.config import LocalConfig
+from coworks.globals import aws_event
 
 
 class TechMS(TechMicroService):
     def __init__(self, configs=None, **kwargs):
         super().__init__('test', configs=configs or LocalConfig(), **kwargs)
+
+    def token_authorizer(self, token):
+        return True
 
 
 class S3MockTechMS(TechMicroService):
@@ -21,6 +25,9 @@ class S3MockTechMS(TechMicroService):
 
 
 class SimpleMS(TechMicroService):
+
+    def token_authorizer(self, token):
+        return True
 
     @entry
     def get(self):
@@ -70,3 +77,11 @@ class SimpleMS(TechMicroService):
         return "hello world"
 
 
+class GlobalMS(TechMicroService):
+
+    def token_authorizer(self, token):
+        return True
+
+    @entry
+    def get_event_method(self):
+        return aws_event['httpMethod']
