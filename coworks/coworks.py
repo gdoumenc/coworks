@@ -4,7 +4,7 @@ from json import JSONDecodeError
 import logging
 import os
 import typing as t
-from flask import Blueprint as FlaskBlueprint, Response
+from flask import Blueprint as FlaskBlueprint
 from flask import Flask
 from flask import Response as FlaskResponse
 from flask import abort
@@ -177,21 +177,6 @@ class Blueprint(CoworksMixin, FlaskBlueprint):
             fun()
 
 
-class ContextManager:
-    """ Represents a context manager that will be added to microservice when created.
-
-    See :ref:`ContextManager <contextmanager>` for more information.
-    """
-
-    # def __init__(self, app, name):
-    #     app.add_context_manager(self, name)
-    #     self._current_app = app
-    #
-    # @abstractmethod
-    # def __call__(self, *args, **kwargs):
-    #     ...
-
-
 class TechMicroService(CoworksMixin, Flask):
     """Simple tech microservice.
     
@@ -259,27 +244,6 @@ class TechMicroService(CoworksMixin, Flask):
                 return conf
         return Config()
 
-    # @contextmanager
-    # def context_manager(self, name, *args, **kwargs):
-    #     try:
-    #         with self.context_managers[name](*args, **kwargs) as cm:
-    #             yield cm
-    #     except KeyError:
-    #         self.log.error(f"Undefined context manager {name}")
-    #         raise
-
-    # def add_context_manager(self, context_manager: ContextManager, name: str) -> None:
-    #     """ Register a context manager.
-    #
-    #     :param context_manager: context manager to register.
-    #     :param name: name registration (needed to retrieve it).
-    #     """
-    #     if name in self.context_managers:
-    #         raise KeyError(f"A context manager is already defined with the name : {name}.")
-    #
-    #     self.context_managers[name] = context_manager
-    #
-
     def token_authorizer(self, token: str) -> t.Union[bool, str]:
         """Defined the authorization process.
 
@@ -332,19 +296,16 @@ class TechMicroService(CoworksMixin, Flask):
 
         def full_path():
             url = event['path']
-            params = event['queryStringParameters']
+            params = event['multiValueQueryStringParameters']
             if params:
                 url += '?'
                 for i, (k, v) in enumerate(params.items()):
                     if i:
                         url += '&'
-                    if type(v) is list:
-                        for j, vl in enumerate(v):
-                            if j:
-                                url += '&'
-                            url += f"{k}={vl}"
-                    else:
-                        url += f"{k}={v}"
+                    for j, vl in enumerate(v):
+                        if j:
+                            url += '&'
+                        url += f"{k}={vl}"
             return url
 
         # Transform as simple test call
@@ -375,9 +336,14 @@ class TechMicroService(CoworksMixin, Flask):
     def _flask_handler(self, environ: t.Dict[str, t.Any], start_response: t.Callable[[t.Any], None]):
         """Flask handler.
         """
+
+        # No need for authorization in lambda context (already done)
+        if 'aws_event' in environ:
+            return super().wsgi_app(environ, start_response)
+
         valid = self.token_authorizer(environ.get('HTTP_AUTHORIZATION'))
         if valid:
-            return super().__call__(environ, start_response)
+            return self.wsgi_app(environ, start_response)
         abort(403)
 
     def schedule(self, *args, **kwargs):

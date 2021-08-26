@@ -29,8 +29,8 @@ def get_event(path, method, params=None, body=None):
         },
         'multiValueHeaders': {},
         'body': body or {},
-        'queryStringParameters': params or {},
-        'multiValueQueryStringParameters': {},
+        'queryStringParameters': {},
+        'multiValueQueryStringParameters': params or {},
         'pathParameters': {},
         'stageVariables': None,
         'isBase64Encoded': False,
@@ -125,18 +125,18 @@ class TestClass:
     def test_request_kwargs(self, empty_context):
         app = SimpleMS()
         with app.app_context() as c:
-            response = app(get_event('/kwparam1', 'get', params={'value': 5}), empty_context)
+            response = app(get_event('/kwparam1', 'get', params={'value': [5]}), empty_context)
             assert response['statusCode'] == 200
             assert response['body'] == "get **param with only 5"
-            response = app(get_event('/kwparam1', 'get', params={"other": 'other', "value": 5}), empty_context)
+            response = app(get_event('/kwparam1', 'get', params={"other": ['other'], "value": [5]}), empty_context)
             assert response['statusCode'] == 400
-            response = app(get_event('/kwparam1', 'get', params={"value": 5}), empty_context)
+            response = app(get_event('/kwparam1', 'get', params={"value": [5]}), empty_context)
             assert response['statusCode'] == 200
             assert response['body'] == "get **param with only 5"
             response = app(get_event('/kwparam1', 'get', body={"other": 'other', "value": 5}), empty_context)
             assert response['statusCode'] == 200
             assert response['body'] == "get **param with only 0"
-            response = app(get_event('/kwparam2', 'get', params={"other": 'other', "value": 5}), empty_context)
+            response = app(get_event('/kwparam2', 'get', params={"other": ['other'], "value": [5]}), empty_context)
             assert response['statusCode'] == 200
             assert response['body'] == "get **param with 5 and ['other']"
             response = app(get_event('/kwparam2', 'get', body={"other": 'other', "value": 5}), empty_context)
@@ -145,7 +145,7 @@ class TestClass:
             response = app(get_event('/kwparam2', 'put', body={"other": 'other', "value": 5}), empty_context)
             assert response['statusCode'] == 200
             assert response['body'] == "get **param with 5 and ['other']"
-            response = app(get_event('/kwparam2', 'put', params={"other": 'other', "value": 5}), empty_context)
+            response = app(get_event('/kwparam2', 'put', params={"other": ['other'], "value": [5]}), empty_context)
             assert response['statusCode'] == 200
             assert response['body'] == "get **param with 0 and []"
             response = app(get_event('/extended/content', 'get'), empty_context)

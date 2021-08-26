@@ -87,7 +87,7 @@ def zip_command(info, ctx, bucket, debug, dry, hash, ignore, module_name, key, p
                 try:
                     if not dry:
                         if debug:
-                            print(f"Upoad sources hash...")
+                            print(f"Upload sources hash...")
                         aws_s3_session.client.upload_fileobj(b64sha256_file, bucket, f"{key}.b64sha256",
                                                              ExtraArgs={'ContentType': 'text/plain'})
                         if debug:
