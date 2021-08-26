@@ -1,11 +1,25 @@
+import pytest
 import requests
 import threading
 import time
+from requests.exceptions import ConnectionError
 
 from coworks.utils import import_attr
 
 
 class TestClass:
+    def test_run_first_no_token(self, samples_docs_dir, unused_tcp_port):
+        app = import_attr('first', 'app', cwd=samples_docs_dir)
+        server = threading.Thread(target=run_server_quickstart, args=(app, unused_tcp_port), daemon=True)
+        server.start()
+        counter = 1
+        time.sleep(counter)
+        while not server.is_alive() and counter < 10:
+            time.sleep(counter)
+            counter += 1
+        with pytest.raises(ConnectionError) as pytest_wrapped_e:
+            response = requests.get(f'http://localhost:{unused_tcp_port}/', headers={'Authorization': "none"})
+        assert pytest_wrapped_e.type == ConnectionError
 
     def test_run_first(self, samples_docs_dir, unused_tcp_port):
         app = import_attr('first', 'app', cwd=samples_docs_dir)
@@ -27,4 +41,4 @@ class TestClass:
 
 def run_server_quickstart(app, port):
     print(f"Server starting on port {port}")
-    app.run(host='localhost', port=port, debug=False)
+    app.run(host='localhost', port=port, debug=False, passthrough_errors=True)

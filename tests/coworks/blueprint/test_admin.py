@@ -7,6 +7,9 @@ from tests.coworks.ms import *
 
 class DocumentedMS(TechMS):
 
+    def token_authorizer(self, token):
+        return True
+
     @entry
     def get(self):
         """Root access."""

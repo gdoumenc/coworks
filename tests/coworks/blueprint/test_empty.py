@@ -16,4 +16,4 @@ class TestClass:
         with app.test_client() as c:
             response = c.get('/')
             assert response.status_code == 200
-            assert response.text == 'blueprint test'
+            assert response.get_data(as_text=True) == 'blueprint test'
