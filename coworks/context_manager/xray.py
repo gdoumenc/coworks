@@ -1,19 +1,17 @@
 import traceback
-from contextlib import contextmanager
-from functools import partial, update_wrapper
 
 from aws_xray_sdk import global_sdk_config
 from aws_xray_sdk.core import AWSXRayRecorder
 from aws_xray_sdk.core.models.dummy_entities import DummySegment, DummySubsegment
 from aws_xray_sdk.core.models.subsegment import Subsegment
-
-from ..coworks import ContextManager
+from contextlib import contextmanager
+from functools import partial, update_wrapper
 
 LAMBDA_NAMESPACE = 'lambda'
 COWORKS_NAMESPACE = 'coworks'
 
 
-class XRayContextManager(ContextManager):
+class XRayContextManager:
     NAME = 'xray'
 
     def __init__(self, app, recorder, name=NAME):
