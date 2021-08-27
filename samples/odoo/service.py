@@ -6,7 +6,7 @@ from typing import cast
 from coworks import TechMicroService, entry
 from coworks.blueprint import Admin
 from coworks.blueprint.odoo_blueprint import Odoo
-from coworks.context_manager import XRayContextManager
+from coworks.middleware import XRayContextManager
 
 
 class SimpleOdooMicroService(TechMicroService):

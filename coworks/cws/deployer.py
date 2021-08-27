@@ -274,7 +274,7 @@ def deploy_command(info, ctx, output, **options):
         terraform.create_stage(workspace)
 
     # Traces output
-    print(f"terraform output : {terraform.output()}", flush=True)
+    print(f"terraform output :\n{terraform.output()}", flush=True)
 
 # class CwsTerraformCommand(CwsCommand, ABC):
 #     WRITER_CMD = 'export'

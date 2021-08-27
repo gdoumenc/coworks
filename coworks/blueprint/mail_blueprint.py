@@ -9,7 +9,7 @@ from aws_xray_sdk.core import xray_recorder
 
 from coworks import Blueprint, entry, MicroServiceProxy
 from coworks.utils import FileParam
-from coworks.context_manager import XRayContextManager
+from coworks.middleware import XRayContextManager
 
 
 #

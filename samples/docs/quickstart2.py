@@ -1,6 +1,5 @@
-import click
-from coworks import TechMicroService, entry
-# from coworks.cws.deployer import CwsTerraformDeployer
+from coworks import TechMicroService
+from coworks import entry
 
 
 class SimpleMicroService(TechMicroService):
@@ -14,4 +13,3 @@ class SimpleMicroService(TechMicroService):
 
 
 app = SimpleMicroService()
-# FLASK_APP=samples.docs.quickstart1:app flask deploy
