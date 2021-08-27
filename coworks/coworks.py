@@ -340,7 +340,7 @@ class TechMicroService(Flask):
 
         # No need for authorization in lambda context (already done)
         if 'aws_event' in environ:
-            return super().wsgi_app(environ, start_response)
+            return self._convert_response(self.wsgi_app(environ, start_response))
 
         valid = self.token_authorizer(environ.get('HTTP_AUTHORIZATION'))
         if valid:

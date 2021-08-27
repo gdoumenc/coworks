@@ -6,7 +6,7 @@ from config import LocalConfig, DevConfig
 from coworks import TechMicroService, entry
 from coworks.blueprint import Admin
 from coworks.blueprint.mail import Mail
-from coworks.context_manager import XRayContextManager
+from coworks.middleware import XRayContextManager
 
 
 class MailMicroService(TechMicroService):

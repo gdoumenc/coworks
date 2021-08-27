@@ -2,7 +2,7 @@ from unittest.mock import Mock
 
 import requests
 
-from coworks.context_manager import XRayContextManager
+from coworks.middleware import XRayContextManager
 from tests.coworks.ms import *
 
 
