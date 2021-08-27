@@ -1,6 +1,5 @@
-import os
-
 import boto3
+import os
 
 
 class Boto3Mixin:
@@ -54,7 +53,7 @@ class Boto3Mixin:
                 try:
                     self.__session__ = boto3.Session(profile_name=self.__profile_name)
                 except Exception:
-                    raise CwsError(f"Cannot create session for profile {self.__profile_name}.")
+                    raise RuntimeError(f"Cannot create session for profile {self.__profile_name}.")
             else:
                 access_key = self.aws_access_key
                 secret_key = self.aws_secret_access_key
@@ -62,7 +61,9 @@ class Boto3Mixin:
                 try:
                     self.__session__ = boto3.Session(access_key, secret_key, region_name=region_name)
                 except Exception:
-                    raise CwsError(f"Cannot create session for key {access_key}, secret {secret_key} in {region_name}.")
+                    raise RuntimeError(
+                        f"Cannot create session for key {access_key}, secret {secret_key} in {region_name}."
+                    )
         return self.__session__
 
 

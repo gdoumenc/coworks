@@ -21,8 +21,9 @@ from .config import DEFAULT_WORKSPACE
 from .config import DevConfig
 from .config import LocalConfig
 from .config import ProdConfig
-from .mixins import CoworksMixin
-from .utils import HTTP_METHODS, trim_underscores
+from .utils import HTTP_METHODS
+from .utils import init_routes
+from .utils import trim_underscores
 
 
 #
@@ -142,7 +143,7 @@ class CoworksClient(FlaskClient):
         return res
 
 
-class Blueprint(CoworksMixin, FlaskBlueprint):
+class Blueprint(FlaskBlueprint):
     """ Represents a blueprint, list of routes that will be added to microservice when registered.
 
     See :ref:`Blueprint <blueprint>` for more information.
@@ -168,7 +169,7 @@ class Blueprint(CoworksMixin, FlaskBlueprint):
 
         # Defer blueprint route initialization.
         if not options.get('hide_routes', False):
-            self.deferred_init_functions.append(partial(self.init_routes, state))
+            self.deferred_init_functions.append(partial(init_routes, app, state))
 
         return state
 
@@ -177,7 +178,7 @@ class Blueprint(CoworksMixin, FlaskBlueprint):
             fun()
 
 
-class TechMicroService(CoworksMixin, Flask):
+class TechMicroService(Flask):
     """Simple tech microservice.
     
     See :ref:`tech` for more information.
@@ -212,7 +213,7 @@ class TechMicroService(CoworksMixin, Flask):
             self.config.update(config.asdict())
 
             # Initializes routes and deferred initializations
-            self.init_routes(self)
+            init_routes(self)
             for bp in self.blueprints.values():
                 t.cast(Blueprint, bp).deferred_init()
             self._coworks_initialized = True
@@ -343,8 +344,32 @@ class TechMicroService(CoworksMixin, Flask):
 
         valid = self.token_authorizer(environ.get('HTTP_AUTHORIZATION'))
         if valid:
-            return self.wsgi_app(environ, start_response)
+            return self._convert_response(self.wsgi_app(environ, start_response))
         abort(403)
+
+    def _convert_response(self, resp):
+        """Convert response in serializable content, status and header."""
+        dumps = getattr(self.response_class.json_module, 'dumps')
+        cls = self.response_class
+
+        if type(resp) is tuple:
+            content = resp[0]
+            if type(content) is dict:
+                content = dumps(content)
+            if len(resp) == 2:
+                if type(resp[1]) is int:
+                    return cls(content, resp[1])
+                elif type(resp[1]) is dict:
+                    return cls(content, 200, resp[1])
+                else:
+                    return cls(f"Internal error (wrong result type {type(resp[1])})", 500)
+            else:
+                return cls(content, resp[1], resp[2])
+
+        if type(resp) is dict:
+            return dumps(resp)
+
+        return resp
 
     def schedule(self, *args, **kwargs):
         raise Exception("Schedule decorator is defined on BizMicroService, not on TechMicroService")

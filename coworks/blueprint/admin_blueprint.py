@@ -2,12 +2,15 @@ import inspect
 import os
 import sys
 from flask import current_app
+from flask import json
 from inspect import Parameter
-from jinja2 import Environment, PackageLoader, select_autoescape
+from jinja2 import Environment
+from jinja2 import PackageLoader
+from jinja2 import select_autoescape
 
-from coworks import Blueprint, entry, jsonify
+from coworks import Blueprint
+from coworks import entry
 from coworks.globals import aws_event, aws_context
-from coworks.utils import make_absolute
 
 
 class Admin(Blueprint):
@@ -25,9 +28,10 @@ class Admin(Blueprint):
                     'doc': doc.replace('\n', ' ') if doc else '',
                     'signature': get_signature(function_called)
                 }
-            routes[make_absolute(rule.rule)] = route
+            routes[rule.rule] = route
 
-        return jsonify({k: routes[k] for k in sorted(routes.keys())}, pretty)
+        kwargs = {'indent': 4, 'separators': (",", ": ")} if pretty else {}
+        return json.dumps({k: routes[k] for k in sorted(routes.keys())}, **kwargs)
 
     @entry
     def get_event(self):
