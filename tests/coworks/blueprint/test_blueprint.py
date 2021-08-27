@@ -3,6 +3,7 @@ from tests.coworks.ms import SimpleMS
 
 
 class TestClass:
+
     def test_request(self):
         app = SimpleMS()
         app.register_blueprint(BP())

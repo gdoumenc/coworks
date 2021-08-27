@@ -21,6 +21,8 @@ class TestClass:
             response = requests.get(f'http://localhost:{unused_tcp_port}/', headers={'Authorization': "none"})
         assert pytest_wrapped_e.type == ConnectionError
 
+    import pytest
+    @pytest.mark.wip
     def test_run_first(self, samples_docs_dir, unused_tcp_port):
         app = import_attr('first', 'app', cwd=samples_docs_dir)
         server = threading.Thread(target=run_server_quickstart, args=(app, unused_tcp_port), daemon=True)
