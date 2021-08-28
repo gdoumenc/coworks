@@ -201,6 +201,7 @@ class TechMicroService(Flask):
         self.test_client_class = CoworksClient
         self.response_class = ApiResponse
 
+        self.any_token_authorized = False
         self._coworks_initialized = False
 
     def deferred_init(self) -> None:
@@ -255,7 +256,7 @@ class TechMicroService(Flask):
         By default no entry are accepted for security reason.
         """
 
-        return False
+        return self.any_token_authorized
 
     def __call__(self, arg1, arg2) -> dict:
         """Main microservice entry point."""

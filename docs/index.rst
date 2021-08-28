@@ -35,7 +35,9 @@ Technical documentation :
 * Full documentation: :ref:`doc`.
 * At least :ref:`faq` if not enough...
 
-Using and derived from `Chalice <https://github.com/aws/chalice>`_. Other tools used:
+Using and derived from `Flask <https://github.com/pallets/flask>`_
+(`Donate to Pallets <https://palletsprojects.com/donate>`_).
+Other tools used:
 
 * `Click <https://github.com/pallets/click>`_ - Command Line Interface Creation Kit.
 * `Terraform <https://github.com/hashicorp/terraform>`_ - Infrastructure Configuration Management Tool.
@@ -115,8 +117,8 @@ documenting or deploying over it.
 
 The main advantage of using Coworks is its ability to defined those tools, called `commands`, directly in
 the microservice code.
-Predefined commands like ``run`` or ``deploy`` are provided, but you can redefined them or creates new ones like for
-documentation or testing.
+Predefined commands like ``run`` (defined by the Flask framework) or ``deploy`` are provided,
+but you can redefined them or creates new ones like for documentation or testing.
 
 For more details, see: :ref:`command`.
 

@@ -20,7 +20,7 @@
     :alt: GitHub
 
 Coworks is an unified compositional microservices framework over AWS technologies and
-based on the `Chalice <https://github.com/aws/chalice>`__ microframework.
+based on the `Flask <https://github.com/pallets/flask>`__ microframework.
 The aim of this project, is to offer a very simplified experience of microservices over the Lambda product
 of AWS and mainly to extends their usage over the asynchronous and orchestration topics.
 
@@ -54,7 +54,7 @@ or `pull requests <https://github.com/aws/coworks/pulls>`__ through GitHub.
 Related Projects
 ----------------
 
-* `Chalice <https://github.com/aws/chalice>`_ - Python Serverless Microframework for AWS.
+* `Flask <https://github.com/pallets/flask>`_ - Lightweight WSGI web application framework (`Donate to Pallets <https://palletsprojects.com/donate>`_).
 * `Click <https://github.com/pallets/click>`_ -  A package for creating beautiful command line interfaces.
 * `Terraform <https://github.com/hashicorp/terraform>`_ - Infrastructure configuration management tool.
 
