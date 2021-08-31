@@ -17,34 +17,78 @@ A tech microservice is simply defined by a single python class which looks like 
 		def get(self):
 			return f"Simple microservice ready.\n"
 
-First try
----------
+Simple try
+----------
 
-To create your first complete technical microservice, create a file ``first.py`` with the following content:
+To create your first complete technical microservice, create a file ``simple.py`` with the following content:
 
-.. literalinclude:: ../samples/docs/quickstart.py
+.. literalinclude:: ../samples/docs/simple.py
 
 This first example defines a very simple microservice ``app`` with a simple ``GET`` entry ``/``
 (see :ref:`routing` for more details on entry)
 
-We have to add a new function ``token_authorizer`` to define an authorizer
+We add a dedicated function ``token_authorizer`` to define an authorizer
 (see :ref:`auth` for more details on authorizer).
 For this simple test, the authorizer validates all token by returning ``True``.
 
-This ``run`` command is defined by the ``Flask`` framework.
-
-Test this microservice locally
+This ``run`` command is defined by the ``Flask`` framework. So to test this microservice locally
 (see `Flask <https://flask.palletsprojects.com/en/2.0.x/quickstart/#a-minimal-application>`_ for more details)::
 
-	(project) $ FLASK_APP first:app cws run
-	Serving on http://127.0.0.1:8000
+	(project) $ FLASK_APP=simple:app cws run
+	* Serving Flask app 'simple:app' (lazy loading)
+	* Environment: production
+	  WARNING: This is a development server. Do not use it in a production deployment.
+	  Use a production WSGI server instead.
+	* Debug mode: off
+	* Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+
 
 On another terminal enter::
 
-	(project) $ curl http://127.0.0.1:5000 -H Authorization=anyvalue
+	(project) $ curl -H "Authorization:any" http://127.0.0.1:5000/
 	Simple microservice ready.
 
 Looks good...
+
+Complete the try
+----------------
+
+To complete our simple try, create a file ``first.py`` with the following content:
+
+.. literalinclude:: ../samples/docs/first.py
+
+This ``run`` command is defined by the ``Flask`` framework. So to test this microservice locally
+(see `Flask <https://flask.palletsprojects.com/en/2.0.x/quickstart/#a-minimal-application>`_ for more details)::
+
+	(project) $ FLASK_APP=first:app cws run
+	* Serving Flask app 'first:app' (lazy loading)
+	* Environment: production
+	  WARNING: This is a development server. Do not use it in a production deployment.
+	  Use a production WSGI server instead.
+	* Debug mode: off
+	* Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+
+
+On another terminal we can test more cases::
+
+	(project) $ curl -I http://127.0.0.1:5000/
+    HTTP/1.0 401 UNAUTHORIZED
+    ...
+
+	(project) $ curl -I -H "Authorization:any" http://127.0.0.1:5000/
+    HTTP/1.0 403 FORBIDDEN
+    ...
+
+	(project) $ curl -H "Authorization:token" http://127.0.0.1:5000/
+    Stored value 0.
+
+    (project) $ curl -X POST -d '{"value":20}' -H "Content-Type: application/json" -H "Authorization:token" http://127.0.0.1:5000/
+    Value stored (20).
+
+	(project) $ curl -H "Authorization:token" http://127.0.0.1:5000/
+    Stored value 20.
+
+*Beware* : the value stored is just for example, if the lambda is redeployed the value is lost.
 
 Deploy the try
 --------------

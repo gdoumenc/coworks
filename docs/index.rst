@@ -17,7 +17,9 @@
 Introduction
 ============
 
-Coworks is a unified serverless microservices framework based on AWS technologies.
+Coworks is a unified serverless microservices framework based on AWS technologies
+(`API Gateway <https://aws.amazon.com/api-gateway/>`_, `AWS Lambda <https://aws.amazon.com/lambda/>`_) and
+the `Flask <https://github.com/pallets/flask>`_ framework.
 
 Each atomic microservice (defined as ``class TechMicroService``) is a simple python class deployed as a serverless
 AWS Lambda and can be called synchronously and asynchrously.

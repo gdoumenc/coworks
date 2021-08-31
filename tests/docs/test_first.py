@@ -1,8 +1,6 @@
-import pytest
 import requests
 import threading
 import time
-from requests.exceptions import ConnectionError
 
 from coworks.utils import import_attr
 
@@ -17,12 +15,21 @@ class TestClass:
         while not server.is_alive() and counter < 10:
             time.sleep(counter)
             counter += 1
-        with pytest.raises(ConnectionError) as pytest_wrapped_e:
-            response = requests.get(f'http://localhost:{unused_tcp_port}/', headers={'Authorization': "none"})
-        assert pytest_wrapped_e.type == ConnectionError
+        response = requests.get(f'http://localhost:{unused_tcp_port}/')
+        assert response.status_code == 401
 
-    import pytest
-    @pytest.mark.wip
+    def test_run_first_wrong_token(self, samples_docs_dir, unused_tcp_port):
+        app = import_attr('first', 'app', cwd=samples_docs_dir)
+        server = threading.Thread(target=run_server_quickstart, args=(app, unused_tcp_port), daemon=True)
+        server.start()
+        counter = 1
+        time.sleep(counter)
+        while not server.is_alive() and counter < 10:
+            time.sleep(counter)
+            counter += 1
+        response = requests.get(f'http://localhost:{unused_tcp_port}/', headers={'Authorization': 'wrong'})
+        assert response.status_code == 403
+
     def test_run_first(self, samples_docs_dir, unused_tcp_port):
         app = import_attr('first', 'app', cwd=samples_docs_dir)
         server = threading.Thread(target=run_server_quickstart, args=(app, unused_tcp_port), daemon=True)

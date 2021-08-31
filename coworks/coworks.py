@@ -6,7 +6,6 @@ import os
 import typing as t
 from flask import Blueprint as FlaskBlueprint
 from flask import Flask
-from flask import Response as FlaskResponse
 from flask import abort
 from flask import current_app
 from flask.blueprints import BlueprintSetupState
@@ -21,9 +20,12 @@ from .config import DEFAULT_WORKSPACE
 from .config import DevConfig
 from .config import LocalConfig
 from .config import ProdConfig
+from .globals import request
 from .utils import HTTP_METHODS
 from .utils import init_routes
 from .utils import trim_underscores
+from .wrappers import ApiResponse
+from .wrappers import Request
 
 
 #
@@ -117,11 +119,6 @@ class TokenResponse:
         }
 
 
-class ApiResponse(FlaskResponse):
-    """Default mimetype is redefined."""
-    default_mimetype = "application/json"
-
-
 class CoworksClient(FlaskClient):
     """Redefined to force mimetype to be 'text/plain' in case of string return.
     """
@@ -199,10 +196,21 @@ class TechMicroService(Flask):
         super().__init__(import_name=name, static_folder=None, **kwargs)
 
         self.test_client_class = CoworksClient
+        self.request_class = Request
         self.response_class = ApiResponse
 
         self.any_token_authorized = False
         self._coworks_initialized = False
+
+        @self.before_request
+        def auth():
+            if not request.in_aws_lambda:
+                token = request.headers.get('Authorization')
+                if token is None:
+                    abort(401)
+                valid = self.token_authorizer(token)
+                if not valid:
+                    abort(403)
 
     def deferred_init(self) -> None:
         """Deferred initialization.
@@ -224,7 +232,7 @@ class TechMicroService(Flask):
         return AppCtx(self)
 
     def request_context(self, environ: dict) -> RequestContext:
-        """Redefined to add Lmabda event and context."""
+        """Redefined to add Lambda event and context in globals."""
         ctx = super().request_context(environ)
         ctx.aws_event = environ.get('aws_event')
         ctx.aws_context = environ.get('aws_context')
@@ -339,14 +347,7 @@ class TechMicroService(Flask):
         """Flask handler.
         """
 
-        # No need for authorization in lambda context (already done)
-        if 'aws_event' in environ:
-            return self._convert_response(self.wsgi_app(environ, start_response))
-
-        valid = self.token_authorizer(environ.get('HTTP_AUTHORIZATION'))
-        if valid:
-            return self._convert_response(self.wsgi_app(environ, start_response))
-        abort(403)
+        return self._convert_response(self.wsgi_app(environ, start_response))
 
     def _convert_response(self, resp):
         """Convert response in serializable content, status and header."""

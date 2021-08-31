@@ -14,6 +14,6 @@ class TestClass:
         app = TechMS()
         app.register_blueprint(BP("bp"))
         with app.test_client() as c:
-            response = c.get('/')
+            response = c.get('/', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == 'blueprint test'

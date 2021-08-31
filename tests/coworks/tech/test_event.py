@@ -118,7 +118,7 @@ class TestClass:
             assert response['body'] == "post content with 3 and other"
             response = app(get_event('/content/3', 'post', body="other"), empty_context)
             assert response['statusCode'] == 200
-            assert response['body'] == "post content with 3 and none"
+            assert response['body'] == "post content with 3 and other"
             response = app(get_event('/content/3', 'post', body={"other": 'other', "value": 5}), empty_context)
             assert response['statusCode'] == 400
 
