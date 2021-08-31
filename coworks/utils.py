@@ -3,12 +3,12 @@ import inspect
 import os
 import platform
 import sys
-
 from aws_xray_sdk.core.exceptions.exceptions import SegmentNotFoundException
 from flask import Response
-from flask import request
 from flask.blueprints import BlueprintSetupState
 from functools import partial
+
+from .globals import request
 
 HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
 
@@ -60,10 +60,8 @@ def init_routes(app, bp_state: BlueprintSetupState = None, hide_routes: bool = F
 def _create_rest_proxy(app, func, kwarg_keys, args, varkw):
     import traceback
 
-    import urllib
     from aws_xray_sdk.core import xray_recorder
     from functools import update_wrapper, partial
-    from requests_toolbelt.multipart import MultipartDecoder
 
     original_app_class = app.__class__
 
@@ -76,56 +74,45 @@ def _create_rest_proxy(app, func, kwarg_keys, args, varkw):
                     err_msg = f"TypeError: got an unexpected keyword argument '{param_name}'"
                     return Response(err_msg, 400)
 
-            def add_param(param_name, param_value):
-                check_param_expected_in_lambda(param_name)
-                if param_name in params:
-                    if isinstance(params[param_name], list):
-                        params[param_name].append(param_value)
-                    else:
-                        params[param_name] = [params[param_name], param_value]
-                else:
-                    params[param_name] = param_value
+            def as_fun_params(values: dict, flat=True):
+                """Set parameters as simple value or list of values if multiple defined.
+               :param values: Dict of values.
+               :param flat: If set to True the list values of lenth 1 is retrun as single value.
+                """
+                params = {}
+                for k, v in values.items():
+                    check_param_expected_in_lambda(k)
+                    params[k] = v[0] if flat and len(v) == 1 else v
+                return params
 
             # get keyword arguments from request
             if kwarg_keys or varkw:
-                params = {}
 
                 # adds parameters from query parameters
                 if request.method == 'GET':
-                    for k in request.values or {}:
-                        v = request.values.getlist(k)
-                        add_param(k, v if len(v) > 1 else v[0])
-                    kwargs = dict(**kwargs, **params)
+                    data = request.values.to_dict(False)
+                    kwargs = dict(**kwargs, **as_fun_params(data))
 
                 # adds parameters from body parameter
                 elif request.method in ['POST', 'PUT']:
                     try:
-                        content_type = request.headers.get('content-type', 'application/json')
-                        if content_type.startswith('multipart/form-data'):
-                            try:
-                                multipart_decoder = MultipartDecoder(request.raw_body, content_type)
-                                for part in multipart_decoder.parts:
-                                    name, content = get_multipart_content(part)
-                                    add_param(name, content)
-                            except Exception as e:
-                                return Response(str(e), 400)
-                            kwargs = dict(**kwargs, **params)
-                        elif content_type.startswith('application/x-www-form-urlencoded'):
-                            params = urllib.parse.parse_qs(request.raw_body.decode("utf-8"))
-                            kwargs = dict(**kwargs, **params)
-                        elif content_type.startswith('application/json'):
-                            if hasattr(request.json, 'items'):
-                                params = {}
-                                for k, v in request.json.items():
-                                    add_param(k, v)
-                                kwargs = dict(**kwargs, **params)
-                            # else:
-                            #     kwargs[kwarg_keys[0]] = request.json
-                        elif content_type.startswith('text/plain'):
-                            kwargs[kwarg_keys[0]] = request.json
+                        mimetype = request.mimetype
+                        if request.is_json:
+                            data = request.json
+                            if type(data) is dict:
+                                kwargs = dict(**kwargs, **as_fun_params(data, False))
+                            else:
+                                kwargs[kwarg_keys[0]] = data
+                        elif mimetype.startswith('multipart/form-data'):
+                            # TODO: missing file param
+                            data = request.form.to_dict(False)
+                            kwargs = dict(**kwargs, **as_fun_params(data))
+                        elif mimetype.startswith('application/x-www-form-urlencoded'):
+                            data = request.form.to_dict(False)
+                            kwargs = dict(**kwargs, **as_fun_params(data))
                         else:
-                            err = f"Cannot manage content type {content_type} for {app}"
-                            return Response(err, 400)
+                            data = request.values.to_dict(False)
+                            kwargs = dict(**kwargs, **as_fun_params(data))
                     except Exception as e:
                         app.logger.error(traceback.print_exc())
                         app.logger.debug(e)
@@ -144,13 +131,7 @@ def _create_rest_proxy(app, func, kwarg_keys, args, varkw):
                         err = f"TypeError: got an unexpected arguments (query: {request.query_string})"
                         return Response(err, 400)
 
-            # # chalice is changing class for local server for threading reason (why not mixin..?)
-            # self_class = self.__class__
-            # if self_class != original_app_class:
-            #     self.__class__ = original_app_class
-
             resp = func(app, **kwargs)
-            # self.__class__ = self_class
             return resp
         except TypeError as e:
             return Response(str(e), 400)

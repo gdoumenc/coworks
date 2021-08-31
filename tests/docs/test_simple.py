@@ -9,7 +9,7 @@ from coworks.utils import import_attr
 class TestClass:
 
     def test_run_quickstart(self, samples_docs_dir, unused_tcp_port):
-        app = import_attr('quickstart', 'app', cwd=samples_docs_dir)
+        app = import_attr('simple', 'app', cwd=samples_docs_dir)
         server = threading.Thread(target=run_server_quickstart, args=(app, unused_tcp_port), daemon=True)
         server.start()
         counter = 1

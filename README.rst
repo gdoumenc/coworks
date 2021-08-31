@@ -19,8 +19,10 @@
 .. |GitHub license| image:: https://img.shields.io/github/license/gdoumenc/coworks?style=plastic
     :alt: GitHub
 
-Coworks is an unified compositional microservices framework over AWS technologies and
-based on the `Flask <https://github.com/pallets/flask>`__ microframework.
+Coworks is a unified serverless microservices framework based on AWS technologies
+(`API Gateway <https://aws.amazon.com/api-gateway/>`_, `AWS Lambda <https://aws.amazon.com/lambda/>`_) and
+the `Flask <https://github.com/pallets/flask>`_ framework.
+
 The aim of this project, is to offer a very simplified experience of microservices over the Lambda product
 of AWS and mainly to extends their usage over the asynchronous and orchestration topics.
 

@@ -67,130 +67,130 @@ class TestClass:
     def test_request_arg(self):
         app = SimpleMS()
         with app.test_client() as c:
-            response = c.get('/')
+            response = c.get('/', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "get"
             assert 'Content-Type' in response.headers
             assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
             assert 'Content-Length' in response.headers
             assert response.headers['Content-Length'] == str(len(response.get_data(as_text=True)))
-            response = c.post('/')
+            response = c.post('/', headers={'Authorization': 'token'})
             assert response.status_code == 405
-            response = c.get('/get1')
+            response = c.get('/get1', headers={'Authorization': 'token'})
             assert response.status_code == 404
-            response = c.get('/content')
+            response = c.get('/content', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "get content"
-            response = c.get('/content/3')
+            response = c.get('/content/3', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "get content with 3"
-            response = c.get('/content/3/other')
+            response = c.get('/content/3/other', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "get content with 3 and other"
-            response = c.post('/content', json={"other": 'other'})
+            response = c.post('/content', json={"other": 'other'}, headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "post content without value but other"
-            response = c.post('/content/3', json={"other": 'other'})
+            response = c.post('/content/3', json={"other": 'other'}, headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "post content with 3 and other"
-            response = c.post('/content/3', json="other")
+            response = c.post('/content/3', json="other", headers={'Authorization': 'token'})
             assert response.status_code == 200
-            assert response.get_data(as_text=True) == "post content with 3 and none"
-            response = c.post('/content/3', json={"other": 'other', "value": 5})
+            assert response.get_data(as_text=True) == "post content with 3 and other"
+            response = c.post('/content/3', json={"other": 'other', "value": 5}, headers={'Authorization': 'token'})
             assert response.status_code == 400
 
     def test_request_kwargs(self):
         app = SimpleMS()
         with app.test_client() as c:
-            response = c.get('/kwparam1?value=5')
+            response = c.get('/kwparam1?value=5', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "get **param with only 5"
-            response = c.get('/kwparam1?other=other&value=5')
+            response = c.get('/kwparam1?other=other&value=5', headers={'Authorization': 'token'})
             assert response.status_code == 400
-            response = c.get('/kwparam1?value=5')
+            response = c.get('/kwparam1?value=5', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "get **param with only 5"
-            response = c.get('/kwparam1', json={"other": 'other', "value": 5})
+            response = c.get('/kwparam1', json={"other": 'other', "value": 5}, headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "get **param with only 0"
-            response = c.get('/kwparam2?other=other&value=5')
+            response = c.get('/kwparam2?other=other&value=5', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "get **param with 5 and ['other']"
-            response = c.get('/kwparam2', json={"other": 'other', "value": 5})
+            response = c.get('/kwparam2', json={"other": 'other', "value": 5}, headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "get **param with 0 and []"
-            response = c.put('/kwparam2', json={"other": 'other', "value": 5})
+            response = c.put('/kwparam2', json={"other": 'other', "value": 5}, headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "get **param with 5 and ['other']"
-            response = c.put('/kwparam2?other=other&value=5')
+            response = c.put('/kwparam2?other=other&value=5', headers={'Authorization': 'token'})
             assert response.status_code == 200
-            assert response.get_data(as_text=True) == "get **param with 0 and []"
+            assert response.get_data(as_text=True) == "get **param with 5 and ['other']"
 
-            response = c.get('/extended/content')
+            response = c.get('/extended/content', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "hello world"
 
     def test_parameterized(self):
         app = ParamMS()
         with app.test_client() as c:
-            response = c.get('/123')
+            response = c.get('/123', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == '123'
-            response = c.get('/concat/123/456')
+            response = c.get('/concat/123/456', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == '123456'
-            response = c.get('/value')
+            response = c.get('/value', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == '123'
-            response = c.put("/value", json={'value': "456"})
+            response = c.put("/value", json={'value': "456"}, headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == '456'
-            response = c.get("/value")
+            response = c.get("/value", headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == '456'
-            response = c.get('/param/test1')
+            response = c.get('/param/test1', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == 'test1default1default2'
-            response = c.get('/param/test1?param1=value1')
+            response = c.get('/param/test1?param1=value1', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == 'test1value1default2'
-            response = c.get('/param/test1?param2=value2')
+            response = c.get('/param/test1?param2=value2', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == 'test1default1value2'
-            response = c.get('/param/test1?param1=value1&param2=value2')
+            response = c.get('/param/test1?param1=value1&param2=value2', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == 'test1value1value2'
-            response = c.get('/param/test1?param1=value1&param1=value2')
+            response = c.get('/param/test1?param1=value1&param1=value2', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "test1['value1', 'value2']default2"
 
     def test_slug_parameterized(self):
         app = ParamMS()
         with app.test_client() as c:
-            response = c.get('/123')
+            response = c.get('/123', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == '123'
-            response = c.get('/concat/123/456')
+            response = c.get('/concat/123/456', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == '123456'
 
     def test_tuple_returned(self):
         app = TupleReturnedMS()
         with app.test_client() as c:
-            headers = {'Content-type': 'text/plain', 'Accept': 'text/plain'}
+            headers = {'Content-type': 'text/plain', 'Accept': 'text/plain', 'Authorization': 'token'}
             response = c.get('/', headers=headers)
             assert response.status_code == 200
             assert response.get_data(as_text=True) == 'ok'
             assert response.headers['content-type'] == 'text/plain; charset=utf-8'
-            response = c.get('/json')
+            response = c.get('/json', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.json['value'] == 'ok'
             assert response.headers['content-type'] == 'application/json'
-            response = c.get('/resp/ok')
+            response = c.get('/resp/ok', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == 'ok'
             assert response.headers['content-type'] == 'text/plain; charset=utf-8'
-            response = c.get('/tuple/test')
+            response = c.get('/tuple/test', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.headers['content-type'] == 'text/plain; charset=utf-8'
             assert response.headers['x-test'] == 'true'
@@ -201,9 +201,9 @@ class TestClass:
         with app.app_context():
             assert '/test' in app.routes
         with app.test_client() as c:
-            response = c.get('/123')
+            response = c.get('/123', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == '123'
-            response = c.post('/test')
+            response = c.post('/test', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.json == {'value': "ok"}

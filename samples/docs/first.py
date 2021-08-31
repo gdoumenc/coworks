@@ -23,6 +23,3 @@ class SimpleMicroService(TechMicroService):
 
 
 app = SimpleMicroService(name="sample-first-microservice")
-
-# FLASK_APP=samples.docs.first:app cws run
-# FLASK_APP=samples.docs.first:app cws deploy

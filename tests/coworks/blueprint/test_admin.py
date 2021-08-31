@@ -54,7 +54,7 @@ class TestClass:
         app = DocumentedMS()
         app.register_blueprint(Admin(), url_prefix="/admin")
         with app.test_client() as c:
-            response = c.get('/admin/route')
+            response = c.get('/admin/route', headers={'Authorization': 'token'})
             assert response.status_code == 200
             routes = json.loads(response.get_data(as_text=True))
             assert routes["/"]['GET'] == {
@@ -83,7 +83,7 @@ class TestClass:
         app.register_blueprint(Admin(), url_prefix="/admin")
         app.register_blueprint(HiddenBlueprint(), url_prefix="/hidden", hide_routes=True)
         with app.test_client() as c:
-            response = c.get('/admin/route')
+            response = c.get('/admin/route', headers={'Authorization': 'token'})
             assert response.status_code == 200
             routes = json.loads(response.get_data(as_text=True))
             assert '/hidden' not in routes
