@@ -1,9 +1,12 @@
 import io
+from aws_xray_sdk.core import xray_recorder
 from werkzeug.middleware.profiler import ProfilerMiddleware
 
 from coworks import TechMicroService
 from coworks import entry
 from coworks.blueprint import Admin
+from coworks.middleware.xray import XRayMiddleware
+
 
 class SimpleMicroService(TechMicroService):
 
@@ -36,6 +39,7 @@ app = SimpleMicroService(name="sample-complete-microservice")
 app.register_blueprint(Admin(), url_prefix='/admin')
 
 app.wsgi_app = ProfilerMiddleware(app.wsgi_app, stream=app.output)
+XRayMiddleware(app, xray_recorder)
 
 # FLASK_APP=samples.docs.complete:app cws run
 # FLASK_APP=samples.docs.complete:app cws deploy

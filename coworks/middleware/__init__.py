@@ -1,1 +1,1 @@
-from .xray import XRayContextManager
+from .xray import XRayMiddleware
