@@ -96,18 +96,17 @@ def _create_rest_proxy(app, func, kwarg_keys, args, varkw):
                 # adds parameters from body parameter
                 elif request.method in ['POST', 'PUT']:
                     try:
-                        mimetype = request.mimetype
                         if request.is_json:
                             data = request.json
                             if type(data) is dict:
                                 kwargs = dict(**kwargs, **as_fun_params(data, False))
                             else:
                                 kwargs[kwarg_keys[0]] = data
-                        elif mimetype.startswith('multipart/form-data'):
+                        elif request.is_multipart:
                             # TODO: missing file param
                             data = request.form.to_dict(False)
                             kwargs = dict(**kwargs, **as_fun_params(data))
-                        elif mimetype.startswith('application/x-www-form-urlencoded'):
+                        elif request.is_form_urlencoded:
                             data = request.form.to_dict(False)
                             kwargs = dict(**kwargs, **as_fun_params(data))
                         else:

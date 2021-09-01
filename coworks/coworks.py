@@ -204,7 +204,7 @@ class TechMicroService(Flask):
 
         @self.before_request
         def auth():
-            if not request.in_aws_lambda:
+            if not request.in_lambda_context:
                 token = request.headers.get('Authorization')
                 if token is None:
                     abort(401)
