@@ -1,9 +1,10 @@
-from dataclasses import dataclass
-from json import JSONDecodeError
-
 import logging
 import os
 import typing as t
+from dataclasses import dataclass
+from functools import partial
+from json import JSONDecodeError
+
 from flask import Blueprint as FlaskBlueprint
 from flask import Flask
 from flask import abort
@@ -12,7 +13,6 @@ from flask.blueprints import BlueprintSetupState
 from flask.ctx import AppContext as FlaskAppContext
 from flask.ctx import RequestContext
 from flask.testing import FlaskClient
-from functools import partial
 from werkzeug.routing import Rule
 
 from .config import Config
@@ -221,6 +221,8 @@ class TechMicroService(Flask):
             config = self.get_config(workspace)
             self.config.update(config.asdict())
 
+            # config.load_environment_variables()
+
             # Initializes routes and deferred initializations
             init_routes(self)
             for bp in self.blueprints.values():
@@ -237,6 +239,15 @@ class TechMicroService(Flask):
         ctx.aws_event = environ.get('aws_event')
         ctx.aws_context = environ.get('aws_context')
         return ctx
+
+    def cws_client(self, event, context):
+        """CoWorks client with new globals."""
+        return super().test_client(aws_event=event, aws_context=context)
+
+    def test_client(self, *args, **kwargs):
+        """This client must be used only for testing."""
+        self.testing = True
+        return super().test_client(*args, **kwargs)
 
     @property
     def ms_type(self) -> str:
@@ -320,7 +331,7 @@ class TechMicroService(Flask):
 
         # Transform as simple test call
         try:
-            with self.test_client(aws_event=event, aws_context=context) as c:
+            with self.cws_client(event, context) as c:
                 method = event['httpMethod']
                 kwargs = {'json': event['body']} if method in ['PUT', 'POST'] else {}
                 res = getattr(c, method.lower())(full_path(), **kwargs)

@@ -9,7 +9,7 @@ class SimpleMicroService(TechMicroService):
 
     @entry
     def get(self):
-        return "Simple microservice ready.\n"
+        return "Hello world.\n"
 
 
 app = SimpleMicroService()

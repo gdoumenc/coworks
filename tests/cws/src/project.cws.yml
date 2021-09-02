@@ -1,12 +1,7 @@
 version: 3
-services:
-  - module: example
-    services:
-      - project1
-      - project2
 commands:
   test:
-    class: test_cmd.test_cmd
+    class: cmd.cmd
     b: value
     a: default
     services:

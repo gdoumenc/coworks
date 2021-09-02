@@ -8,9 +8,9 @@ from coworks.utils import import_attr
 
 class TestClass:
 
-    def test_run_quickstart(self, samples_docs_dir, unused_tcp_port):
+    def test_run_simple(self, samples_docs_dir, unused_tcp_port):
         app = import_attr('simple', 'app', cwd=samples_docs_dir)
-        server = threading.Thread(target=run_server_quickstart, args=(app, unused_tcp_port), daemon=True)
+        server = threading.Thread(target=run_server, args=(app, unused_tcp_port), daemon=True)
         server.start()
         counter = 1
         time.sleep(counter)
@@ -18,9 +18,9 @@ class TestClass:
             time.sleep(counter)
             counter += 1
         response = requests.get(f'http://localhost:{unused_tcp_port}/', headers={'Authorization': "token"})
-        assert response.text == "Simple microservice ready.\n"
+        assert response.text == "Hello world.\n"
 
 
-def run_server_quickstart(app, port,):
+def run_server(app, port,):
     print(f"Server starting on port {port}")
     app.run(host='localhost', port=port)

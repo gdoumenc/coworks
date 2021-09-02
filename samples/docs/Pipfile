@@ -4,6 +4,6 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [packages]
-coworks = {editable = true, path = "/home/gdo/workspace/coworks"}
+coworks = "*"
 
 [dev-packages]
