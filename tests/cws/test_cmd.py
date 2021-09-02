@@ -97,7 +97,7 @@ class TestClass:
 
     def test_api_ressources(self, example_dir, capsys):
         app = import_attr('cmd', 'app', cwd=example_dir)
-        with app.app_context() as ctx:
+        with app.test_request_context() as ctx:
             api_ressources = Terraform(working_dir=example_dir).api_resources(app)
         assert len(api_ressources) == 5
         assert '' in api_ressources
@@ -114,7 +114,7 @@ class TestClass:
         monkeypatch.setattr(boto3, "Session", Mock(return_value=Mock(return_value='region')))
         app = import_attr('cmd', 'app', cwd=example_dir)
         config = app.get_config('workspace')
-        with app.app_context() as ctx:
+        with app.test_request_context() as ctx:
             options = {
                 'project_dir': example_dir,
                 'workspace': 'workspace',

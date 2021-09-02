@@ -1,24 +1,22 @@
+from dataclasses import dataclass
+from json import JSONDecodeError
+
 import logging
 import os
 import typing as t
-from dataclasses import dataclass
-from functools import partial
-from json import JSONDecodeError
-
 from flask import Blueprint as FlaskBlueprint
 from flask import Flask
 from flask import abort
 from flask import current_app
 from flask.blueprints import BlueprintSetupState
-from flask.ctx import AppContext as FlaskAppContext
 from flask.ctx import RequestContext
 from flask.testing import FlaskClient
+from functools import partial
 from werkzeug.routing import Rule
 
 from .config import Config
 from .config import DEFAULT_WORKSPACE
 from .config import DevConfig
-from .config import LocalConfig
 from .config import ProdConfig
 from .globals import request
 from .utils import HTTP_METHODS
@@ -64,17 +62,6 @@ def hide(fun: t.Callable) -> t.Callable:
 #
 # Classes
 #
-
-
-class AppCtx(FlaskAppContext):
-    """Coworks application context adding deferred initaliszation."""
-
-    def push(self) -> None:
-        super().push()
-
-        # Must be done only once the application context is pushed (for global current app)
-        app = t.cast(TechMicroService, self.app)
-        app.deferred_init()
 
 
 @dataclass
@@ -154,25 +141,20 @@ class Blueprint(FlaskBlueprint):
         """
         import_name = self.__class__.__name__.lower()
         super().__init__(name or import_name, import_name)
-        self.deferred_init_functions: t.List[t.Callable] = []
 
     @property
     def logger(self) -> logging.Logger:
         return current_app.logger
 
-    def make_setup_state(self, app: Flask, options: t.Dict, *args) -> BlueprintSetupState:
+    def make_setup_state(self, app: "TechMicroService", options: t.Dict, *args) -> BlueprintSetupState:
         """Stores creation state for deferred initialization."""
         state = super().make_setup_state(app, options, *args)
 
         # Defer blueprint route initialization.
         if not options.get('hide_routes', False):
-            self.deferred_init_functions.append(partial(init_routes, app, state))
+            app.deferred_init_routes_functions.append(partial(init_routes, app, state))
 
         return state
-
-    def deferred_init(self) -> None:
-        for fun in self.deferred_init_functions:
-            fun()
 
 
 class TechMicroService(Flask):
@@ -189,7 +171,7 @@ class TechMicroService(Flask):
         """
         name = name or self.__class__.__name__.lower()
 
-        self.configs = configs or [LocalConfig(), DevConfig(), ProdConfig()]
+        self.configs = configs or [DevConfig(), ProdConfig()]
         if type(self.configs) is not list:
             self.configs = [configs]
 
@@ -200,7 +182,9 @@ class TechMicroService(Flask):
         self.response_class = ApiResponse
 
         self.any_token_authorized = False
-        self._coworks_initialized = False
+        self.deferred_init_routes_functions: t.List[t.Callable] = []
+        self._cws_app_initialized = False
+        self._cws_env_initialized = False
 
         @self.before_request
         def auth():
@@ -212,32 +196,31 @@ class TechMicroService(Flask):
                 if not valid:
                     abort(403)
 
-    def deferred_init(self) -> None:
-        """Deferred initialization.
-        Python initialization is done on module loading, this initialization is done on first use.
-        """
-        if not self._coworks_initialized:
-            workspace = os.environ.get('WORKSPACE', DEFAULT_WORKSPACE)
-            config = self.get_config(workspace)
-            self.config.update(config.asdict())
-
-            # config.load_environment_variables()
-
-            # Initializes routes and deferred initializations
+    def app_context(self):
+        """Override to initialize coworks microservice."""
+        if not self._cws_app_initialized:
             init_routes(self)
-            for bp in self.blueprints.values():
-                t.cast(Blueprint, bp).deferred_init()
-            self._coworks_initialized = True
-
-    def app_context(self) -> AppCtx:
-        """Override to return CoWorks application context."""
-        return AppCtx(self)
+            for fun in self.deferred_init_routes_functions:
+                fun()
+            self._cws_app_initialized = True
+        return super().app_context()
 
     def request_context(self, environ: dict) -> RequestContext:
-        """Redefined to add Lambda event and context in globals."""
+        """Redefined to :
+        - initialize the environment
+        - add Lambda event and context in globals.
+        """
         ctx = super().request_context(environ)
         ctx.aws_event = environ.get('aws_event')
         ctx.aws_context = environ.get('aws_context')
+
+        cws_request = t.cast(Request, ctx.request)
+        if not self._cws_env_initialized and not cws_request.in_lambda_context:
+            workspace = os.environ.get('WORKSPACE', DEFAULT_WORKSPACE)
+            config = self.get_config(workspace)
+            self.config.update(config.asdict())
+            config.load_environment_variables('tests/cws/src')
+
         return ctx
 
     def cws_client(self, event, context):

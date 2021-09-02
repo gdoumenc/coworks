@@ -22,12 +22,13 @@ class Admin(Blueprint):
         for rule in current_app.url_map.iter_rules():
             route = {}
             for http_method in rule.methods:
-                function_called = current_app.view_functions[rule.endpoint]
-                doc = inspect.getdoc(function_called)
-                route[http_method] = {
-                    'doc': doc.replace('\n', ' ') if doc else '',
-                    'signature': get_signature(function_called)
-                }
+                if http_method not in ['HEAD', 'OPTIONS']:
+                    function_called = current_app.view_functions[rule.endpoint]
+                    doc = inspect.getdoc(function_called)
+                    route[http_method] = {
+                        'doc': doc.replace('\n', ' ') if doc else '',
+                        'signature': get_signature(function_called)
+                    }
             routes[rule.rule] = route
 
         kwargs = {'indent': 4, 'separators': (",", ": ")} if pretty else {}

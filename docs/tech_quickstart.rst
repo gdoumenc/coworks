@@ -17,8 +17,8 @@ A tech microservice is simply defined by a single python class which looks like 
 		def get(self):
 			return f"Simple microservice ready.\n"
 
-Simple try
-----------
+Start
+-----
 
 To create your first complete technical microservice, create a file ``simple.py`` with the following content:
 
@@ -27,11 +27,11 @@ To create your first complete technical microservice, create a file ``simple.py`
 This first example defines a very simple microservice ``app`` with a simple ``GET`` entry ``/``
 (see :ref:`routing` for more details on entry)
 
-We add a dedicated function ``token_authorizer`` to define an authorizer
+We set the attribute ``any_token_authorized`` to allow any token as valid.
+For security reaqson the default value is ``False``
 (see :ref:`auth` for more details on authorizer).
-For this simple test, the authorizer validates all token by returning ``True``.
 
-This ``run`` command is defined by the ``Flask`` framework. So to test this microservice locally
+We now can launch the ``run`` command defined by the ``Flask`` framework. So to test this microservice locally
 (see `Flask <https://flask.palletsprojects.com/en/2.0.x/quickstart/#a-minimal-application>`_ for more details)::
 
 	(project) $ FLASK_APP=simple:app cws run
@@ -46,32 +46,25 @@ This ``run`` command is defined by the ``Flask`` framework. So to test this micr
 On another terminal enter::
 
 	(project) $ curl -H "Authorization:any" http://127.0.0.1:5000/
-	Simple microservice ready.
+	Hello world.
 
 Looks good...
 
-Complete the try
-----------------
+More
+----
 
-To complete our simple try, create a file ``complete.py`` with the following content:
+To add more elements, complete the try with the following content:
 
 .. literalinclude:: ../samples/docs/first.py
 
-This ``run`` command is defined by the ``Flask`` framework. So to test this microservice locally
-(see `Flask <https://flask.palletsprojects.com/en/2.0.x/quickstart/#a-minimal-application>`_ for more details)::
+We have added a dedicated function ``token_authorizer`` to define an authorizer
+(see :ref:`auth` for more details on authorizer).
+For this simple try, the authorizer validates the request only if a token is defined on header withe ``token``
+as value.
 
-*Beware* : `aws_xray_sdk` must be install in your python environment.
+Then have defined two entries on same path : ``GET`` and ``POST`` on root path.
 
-	(project) $ FLASK_APP=first:app cws run
-	* Serving Flask app 'first:app' (lazy loading)
-	* Environment: production
-	  WARNING: This is a development server. Do not use it in a production deployment.
-	  Use a production WSGI server instead.
-	* Debug mode: off
-	* Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
-
-
-On another terminal we can test more cases::
+On the another terminal enter::
 
 	(project) $ curl -I http://127.0.0.1:5000/
     HTTP/1.0 401 UNAUTHORIZED
@@ -90,78 +83,99 @@ On another terminal we can test more cases::
 	(project) $ curl -H "Authorization:token" http://127.0.0.1:5000/
     Stored value 20.
 
-*Beware* : the value stored is just for example, if the lambda is redeployed the value is lost.
+*Beware* : the value stored is just for example, if the lambda is redeployed or another lambda instance used the value is lost.
 
-Deploy the try
---------------
+Complete
+--------
 
-For that purpose, we add the ``deploy`` command to the microservice defined with the use of ``terraform``
-(see `Terraform <https://www.terraform.io/>`_ for more details on Terraform).
-
-For that purpose we have to define a project configuration file which defines this command::
-
-.. literalinclude:: ../samples/docs/quickstart.cws.yml
-
-And now we can upload the sources files to AWS S3 and apply terraform planifications::
-
-	(project) $ FLASK_APP=first:app cws deploy
-	Terraform apply (Create API routes)
-    Terraform apply (Deploy API and Lambda for the dev stage)
-    terraform output :
-    classical_id = "c2ti48s5f0"
- 	(project) $
-
-As you can see, the command options are defined after the command itself :
-``-p`` for the AWS credential profile,
-``-b`` for the bucket name (see :ref:`command_definition` for more details on command options).
-
-The ``-c`` option is not really needed but should be used each time you create an API to have expected messages.
-It forces to accept API deletion ; this may happen on API modification so it is a good principle to use it only on API creation.
-The ``-l`` option is for adding a layer to this lambda function.
-
-In case you cannot use this layer, you can get the content file at
-`CoWorks Layers <https://coworks-layer.s3-eu-west-1.amazonaws.com/coworks-0.5.0.zip/>`_ and create a layer with it.
-
-Now we can try our first deployed microservice::
-
-	(project) $ curl -H "Authorization:test" https://3avoth9jcg.execute-api.eu-west-1.amazonaws.com/dev
-	Simple microservice ready.
-
-Full project
-------------
-
-To complete we had a more complex microservice using the XRay context manager :
+At last to have a complete case, enter the following content:
 
 .. literalinclude:: ../samples/docs/complete.py
 
-To avoid specifying all the options for the command, a project configuration file may be defined.
-Let's define a very simple one:
+*Note* : `aws_xray_sdk` must be installed in your python environment for the lambda.
 
-.. literalinclude:: ../samples/docs/quickstart.cws.yml
+We have added some blueprints and middlewares to add routes and functionalities.
 
-A complete description of the syntax for the configuration project file is defined in.
-Then the comand may simply called by:
+The ``Admin`` blueprint adds several routes but mainly the ``route`` one::
 
-.. code-block:: shell
+    (project) $ curl -H "Authorization:token" http://127.0.0.1:5000/admin/route?pretty=1
+    {
+        "/": {
+            "POST": {
+                "doc": "",
+                "signature": "(value=None)"
+            }
+        },
+        "/admin/context": {
+            "GET": {
+                "doc": "Returns the calling context.",
+                "signature": "()"
+            }
+        },
+        "/admin/env": {
+            "GET": {
+                "doc": "Returns the stage environment.",
+                "signature": "()"
+            }
+        },
+        "/admin/event": {
+            "GET": {
+                "doc": "Returns the calling context.",
+                "signature": "()"
+            }
+        },
+        "/admin/route": {
+            "GET": {
+                "doc": "Returns the list of entrypoints with signature.",
+                "signature": "(pretty=False)"
+            }
+        },
+        "/profile": {
+            "GET": {
+                "doc": "",
+                "signature": "()"
+            }
+        }
+    }
 
-	(project) $ cws deploy
-	Uploading zip to S3
-	Terraform apply (Update API)
-	Terraform apply (Update lambda)
-	Terraform apply (Update API routes)
-	Terraform apply (Deploy API dev)
-	terraform output : {'simplemicroservice': {'id': '3avoth9jcg'}}
-	(project) $ curl -H "Authorization:test" https://3avoth9jcg.execute-api.eu-west-1.amazonaws.com/dev
+We have also a WSGI middleware ``ProfilerMiddleware`` to profile the last request::
+
+    (project) $ curl -H "Authorization:token" http://127.0.0.1:5000/profile
+    --------------------------------------------------------------------------------
+    PATH: '/admin/route'
+             14689 function calls (14287 primitive calls) in 0.012 seconds
+
+       Ordered by: internal time, call count
+
+       ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+           42    0.001    0.000    0.001    0.000 {built-in method builtins.compile}
+          728    0.001    0.000    0.002    0.000 /home/gdo/.pyenv/versions/3.8.11/lib/python3.8/ast.py:222(iter_child_nodes)
+           14    0.001    0.000    0.006    0.000 /home/gdo/.local/share/virtualenvs/coworks-otSHAmdg/lib/python3.8/site-packages/werkzeug/routing.py:968(_compile_builder)
+    ...
+
+
+And at last we have a CoWorks middleware to add XRay traces (available only in case of deployed).
+
+Deploy
+------
+
+We the add a ``deploy`` command defined in the file ``project.cws.yml``:
+
+.. literalinclude:: ../samples/docs/project.cws.yml
+
+This project configuration file defines two commands ``zip`` and ``deploy`` (``zip`` is used by ``deploy``).
+
+And now we can upload the sources files to AWS S3 and apply predefined terraform planifications::
+
+	(project) $ FLASK_APP=simple:app cws deploy
+	Terraform apply (Create API routes)
+	Terraform apply (Deploy API and Lambda for the dev stage)
+	terraform output :
+	classical_id = "xxxxxxxx"
+ 	(project) $
+
+Now we can try our first deployed microservice::
+
+	(project) $ curl -H "Authorization:test" https://xxxxxxxx.execute-api.eu-west-1.amazonaws.com/dev
 	Stored value 0.
-	(project) $ curl -H "Authorization:test" -H "Content-Type: application/json" -X POST -d '{"value":10}' https://3avoth9jcg.execute-api.eu-west-1.amazonaws.com/dev
-	Value stored.
-	(project) $ curl -H "Authorization:test" https://3avoth9jcg.execute-api.eu-west-1.amazonaws.com/dev
-	Stored value 10.
 
-
-Commands
---------
-
-To view all CoWorks global options::
-
-	(project) $ cws --help

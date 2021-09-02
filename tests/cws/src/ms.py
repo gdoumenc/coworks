@@ -14,7 +14,7 @@ class EnvTechMS(TechMicroService):
 
         @self.before_first_request
         def init():
-            assert os.getenv("test") is not None
+            assert os.getenv("test") is not None, "no environment variable 'test'"
 
     @entry
     def get(self, usage="test"):
@@ -37,4 +37,4 @@ class EnvTechMS(TechMicroService):
 
     @entry
     def get_env(self):
-        return f"Simple microservice for {os.getenv('test')}.\n"
+        return f"Value of environment variable test is : {os.getenv('test')}."

@@ -21,6 +21,6 @@ class TestClass:
         assert response.text == "Hello world.\n"
 
 
-def run_server(app, port,):
+def run_server(app, port):
     print(f"Server starting on port {port}")
     app.run(host='localhost', port=port)

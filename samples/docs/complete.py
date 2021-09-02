@@ -40,6 +40,3 @@ app.register_blueprint(Admin(), url_prefix='/admin')
 
 app.wsgi_app = ProfilerMiddleware(app.wsgi_app, stream=app.output)
 XRayMiddleware(app, xray_recorder)
-
-# FLASK_APP=samples.docs.complete:app cws run
-# FLASK_APP=samples.docs.complete:app cws deploy

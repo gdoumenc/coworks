@@ -29,7 +29,7 @@ class TestClass:
 
     def test_api_ressources(self, samples_docs_dir, capsys):
         app = import_attr('first', 'app', cwd=samples_docs_dir)
-        with app.app_context() as ctx:
+        with app.test_request_context() as ctx:
             api_ressources = Terraform(working_dir=samples_docs_dir).api_resources(app)
         assert len(api_ressources) == 1
         assert '' in api_ressources

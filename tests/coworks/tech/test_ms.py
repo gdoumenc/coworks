@@ -198,7 +198,7 @@ class TestClass:
 
     def test_entry_not_unique(self):
         app = AmbiguousMS()
-        with app.app_context():
+        with app.test_request_context():
             assert '/test' in app.routes
         with app.test_client() as c:
             response = c.get('/123', headers={'Authorization': 'token'})

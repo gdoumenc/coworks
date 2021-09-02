@@ -2,13 +2,12 @@ import io
 from unittest.mock import MagicMock
 
 from coworks import TechMicroService, entry
-from coworks.config import LocalConfig
 from coworks.globals import aws_event
 
 
 class TechMS(TechMicroService):
-    def __init__(self, configs=None, **kwargs):
-        super().__init__('test', configs=configs or LocalConfig(), **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__('test', **kwargs)
 
     def token_authorizer(self, token):
         return True
