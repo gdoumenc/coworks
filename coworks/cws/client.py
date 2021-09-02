@@ -1,9 +1,10 @@
 from logging import WARNING, getLogger
-from pathlib import Path
 
 import anyconfig
 import click
+import os
 from flask.cli import FlaskGroup
+from pathlib import Path
 
 from ..config import DEFAULT_PROJECT_DIR, DEFAULT_WORKSPACE
 from ..utils import get_system_info, import_attr
@@ -21,9 +22,12 @@ class CoWorksGroup(FlaskGroup):
         ctx = super().make_context(info_name, args, **kwargs)
 
         # Get project infos
-        project_dir = ctx.params.get('project_dir')
         config_file = ctx.params.get('config_file')
         config_file_suffix = ctx.params.get('config_file_suffix')
+        project_dir = ctx.params.get('project_dir')
+        workspace = ctx.params.get('workspace')
+        if workspace:
+            os.environ['WORKSPACE'] = workspace
 
         # Adds defined commands from project file
         project_config = ProjectConfig(project_dir, config_file, config_file_suffix)

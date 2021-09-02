@@ -1,7 +1,4 @@
 version: 3
-services:
-  - module: first
-    services: app
 commands:
   zip:
     class: coworks.cws.zip.zip_command

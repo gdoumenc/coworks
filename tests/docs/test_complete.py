@@ -23,6 +23,6 @@ class TestClass:
         assert response.status_code == 200
 
 
-def run_server(app, port,):
+def run_server(app, port):
     print(f"Server starting on port {port}")
     app.run(host='localhost', port=port)

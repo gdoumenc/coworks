@@ -43,7 +43,7 @@ class TestClass:
 
     def test_routes(self):
         app = DocumentedMS()
-        with app.app_context():
+        with app.test_request_context():
             assert len(app.routes) == 4
             assert '/' in app.routes
             assert '/content/<value>' in app.routes

@@ -3,9 +3,6 @@ import requests
 import tempfile
 import urllib.parse
 
-from coworks.config import LocalConfig
-# from coworks.tech.jinja import JinjaRenderMicroService
-
 
 import pytest
 @pytest.mark.skip
