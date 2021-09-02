@@ -1,4 +1,3 @@
-import os
 import threading
 import time
 from pathlib import Path
@@ -7,34 +6,18 @@ import pytest
 import requests
 
 from coworks.config import Config, ProdConfig
-from tests.coworks.ms import *
+from tests.cws.src.ms import EnvTechMS
 
 
-class WithEnvMS(SimpleMS):
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-        @self.before_first_activation
-        def init(event, context):
-            assert os.getenv("test") is not None
-
-    @entry
-    def get(self):
-        """Root access."""
-        return os.getenv("test")
-
-
-import pytest
 @pytest.mark.skip
 class TestClass:
-
-    def test_dev_stage(self, local_server_factory, example_dir):
+    def test_dev_stage(self, example_dir):
         config = Config(environment_variables_file=Path(example_dir) / "config" / "vars_dev.json")
-        local_server = local_server_factory(WithEnvMS(configs=config))
-        response = local_server.make_call(requests.get, '/')
-        assert response.status_code == 200
-        assert response.text == 'test dev environment variable'
+        app = EnvTechMS(configs=config)
+        with app.test_client() as c:
+            response = c.get('/', headers={'Authorization': 'token'})
+            assert response.status_code == 200
+            assert response.text == 'test dev environment variable'
 
     def test_run_dev_stage(self, example_dir):
         config = Config(environment_variables_file=Path("config") / "vars_dev.json")
@@ -72,7 +55,7 @@ class TestClass:
         config1 = Config(environment_variables_file=Path(example_dir) / "config" / "vars_dev.json")
         config2 = ProdConfig(environment_variables_file=Path(example_dir) / "config" / "vars_prod.json", auth=auth)
         local_server = local_server_factory(WithEnvMS(configs=[config1, config2]), workspace="v1")
-        response = local_server.make_call(requests.get, '/', headers={'authorization':'token'})
+        response = local_server.make_call(requests.get, '/', headers={'authorization': 'token'})
         assert response.status_code == 200
         assert response.text == 'test secret environment variable'
 

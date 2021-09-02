@@ -24,12 +24,10 @@ setup(
     include_package_data=True,
     install_requires=[
         'anyconfig>=0.9.11',
-        'aws_xray_sdk>=2.5.0',
         'boto3>=1.13.15',
         'flask>=2.0.1',
         'jinja2>=3.0',
         'pyyaml>=5.3.1',
-        'requests_toolbelt>=0.9.1',
     ],
     keywords='python3 serverless microservice flask aws-lambda aws',
     entry_points={

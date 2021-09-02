@@ -1,5 +1,4 @@
 import traceback
-
 import typing as t
 from aws_xray_sdk.core import patch_all
 from functools import partial, update_wrapper
@@ -36,44 +35,43 @@ class XRayMiddleware:
             patch_all()
 
             for rule in self._app.url_map.iter_rules():
-                for http_method in rule.methods:
-                    view_function = self._app.view_functions[rule.endpoint]
+                view_function = self._app.view_functions[rule.endpoint]
 
-                    def captured(_view_function, *args, **kwargs):
+                def captured(_view_function, *args, **kwargs):
 
-                        # Traces event, context and view function
-                        subsegment = self._recorder.current_subsegment()
-                        if subsegment:
-                            subsegment.put_metadata('event', aws_event, LAMBDA_NAMESPACE)
-                            subsegment.put_metadata('context', aws_context, LAMBDA_NAMESPACE)
-                            subsegment.put_annotation('service', self._app.name)
-                            if request.is_json:
-                                subsegment.put_metadata('json', request.json, COWORKS_NAMESPACE)
-                            elif request.is_multipart:
-                                subsegment.put_metadata('multipart', request.form.to_dict(False), COWORKS_NAMESPACE)
-                            elif request.is_form_urlencoded:
-                                subsegment.put_metadata('form', request.form.to_dict(False), COWORKS_NAMESPACE)
-                            else:
-                                subsegment.put_metadata('values', request.values.to_dict(False), COWORKS_NAMESPACE)
+                    # Traces event, context and view function
+                    subsegment = self._recorder.current_subsegment()
+                    if subsegment:
+                        subsegment.put_metadata('event', aws_event, LAMBDA_NAMESPACE)
+                        subsegment.put_metadata('context', aws_context, LAMBDA_NAMESPACE)
+                        subsegment.put_annotation('service', self._app.name)
+                        if request.is_json:
+                            subsegment.put_metadata('json', request.json, COWORKS_NAMESPACE)
+                        elif request.is_multipart:
+                            subsegment.put_metadata('multipart', request.form.to_dict(False), COWORKS_NAMESPACE)
+                        elif request.is_form_urlencoded:
+                            subsegment.put_metadata('form', request.form.to_dict(False), COWORKS_NAMESPACE)
+                        else:
+                            subsegment.put_metadata('values', request.values.to_dict(False), COWORKS_NAMESPACE)
 
-                        response = _view_function(*args, **kwargs)
-                        if subsegment:
-                            subsegment.put_metadata('response', response, COWORKS_NAMESPACE)
-                        return response
+                    response = _view_function(*args, **kwargs)
+                    if subsegment:
+                        subsegment.put_metadata('response', response, COWORKS_NAMESPACE)
+                    return response
 
-                    def captured_entry(_cws_function, *args, **kwargs):
-                        subsegment = self._recorder.current_subsegment()
-                        if subsegment:
-                            subsegment.put_metadata('args', args, COWORKS_NAMESPACE)
-                            subsegment.put_metadata('kwargs', kwargs, COWORKS_NAMESPACE)
-                        response = _cws_function(*args, **kwargs)
-                        if subsegment:
-                            subsegment.put_metadata('response', response, COWORKS_NAMESPACE)
-                        return response
+                def captured_entry(_cws_function, *args, **kwargs):
+                    subsegment = self._recorder.current_subsegment()
+                    if subsegment:
+                        subsegment.put_metadata('args', args, COWORKS_NAMESPACE)
+                        subsegment.put_metadata('kwargs', kwargs, COWORKS_NAMESPACE)
+                    response = _cws_function(*args, **kwargs)
+                    if subsegment:
+                        subsegment.put_metadata('response', response, COWORKS_NAMESPACE)
+                    return response
 
-                    wrapped_fun = update_wrapper(partial(captured, view_function), view_function)
-                    self._app.view_functions[rule.endpoint] = self._recorder.capture(view_function.__name__)(
-                        wrapped_fun)
+                wrapped_fun = update_wrapper(partial(captured, view_function), view_function)
+                self._app.view_functions[rule.endpoint] = self._recorder.capture(view_function.__name__)(
+                    wrapped_fun)
 
         except Exception:
             self._app.logger.error("Cannot set xray context manager : are you using xray_recorder?")

@@ -38,7 +38,7 @@ class Config:
     """ Configuration class for deployment."""
 
     workspace: str = DEFAULT_WORKSPACE
-    environment_variables_file: Union[str, List[str]] = 'vars.json'
+    environment_variables_file: Union[str, List[str], Path, List[Path]] = 'vars.json'
     environment_variables: Union[dict, List[dict]] = None
     auth = None
     # auth: Union[
@@ -57,9 +57,9 @@ class Config:
         # store in a dict to allow specific environment variable files to be overloaded
         files = {}
 
-        def add_file(dir):
+        def add_file(_dir):
             for file in environment_variables_file:
-                var_file = Path(dir) / file
+                var_file = Path(_dir) / file
                 if var_file.is_file():
                     files[file] = var_file
                 var_secret_file = var_file.with_suffix(SECRET_ENV_FILE_SUFFIX)

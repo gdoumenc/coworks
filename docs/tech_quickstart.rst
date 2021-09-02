@@ -53,12 +53,14 @@ Looks good...
 Complete the try
 ----------------
 
-To complete our simple try, create a file ``first.py`` with the following content:
+To complete our simple try, create a file ``complete.py`` with the following content:
 
 .. literalinclude:: ../samples/docs/first.py
 
 This ``run`` command is defined by the ``Flask`` framework. So to test this microservice locally
 (see `Flask <https://flask.palletsprojects.com/en/2.0.x/quickstart/#a-minimal-application>`_ for more details)::
+
+*Beware* : `aws_xray_sdk` must be install in your python environment.
 
 	(project) $ FLASK_APP=first:app cws run
 	* Serving Flask app 'first:app' (lazy loading)
