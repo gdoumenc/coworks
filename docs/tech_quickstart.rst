@@ -67,21 +67,21 @@ Then have defined two entries on same path : ``GET`` and ``POST`` on root path.
 On the another terminal enter::
 
 	(project) $ curl -I http://127.0.0.1:5000/
-    HTTP/1.0 401 UNAUTHORIZED
-    ...
+	HTTP/1.0 401 UNAUTHORIZED
+	...
 
 	(project) $ curl -I -H "Authorization:any" http://127.0.0.1:5000/
-    HTTP/1.0 403 FORBIDDEN
-    ...
+	HTTP/1.0 403 FORBIDDEN
+	...
 
 	(project) $ curl -H "Authorization:token" http://127.0.0.1:5000/
-    Stored value 0.
+	Stored value 0.
 
-    (project) $ curl -X POST -d '{"value":20}' -H "Content-Type: application/json" -H "Authorization:token" http://127.0.0.1:5000/
-    Value stored (20).
+	(project) $ curl -X POST -d '{"value":20}' -H "Content-Type: application/json" -H "Authorization:token" http://127.0.0.1:5000/
+	Value stored (20).
 
 	(project) $ curl -H "Authorization:token" http://127.0.0.1:5000/
-    Stored value 20.
+	Stored value 20.
 
 *Beware* : the value stored is just for example, if the lambda is redeployed or another lambda instance used the value is lost.
 
@@ -98,8 +98,8 @@ We have added some blueprints and middlewares to add routes and functionalities.
 
 The ``Admin`` blueprint adds several routes but mainly the ``route`` one::
 
-    (project) $ curl -H "Authorization:token" http://127.0.0.1:5000/admin/route?pretty=1
-    {
+	(project) $ curl -H "Authorization:token" http://127.0.0.1:5000/admin/route?pretty=1
+	{
         "/": {
             "POST": {
                 "doc": "",
@@ -140,19 +140,18 @@ The ``Admin`` blueprint adds several routes but mainly the ``route`` one::
 
 We have also a WSGI middleware ``ProfilerMiddleware`` to profile the last request::
 
-    (project) $ curl -H "Authorization:token" http://127.0.0.1:5000/profile
-    --------------------------------------------------------------------------------
-    PATH: '/admin/route'
-             14689 function calls (14287 primitive calls) in 0.012 seconds
+	(project) $ curl -H "Authorization:token" http://127.0.0.1:5000/profile
+	--------------------------------------------------------------------------------
+	PATH: '/admin/route'
+			14689 function calls (14287 primitive calls) in 0.012 seconds
 
-       Ordered by: internal time, call count
+		Ordered by: internal time, call count
 
-       ncalls  tottime  percall  cumtime  percall filename:lineno(function)
-           42    0.001    0.000    0.001    0.000 {built-in method builtins.compile}
-          728    0.001    0.000    0.002    0.000 /home/gdo/.pyenv/versions/3.8.11/lib/python3.8/ast.py:222(iter_child_nodes)
-           14    0.001    0.000    0.006    0.000 /home/gdo/.local/share/virtualenvs/coworks-otSHAmdg/lib/python3.8/site-packages/werkzeug/routing.py:968(_compile_builder)
-    ...
-
+		ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+			42    0.001    0.000    0.001    0.000 {built-in method builtins.compile}
+			728    0.001    0.000    0.002    0.000 /home/gdo/.pyenv/versions/3.8.11/lib/python3.8/ast.py:222(iter_child_nodes)
+			14    0.001    0.000    0.006    0.000 /home/gdo/.local/share/virtualenvs/coworks-otSHAmdg/lib/python3.8/site-packages/werkzeug/routing.py:968(_compile_builder)
+	...
 
 And at last we have a CoWorks middleware to add XRay traces (available only in case of deployed).
 
@@ -172,7 +171,7 @@ And now we can upload the sources files to AWS S3 and apply predefined terraform
 	Terraform apply (Deploy API and Lambda for the dev stage)
 	terraform output :
 	classical_id = "xxxxxxxx"
- 	(project) $
+	(project) $
 
 Now we can try our first deployed microservice::
 
