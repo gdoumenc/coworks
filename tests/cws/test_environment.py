@@ -30,8 +30,7 @@ class TestClass:
         while not server.is_alive() and counter < 3:
             time.sleep(counter)
             counter += 1
-        response = requests.get(f'http://localhost:{unused_tcp_port}/env', headers={'Authorization': "token"},
-                                timeout=5000)
+        response = requests.get(f'http://localhost:{unused_tcp_port}/env', headers={'Authorization': "token"})
         assert response.text == "Value of environment variable test is : test dev environment variable."
 
     def test_run_prod_env(self, example_dir, unused_tcp_port):
@@ -45,8 +44,7 @@ class TestClass:
         while not server.is_alive() and counter < 3:
             time.sleep(counter)
             counter += 1
-        response = requests.get(f'http://localhost:{unused_tcp_port}/env', headers={'Authorization': "token"},
-                                timeout=5000)
+        response = requests.get(f'http://localhost:{unused_tcp_port}/env', headers={'Authorization': "token"})
         assert response.text == "Value of environment variable test is : test prod environment variable."
 
     def test_run_dev_stage(self, example_dir, unused_tcp_port):

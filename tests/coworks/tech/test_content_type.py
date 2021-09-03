@@ -1,19 +1,22 @@
-import io
 import json
-from unittest.mock import MagicMock
-
 import requests
 
-from coworks import TechMicroService, entry
-from coworks.config import Config
+from coworks import TechMicroService
+from coworks import entry
 
 
-class TechMS(TechMicroService):
-    def __init__(self):
-        super().__init__(name='test', configs=Config())
+class ContentMS(TechMicroService):
 
     @entry
-    def post_params(self, text=None, context=None, files=None):
+    def get(self):
+        return "test"
+
+    @entry
+    def get_json(self):
+        return {'text': 'value', 'int': 1}
+
+    @entry
+    def post(self, text=None, context=None, files=None):
         if files:
             if type(files) is not list:
                 files = [files]
@@ -21,25 +24,44 @@ class TechMS(TechMicroService):
         return f"post {text}, {context}"
 
 
-session = MagicMock()
-session.client = MagicMock()
-s3_object = {'Body': io.BytesIO(b'test'), 'ContentType': 'text/plain'}
-session.client.get_object = MagicMock(return_value=s3_object)
+# session = MagicMock()
+# session.client = MagicMock()
+# s3_object = {'Body': io.BytesIO(b'test'), 'ContentType': 'text/plain'}
+# session.client.get_object = MagicMock(return_value=s3_object)
 
 
 import pytest
-@pytest.mark.skip
+
+
 class TestClass:
 
-    def test_text_dummy(self, local_server_factory):
-        """normal API call."""
-        tech = TechMS()
-        local_server = local_server_factory(tech)
-        data = json.dumps({'text': 'value'})
-        headers = {'Content-type': 'text/zzz'}
-        response = local_server.make_call(requests.post, '/params', data=data, timeout=500, headers=headers)
-        assert response.status_code == 415
+    def test_text_api(self):
+        app = ContentMS()
+        with app.test_client() as c:
+            headers = {'Authorization': 'token'}
+            response = c.get('/', headers=headers)
+            assert response.status_code == 200
+            assert response.is_json
+            assert response.get_data(as_text=True) == 'test'
 
+            headers = {'Accept': 'application/json', 'Authorization': 'token'}
+            response = c.get('/', headers=headers)
+            assert response.status_code == 200
+            assert response.is_json
+            assert response.get_data(as_text=True) == 'test'
+
+            headers = {'Accept': 'text/plain', 'Authorization': 'token'}
+            response = c.get('/', headers=headers)
+            assert response.status_code == 200
+            assert not response.is_json
+            assert response.get_data(as_text=True) == 'test'
+
+            # headers = {'Authorization': 'token'}
+            # response = c.get('/json', headers=headers)
+            # assert response.status_code == 200
+            # assert response.get_data(as_text=True) == {"int":1,"text":"value"}
+
+    @pytest.mark.skip
     def test_text_plain(self, local_server_factory):
         """normal API call."""
         tech = TechMS()
@@ -49,6 +71,7 @@ class TestClass:
         response = local_server.make_call(requests.post, '/params', data=data, timeout=500, headers=headers)
         assert response.status_code == 200
 
+    @pytest.mark.skip
     def test_form_data(self, local_server_factory):
         """normal API call."""
         tech = TechMS()
@@ -65,4 +88,3 @@ class TestClass:
         response = local_server.make_call(requests.post, '/params', files=multiple_files, json=data)
         assert response.status_code == 200
         assert response.text == "post hello world, {'key': 'value'} and ['f1.csv', 'f2.txt', 'f3.j2']"
-

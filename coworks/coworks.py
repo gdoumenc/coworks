@@ -24,6 +24,7 @@ from .utils import init_routes
 from .utils import trim_underscores
 from .wrappers import ApiResponse
 from .wrappers import Request
+from .wrappers import TokenResponse
 
 
 #
@@ -75,37 +76,6 @@ class ScheduleEntry:
     fun: t.Callable
 
 
-class TokenResponse:
-    """AWS authorization response."""
-
-    def __init__(self, value: t.Union[bool, str], arn: str):
-        if type(value) is bool:
-            self.allow = value
-        elif type(value) is str:
-            self.allow = os.getenv('WORKSPACE') == value
-        else:
-            self.allow = False
-
-        self.arn = arn
-
-    @property
-    def json(self) -> t.Optional[t.Any]:
-        workspace = os.getenv('WORKSPACE')
-        return {
-            "principalId": "user",
-            "policyDocument": {
-                "Version": "2012-10-17",
-                "Statement": [
-                    {
-                        "Action": "execute-api:Invoke",
-                        "Effect": "Allow" if self.allow else "Deny",
-                        "Resource": self.arn
-                    }
-                ]
-            }
-        }
-
-
 class CoworksClient(FlaskClient):
     """Redefined to force mimetype to be 'text/plain' in case of string return.
     """
@@ -117,14 +87,14 @@ class CoworksClient(FlaskClient):
             "aws_context": aws_context,
         })
 
-    def open(self, *args: t.Any, **kwargs: t.Any):
-        res = super().open(*args, **kwargs)
-        if res.is_json:
-            try:
-                json = res.json
-            except JSONDecodeError:
-                res.mimetype = "text/plain"
-        return res
+    # def open(self, *args: t.Any, **kwargs: t.Any):
+    #     res = super().open(*args, **kwargs)
+    #     if res.is_json:
+    #         try:
+    #             json = res.json
+    #         except JSONDecodeError:
+    #             res.mimetype = "text/plain"
+    #     return res
 
 
 class Blueprint(FlaskBlueprint):
@@ -187,7 +157,7 @@ class TechMicroService(Flask):
         self._cws_env_initialized = False
 
         @self.before_request
-        def auth():
+        def check_token():
             if not request.in_lambda_context:
                 token = request.headers.get('Authorization')
                 if token is None:
