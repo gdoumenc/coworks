@@ -67,11 +67,11 @@ class TestClass:
     def test_request_arg(self):
         app = SimpleMS()
         with app.test_client() as c:
-            response = c.get('/', headers={'Authorization': 'token'})
+            response = c.get('/', headers={'Accept':'text/plain', 'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "get"
             assert 'Content-Type' in response.headers
-            assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
+            assert response.headers['Content-Type'] == 'text/plain'
             assert 'Content-Length' in response.headers
             assert response.headers['Content-Length'] == str(len(response.get_data(as_text=True)))
             response = c.post('/', headers={'Authorization': 'token'})
@@ -177,11 +177,11 @@ class TestClass:
     def test_tuple_returned(self):
         app = TupleReturnedMS()
         with app.test_client() as c:
-            headers = {'Content-type': 'text/plain', 'Accept': 'text/plain', 'Authorization': 'token'}
+            headers = {'Accept': 'text/plain', 'Authorization': 'token'}
             response = c.get('/', headers=headers)
             assert response.status_code == 200
             assert response.get_data(as_text=True) == 'ok'
-            assert response.headers['content-type'] == 'text/plain; charset=utf-8'
+            assert response.headers['content-type'] == 'text/plain'
             response = c.get('/json', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.json['value'] == 'ok'
@@ -189,10 +189,10 @@ class TestClass:
             response = c.get('/resp/ok', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == 'ok'
-            assert response.headers['content-type'] == 'text/plain; charset=utf-8'
+            assert response.headers['content-type'] == 'application/json'
             response = c.get('/tuple/test', headers={'Authorization': 'token'})
             assert response.status_code == 200
-            assert response.headers['content-type'] == 'text/plain; charset=utf-8'
+            assert response.headers['content-type'] == 'application/json'
             assert response.headers['x-test'] == 'true'
             assert response.get_data(as_text=True) == 'test'
 
