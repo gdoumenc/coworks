@@ -74,8 +74,6 @@ class XRayMiddleware:
             raise
 
     def capture_exception(self, e):
-        self._app.logger.error(f"Exception: {str(e)}")
-        self._app.logger.error(traceback.print_exc())
 
         # Only available in lambda context
         if not request.in_lambda_context:
@@ -86,6 +84,7 @@ class XRayMiddleware:
             self._app.logger.error(f"Context: {aws_context}")
             subsegment = self._recorder.current_subsegment()
             if subsegment:
+                subsegment.add_error_flag()
                 subsegment.put_annotation('service', self._app.name)
                 subsegment.add_exception(e, traceback.extract_stack())
         finally:

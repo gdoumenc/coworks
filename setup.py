@@ -31,7 +31,9 @@ setup(
     ],
     keywords='python3 serverless microservice flask aws-lambda aws',
     entry_points={
-        'console_scripts': ['cws=coworks.cws.client:client'],
+        'console_scripts': [
+            'cws=coworks.cws.client:client',
+        ],
     },
     classifiers=[
         'Development Status :: 4 - Beta',

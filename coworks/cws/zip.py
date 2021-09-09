@@ -16,7 +16,7 @@ from .. import aws
 
 @click.command("zip", short_help="Zip all source files to create a Lambda file source.")
 @click.option('--bucket', '-b', help="Bucket to upload sources zip file to", required=True)
-@click.option('--debug', is_flag=True, help="Print debug logs to stderr.")
+@click.option('--debug', is_flag=True, help="Print debug logs.")
 @click.option('--dry', is_flag=True, help="Doesn't perform upload.")
 @click.option('--hash', is_flag=True, help="Upload also hash code content.")
 @click.option('--ignore', '-i', multiple=True, help="Ignore pattern.")
@@ -37,7 +37,7 @@ def zip_command(info, ctx, bucket, debug, dry, hash, ignore, module_name, key, p
     key = key if key else info.load_app().name
     if debug:
         where = f"{bucket}/{key}"
-        print(f"Uploading zip sources of {info.load_app()} at s3:{where} {'(not done)' if dry else ''}")
+        click.echo(f"Uploading zip sources of {info.load_app()} at s3:{where} {'(not done)' if dry else ''}")
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_path = Path(tmp_dir)
@@ -67,14 +67,14 @@ def zip_command(info, ctx, bucket, debug, dry, hash, ignore, module_name, key, p
             try:
                 if not dry:
                     if debug:
-                        print("Upload sources...")
+                        click.echo("Upload sources...")
                     aws_s3_session.client.upload_fileobj(archive, bucket, key)
                     if debug:
-                        print(f"Successfully uploaded sources at s3://{bucket}/{key}")
+                        click.echo(f"Successfully uploaded sources at s3://{bucket}/{key}")
                 else:
-                    print(f"Sources is {int(os.path.getsize(module_archive)/1000)} Kb")
+                    click.echo(f"Sources is {int(os.path.getsize(module_archive)/1000)} Kb")
             except Exception as e:
-                print(f"Failed to upload module sources on S3 : {e}")
+                click.echo(f"Failed to upload module sources on S3 : {e}")
                 raise e
 
         # Creates hash value
@@ -87,11 +87,11 @@ def zip_command(info, ctx, bucket, debug, dry, hash, ignore, module_name, key, p
                 try:
                     if not dry:
                         if debug:
-                            print(f"Upload sources hash...")
+                            click.echo(f"Upload sources hash...")
                         aws_s3_session.client.upload_fileobj(b64sha256_file, bucket, f"{key}.b64sha256",
                                                              ExtraArgs={'ContentType': 'text/plain'})
                         if debug:
-                            print(f"Successfully uploaded sources hash at s3://{bucket}/{key}.b64sha256")
+                            click.echo(f"Successfully uploaded sources hash at s3://{bucket}/{key}.b64sha256")
                 except Exception as e:
-                    print(f"Failed to upload archive hash on S3 : {e}")
+                    click.echo(f"Failed to upload archive hash on S3 : {e}")
                     raise e
