@@ -69,7 +69,7 @@ class ProjectConfig:
         self.params = self._load_config(project_dir, file_name, file_suffix)
         if not self.params:
             raise RuntimeError(f"Cannot find project file ({file_name + file_suffix}).\n")
-        if self.params.get('version') != PROJECT_CONFIG_VERSION:
+        if self.params.get('version', PROJECT_CONFIG_VERSION) != PROJECT_CONFIG_VERSION:
             raise RuntimeError(f"Wrong project file version (should be {PROJECT_CONFIG_VERSION}).\n")
 
     @property

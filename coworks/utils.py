@@ -1,19 +1,21 @@
+import traceback
+
 import importlib
 import inspect
 import os
 import platform
 import sys
-from aws_xray_sdk.core.exceptions.exceptions import SegmentNotFoundException
 from flask import make_response as make_flask_response
 from flask.blueprints import BlueprintSetupState
 from functools import partial
+from functools import update_wrapper
 
 from .globals import request
 
 HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
 
 
-def init_routes(app, bp_state: BlueprintSetupState = None, hide_routes: bool = False) -> None:
+def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
     """ Creates all routes for a microservice.
     :param app the app microservice
     :param bp_state the blueprint state
@@ -21,11 +23,11 @@ def init_routes(app, bp_state: BlueprintSetupState = None, hide_routes: bool = F
     """
 
     # Adds entrypoints
-    obj = bp_state.blueprint if bp_state else app
-    method_members = inspect.getmembers(obj.__class__, lambda x: inspect.isfunction(x))
+    scaffold = bp_state.blueprint if bp_state else app
+    method_members = inspect.getmembers(scaffold.__class__, lambda x: inspect.isfunction(x))
     methods = [fun for _, fun in method_members if hasattr(fun, '__CWS_METHOD')]
     for fun in methods:
-        if hide_routes is True or getattr(fun, '__CWS_HIDDEN', False):
+        if getattr(fun, '__CWS_HIDDEN', False):
             continue
 
         method = getattr(fun, '__CWS_METHOD')
@@ -45,26 +47,19 @@ def init_routes(app, bp_state: BlueprintSetupState = None, hide_routes: bool = F
                 entry_path = path_join(entry_path, f"/<{arg}>")
             kwarg_keys = {}
 
-        proxy = _create_rest_proxy(app, fun, kwarg_keys, args, varkw)
+        proxy = _create_rest_proxy(scaffold, fun, kwarg_keys, args, varkw)
 
         # Creates the entry
-        if hide_routes is False or (type(hide_routes) is list and entry_path not in hide_routes):
-            url_prefix = bp_state.url_prefix if bp_state else ''
-            rule = make_absolute(entry_path, url_prefix)
-            app.add_url_rule(rule=rule, view_func=proxy, methods=[method])
-            # authorizer=auth,
-            # cors=self.current_app.config.cors,
-            # content_types=list(self.current_app.config.content_type)
+        url_prefix = bp_state.url_prefix if bp_state else ''
+        rule = make_absolute(entry_path, url_prefix)
+
+        name_prefix = f"{bp_state.name_prefix}_" if bp_state else ''
+        endpoint = f"{name_prefix}{proxy.__name__}"
+
+        app.add_url_rule(rule=rule, view_func=proxy, methods=[method], endpoint=endpoint)
 
 
-def _create_rest_proxy(app, func, kwarg_keys, args, varkw):
-    import traceback
-
-    from aws_xray_sdk.core import xray_recorder
-    from functools import update_wrapper, partial
-
-    original_app_class = app.__class__
-
+def _create_rest_proxy(scaffold, func, kwarg_keys, args, varkw):
     def proxy(**kwargs):
         try:
             # Adds kwargs parameters
@@ -113,8 +108,8 @@ def _create_rest_proxy(app, func, kwarg_keys, args, varkw):
                             data = request.values.to_dict(False)
                             kwargs = dict(**kwargs, **as_fun_params(data))
                     except Exception as e:
-                        app.logger.error(traceback.print_exc())
-                        app.logger.debug(e)
+                        scaffold.logger.error(traceback.print_exc())
+                        scaffold.logger.debug(e)
                         return str(e), 400
 
                 else:
@@ -130,22 +125,16 @@ def _create_rest_proxy(app, func, kwarg_keys, args, varkw):
                         err_msg = f"TypeError: got an unexpected arguments (query: {request.query_string})"
                         return err_msg, 400
 
-            resp = func(app, **kwargs)
+            resp = func(scaffold, **kwargs)
             return make_response(resp)
         except TypeError as e:
             return str(e), 400
         except Exception as e:
-            try:
-                subsegment = xray_recorder.current_subsegment()
-                if subsegment:
-                    subsegment.add_error_flag()
-            except SegmentNotFoundException:
-                pass
-            raise
+            scaffold.logger.error(f"Exception: {str(e)}")
+            scaffold.logger.error(traceback.print_exc())
+            return str(e), 500
 
-    proxy = update_wrapper(proxy, func)
-    proxy.__cws_func__ = update_wrapper(partial(func, app), func)
-    return proxy
+    return update_wrapper(proxy, func)
 
 
 def import_attr(module, attr: str, cwd='.'):

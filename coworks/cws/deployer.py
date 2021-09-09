@@ -151,7 +151,7 @@ class Terraform:
         aws_region = boto3.Session(profile_name=profile_name).region_name
 
         if debug:
-            print(f"Generate terraform files for updating API routes and deploiement for {app.name}")
+            click.echo(f"Generate terraform files for updating API routes and deploiement for {app.name}")
 
         data = {
             'account_number': options.get('account_number'),
@@ -195,9 +195,9 @@ class Terraform:
         spin_thread.start()
 
         try:
-            print(f"Terraform apply (Create API routes)", flush=True)
+            click.echo(f"Terraform apply (Create API routes)", flush=True)
             self.apply("default")
-            print(f"Terraform apply (Deploy API and Lambda for the {workspace} stage)", flush=True)
+            click.echo(f"Terraform apply (Deploy API and Lambda for the {workspace} stage)", flush=True)
             self.apply(workspace)
         finally:
             stop = True
@@ -211,7 +211,7 @@ class Terraform:
 @click.command("deploy", short_help="Deploy the Flask server on AWS Lambda.")
 # Zip options (redefined)
 @click.option('--bucket', '-b', help="Bucket to upload sources zip file to", required=True)
-@click.option('--debug', is_flag=True, help="Print debug logs to stderr.")
+@click.option('--debug', is_flag=True, help="Print debug logs.")
 @click.option('--dry', is_flag=True, help="Doesn't perform deploy [Global option only].")
 @click.option('--ignore', '-i', multiple=True, help="Ignore pattern.")
 @click.option('--key', '-k', help="Sources zip file bucket's name.")
@@ -237,7 +237,7 @@ def deploy_command(info, ctx, output, **options):
     terraform = Terraform()
 
     if output:  # Stop if only print output
-        print(f"terraform output : {terraform.output()}", flush=True)
+        click.echo(f"terraform output : {terraform.output()}")
         return
 
     # Set default options calculated value
@@ -274,7 +274,7 @@ def deploy_command(info, ctx, output, **options):
         terraform.create_stage(workspace)
 
     # Traces output
-    print(f"terraform output :\n{terraform.output()}", flush=True)
+    click.echo(f"terraform output :\n{terraform.output()}")
 
 # class CwsTerraformCommand(CwsCommand, ABC):
 #     WRITER_CMD = 'export'

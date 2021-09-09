@@ -20,7 +20,7 @@ from .config import DevConfig
 from .config import ProdConfig
 from .globals import request
 from .utils import HTTP_METHODS
-from .utils import init_routes
+from .utils import add_coworks_routes
 from .utils import trim_underscores
 from .wrappers import ApiResponse
 from .wrappers import Request
@@ -87,15 +87,6 @@ class CoworksClient(FlaskClient):
             "aws_context": aws_context,
         })
 
-    # def open(self, *args: t.Any, **kwargs: t.Any):
-    #     res = super().open(*args, **kwargs)
-    #     if res.is_json:
-    #         try:
-    #             json = res.json
-    #         except JSONDecodeError:
-    #             res.mimetype = "text/plain"
-    #     return res
-
 
 class Blueprint(FlaskBlueprint):
     """ Represents a blueprint, list of routes that will be added to microservice when registered.
@@ -122,7 +113,7 @@ class Blueprint(FlaskBlueprint):
 
         # Defer blueprint route initialization.
         if not options.get('hide_routes', False):
-            app.deferred_init_routes_functions.append(partial(init_routes, app, state))
+            app.deferred_init_routes_functions.append(partial(add_coworks_routes, state.app, state))
 
         return state
 
@@ -169,7 +160,7 @@ class TechMicroService(Flask):
     def app_context(self):
         """Override to initialize coworks microservice."""
         if not self._cws_app_initialized:
-            init_routes(self)
+            add_coworks_routes(self)
             for fun in self.deferred_init_routes_functions:
                 fun()
             self._cws_app_initialized = True
