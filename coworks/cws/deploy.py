@@ -195,9 +195,9 @@ class Terraform:
         spin_thread.start()
 
         try:
-            click.echo(f"Terraform apply (Create API routes)", flush=True)
+            click.echo(f"Terraform apply (Create API routes)")
             self.apply("default")
-            click.echo(f"Terraform apply (Deploy API and Lambda for the {workspace} stage)", flush=True)
+            click.echo(f"Terraform apply (Deploy API and Lambda for the {workspace} stage)")
             self.apply(workspace)
         finally:
             stop = True
@@ -211,7 +211,6 @@ class Terraform:
 @click.command("deploy", short_help="Deploy the Flask server on AWS Lambda.")
 # Zip options (redefined)
 @click.option('--bucket', '-b', help="Bucket to upload sources zip file to", required=True)
-@click.option('--debug', is_flag=True, help="Print debug logs.")
 @click.option('--dry', is_flag=True, help="Doesn't perform deploy [Global option only].")
 @click.option('--ignore', '-i', multiple=True, help="Ignore pattern.")
 @click.option('--key', '-k', help="Sources zip file bucket's name.")
@@ -226,15 +225,18 @@ class Terraform:
 @click.option('--python', '-p', type=click.Choice(['3.7', '3.8']), default='3.8',
               help="Python version for the lambda.")
 @click.option('--timeout', default=60)
+@click.option('--terraform-class', default=Terraform, hidden=True)
 @click.pass_context
 @pass_script_info
 @with_appcontext
-def deploy_command(info, ctx, output, **options):
+def deploy_command(info, ctx, output, terraform_class, **options) -> None:
     """ Deploiement in 2 steps:
         Step 1. Create API and routes integrations
         Step 2. Deploy API and Lambda
     """
-    terraform = Terraform()
+    print(terraform_class)
+    exit()
+    terraform = terraform_class()
 
     if output:  # Stop if only print output
         click.echo(f"terraform output : {terraform.output()}")

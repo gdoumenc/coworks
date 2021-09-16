@@ -6,7 +6,7 @@ from flask.cli import ScriptInfo
 from unittest.mock import Mock
 
 from coworks.cws.client import client
-from coworks.cws.deployer import Terraform
+from coworks.cws.deploy import Terraform
 from coworks.utils import import_attr
 
 

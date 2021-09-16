@@ -82,7 +82,3 @@ class WebsiteMicroService(TechMicroService):
 
 app = WebsiteMicroService()
 app.register_blueprint(Admin(), url_prefix='admin')
-
-if __name__ == '__main__':
-    app.execute("run", project_dir='.', module='website', workspace='local', auto_reload=True,
-                authorization_value='test')

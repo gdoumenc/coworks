@@ -150,7 +150,7 @@ class TechMicroService(Flask):
         @self.before_request
         def check_token():
             if not request.in_lambda_context:
-                token = request.headers.get('Authorization')
+                token = request.headers.get('Authorization', self.config.get('default_token'))
                 if token is None:
                     abort(401)
                 valid = self.token_authorizer(token)

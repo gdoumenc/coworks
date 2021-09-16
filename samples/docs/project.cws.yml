@@ -5,7 +5,7 @@ commands:
     bucket: coworks-microservice
     profile_name: fpr-customer
   deploy:
-    class: coworks.cws.deployer.deploy_command
+    class: coworks.cws.deploy.deploy_command
     project_name: coworks
     profile_name: fpr-customer
     bucket: coworks-microservice

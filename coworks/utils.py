@@ -19,7 +19,6 @@ def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
     """ Creates all routes for a microservice.
     :param app the app microservice
     :param bp_state the blueprint state
-    :param hide_routes list of routes to be hidden.
     """
 
     # Adds entrypoints

@@ -16,7 +16,6 @@ from .. import aws
 
 @click.command("zip", short_help="Zip all source files to create a Lambda file source.")
 @click.option('--bucket', '-b', help="Bucket to upload sources zip file to", required=True)
-@click.option('--debug', is_flag=True, help="Print debug logs.")
 @click.option('--dry', is_flag=True, help="Doesn't perform upload.")
 @click.option('--hash', is_flag=True, help="Upload also hash code content.")
 @click.option('--ignore', '-i', multiple=True, help="Ignore pattern.")
@@ -25,7 +24,7 @@ from .. import aws
 @click.option('--profile_name', '-p', required=True, help="AWS credential profile.")
 @click.pass_context
 @pass_script_info
-def zip_command(info, ctx, bucket, debug, dry, hash, ignore, module_name, key, profile_name):
+def zip_command(info, ctx, bucket, debug, dry, hash, ignore, module_name, key, profile_name) -> None:
     """
     This command uploads project source folder as a zip file on a S3 bucket.
     Uploads also the hash code of this file to be able to determined code changes (used by terraform as a trigger).
