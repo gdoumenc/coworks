@@ -3,11 +3,17 @@ from logging import WARNING, getLogger
 import anyconfig
 import click
 import os
+import typing as t
 from flask.cli import FlaskGroup
 from pathlib import Path
 
-from ..config import DEFAULT_PROJECT_DIR, DEFAULT_WORKSPACE
-from ..utils import get_system_info, import_attr
+from .deploy import deploy_command
+from .new import new_command
+from .zip import zip_command
+from ..config import DEFAULT_PROJECT_DIR
+from ..config import DEFAULT_WORKSPACE
+from ..utils import get_system_info
+from ..utils import import_attr
 from ..version import __version__
 
 PROJECT_CONFIG_VERSION = 3
@@ -15,8 +21,12 @@ PROJECT_CONFIG_VERSION = 3
 
 class CoWorksGroup(FlaskGroup):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, add_version_option=False, **kwargs)
+    def __init__(self, add_default_commands=True, **kwargs):
+        super().__init__(add_version_option=False, **kwargs)
+        if add_default_commands:
+            self.add_command(t.cast("Command", new_command))
+            self.add_command(t.cast("Command", deploy_command))
+            self.add_command(t.cast("Command", zip_command))
 
     def make_context(self, info_name, args, parent=None, **kwargs):
         ctx = super().make_context(info_name, args, **kwargs)
@@ -51,10 +61,11 @@ class CoWorksGroup(FlaskGroup):
 @click.version_option(version=__version__, message=f'%(prog)s %(version)s, {get_system_info()}')
 @click.option('-p', '--project-dir', default=DEFAULT_PROJECT_DIR,
               help=f"The project directory path (absolute or relative) [default to '{DEFAULT_PROJECT_DIR}'].")
-@click.option('-c', '--config-file', default='project', help="Configuration file path [path from project dir].")
-@click.option('--config-file-suffix', default='.cws.yml', help="Configuration file suffix.")
 @click.option('-w', '--workspace', default=DEFAULT_WORKSPACE,
               help=f"Application stage [default to '{DEFAULT_WORKSPACE}'].")
+@click.option('-c', '--config-file', default='project', help="Configuration file path [relative from project dir].")
+@click.option('-d', '--debug/--no-debug', default=False, is_flag=True, help="Print debug traces.")
+@click.option('--config-file-suffix', default='.cws.yml', help="Configuration file suffix.")
 @click.pass_context
 def client(*args, **kwargs):
     ...

@@ -24,6 +24,7 @@ class Config:
     workspace: str = DEFAULT_WORKSPACE
     environment_variables_file: t.Union[str, t.List[str], Path, t.List[Path]] = 'vars.json'
     environment_variables: t.Union[dict, t.List[dict]] = None
+    default_token: str = None
 
     def is_valid_for(self, workspace: str) -> bool:
         return self.workspace == workspace
