@@ -42,7 +42,7 @@ class CoWorksGroup(FlaskGroup):
         # Adds defined commands from project file
         project_config = ProjectConfig(project_dir, config_file, config_file_suffix)
         for name, options in project_config.all_commands.items():
-            cmd_class_name = options.pop('class')
+            cmd_class_name = options.pop('class', None)
             if cmd_class_name:
                 splitted = cmd_class_name.split('.')
                 cmd = import_attr('.'.join(splitted[:-1]), splitted[-1], cwd=project_dir)

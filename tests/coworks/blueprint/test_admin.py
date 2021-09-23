@@ -1,42 +1,8 @@
 from flask import json
 
-from coworks import Blueprint
 from coworks.blueprint import Admin
-from tests.coworks.ms import *
-
-
-class DocumentedMS(TechMS):
-
-    def token_authorizer(self, token):
-        return True
-
-    @entry
-    def get(self):
-        """Root access."""
-        return "get"
-
-    @entry
-    def post_content(self, value, other="none"):
-        """Add content."""
-        return f"post_content {value}{other}"
-
-    @entry
-    def post_contentannotated(self, value: int, other: str = "none"):
-        """Add content."""
-        return f"post_content {value}{other}"
-
-    @entry
-    def get_list(self, values: [int]):
-        """Tests list param."""
-        return "ok"
-
-
-class HiddenBlueprint(Blueprint):
-
-    @entry
-    def get(self):
-        """Test not in routes."""
-        return "ok"
+from .blueprint import DocumentedMS
+from .blueprint import HiddenBlueprint
 
 
 class TestClass:
