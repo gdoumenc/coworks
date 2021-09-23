@@ -1,26 +1,27 @@
-from dataclasses import dataclass
-
-import boto3
-import click
 import inspect
 import itertools
 import subprocess
 import sys
 import typing as t
+from dataclasses import dataclass
+from pathlib import Path
+from shutil import copy
+from subprocess import CalledProcessError
+from subprocess import CompletedProcess
+from threading import Thread
+from time import sleep
+
+import boto3
+import click
 from flask.cli import pass_script_info
 from flask.cli import with_appcontext
+from jinja2 import BaseLoader
 from jinja2 import Environment
 from jinja2 import PackageLoader
 from jinja2 import select_autoescape
-from pathlib import Path
-from shutil import copy
-from subprocess import CalledProcessError, CompletedProcess
-from threading import Thread
-from time import sleep
 from werkzeug.routing import Rule
 
 from .zip import zip_command
-from .. import TechMicroService
 
 UID_SEP = '_'
 
@@ -33,14 +34,14 @@ class TerraformResource:
 
     @property
     def uid(self) -> str:
-        def remove_variable(path):
-            return f"{path.replace('<', '').replace('>', '')}"
 
-        if self.path is None:
+        if self.is_root:
             return ''
 
-        last = remove_variable(self.path)
-        return f"{self.parent_uid}{UID_SEP}{last}" if self.parent_uid else last
+        if self.parent_is_root:
+            return self.path
+
+        return f"{self.parent_uid}{UID_SEP}{self.path}" if self.path else self.parent_uid
 
     @property
     def is_root(self) -> bool:
@@ -55,64 +56,70 @@ class TerraformResource:
 
 
 class Terraform:
+    """Terraform calss to manage local terraform deployement."""
+    TIMEOUT = 240
 
-    def __init__(self, working_dir: Path = 'terraform', timeout: int = 240):
-        self.working_dir = working_dir
-        Path(self.working_dir).mkdir(exist_ok=True)
-        self.timeout = timeout
+    def __init__(self, info, **options):
+        self.info = info
+        self.app = self.info.load_app()
+        self.working_dir = Path(options['terraform_dir'])
+        self.working_dir.mkdir(exist_ok=True)
 
     def init(self):
-        self.__execute(['init', '-input=false'])
+        self._execute(['init', '-input=false'])
 
     def apply(self, workspace) -> None:
         self.select_workspace(workspace)
-        self.__execute(['apply', '-auto-approve', '-parallelism=1'])
+        self._execute(['apply', '-auto-approve', '-parallelism=1'])
 
     def destroy(self, workspace) -> None:
         self.select_workspace(workspace)
-        self.__execute(['apply', '-destroy', '-auto-approve', '-parallelism=1'])
+        self._execute(['apply', '-destroy', '-auto-approve', '-parallelism=1'])
         if workspace != "default":
-            self.__execute(['workspace', 'delete', workspace])
+            self._execute(['workspace', 'delete', workspace])
 
     def output(self):
         self.select_workspace("default")
-        values = self.__execute(['output']).stdout
+        values = self._execute(['output']).stdout
         return values.decode("utf-8").strip()
 
     def workspace_list(self):
         self.select_workspace("default")
-        values = self.__execute(['workspace', 'list']).stdout
+        values = self._execute(['workspace', 'list']).stdout
         values = values[1:].decode("utf-8").split('\n')
         return [w.strip() for w in filter(None, values)]
 
     def select_workspace(self, workspace) -> None:
-        if not (Path(self.working_dir) / '.terraform').exists():
+        if not (self.working_dir / '.terraform').exists():
             self.init()
         try:
-            self.__execute(["workspace", "select", workspace])
+            self._execute(["workspace", "select", workspace])
         except CalledProcessError:
-            self.__execute(["workspace", "new", workspace])
+            self._execute(["workspace", "new", workspace])
 
-    def api_resources(self, app: TechMicroService):
+    @property
+    def api_resources(self):
         """Returns the list of flatten path (prev_uid, last, rule)."""
         resources = {}
 
-        def add_rule(previous: t.Optional[str], last: t.Optional[str], rule_: t.Optional[Rule]):
+        def add_rule(previous: t.Optional[str], path: t.Optional[str], rule_: t.Optional[Rule]):
 
             # Creates the terraform ressource if doesn't exist.
-            resource = TerraformResource(previous, last)
+            path = None if path is None else path.replace('<', '').replace('>', '')
+            resource = TerraformResource(previous, path)
             uid = resource.uid
             if uid not in resources:
                 resources[uid] = resource
 
             resource = resources[uid]
-            if resources[uid].rules is None:
-                resources[uid].rules = [rule_]
-            else:
-                resources[uid].rules.append(rule_)
+            if rule_:
+                if resources[uid].rules is None:
+                    resources[uid].rules = [rule_]
+                else:
+                    resources[uid].rules.append(rule_)
             return uid
 
-        for rule in app.url_map.iter_rules():
+        for rule in self.app.url_map.iter_rules():
             route = rule.rule
             previous_uid = ''
             if route.startswith('/'):
@@ -125,63 +132,67 @@ class Terraform:
                 continue
 
             # creates intermediate resources
-            last_path = splited_route[-1:][0]
             for prev in splited_route[:-1]:
                 previous_uid = add_rule(previous_uid, prev, None)
 
             # set entry keys for last entry
-            add_rule(previous_uid, last_path, rule)
+            add_rule(previous_uid, splited_route[-1:][0], rule)
 
         return resources
 
     @property
-    def jinja_env(self) -> Environment:
-        return Environment(loader=PackageLoader(sys.modules[__name__].__package__),
-                           autoescape=select_autoescape(['html', 'xml']))
+    def template_loader(self) -> BaseLoader:
+        return PackageLoader(sys.modules[__name__].__package__)
 
-    def generate_common_files(self, workspace) -> None:
+    @property
+    def jinja_env(self) -> Environment:
+        return Environment(loader=self.template_loader, autoescape=select_autoescape(['html', 'xml']))
+
+    def get_context_data(self, **options) -> dict:
+        project_dir = options['project_dir']
+        workspace = options['workspace']
+        config = self.app.get_config(workspace)
+
+        data = {
+            'api_resources': self.api_resources,
+            'app': self.app,
+            'app_import_path': self.info.app_import_path.replace(':', '.') if self.info.app_import_path else "app.app",
+            'aws_region': boto3.Session(profile_name=options['profile_name']).region_name,
+            'description': inspect.getdoc(self.app) or "",
+            'environment_variables': config.environment_variables,
+            'environment_variable_files': config.existing_environment_variables_files(project_dir),
+            'ms_name': self.app.name,
+            **options
+        }
+        return data
+
+    def generate_common_files(self, **options) -> None:
         pass
 
-    def generate_files(self, info, config, template_filename, output_filename, **options) -> None:
-        app = info.load_app()
+    def generate_files(self, template_filename, output_filename, **options) -> None:
         project_dir = options['project_dir']
         workspace = options['workspace']
         debug = options['debug']
         profile_name = options['profile_name']
+
+        config = self.app.get_config(workspace)
         aws_region = boto3.Session(profile_name=profile_name).region_name
 
         if debug:
-            click.echo(f"Generate terraform files for updating API routes and deploiement for {app.name}")
+            click.echo(f"Generate terraform files for updating API routes and deploiement for {self.app.name}")
 
-        data = {
-            'account_number': options.get('account_number'),
-            'api_resources': self.api_resources(app),
-            'app': app,
-            'app_import_path': info.app_import_path.replace(':', '.') if info.app_import_path else "app.app",
-            'aws_region': aws_region,
-            'description': inspect.getdoc(app) or "",
-            'environment_variables': config.environment_variables,
-            'environment_variable_files': config.existing_environment_variables_files(project_dir),
-            # 'module': app.__module__,
-            # 'module_dir': pathlib.PurePath(*module_path[:-1]),
-            # 'module_file': app.__module__,
-            # 'module_path': pathlib.PurePath(*module_path),
-            'ms_name': app.name,
-            'project_dir': project_dir,
-            # 'source_file': pathlib.PurePath(project_dir, *module_path),
-            'workspace': workspace,
-            **options
-        }
+        data = self.get_context_data(**options)
         template = self.jinja_env.get_template(template_filename)
-        output = Path(self.working_dir) / output_filename
+        output = self.working_dir / output_filename
         with output.open("w") as f:
             f.write(template.render(**data))
 
-    def create_stage(self, workspace: str) -> None:
+    def create_stage(self, info, **options) -> None:
         """In the default terraform workspace, we have the API.
         In the specific workspace, we have the corresponding stagging lambda.
         """
         stop = False
+        workspace = options['workspace']
 
         def display_spinning_cursor():
             spinner = itertools.cycle('|/-\\')
@@ -197,26 +208,29 @@ class Terraform:
         try:
             click.echo(f"Terraform apply (Create API routes)")
             self.apply("default")
+            if options['api']:
+                return
             click.echo(f"Terraform apply (Deploy API and Lambda for the {workspace} stage)")
             self.apply(workspace)
         finally:
             stop = True
 
-    def __execute(self, cmd_args: t.List[str]) -> CompletedProcess:
-        p = subprocess.run(["terraform", *cmd_args], capture_output=True, cwd=self.working_dir, timeout=self.timeout)
+    def _execute(self, cmd_args: t.List[str]) -> CompletedProcess:
+        p = subprocess.run(["terraform", *cmd_args], capture_output=True, cwd=self.working_dir, timeout=self.TIMEOUT)
         p.check_returncode()
         return p
 
 
-@click.command("deploy", short_help="Deploy the Flask server on AWS Lambda.")
+@click.command("deploy", short_help="Deploy the CoWorks microservice on AWS Lambda.")
 # Zip options (redefined)
+@click.option('--api', is_flag=True, help="Stop after API create step (forces also dry mode).")
 @click.option('--bucket', '-b', help="Bucket to upload sources zip file to", required=True)
 @click.option('--dry', is_flag=True, help="Doesn't perform deploy [Global option only].")
 @click.option('--ignore', '-i', multiple=True, help="Ignore pattern.")
 @click.option('--key', '-k', help="Sources zip file bucket's name.")
 @click.option('--module_name', '-m', multiple=True, help="Python module added from current pyenv (module or file.py).")
 @click.option('--profile_name', '-p', required=True, help="AWS credential profile.")
-# Deploy specific options
+# Deploy specific optionsElle est immédiatement opérationnelle et fonctionnell
 @click.option('--binary-media-types')
 @click.option('--cloud', is_flag=True, help="Use cloud workspaces.")
 @click.option('--layers', '-l', multiple=True, help="Add layer (full arn: aws:lambda:...)")
@@ -225,19 +239,21 @@ class Terraform:
 @click.option('--python', '-p', type=click.Choice(['3.7', '3.8']), default='3.8',
               help="Python version for the lambda.")
 @click.option('--timeout', default=60)
-@click.option('--terraform-class', default=Terraform, hidden=True)
+@click.option('--terraform-dir', default="terraform")
 @click.pass_context
 @pass_script_info
 @with_appcontext
-def deploy_command(info, ctx, output, terraform_class, **options) -> None:
+def deploy_command(info, ctx, output, terraform_class=Terraform, **options) -> None:
     """ Deploiement in 2 steps:
         Step 1. Create API and routes integrations
         Step 2. Deploy API and Lambda
     """
-    print(terraform_class)
-    exit()
-    terraform = terraform_class()
+    root_command_params = ctx.find_root().params
+    project_dir = root_command_params['project_dir']
+    workspace = root_command_params['workspace']
+    debug = root_command_params['debug']
 
+    terraform = terraform_class(info, **root_command_params, **options)
     if output:  # Stop if only print output
         click.echo(f"terraform output : {terraform.output()}")
         return
@@ -247,15 +263,13 @@ def deploy_command(info, ctx, output, terraform_class, **options) -> None:
     options['hash'] = True
     options['ignore'] = options['ignore'] or ['.*', 'terraform']
     options['key'] = options['key'] or f"{app.__module__}-{app.name}/archive.zip"
+    if options['api']:
+        options['dry'] = True
+    dry = options['dry']
 
     # Transfert zip file to S3 (to be done on each service)
     zip_options = {zip_param.name: options[zip_param.name] for zip_param in zip_command.params}
     ctx.invoke(zip_command, **zip_options)
-
-    root_command_params = ctx.find_root().params
-    project_dir = root_command_params['project_dir']
-    workspace = root_command_params['workspace']
-    dry = zip_options.get('dry')
 
     # Copy environment files
     config = app.get_config(workspace)
@@ -265,15 +279,15 @@ def deploy_command(info, ctx, output, terraform_class, **options) -> None:
         copy(file, terraform.working_dir)
 
     # Generates common terraform files
-    terraform.generate_common_files(workspace)
+    terraform.generate_common_files(**root_command_params, **options)
 
     # Generates terraform files and copy environment variable files in terraform working dir for provisionning
     terraform_filename = f"{app.name}.{app.ms_type}.tf"
-    terraform.generate_files(info, config, "deploy.j2", terraform_filename, **root_command_params, **options)
+    terraform.generate_files("deploy.j2", terraform_filename, **root_command_params, **options)
 
     # Apply terraform if not dry
     if not dry:
-        terraform.create_stage(workspace)
+        terraform.create_stage(**root_command_params, **options)
 
     # Traces output
     click.echo(f"terraform output :\n{terraform.output()}")

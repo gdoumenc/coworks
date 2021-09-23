@@ -1,10 +1,9 @@
-import boto3
 import os
+
 import pytest
-from click import NoSuchOption, UsageError
+from click import NoSuchOption
+from click import UsageError
 from flask.cli import ScriptInfo
-from pathlib import Path
-from unittest.mock import Mock
 
 from coworks.cws.client import client
 from coworks.cws.deploy import Terraform
@@ -95,41 +94,3 @@ class TestClass:
         captured = capsys.readouterr()
         assert captured.out == "test command with a=default/test command with b=right"
 
-    def test_api_ressources(self, example_dir, capsys):
-        app = import_attr('cmd', 'app', cwd=example_dir)
-        with app.test_request_context() as ctx:
-            api_ressources = Terraform(working_dir=example_dir).api_resources(app)
-        assert len(api_ressources) == 5
-        assert '' in api_ressources
-        assert 'init' in api_ressources
-        assert 'env' in api_ressources
-        assert 'value' in api_ressources
-        assert 'value_index' in api_ressources
-        ter_resource = api_ressources['']
-        assert len(ter_resource.rules) == 1
-        ter_resource = api_ressources['value_index']
-        assert len(ter_resource.rules) == 2
-
-    def test_deployer(self, monkeypatch, example_dir, capsys):
-        monkeypatch.setattr(boto3, "Session", Mock(return_value=Mock(return_value='region')))
-        app = import_attr('cmd', 'app', cwd=example_dir)
-        config = app.get_config('workspace')
-        with app.test_request_context() as ctx:
-            options = {
-                'project_dir': example_dir,
-                'workspace': 'workspace',
-                'debug': False,
-                'profile_name': 'profile_name',
-                'timeout': 30,
-                'memory_size': 100,
-            }
-            terraform = Terraform(working_dir=Path(example_dir) / "terraform")
-            info = ScriptInfo(create_app=lambda _:app)
-            terraform.generate_files(info, config, "deploy.j2", "test.tf", **options)
-        with (Path(example_dir) / "terraform" / "test.tf").open() as f:
-            lines = f.readlines()
-        assert len(lines) == 1665
-        assert lines[3].strip() == 'envtechms_when_default = terraform.workspace == "default" ? 1 : 0'
-        assert lines[4].strip() == 'envtechms_when_stage = terraform.workspace != "default" ? 1 : 0'
-        (Path(example_dir) / "terraform" / "test.tf").unlink()
-        (Path(example_dir) / "terraform").rmdir()

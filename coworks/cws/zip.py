@@ -1,15 +1,15 @@
-import sysconfig
-
 import base64
-import click
 import functools
 import hashlib
 import importlib
 import os
+import sysconfig
 import tempfile
-from flask.cli import pass_script_info
 from pathlib import Path
 from shutil import copyfile, copytree, ignore_patterns, make_archive
+
+import click
+from flask.cli import pass_script_info
 
 from .. import aws
 
@@ -24,12 +24,12 @@ from .. import aws
 @click.option('--profile_name', '-p', required=True, help="AWS credential profile.")
 @click.pass_context
 @pass_script_info
-def zip_command(info, ctx, bucket, debug, dry, hash, ignore, module_name, key, profile_name) -> None:
+def zip_command(info, ctx, bucket, dry, hash, ignore, module_name, key, profile_name) -> None:
     """
     This command uploads project source folder as a zip file on a S3 bucket.
     Uploads also the hash code of this file to be able to determined code changes (used by terraform as a trigger).
     """
-
+    debug = ctx.find_root().params['debug']
     aws_s3_session = aws.AwsS3Session(profile_name=profile_name)
     module_name = module_name or []
 
@@ -42,7 +42,10 @@ def zip_command(info, ctx, bucket, debug, dry, hash, ignore, module_name, key, p
         tmp_path = Path(tmp_dir)
 
         if ignore and type(ignore) is not list:
-            ignore = [ignore]
+            if type(ignore) is tuple:
+                ignore = [*ignore]
+            else:
+                ignore = [ignore]
         full_ignore_patterns = functools.partial(ignore_patterns, '*.pyc', '__pycache__', 'bin', 'test', *ignore)
 
         # Creates archive
@@ -70,8 +73,8 @@ def zip_command(info, ctx, bucket, debug, dry, hash, ignore, module_name, key, p
                     aws_s3_session.client.upload_fileobj(archive, bucket, key)
                     if debug:
                         click.echo(f"Successfully uploaded sources at s3://{bucket}/{key}")
-                else:
-                    click.echo(f"Sources is {int(os.path.getsize(module_archive)/1000)} Kb")
+                if debug:
+                    click.echo(f"Sources is {int(os.path.getsize(module_archive) / 1000)} Kb")
             except Exception as e:
                 click.echo(f"Failed to upload module sources on S3 : {e}")
                 raise e

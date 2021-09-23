@@ -3,7 +3,6 @@ import pytest
 from coworks.cws.client import client, ProjectConfig
 
 
-import pytest
 @pytest.mark.skip
 class TestClass:
     def test_no_project_file_no_module(self, example_dir, capsys):
@@ -28,7 +27,8 @@ class TestClass:
         assert pytest_wrapped_e.value.code == 0
         captured = capsys.readouterr()
         assert captured.out == \
-               "test command with a=default/test command with b=valuetest command with a=project2/test command with b=value"
+               "test command with a=default/test command with b=value"" +" \
+               "test command with a=project2/test command with b=value"
 
     def test_project_file_no_param_workspace_prod(self, example_dir, capsys):
         with pytest.raises(SystemExit) as pytest_wrapped_e:
