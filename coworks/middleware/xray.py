@@ -1,8 +1,8 @@
 import traceback
-
 import typing as t
-from aws_xray_sdk.core import patch_all
 from functools import partial, update_wrapper
+
+from aws_xray_sdk.core import patch_all
 
 from coworks.globals import aws_context
 from coworks.globals import aws_event
@@ -47,8 +47,8 @@ class XRayMiddleware:
                         if subsegment:
                             subsegment.put_annotation('service', self._app.name)
                             subsegment.put_metadata('event', aws_event, LAMBDA_NAMESPACE)
-                            subsegment.put_metadata('context', aws_context, LAMBDA_NAMESPACE)
-                            subsegment.put_metadata('request', request, REQUEST_NAMESPACE)
+                            subsegment.put_metadata('context', lambda_context_to_json(aws_context), LAMBDA_NAMESPACE)
+                            subsegment.put_metadata('request', request_to_dict(request), REQUEST_NAMESPACE)
                             if request.is_json:
                                 subsegment.put_metadata('json', request.json, COWORKS_NAMESPACE)
                             elif request.is_multipart:
@@ -118,3 +118,30 @@ class XRayMiddleware:
             return recorder.capture(function.__name__)(wrapped_fun)
 
         return decorator
+
+
+def lambda_context_to_json(context):
+    return {
+        'function_name': context.function_name,
+        'function_version': context.function_version,
+        'memory_limit_in_mb': context.memory_limit_in_mb,
+        'aws_request_id': context.aws_request_id,
+        'remaining_time': context.get_remaining_time_in_millis(),
+    }
+
+
+def request_to_dict(request):
+    return {
+        'in_lambda_context': request.in_lambda_context,
+        'is_multipart': request.is_multipart,
+        'is_form_urlencoded': request.is_form_urlencoded,
+        'max_content_length': request.max_content_length,
+        'endpoint': request.endpoint,
+        'want_form_data_parsed': request.want_form_data_parsed,
+        'data': request.data,
+        'form': request.form,
+        'json': request.json,
+        'values': request.values,
+        'script_root': request.script_root,
+        'url_root': request.url_root,
+    }
