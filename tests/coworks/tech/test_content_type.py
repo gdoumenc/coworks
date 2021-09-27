@@ -24,17 +24,12 @@ class ContentMS(TechMicroService):
         return f"post {text}, {context}"
 
 
-# session = MagicMock()
-# session.client = MagicMock()
-# s3_object = {'Body': io.BytesIO(b'test'), 'ContentType': 'text/plain'}
-# session.client.get_object = MagicMock(return_value=s3_object)
-
-
 import pytest
 
 
 class TestClass:
 
+    @pytest.mark.wip
     def test_text_api(self):
         app = ContentMS()
         with app.test_client() as c:
@@ -42,24 +37,43 @@ class TestClass:
             response = c.get('/', headers=headers)
             assert response.status_code == 200
             assert response.is_json
+            assert response.headers['Content-Type'] == 'application/json'
             assert response.get_data(as_text=True) == 'test'
 
             headers = {'Accept': 'application/json', 'Authorization': 'token'}
             response = c.get('/', headers=headers)
             assert response.status_code == 200
             assert response.is_json
+            assert response.headers['Content-Type'] == 'application/json'
             assert response.get_data(as_text=True) == 'test'
 
             headers = {'Accept': 'text/plain', 'Authorization': 'token'}
             response = c.get('/', headers=headers)
             assert response.status_code == 200
             assert not response.is_json
+            assert response.headers['Content-Type'] == 'text/plain'
             assert response.get_data(as_text=True) == 'test'
 
-            # headers = {'Authorization': 'token'}
-            # response = c.get('/json', headers=headers)
-            # assert response.status_code == 200
-            # assert response.get_data(as_text=True) == {"int":1,"text":"value"}
+            headers = {'Authorization': 'token'}
+            response = c.get('/json', headers=headers)
+            assert response.status_code == 200
+            assert response.is_json
+            assert response.headers['Content-Type'] == 'application/json'
+            assert response.json == {"int":1,"text":"value"}
+
+            headers = {'Accept': 'application/json', 'Authorization': 'token'}
+            response = c.get('/json', headers=headers)
+            assert response.status_code == 200
+            assert response.is_json
+            assert response.headers['Content-Type'] == 'application/json'
+            assert response.json == {"int":1,"text":"value"}
+
+            headers = {'Accept': 'text/plain', 'Authorization': 'token'}
+            response = c.get('/json', headers=headers)
+            assert response.status_code == 200
+            assert not response.is_json
+            assert response.headers['Content-Type'] == 'text/plain'
+            assert response.get_data(as_text=True) == '{"int":1,"text":"value"}\n'
 
     @pytest.mark.skip
     def test_text_plain(self, local_server_factory):

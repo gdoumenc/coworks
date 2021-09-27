@@ -1,9 +1,10 @@
-from dataclasses import dataclass
-from json import JSONDecodeError
-
 import logging
 import os
 import typing as t
+from dataclasses import dataclass
+from functools import partial
+from json import JSONDecodeError
+
 from flask import Blueprint as FlaskBlueprint
 from flask import Flask
 from flask import abort
@@ -11,7 +12,6 @@ from flask import current_app
 from flask.blueprints import BlueprintSetupState
 from flask.ctx import RequestContext
 from flask.testing import FlaskClient
-from functools import partial
 from werkzeug.routing import Rule
 
 from .config import Config
@@ -283,19 +283,19 @@ class TechMicroService(Flask):
                     if res.is_json:
                         return {
                             "statusCode": res.status_code,
-                            "headers": res.headers.to_wsgi_list(),
+                            "headers": {k: v for k, v in res.headers},
                             "body": res.json,
                         }
                 except JSONDecodeError:
                     res.mimetype = "text/plain"
                 return {
                     "statusCode": res.status_code,
-                    "headers": res.headers.to_wsgi_list(),
+                    "headers": {k: v for k, v in res.headers},
                     "body": res.get_data(as_text=True),
                 }
 
         except Exception as e:
-            self.logger.debug(f"Error in Flask handler for {self.name} : {e}")
+            self.logger.debug(f"Error in API handler for {self.name} : {e}")
             raise
 
     def _flask_handler(self, environ: t.Dict[str, t.Any], start_response: t.Callable[[t.Any], None]):
