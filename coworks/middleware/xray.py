@@ -48,7 +48,8 @@ class XRayMiddleware:
                             try:
                                 subsegment.put_annotation('service', self._app.name)
                                 subsegment.put_metadata('event', aws_event, LAMBDA_NAMESPACE)
-                                subsegment.put_metadata('context', lambda_context_to_json(aws_context), LAMBDA_NAMESPACE)
+                                subsegment.put_metadata('context', lambda_context_to_json(aws_context),
+                                                        LAMBDA_NAMESPACE)
                                 subsegment.put_metadata('request', request_to_dict(request), REQUEST_NAMESPACE)
                                 if request.is_json:
                                     subsegment.put_metadata('json', request.json, COWORKS_NAMESPACE)
@@ -66,9 +67,13 @@ class XRayMiddleware:
                         # Traces response
                         if subsegment:
                             try:
+                                subsegment.put_metadata('status', response.status, COWORKS_NAMESPACE)
                                 subsegment.put_metadata('headers', response.headers, COWORKS_NAMESPACE)
-                                # subsegment.put_metadata('direct_passthrough', response['direct_passthrough'], COWORKS_NAMESPACE)
-                                # subsegment.put_metadata('response', [l[:100] for l in response['response']], COWORKS_NAMESPACE)
+                                subsegment.put_metadata('direct_passthrough', response.direct_passthrough,
+                                                        COWORKS_NAMESPACE)
+                                subsegment.put_metadata('is_json', response.is_json, COWORKS_NAMESPACE)
+                                subsegment.put_metadata('content_length', response.content_length, COWORKS_NAMESPACE)
+                                subsegment.put_metadata('content_type', response.content_type, COWORKS_NAMESPACE)
                             except Exception as e:
                                 self._app.logger.info(f"Cannot capture in XRay : {e}")
                         return response

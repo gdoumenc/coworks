@@ -1,11 +1,10 @@
 import dataclasses
-from dataclasses import dataclass
-from json import JSONDecodeError
-
 import json
 import os
 import re
 import typing as t
+from dataclasses import dataclass
+from json import JSONDecodeError
 from pathlib import Path
 
 from .utils import as_list
@@ -25,6 +24,10 @@ class Config:
     environment_variables_file: t.Union[str, t.List[str], Path, t.List[Path]] = 'vars.json'
     environment_variables: t.Union[dict, t.List[dict]] = None
     default_token: str = None
+
+    @property
+    def ENV(self):
+        return self.workspace
 
     def is_valid_for(self, workspace: str) -> bool:
         return self.workspace == workspace
@@ -49,7 +52,7 @@ class Config:
         # get default then specific
         add_file('.')
         add_file(project_dir)
-        return files.values()
+        return [f.as_posix() for f in files.values()]
 
     def load_environment_variables(self, project_dir):
         """Uploads environment variables from the environment variables files and variables."""
@@ -58,7 +61,7 @@ class Config:
         # Environment variables from files and from config
         for file in self.existing_environment_variables_files(project_dir):
             try:
-                with file.open() as f:
+                with Path(file).open() as f:
                     environment_variables.update(json.loads(f.read()))
             except JSONDecodeError as e:
                 raise FileNotFoundError(f"Syntax error in file {file}: {str(e)}.\n")
