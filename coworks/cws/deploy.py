@@ -4,6 +4,7 @@ import subprocess
 import sys
 import typing as t
 from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
 from shutil import copy
 from subprocess import CalledProcessError
@@ -32,22 +33,24 @@ class TerraformResource:
     path: str
     rules: t.List[Rule] = None
 
-    @property
+    @cached_property
     def uid(self) -> str:
 
         if self.is_root:
             return ''
 
+        uid = self.path.replace('{', '').replace('}', '')
+
         if self.parent_is_root:
-            return self.path
+            return uid
 
-        return f"{self.parent_uid}{UID_SEP}{self.path}" if self.path else self.parent_uid
+        return f"{self.parent_uid}{UID_SEP}{uid}" if self.path else self.parent_uid
 
-    @property
+    @cached_property
     def is_root(self) -> bool:
         return self.path is None
 
-    @property
+    @cached_property
     def parent_is_root(self) -> bool:
         return self.parent_uid == ''
 
@@ -105,7 +108,8 @@ class Terraform:
         def add_rule(previous: t.Optional[str], path: t.Optional[str], rule_: t.Optional[Rule]):
 
             # Creates the terraform ressource if doesn't exist.
-            path = None if path is None else path.replace('<', '').replace('>', '')
+            path = None if path is None else path.replace('<', '{').replace('>', '}')
+
             resource = TerraformResource(previous, path)
             uid = resource.uid
             if uid not in resources:

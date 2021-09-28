@@ -45,24 +45,32 @@ class XRayMiddleware:
                         # Traces event, context, request and coworks function
                         subsegment = self._recorder.current_subsegment()
                         if subsegment:
-                            subsegment.put_annotation('service', self._app.name)
-                            subsegment.put_metadata('event', aws_event, LAMBDA_NAMESPACE)
-                            subsegment.put_metadata('context', lambda_context_to_json(aws_context), LAMBDA_NAMESPACE)
-                            subsegment.put_metadata('request', request_to_dict(request), REQUEST_NAMESPACE)
-                            if request.is_json:
-                                subsegment.put_metadata('json', request.json, COWORKS_NAMESPACE)
-                            elif request.is_multipart:
-                                subsegment.put_metadata('multipart', request.form.to_dict(False), COWORKS_NAMESPACE)
-                            elif request.is_form_urlencoded:
-                                subsegment.put_metadata('form', request.form.to_dict(False), COWORKS_NAMESPACE)
-                            else:
-                                subsegment.put_metadata('values', request.values.to_dict(False), COWORKS_NAMESPACE)
+                            try:
+                                subsegment.put_annotation('service', self._app.name)
+                                subsegment.put_metadata('event', aws_event, LAMBDA_NAMESPACE)
+                                subsegment.put_metadata('context', lambda_context_to_json(aws_context), LAMBDA_NAMESPACE)
+                                subsegment.put_metadata('request', request_to_dict(request), REQUEST_NAMESPACE)
+                                if request.is_json:
+                                    subsegment.put_metadata('json', request.json, COWORKS_NAMESPACE)
+                                elif request.is_multipart:
+                                    subsegment.put_metadata('multipart', request.form.to_dict(False), COWORKS_NAMESPACE)
+                                elif request.is_form_urlencoded:
+                                    subsegment.put_metadata('form', request.form.to_dict(False), COWORKS_NAMESPACE)
+                                else:
+                                    subsegment.put_metadata('values', request.values.to_dict(False), COWORKS_NAMESPACE)
+                            except Exception as e:
+                                self._app.logger.info(f"Cannot capture in XRay : {e}")
 
                         response = _view_function(*args, **kwargs)
 
                         # Traces response
                         if subsegment:
-                            subsegment.put_metadata('response', response, COWORKS_NAMESPACE)
+                            try:
+                                subsegment.put_metadata('headers', response.headers, COWORKS_NAMESPACE)
+                                # subsegment.put_metadata('direct_passthrough', response['direct_passthrough'], COWORKS_NAMESPACE)
+                                # subsegment.put_metadata('response', [l[:100] for l in response['response']], COWORKS_NAMESPACE)
+                            except Exception as e:
+                                self._app.logger.info(f"Cannot capture in XRay : {e}")
                         return response
 
                     wrapped_fun = update_wrapper(partial(captured, view_function), view_function)

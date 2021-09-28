@@ -1,5 +1,5 @@
-from tests.coworks.ms import SimpleMS
 from tests.coworks.ms import GlobalMS
+from tests.coworks.ms import SimpleMS
 
 
 def get_event(path, method, params=None, body=None):
@@ -93,10 +93,10 @@ class TestClass:
             response = app(get_event('/', 'get'), empty_context)
             assert response['statusCode'] == 200
             assert response['body'] == "get"
-            assert 'Content-Type' in [h[0] for h in response['headers']]
-            assert [h for h in response['headers'] if h[0] == 'Content-Type'][0][1] == 'text/plain; charset=utf-8'
-            assert 'Content-Length' in [h[0] for h in response['headers']]
-            assert [h for h in response['headers'] if h[0] == 'Content-Length'][0][1] == str(len(response['body']))
+            assert 'Content-Type' in response['headers']
+            assert response['headers']['Content-Type'] == 'text/plain; charset=utf-8'
+            assert 'Content-Length' in response['headers']
+            assert response['headers']['Content-Length'] == str(len(response['body']))
             response = app(get_event('/', 'post'), empty_context)
             assert response['statusCode'] == 405
             response = app(get_event('/get1', 'get'), empty_context)
