@@ -25,9 +25,9 @@ data "aws_s3_bucket_object" "{{ resource_name }}-b64sha256" {
   key = "{{ key }}.b64sha256"
 }
 
-{%- if environment_variable_files -%}
+{% if environment_variable_files -%}
 data "local_file" "{{ resource_name }}_environment_variables_files" {
-  for_each = {for envar_file in {{ environment_variable_files | tojson }}: envar_file => "${envar_file}"}
+  for_each = local.{{ resource_name }}_when_stage == 1 ? {for envar_file in {{ environment_variable_files | tojson }}: envar_file => envar_file} : {}
   filename = each.value
 }
 {%- endif %}
@@ -47,7 +47,6 @@ resource "aws_lambda_function" "{{ resource_name }}" {
   runtime = "python{{ python }}"
   timeout = {{ timeout }}
   memory_size = {{ memory_size }}
-  {%- if environment_variable_files != [] %}
   environment {
     variables = merge(
       {{ environment_variables | tojson }},
@@ -57,11 +56,6 @@ resource "aws_lambda_function" "{{ resource_name }}" {
       {"WORKSPACE":"{{ workspace }}"}
     )
   }
-  {%- else %}
-  environment {
-    variables = {"WORKSPACE":"{{ workspace }}"}
-  }
-  {%- endif %}
   tracing_config {
     mode = "Active"
   }

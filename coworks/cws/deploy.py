@@ -60,7 +60,7 @@ class TerraformResource:
 
 class Terraform:
     """Terraform calss to manage local terraform deployement."""
-    TIMEOUT = 240
+    TIMEOUT = 300
 
     def __init__(self, info, **options):
         self.info = info
@@ -106,11 +106,10 @@ class Terraform:
         resources = {}
 
         def add_rule(previous: t.Optional[str], path: t.Optional[str], rule_: t.Optional[Rule]):
+            path = None if path is None else path.replace('<', '{').replace('>', '}')
+            resource = TerraformResource(previous, path)
 
             # Creates the terraform ressource if doesn't exist.
-            path = None if path is None else path.replace('<', '{').replace('>', '}')
-
-            resource = TerraformResource(previous, path)
             uid = resource.uid
             if uid not in resources:
                 resources[uid] = resource
@@ -219,6 +218,9 @@ class Terraform:
         finally:
             stop = True
 
+    def copy_file(self, file):
+        copy(file, self.working_dir)
+
     def _execute(self, cmd_args: t.List[str]) -> CompletedProcess:
         p = subprocess.run(["terraform", *cmd_args], capture_output=True, cwd=self.working_dir, timeout=self.TIMEOUT)
         p.check_returncode()
@@ -277,10 +279,9 @@ def deploy_command(info, ctx, output, terraform_class=Terraform, **options) -> N
 
     # Copy environment files
     config = app.get_config(workspace)
-    environment_variable_files = [p.as_posix() for p in
-                                  config.existing_environment_variables_files(project_dir)]
+    environment_variable_files = config.existing_environment_variables_files(project_dir)
     for file in environment_variable_files:
-        copy(file, terraform.working_dir)
+        terraform.copy_file(file)
 
     # Generates common terraform files
     terraform.generate_common_files(**root_command_params, **options)
