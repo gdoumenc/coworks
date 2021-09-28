@@ -1,4 +1,5 @@
 import json
+
 import requests
 
 from coworks import TechMicroService
@@ -28,8 +29,6 @@ import pytest
 
 
 class TestClass:
-
-    @pytest.mark.wip
     def test_text_api(self):
         app = ContentMS()
         with app.test_client() as c:
@@ -59,14 +58,14 @@ class TestClass:
             assert response.status_code == 200
             assert response.is_json
             assert response.headers['Content-Type'] == 'application/json'
-            assert response.json == {"int":1,"text":"value"}
+            assert response.json == {"int": 1, "text": "value"}
 
             headers = {'Accept': 'application/json', 'Authorization': 'token'}
             response = c.get('/json', headers=headers)
             assert response.status_code == 200
             assert response.is_json
             assert response.headers['Content-Type'] == 'application/json'
-            assert response.json == {"int":1,"text":"value"}
+            assert response.json == {"int": 1, "text": "value"}
 
             headers = {'Accept': 'text/plain', 'Authorization': 'token'}
             response = c.get('/json', headers=headers)

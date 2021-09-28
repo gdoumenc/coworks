@@ -261,6 +261,11 @@ class TechMicroService(Flask):
 
         def full_path():
             url = event['path']
+
+            # Replaces route parameters
+            url = url.format(url, **event['params']['path'])
+
+            # Adds query parameters
             params = event['multiValueQueryStringParameters']
             if params:
                 url += '?'
