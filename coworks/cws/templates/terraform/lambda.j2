@@ -63,7 +63,6 @@ resource "aws_lambda_function" "{{ resource_name }}" {
     security_group_ids = local.{{ resource_name }}_security_group_ids
     subnet_ids = local.{{ resource_name }}_subnet_ids
   }
-  tags = local.{{ resource_name }}_tags
 
   depends_on = [
     aws_cloudwatch_log_group.lambda_{{ resource_name }},
