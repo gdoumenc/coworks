@@ -1,33 +1,54 @@
-import json
-import requests
-import tempfile
-import urllib.parse
+from io import BytesIO
+
+from coworks import TechMicroService
+from coworks.blueprint.jinja_blueprint import Jinja
+
+
+class JinjaMS(TechMicroService):
+
+    def __init__(self):
+        super().__init__('jinja')
+        self.register_blueprint(Jinja())
 
 
 import pytest
-@pytest.mark.skip
+
+
 class TestClass:
 
-    def test_render_template_in_url(self, local_server_factory):
-        local_server = local_server_factory(JinjaRenderMicroService(configs=LocalConfig()))
-        template = urllib.parse.quote_plus("hello {{ world_name }}")
-        response = local_server.make_call(requests.get, f"/render/{template}", params={'world_name': 'world'})
-        assert response.status_code == 200
-        assert response.json() == {"render": "hello [\'world\']"}
+    def test_render_empty_template(self):
+        app = JinjaMS()
+        with app.test_client() as c:
+            response = c.post('/render')
+            assert response.status_code == 200
+            assert response.get_data(as_text=True) == ""
+            assert 'Content-Type' in response.headers
+            assert response.headers['Content-Type'] == 'text/html; charset=utf-8'
 
-    def test_render_template_multipart_form(self, local_server_factory):
-        local_server = local_server_factory(JinjaRenderMicroService(configs=LocalConfig()))
+    def test_render_template(self):
+        app = JinjaMS()
+        with app.test_client() as c:
+            data = {
+                'template': "hello {{ world_name }}",
+                'world_name': "world",
+            }
+            response = c.get('/render', json=data)
+            assert 'Content-Type' in response.headers
+            assert response.headers['Content-Type'] == 'text/html; charset=utf-8'
+            response = c.post('/render', json=data)
+            assert response.status_code == 200
+            assert response.get_data(as_text=True) == "hello world"
 
-        template = tempfile.TemporaryFile()
-        template.write("hello {{ world_name }}".encode())
-        template.seek(0)
+    def test_render_template_multipart_form(self):
+        app = JinjaMS()
+        with app.test_client() as c:
+            template = BytesIO(b"hello {{ world_name }}")
+            form_data = {
+                'template': (template, 'template.j2'),
+                'world_name': 'world',
+            }
 
-        context = tempfile.TemporaryFile()
-        context.write(json.dumps({"world_name": "the world"}).encode())
-        context.seek(0)
+            response = c.post('/render', content_type='multipart/form-data', data=form_data)
 
-        response = local_server.make_call(requests.post, "/render/template.jinja",
-                                          files={'templates': ('template.jinja', template, 'text/plain'),
-                                                 'context': (None, context, 'application/json')})
-        assert response.status_code == 200
-        assert response.json() == {"render": "hello the world"}
+            assert response.status_code == 200
+            assert response.get_data(as_text=True) == "hello world"

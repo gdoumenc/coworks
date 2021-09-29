@@ -24,8 +24,6 @@ resource "aws_iam_role" "{{ resource_name }}_microservice" {
       }
    ]
   })
-
-  tags = local.{{ resource_name }}_tags
 }
 data "aws_iam_role" "{{ resource_name }}_microservice" {
   provider = aws.{{ resource_name }}

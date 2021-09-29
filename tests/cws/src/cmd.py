@@ -2,7 +2,7 @@ import click
 from flask.cli import pass_script_info
 
 from coworks.config import Config
-from tests.cws.src.ms import EnvTechMS
+from tests.cws.src.app import EnvTechMS
 
 
 @click.command("test", short_help="Test custom command.")

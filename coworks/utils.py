@@ -97,9 +97,9 @@ def _create_rest_proxy(scaffold, func, kwarg_keys, args, varkw):
                             else:
                                 kwargs[kwarg_keys[0]] = data
                         elif request.is_multipart:
-                            # TODO: missing file param
                             data = request.form.to_dict(False)
-                            kwargs = dict(**kwargs, **as_fun_params(data))
+                            files = request.files.to_dict(False)
+                            kwargs = dict(**kwargs, **as_fun_params(data), **as_fun_params(files))
                         elif request.is_form_urlencoded:
                             data = request.form.to_dict(False)
                             kwargs = dict(**kwargs, **as_fun_params(data))

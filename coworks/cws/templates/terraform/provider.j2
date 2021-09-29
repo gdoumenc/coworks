@@ -2,4 +2,12 @@ provider "aws" {
   alias = "{{ resource_name }}"
   profile = "{{ profile_name }}"
   region = "{{ aws_region }}"
+
+  default_tags {
+    tags = {
+      Creator = "terraform"
+      MicroService = "{{ ms_name }}"
+      Stage = "{{ workspace }}"
+    }
+  }
 }

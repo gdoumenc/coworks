@@ -101,7 +101,7 @@ class Blueprint(FlaskBlueprint):
 
         """
         import_name = self.__class__.__name__.lower()
-        super().__init__(name or import_name, import_name)
+        super().__init__(name or import_name, import_name, **kwargs)
 
     @property
     def logger(self) -> logging.Logger:

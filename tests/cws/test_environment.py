@@ -7,7 +7,7 @@ from pathlib import Path
 
 from coworks.config import Config, ProdConfig
 from coworks.cws.client import client
-from tests.cws.src.ms import EnvTechMS
+from tests.cws.src.app import EnvTechMS
 
 
 class TestClass:
