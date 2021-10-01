@@ -29,6 +29,12 @@ class ParamMS(TechMicroService):
     def get_param(self, str1, param1='default1', param2='default2'):
         return str1 + str(param1) + param2
 
+    @entry
+    def post_params(self, **kwargs):
+        return {
+            'keys': [k for k in kwargs.keys()],
+        }
+
 
 class TupleReturnedMS(TechMS):
 
@@ -67,7 +73,7 @@ class TestClass:
     def test_request_arg(self):
         app = SimpleMS()
         with app.test_client() as c:
-            response = c.get('/', headers={'Accept':'text/plain', 'Authorization': 'token'})
+            response = c.get('/', headers={'Accept': 'text/plain', 'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "get"
             assert 'Content-Type' in response.headers
@@ -129,6 +135,26 @@ class TestClass:
             response = c.get('/extended/content', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "hello world"
+
+    def test_request_form_data(self):
+        """normal API call."""
+        app = ParamMS()
+        with app.test_client() as c:
+            files = {
+                'template': io.BytesIO(b"hello {{ world_name }}"),
+            }
+            data = {
+                'key': 'value',
+                'template': (files['template'], 'template.j2'),
+            }
+
+            response = c.post('/params', content_type='multipart/form-data', data=data,
+                              headers={'Authorization': 'token'})
+
+            assert response.status_code == 200
+            assert response.is_json
+            assert 'keys' in response.json
+            assert response.json['keys'] == ['key', 'template']
 
     def test_parameterized(self):
         app = ParamMS()
