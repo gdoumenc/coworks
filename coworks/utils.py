@@ -1,14 +1,14 @@
-import traceback
-
 import importlib
 import inspect
 import os
 import platform
 import sys
-from flask import make_response as make_flask_response
-from flask.blueprints import BlueprintSetupState
+import traceback
 from functools import partial
 from functools import update_wrapper
+
+from flask import make_response as make_flask_response
+from flask.blueprints import BlueprintSetupState
 
 from .globals import request
 
@@ -208,6 +208,8 @@ def as_list(var):
 
 def make_response(resp):
     headers = {}
+    if resp is None:
+        return "", 204
     if type(resp) is tuple:
         if len(resp) == 2 and type(resp[1]) is dict:
             headers = resp[1]
