@@ -12,6 +12,7 @@ from flask import current_app
 from flask.blueprints import BlueprintSetupState
 from flask.ctx import RequestContext
 from flask.testing import FlaskClient
+from werkzeug.exceptions import HTTPException
 from werkzeug.routing import Rule
 
 from .config import Config
@@ -156,6 +157,12 @@ class TechMicroService(Flask):
                 valid = self.token_authorizer(token)
                 if not valid:
                     abort(403)
+
+        @self.errorhandler(Exception)
+        def handle_exception(e):
+            if isinstance(e, HTTPException):
+                return e
+            return str(e), 500
 
     def app_context(self):
         """Override to initialize coworks microservice."""

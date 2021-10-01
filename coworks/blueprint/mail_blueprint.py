@@ -1,15 +1,16 @@
 import os
 import smtplib
+import typing as t
 from dataclasses import dataclass
-from email.message import EmailMessage
+from email import message
 from email.utils import formataddr
 
 import requests
-from aws_xray_sdk.core import xray_recorder
+from werkzeug.datastructures import FileStorage
 
-from coworks import Blueprint, entry, MicroServiceProxy
+from coworks import Blueprint
+from coworks import entry
 from coworks.utils import FileParam
-from coworks.middleware import XRayContextManager
 
 
 #
@@ -18,40 +19,43 @@ from coworks.middleware import XRayContextManager
 
 class Mail(Blueprint):
     """Mail blueprint.
+    Initialization parameters must be in environment (Twelve-Factor App).
     Environment variables needed:
     - env_server_var_name: Variable name for the SMTP server.
     - env_login_var_name: Variable name for the login.
     - env_passwd_var_name: Variable name for the password.
     """
 
-    def __init__(self, env_server_var_name, env_login_var_name, env_passwd_var_name, env_var_prefix=None, **kwargs):
+    def __init__(self, env_server_var_name='', env_login_var_name='', env_passwd_var_name='',
+                 env_var_prefix='', **kwargs):
         super().__init__(**kwargs)
         self.smtp_server = self.smtp_login = self.smtp_passwd = None
         if env_var_prefix:
             self.env_server_var_name = f"{env_var_prefix}_SERVER"
-            self.env_login_var_name = f"{env_var_prefix}_USER"
+            self.env_login_var_name = f"{env_var_prefix}_LOGIN"
             self.env_passwd_var_name = f"{env_var_prefix}_PASSWD"
         else:
             self.env_server_var_name = env_server_var_name
             self.env_login_var_name = env_login_var_name
             self.env_passwd_var_name = env_passwd_var_name
 
-        @self.before_first_activation
-        def check_env_vars(event, context):
+        @self.before_app_first_request
+        def check_env_vars():
             self.smtp_server = os.getenv(self.env_server_var_name)
             if not self.smtp_server:
                 raise EnvironmentError(f'{self.env_server_var_name} not defined in environment.')
             self.smtp_login = os.getenv(self.env_login_var_name)
             if not self.smtp_login:
                 raise EnvironmentError(f'{self.env_login_var_name} not defined in environment.')
-            self.smtp_passwd = os.getenv(env_passwd_var_name)
+            self.smtp_passwd = os.getenv(self.env_passwd_var_name)
             if not self.smtp_passwd:
                 raise EnvironmentError(f'{self.env_passwd_var_name} not defined in environment.')
 
     @entry
     def post_send(self, subject="", from_addr: str = None, from_name: str = '', to_addrs: [str] = None,
-                  cc_addrs: [str] = None, bcc_addrs: [str] = None, body="",
-                  attachments: [FileParam] = None, attachment_urls: dict = None, subtype="plain", starttls=True):
+                  cc_addrs: [str] = None, bcc_addrs: [str] = None, body="", body_type="plain",
+                  attachments: t.Union[FileStorage, FileStorage] = None, attachment_urls: dict = None,
+                  starttls=True):
         """ Send mail.
         To send attachments, add files in the body of the request as multipart/form-data.
         """
@@ -66,7 +70,7 @@ class Mail(Blueprint):
         # Creates email
         try:
             from_ = formataddr((from_name if from_name else False, from_addr))
-            msg = EmailMessage()
+            msg = message.EmailMessage()
             msg['Subject'] = subject
             msg['From'] = from_
             msg['To'] = to_addrs if isinstance(to_addrs, str) else ', '.join(to_addrs)
@@ -74,17 +78,13 @@ class Mail(Blueprint):
                 msg['Cc'] = cc_addrs if isinstance(cc_addrs, str) else ', '.join(cc_addrs)
             if bcc_addrs:
                 msg['Bcc'] = bcc_addrs if isinstance(bcc_addrs, str) else ', '.join(bcc_addrs)
-            msg.set_content(body, subtype=subtype)
+            msg.set_content(body, subtype=body_type)
 
             if attachments:
                 if not isinstance(attachments, list):
                     attachments = [attachments]
                 for attachment in attachments:
-                    if not attachment.mime_type:
-                        return f"Mime type of the attachment {attachment.file.name} is not defined.", 400
-                    maintype, subtype = attachment.mime_type.split("/")
-                    msg.add_attachment(attachment.file.read(), maintype=maintype, subtype=subtype,
-                                       filename=attachment.file.name)
+                    msg.add_attachment(attachment.read(), maintype='multipart', subtype=attachment.content_type)
 
             if attachment_urls:
                 for attachment_name, attachment_url in attachment_urls.items():
@@ -132,10 +132,3 @@ class MailProxyData:
     attachment_urls: dict = None
     subtype: str = "plain"
     starttls: bool = True
-
-
-class MailProxy(MicroServiceProxy):
-
-    def send(self, data: MailProxyData, attachments: FileParam = None, sync: bool = False):
-        headers = {'content-type': 'multipart/form-data'} if attachments else {}
-        return super().post(f'{self.url}/send', data=data, attachments=attachments, sync=sync)

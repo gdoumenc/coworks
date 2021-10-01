@@ -11,9 +11,6 @@ class JinjaMS(TechMicroService):
         self.register_blueprint(Jinja())
 
 
-import pytest
-
-
 class TestClass:
 
     def test_render_empty_template(self):
@@ -33,8 +30,7 @@ class TestClass:
                 'world_name': "world",
             }
             response = c.get('/render', json=data)
-            assert 'Content-Type' in response.headers
-            assert response.headers['Content-Type'] == 'text/html; charset=utf-8'
+            assert response.status_code == 405
             response = c.post('/render', json=data)
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "hello world"

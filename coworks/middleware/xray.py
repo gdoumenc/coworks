@@ -90,7 +90,7 @@ class XRayMiddleware:
 
         # Only available in lambda context
         if not request.in_lambda_context:
-            return
+            raise e
 
         try:
             self._app.logger.error(f"Event: {aws_event}")
