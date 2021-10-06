@@ -4,6 +4,7 @@ import typing as t
 
 from coworks import Blueprint
 from coworks import entry
+from flask.globals import current_app
 
 
 class Jinja(Blueprint):
@@ -21,4 +22,5 @@ class Jinja(Blueprint):
         headers = {
             'Content-Type': 'text/html; charset=utf-8'
         }
-        return template.render(**context), 200, headers
+        current_app.update_template_context(context)
+        return template.render(config=current_app.config, **context), 200, headers

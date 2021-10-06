@@ -1,3 +1,4 @@
+import base64
 import logging
 import os
 import typing as t
@@ -289,23 +290,9 @@ class TechMicroService(Flask):
         try:
             with self.cws_client(event, context) as c:
                 method = event['httpMethod']
-                kwargs = {'json': event['body']} if method in ['PUT', 'POST'] else {}
-                res = getattr(c, method.lower())(full_path(), **kwargs)
-                try:
-                    if res.is_json:
-                        return {
-                            "statusCode": res.status_code,
-                            "headers": {k: v for k, v in res.headers},
-                            "body": res.json,
-                        }
-                except JSONDecodeError:
-                    res.mimetype = "text/plain"
-                return {
-                    "statusCode": res.status_code,
-                    "headers": {k: v for k, v in res.headers},
-                    "body": res.get_data(as_text=True),
-                }
-
+                kwargs = self._get_kwargs(event)
+                resp = getattr(c, method.lower())(full_path(), **kwargs)
+                return self._convert_to_lambda_response(resp)
         except Exception as e:
             self.logger.debug(f"Error in API handler for {self.name} : {e}")
             raise
@@ -314,10 +301,35 @@ class TechMicroService(Flask):
         """Flask handler.
         """
 
-        return self._convert_response(self.wsgi_app(environ, start_response))
+        resp = self.wsgi_app(environ, start_response)
+        return self._convert_to_flask_response(resp)
 
-    def _convert_response(self, resp):
-        """Convert response in serializable content, status and header."""
+    def _get_kwargs(self, event):
+        method = event['httpMethod']
+        if method not in ['PUT', 'POST']:
+            return {}
+
+        is_encoded = event.get('isBase64Encoded', False)
+        body = event['body']
+        if body and is_encoded:
+            body = self._base64decode(body)
+        return {'json': body}
+
+    def _base64decode(self, data):
+        if not isinstance(data, bytes):
+            data = data.encode('ascii')
+        output = base64.b64decode(data)
+        return output
+
+    def _base64encode(self, data):
+        if not isinstance(data, bytes):
+            msg = f'Expected bytes type for body with binary Content-Type. Got {type(data)} type body instead.'
+            raise ValueError(msg)
+        data = base64.b64encode(data).decode('ascii')
+        return data
+
+    def _convert_to_flask_response(self, resp):
+        """Convert Flask response in serializable content, status and header."""
         dumps = getattr(self.response_class.json_module, 'dumps')
         cls = self.response_class
 
@@ -339,6 +351,31 @@ class TechMicroService(Flask):
             return dumps(resp)
 
         return resp
+
+    def _convert_to_lambda_response(self, resp):
+        """Convert Lambda response."""
+        try:
+            if resp.is_json:
+                return {
+                    "statusCode": resp.status_code,
+                    "headers": {k: v for k, v in resp.headers},
+                    "body": resp.json,
+                    "isBase64Encoded": False,
+                }
+        except JSONDecodeError:
+            resp.mimetype = "text/plain"
+
+        as_text = resp.mimetype.startswith('text')
+        body = resp.get_data(as_text=as_text)
+        if not as_text:
+            body = self._base64encode(body)
+
+        return {
+            "statusCode": resp.status_code,
+            "headers": {k: v for k, v in resp.headers},
+            "body": body,
+            "isBase64Encoded": not as_text,
+        }
 
     def schedule(self, *args, **kwargs):
         raise Exception("Schedule decorator is defined on BizMicroService, not on TechMicroService")
