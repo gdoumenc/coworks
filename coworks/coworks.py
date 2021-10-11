@@ -17,7 +17,8 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.routing import Rule
 
 from .config import Config
-from .config import DEFAULT_WORKSPACE
+from .config import DEFAULT_DEV_WORKSPACE
+from .config import LocalConfig
 from .config import DevConfig
 from .config import ProdConfig
 from .globals import request
@@ -134,7 +135,7 @@ class TechMicroService(Flask):
         """
         name = name or self.__class__.__name__.lower()
 
-        self.configs = configs or [DevConfig(), ProdConfig()]
+        self.configs = configs or [LocalConfig(), DevConfig(), ProdConfig()]
         if type(self.configs) is not list:
             self.configs = [configs]
 
@@ -185,10 +186,10 @@ class TechMicroService(Flask):
 
         cws_request = t.cast(Request, ctx.request)
         if not self._cws_env_initialized and not cws_request.in_lambda_context:
-            workspace = os.environ.get('WORKSPACE', DEFAULT_WORKSPACE)
+            workspace = os.environ.get('WORKSPACE', DEFAULT_DEV_WORKSPACE)
             config = self.get_config(workspace)
             self.config.update(config.asdict())
-            config.load_environment_variables('tests/cws/src')
+            config.load_environment_variables(self.root_path)
 
         return ctx
 
@@ -305,15 +306,32 @@ class TechMicroService(Flask):
         return self._convert_to_flask_response(resp)
 
     def _get_kwargs(self, event):
+        def is_json(mt):
+            return (
+                    mt == "application/json"
+                    or mt.startswith("application/")
+                    and mt.endswith("+json")
+            )
+
+        content_type = event['headers']['content-type']
+        kwargs = {
+            'content_type': content_type
+        }
+
         method = event['httpMethod']
         if method not in ['PUT', 'POST']:
-            return {}
+            return kwargs
 
         is_encoded = event.get('isBase64Encoded', False)
         body = event['body']
         if body and is_encoded:
             body = self._base64decode(body)
-        return {'json': body}
+
+        if is_json(content_type):
+            kwargs['json'] = body
+            return kwargs
+        kwargs['data'] = body
+        return kwargs
 
     def _base64decode(self, data):
         if not isinstance(data, bytes):

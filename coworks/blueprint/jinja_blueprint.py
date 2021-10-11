@@ -1,15 +1,16 @@
+import typing as t
+
+from flask.globals import current_app
 from jinja2 import Template
 from werkzeug.datastructures import FileStorage
-import typing as t
 
 from coworks import Blueprint
 from coworks import entry
-from flask.globals import current_app
 
 
 class Jinja(Blueprint):
 
-    def __init__(self, name="jinja", autoescape: bool = True, **kwargs):
+    def __init__(self, name: str = "jinja", autoescape: bool = True, **kwargs):
         super().__init__(name=name, **kwargs)
         self.autoescape = autoescape
 

@@ -28,10 +28,10 @@ class Odoo(Blueprint):
     - env_passwd_var_name: Variable name for the password.
     """
 
-    def __init__(self,
-                 env_url_var_name=None, env_dbname_var_name=None, env_user_var_name=None, env_passwd_var_name=None,
-                 env_var_prefix=None, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, name='odoo',
+                 env_url_var_name: str = '', env_dbname_var_name: str = '', env_user_var_name: str = '',
+                 env_passwd_var_name: str = '', env_var_prefix: str = '', **kwargs):
+        super().__init__(name=name, **kwargs)
         self.url = self.dbname = self.user = self.passwd = None
         self.session_id = None
         if env_var_prefix:
@@ -45,7 +45,7 @@ class Odoo(Blueprint):
             self.env_user_var_name = env_user_var_name
             self.env_passwd_var_name = env_passwd_var_name
 
-        @self.before_first_activation
+        @self.before_app_first_request
         def check_env_vars(event, context):
             self.url = os.getenv(self.env_url_var_name)
             if not self.url:
@@ -60,19 +60,13 @@ class Odoo(Blueprint):
             if not self.passwd:
                 raise EnvironmentError(f'{self.env_passwd_var_name} not defined in environment.')
 
-        @self.before_activation
+        @self.before_app_request
         def set_session(event, context):
             self.session_id, status_code = self._get_session_id()
 
-        @self.after_activation
+        @self.after_app_request
         def destroy_session(response):
             self.session_id = self._destroy_session()
-
-        @self.handle_exception
-        def handle_access_denied(event, context, e):
-            if type(e) is AccessDenied:
-                return "AccessDenied", 401
-            raise
 
     def get(self, model: str, query: str = "{*}", order: str = None, filters: Filters = None,
             limit: int = 300, page_size=None, page=0, ensure_one=False) -> GetResponse:
@@ -285,10 +279,10 @@ class Odoo(Blueprint):
             if data['result']['session_id']:
                 return res.cookies["session_id"], 200
         except Exception as e:
-            raise AccessDenied()
+            return str(e), 401
 
     def _destroy_session(self):
-        """Open or checks the connection."""
+        """Closes the connection."""
         try:
             data = {
                 'jsonrpc': "2.0",
