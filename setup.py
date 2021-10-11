@@ -7,13 +7,11 @@ _here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(_here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
-version = {}
-with open(os.path.join(_here, 'coworks', 'version.py')) as f:
-    exec(f.read(), version)
+from coworks import __version__
 
 setup(
     name='coworks',
-    version=version['__version__'],
+    version=__version__,
     description='Coworks is a unified compositional microservices framework using Flask on AWS serverless technologies.',
     long_description=long_description,
     author='Guillaume Doumenc',

@@ -2,6 +2,7 @@ import traceback
 import typing as t
 from functools import partial, update_wrapper
 
+from aws_xray_sdk import global_sdk_config
 from aws_xray_sdk.core import patch_all
 
 from coworks.globals import aws_context
@@ -27,110 +28,131 @@ class XRayMiddleware:
         self._recorder = recorder
         app.logger.debug(f"Initializing xray middleware {name}")
 
-    def capture_routes(self):
+        # Checks XRay is enabled
+        self._enabled = global_sdk_config.sdk_enabled()
+        if self._enabled:
+            try:
+                subsegment = self._recorder.current_subsegment()
+            except (Exception,) as e:
+                self._app.logger.debug(str(e))
+                self._enabled = False
 
-        # Only available in lambda context
-        if not request.in_lambda_context:
+        if not self._enabled:
+            self._app.logger.debug("Skipped capture routes because the SDK is currently disabled.")
+            return
+
+        patch_all()
+
+    def capture_routes(self):
+        if not self._enabled:
             return
 
         try:
-            patch_all()
-
             for rule in self._app.url_map.iter_rules():
-                for http_method in rule.methods:
-                    view_function = self._app.view_functions[rule.endpoint]
+                view_function = self._app.view_functions[rule.endpoint]
 
-                    def captured(_view_function, *args, **kwargs):
+                def captured(_view_function, *args, **kwargs):
 
-                        # Traces event, context, request and coworks function
-                        subsegment = self._recorder.current_subsegment()
-                        if subsegment:
-                            try:
-                                subsegment.put_annotation('service', self._app.name)
-                                subsegment.put_metadata('event', aws_event, LAMBDA_NAMESPACE)
-                                subsegment.put_metadata('context', lambda_context_to_json(aws_context),
-                                                        LAMBDA_NAMESPACE)
-                                subsegment.put_metadata('request', request_to_dict(request), REQUEST_NAMESPACE)
-                                if request.is_json:
-                                    subsegment.put_metadata('json', request.json, COWORKS_NAMESPACE)
-                                elif request.is_multipart:
-                                    subsegment.put_metadata('multipart', request.form.to_dict(False), COWORKS_NAMESPACE)
-                                elif request.is_form_urlencoded:
-                                    subsegment.put_metadata('form', request.form.to_dict(False), COWORKS_NAMESPACE)
-                                else:
-                                    subsegment.put_metadata('values', request.values.to_dict(False), COWORKS_NAMESPACE)
-                            except Exception as e:
-                                self._app.logger.info(f"Cannot capture in XRay : {e}")
+                    # Traces event, context, request and coworks function
+                    subsegment = self._recorder.current_subsegment()
+                    if subsegment:
+                        try:
+                            subsegment.put_metadata('context', lambda_context_to_json(aws_context),
+                                                    LAMBDA_NAMESPACE)
+                            metadata = {
+                                'service': self._app.name,
+                                'request': request_to_dict(request),
+                            }
+                            if request.is_json:
+                                metadata['json'] = request.json
+                            elif request.is_multipart:
+                                metadata['multipart'] = request.form.to_dict(False)
+                                metadata['files'] = [*request.files.keys()]
+                            elif request.is_form_urlencoded:
+                                metadata['form'] = request.form.to_dict(False)
+                                metadata['files'] = [*request.files.keys()]
+                            else:
+                                metadata['values'] = request.values.to_dict(False)
+                            subsegment.put_metadata('request', metadata, COWORKS_NAMESPACE)
+                        except (Exception,) as e:
+                            self._app.logger.info(f"Cannot capture in XRay : {e}")
 
-                        response = _view_function(*args, **kwargs)
+                    response = _view_function(*args, **kwargs)
 
-                        # Traces response
-                        if subsegment:
-                            try:
-                                subsegment.put_metadata('status', response.status, COWORKS_NAMESPACE)
-                                subsegment.put_metadata('headers', response.headers, COWORKS_NAMESPACE)
-                                subsegment.put_metadata('direct_passthrough', response.direct_passthrough,
-                                                        COWORKS_NAMESPACE)
-                                subsegment.put_metadata('is_json', response.is_json, COWORKS_NAMESPACE)
-                                subsegment.put_metadata('content_length', response.content_length, COWORKS_NAMESPACE)
-                                subsegment.put_metadata('content_type', response.content_type, COWORKS_NAMESPACE)
-                            except Exception as e:
-                                self._app.logger.info(f"Cannot capture in XRay : {e}")
-                        return response
+                    # Traces response
+                    if subsegment:
+                        try:
+                            metadata = {
+                                'status': response.status,
+                                'headers': response.headers,
+                                'direct_passthrough': response.direct_passthrough,
+                                'is_json': response.is_json,
+                            }
+                            subsegment.put_metadata('response', metadata, COWORKS_NAMESPACE)
+                        except (Exception,) as e:
+                            self._app.logger.info(f"Cannot capture in XRay : {e}")
+                    return response
 
-                    wrapped_fun = update_wrapper(partial(captured, view_function), view_function)
-                    self._app.view_functions[rule.endpoint] = self._recorder.capture(view_function.__name__)(
-                        wrapped_fun)
+                wrapped_fun = update_wrapper(partial(captured, view_function), view_function)
+                self._app.view_functions[rule.endpoint] = self._recorder.capture(name=wrapped_fun.__name__)(wrapped_fun)
+                self._app.logger.debug(f"XRay capture {wrapped_fun.__name__}")
 
         except Exception:
             self._app.logger.error("Cannot set xray context manager : are you using xray_recorder?")
             raise
 
     def capture_exception(self, e):
-
-        # Only available in lambda context
-        if not request.in_lambda_context:
-            raise e
-
-        try:
+        if not self._enabled:
             self._app.logger.error(f"Event: {aws_event}")
             self._app.logger.error(f"Context: {aws_context}")
-            subsegment = self._recorder.current_subsegment()
-            if subsegment:
+            self._app.logger.debug("Skipped capture exception because the SDK is currently disabled.")
+            return
+
+        subsegment = self._recorder.current_subsegment()
+        if subsegment:
+            try:
                 subsegment.add_error_flag()
                 subsegment.put_annotation('service', self._app.name)
                 subsegment.add_exception(e, traceback.extract_stack())
-        finally:
-            return {
-                'headers': {},
-                'multiValueHeaders': {},
-                'statusCode': 500,
-                'body': "Exception in microservice, see logs in XRay for more details",
-                'error': str(e)
-            }
+            finally:
+                return {
+                    'headers': {},
+                    'multiValueHeaders': {},
+                    'statusCode': 500,
+                    'body': "Exception in microservice, see XRay for more details",
+                }
 
     @staticmethod
     def capture(recorder):
         """Decorator to trace function calls on XRay."""
+        enabled = global_sdk_config.sdk_enabled()
+        if not enabled:
+            return lambda x: x
 
-        if not issubclass(recorder.__class__, AWSXRayRecorder):
-            raise TypeError(f"recorder is not an AWSXRayRecorder {type(recorder)}")
-
-        def decorator(function):
-            def captured(*args, **kwargs):
+        # Set XRay decorator
+        def xray_decorator(function):
+            def xray_captured(*args, **kwargs):
                 subsegment = recorder.current_subsegment()
                 if subsegment:
-                    subsegment.put_metadata(f'{function.__name__}.args', args, COWORKS_NAMESPACE)
-                    subsegment.put_metadata(f'{function.__name__}.kwargs', kwargs, COWORKS_NAMESPACE)
+                    try:
+                        subsegment.put_metadata(f'{function.__name__}.args', args[1:], COWORKS_NAMESPACE)
+                        subsegment.put_metadata(f'{function.__name__}.kwargs', kwargs, COWORKS_NAMESPACE)
+                    except (Exception,) as e:
+                        pass
+
                 response = function(*args, **kwargs)
                 if subsegment:
-                    subsegment.put_metadata(f'{function.__name__}.response', response, COWORKS_NAMESPACE)
+                    try:
+                        subsegment.put_metadata(f'{function.__name__}.response', response, COWORKS_NAMESPACE)
+                    except (Exception,) as e:
+                        pass
+
                 return response
 
-            wrapped_fun = update_wrapper(captured, function)
-            return recorder.capture(function.__name__)(wrapped_fun)
+            wrapped_fun = update_wrapper(xray_captured, function)
+            return recorder.capture(name=function.__name__)(wrapped_fun)
 
-        return decorator
+        return xray_decorator
 
 
 def lambda_context_to_json(context):
@@ -143,18 +165,14 @@ def lambda_context_to_json(context):
     }
 
 
-def request_to_dict(request):
+def request_to_dict(_request):
     return {
-        'in_lambda_context': request.in_lambda_context,
-        'is_multipart': request.is_multipart,
-        'is_form_urlencoded': request.is_form_urlencoded,
-        'max_content_length': request.max_content_length,
-        'endpoint': request.endpoint,
-        'want_form_data_parsed': request.want_form_data_parsed,
-        'data': request.data,
-        'form': request.form,
-        'json': request.json,
-        'values': request.values,
-        'script_root': request.script_root,
-        'url_root': request.url_root,
+        'in_lambda_context': _request.in_lambda_context,
+        'is_multipart': _request.is_multipart,
+        'is_form_urlencoded': _request.is_form_urlencoded,
+        'max_content_length': _request.max_content_length,
+        'endpoint': _request.endpoint,
+        'want_form_data_parsed': _request.want_form_data_parsed,
+        'script_root': _request.script_root,
+        'url_root': _request.url_root,
     }

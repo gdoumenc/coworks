@@ -7,14 +7,14 @@ import typing as t
 from flask.cli import FlaskGroup
 from pathlib import Path
 
+from coworks import __version__
 from .deploy import deploy_command
 from .new import new_command
 from .zip import zip_command
 from ..config import DEFAULT_PROJECT_DIR
-from ..config import DEFAULT_WORKSPACE
+from ..config import DEFAULT_DEV_WORKSPACE
 from ..utils import get_system_info
 from ..utils import import_attr
-from ..version import __version__
 
 PROJECT_CONFIG_VERSION = 3
 
@@ -61,8 +61,8 @@ class CoWorksGroup(FlaskGroup):
 @click.version_option(version=__version__, message=f'%(prog)s %(version)s, {get_system_info()}')
 @click.option('-p', '--project-dir', default=DEFAULT_PROJECT_DIR,
               help=f"The project directory path (absolute or relative) [default to '{DEFAULT_PROJECT_DIR}'].")
-@click.option('-w', '--workspace', default=DEFAULT_WORKSPACE,
-              help=f"Application stage [default to '{DEFAULT_WORKSPACE}'].")
+@click.option('-w', '--workspace', default=DEFAULT_DEV_WORKSPACE,
+              help=f"Application stage [default to '{DEFAULT_DEV_WORKSPACE}'].")
 @click.option('-c', '--config-file', default='project', help="Configuration file path [relative from project dir].")
 @click.option('-d', '--debug/--no-debug', default=False, is_flag=True, help="Print debug traces.")
 @click.option('--config-file-suffix', default='.cws.yml', help="Configuration file suffix.")
@@ -95,8 +95,7 @@ class ProjectConfig:
         def load(dir):
             project_dir_path = Path(dir)
             project_file = project_dir_path / (file_name + file_suffix)
-            project_secret_file = project_dir_path / (file_name + '.secret' + file_suffix)
-            return anyconfig.multi_load([project_file, project_secret_file], ac_ignore_missing=True)
+            return anyconfig.load(project_file, ac_ignore_missing=True)
 
         params = load(project_dir)
         if not params:

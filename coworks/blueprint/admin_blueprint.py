@@ -1,9 +1,10 @@
 import inspect
 import os
 import sys
+from inspect import Parameter
+
 from flask import current_app
 from flask import json
-from inspect import Parameter
 from jinja2 import Environment
 from jinja2 import PackageLoader
 from jinja2 import select_autoescape
@@ -14,6 +15,9 @@ from coworks.globals import aws_event, aws_context
 
 
 class Admin(Blueprint):
+
+    def __init__(self, name: str = 'admin', **kwargs):
+        super().__init__(name=name, **kwargs)
 
     @entry
     def get_route(self, pretty=False):

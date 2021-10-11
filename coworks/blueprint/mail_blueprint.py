@@ -4,6 +4,8 @@ import typing as t
 from dataclasses import dataclass
 from email import message
 from email.utils import formataddr
+from email.utils import formatdate
+from email.utils import make_msgid
 
 import requests
 from werkzeug.datastructures import FileStorage
@@ -26,9 +28,10 @@ class Mail(Blueprint):
     - env_passwd_var_name: Variable name for the password.
     """
 
-    def __init__(self, env_server_var_name='', env_login_var_name='', env_passwd_var_name='',
-                 env_var_prefix='', **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, name: str = "mail",
+                 env_server_var_name: str = '', env_login_var_name: str = '', env_passwd_var_name: str = '',
+                 env_var_prefix: str = '', **kwargs):
+        super().__init__(name=name, **kwargs)
         self.smtp_server = self.smtp_login = self.smtp_passwd = None
         if env_var_prefix:
             self.env_server_var_name = f"{env_var_prefix}_SERVER"
@@ -52,9 +55,10 @@ class Mail(Blueprint):
                 raise EnvironmentError(f'{self.env_passwd_var_name} not defined in environment.')
 
     @entry
-    def post_send(self, subject="", from_addr: str = None, from_name: str = '', to_addrs: [str] = None,
-                  cc_addrs: [str] = None, bcc_addrs: [str] = None, body="", body_type="plain",
-                  attachments: t.Union[FileStorage, FileStorage] = None, attachment_urls: dict = None,
+    def post_send(self, subject="", from_addr: str = None, from_name: str = '', reply_to: str = None,
+                  to_addrs: [str] = None, cc_addrs: [str] = None, bcc_addrs: [str] = None,
+                  body="", body_type="plain",
+                  attachments: t.Union[FileStorage, t.List[FileStorage]] = None, attachment_urls: dict = None,
                   starttls=True):
         """ Send mail.
         To send attachments, add files in the body of the request as multipart/form-data.
@@ -71,8 +75,12 @@ class Mail(Blueprint):
         try:
             from_ = formataddr((from_name if from_name else False, from_addr))
             msg = message.EmailMessage()
+            msg["Date"] = formatdate(localtime=True)
+            msg["Message-ID"] = make_msgid()
             msg['Subject'] = subject
             msg['From'] = from_
+            if reply_to is not None:
+                msg['Reply-To'] = reply_to
             msg['To'] = to_addrs if isinstance(to_addrs, str) else ', '.join(to_addrs)
             if cc_addrs:
                 msg['Cc'] = cc_addrs if isinstance(cc_addrs, str) else ', '.join(cc_addrs)
@@ -84,7 +92,7 @@ class Mail(Blueprint):
                 if not isinstance(attachments, list):
                     attachments = [attachments]
                 for attachment in attachments:
-                    msg.add_attachment(attachment.read(), maintype='multipart', subtype=attachment.content_type)
+                    msg.add_attachment(attachment.stream.read(), maintype='multipart', subtype=attachment.content_type)
 
             if attachment_urls:
                 for attachment_name, attachment_url in attachment_urls.items():

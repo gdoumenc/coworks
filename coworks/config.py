@@ -10,7 +10,8 @@ from pathlib import Path
 from .utils import as_list
 
 DEFAULT_PROJECT_DIR = '.'
-DEFAULT_WORKSPACE = 'dev'
+DEFAULT_LOCAL_WORKSPACE = 'local'
+DEFAULT_DEV_WORKSPACE = 'dev'
 
 ENV_FILE_SUFFIX = '.json'
 SECRET_ENV_FILE_SUFFIX = '.secret.json'
@@ -20,7 +21,7 @@ SECRET_ENV_FILE_SUFFIX = '.secret.json'
 class Config:
     """ Configuration class for deployment."""
 
-    workspace: str = DEFAULT_WORKSPACE
+    workspace: str = DEFAULT_DEV_WORKSPACE
     environment_variables_file: t.Union[str, t.List[str], Path, t.List[Path]] = 'vars.json'
     environment_variables: t.Union[dict, t.List[dict]] = None
     default_token: str = None
@@ -91,18 +92,26 @@ class Config:
         return dataclasses.asdict(self)
 
 
+class LocalConfig(Config):
+    """ Production configuration have workspace's name corresponding to version's index."""
+
+    def __init__(self, workspace=DEFAULT_LOCAL_WORKSPACE, **kwargs):
+        super().__init__(workspace=workspace, **kwargs)
+        os.environ['AWS_XRAY_SDK_ENABLED'] = 'false'
+
+
 class DevConfig(Config):
     """ Production configuration have workspace's name corresponding to version's index."""
 
-    def __init__(self, workspace=DEFAULT_WORKSPACE, **kwargs):
+    def __init__(self, workspace=DEFAULT_DEV_WORKSPACE, **kwargs):
         super().__init__(workspace=workspace, **kwargs)
 
 
 class ProdConfig(DevConfig):
     """ Production configuration have workspace's name corresponding to version's index."""
 
-    def __init__(self, environment_variables_file="vars.prod.json", pattern=r"v[1-9]+", **kwargs):
-        super().__init__(environment_variables_file=environment_variables_file, **kwargs)
+    def __init__(self, pattern=r"v[1-9]+", **kwargs):
+        super().__init__(**kwargs)
         self.pattern = pattern
 
     def is_valid_for(self, workspace):
