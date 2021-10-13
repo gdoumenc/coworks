@@ -74,7 +74,7 @@
   {{ event("\"body\": $input.json('$')", "\"isBase64Encoded\": false") }}
 EOT
 "multipart/form-data" = <<-EOT
-  {{ event("\"body\": \"$util.base64Encode($input.body)\"", "\"isBase64Encoded\": true") }}
+  {{ event("\"body\": \"$input.body\"", "\"isBase64Encoded\": true") }}
 EOT
 
 

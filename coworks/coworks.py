@@ -4,6 +4,7 @@ import os
 import typing as t
 from dataclasses import dataclass
 from functools import partial
+from inspect import isfunction
 from json import JSONDecodeError
 
 from flask import Blueprint as FlaskBlueprint
@@ -18,8 +19,8 @@ from werkzeug.routing import Rule
 
 from .config import Config
 from .config import DEFAULT_DEV_WORKSPACE
-from .config import LocalConfig
 from .config import DevConfig
+from .config import LocalConfig
 from .config import ProdConfig
 from .globals import request
 from .utils import HTTP_METHODS
@@ -234,10 +235,10 @@ class TechMicroService(Flask):
         """Main microservice entry point."""
 
         # Lambda event call or Flask call
-        if "LambdaContext" in type(arg2).__name__:
-            res = self._lambda_handler(arg1, arg2)
-        else:
+        if isfunction(arg2):
             res = self._flask_handler(arg1, arg2)
+        else:
+            res = self._lambda_handler(arg1, arg2)
 
         # res['headers']['x-cws-workspace'] = os.getenv('WORKSPACE')
 
@@ -246,6 +247,8 @@ class TechMicroService(Flask):
     def _lambda_handler(self, event: t.Dict[str, t.Any], context: t.Dict[str, t.Any]):
         """Lambda handler.
         """
+        self.logger.debug(f"Event: {event}")
+        self.logger.debug(f"Context: {context}")
 
         if event.get('type') == 'TOKEN':
             return self._token_handler(event, context)
@@ -302,8 +305,7 @@ class TechMicroService(Flask):
         """Flask handler.
         """
 
-        resp = self.wsgi_app(environ, start_response)
-        return self._convert_to_flask_response(resp)
+        return self.wsgi_app(environ, start_response)
 
     def _get_kwargs(self, event):
         def is_json(mt):
@@ -326,6 +328,7 @@ class TechMicroService(Flask):
         body = event['body']
         if body and is_encoded:
             body = self._base64decode(body)
+        self.logger.debug(f"Body: {body}")
 
         if is_json(content_type):
             kwargs['json'] = body
@@ -345,30 +348,6 @@ class TechMicroService(Flask):
             raise ValueError(msg)
         data = base64.b64encode(data).decode('ascii')
         return data
-
-    def _convert_to_flask_response(self, resp):
-        """Convert Flask response in serializable content, status and header."""
-        dumps = getattr(self.response_class.json_module, 'dumps')
-        cls = self.response_class
-
-        if type(resp) is tuple:
-            content = resp[0]
-            if type(content) is dict:
-                content = dumps(content)
-            if len(resp) == 2:
-                if type(resp[1]) is int:
-                    return cls(content, resp[1])
-                elif type(resp[1]) is dict:
-                    return cls(content, 200, resp[1])
-                else:
-                    return cls(f"Internal error (wrong result type {type(resp[1])})", 500)
-            else:
-                return cls(content, resp[1], resp[2])
-
-        if type(resp) is dict:
-            return dumps(resp)
-
-        return resp
 
     def _convert_to_lambda_response(self, resp):
         """Convert Lambda response."""
