@@ -24,7 +24,7 @@ Coworks is a unified serverless microservices framework based on AWS technologie
 the `Flask <https://github.com/pallets/flask>`_ framework.
 
 The aim of this project, is to offer a very simplified experience of microservices over the Lambda product
-of AWS and mainly to extends their usage over the asynchronous and orchestration topics.
+of AWS and the simple web development framework Flask. Mainly it extends their usage over the asynchronous and orchestration topics.
 
 Each atomic microservice (Tech Microservice) is a simple python class deployed as serverless Lambda and
 can be called synchronously or asynchronously.

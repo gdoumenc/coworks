@@ -8,6 +8,7 @@ from email.utils import formatdate
 from email.utils import make_msgid
 
 import requests
+from flask import current_app
 from werkzeug.datastructures import FileStorage
 
 from coworks import Blueprint
@@ -102,6 +103,7 @@ class Mail(Blueprint):
                         maintype, subtype = response.headers['Content-Type'].split('/')
                         msg.add_attachment(attachment, maintype=maintype, subtype=subtype,
                                            filename=attachment_name)
+                        current_app.logger.debug(f"Add attachment {attachment_name} - size {len(attachment)}")
                     else:
                         return f"Failed to download attachment, error {response.status_code}.", 400
 
@@ -116,7 +118,9 @@ class Mail(Blueprint):
                 server.login(self.smtp_login, self.smtp_passwd)
                 server.send_message(msg)
 
-            return f"Mail sent to {msg['To']}"
+            resp = f"Mail sent to {msg['To']}"
+            current_app.logger.debug(resp)
+            return resp
         except smtplib.SMTPAuthenticationError:
             return "Wrong username/password : cannot connect.", 400
         except Exception as e:
