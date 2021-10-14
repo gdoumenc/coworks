@@ -103,10 +103,12 @@ class XRayMiddleware:
 
     def capture_exception(self, e):
         if not self._enabled:
-            self._app.logger.error(f"Event: {aws_event}")
-            self._app.logger.error(f"Context: {aws_context}")
-            self._app.logger.debug("Skipped capture exception because the SDK is currently disabled.")
-            return
+            try:
+                self._app.logger.error(f"Event: {aws_event}")
+                self._app.logger.error(f"Context: {aws_context}")
+                self._app.logger.debug("Skipped capture exception because the SDK is currently disabled.")
+            except (Exception,):
+                raise e
 
         subsegment = self._recorder.current_subsegment()
         if subsegment:

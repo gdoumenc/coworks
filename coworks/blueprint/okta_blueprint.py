@@ -2,11 +2,13 @@ import os
 from typing import Callable
 
 from aws_xray_sdk.core import xray_recorder
+from flask import request
 from okta.api_response import OktaAPIResponse as APIResponse
 from okta.client import Client
 from okta.okta_object import OktaObject
 
-from coworks import Blueprint, entry
+from coworks import Blueprint
+from coworks import entry
 
 
 class OktaClient(Client):
@@ -112,8 +114,10 @@ class OktaResponse:
 
 class Okta(Blueprint):
 
-    def __init__(self, env_url_var_name=None, env_token_var_name=None, env_var_prefix="OKTA", **kwargs):
-        super().__init__(name='okta', **kwargs)
+    def __init__(self, name: str = 'okta',
+                 env_url_var_name: str = '', env_token_var_name: str = '',
+                 env_var_prefix: str = "OKTA", **kwargs):
+        super().__init__(name=name, **kwargs)
         self.org_url = self.okta_client = None
         if env_var_prefix:
             self.env_url_var_name = f"{env_var_prefix}_URL"
@@ -122,8 +126,8 @@ class Okta(Blueprint):
             self.env_url_var_name = env_url_var_name
             self.env_token_var_name = env_token_var_name
 
-        @self.before_first_activation
-        def client(event, context):
+        @self.before_app_first_request
+        def client():
             self.org_url = os.getenv(self.env_url_var_name)
             assert self.org_url, f"Environment var {self.env_url_var_name} undefined."
             config = {
@@ -135,7 +139,7 @@ class Okta(Blueprint):
     @entry
     def get_event_verify(self):
         """Entry for Okta webhook verification."""
-        test_value = self.current_request.headers.get('x-okta-verification-challenge')
+        test_value = request.headers.get('x-okta-verification-challenge')
         return {"verification": test_value}
 
 

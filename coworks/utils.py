@@ -52,7 +52,7 @@ def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
         url_prefix = bp_state.url_prefix if bp_state else ''
         rule = make_absolute(entry_path, url_prefix)
 
-        name_prefix = f"{bp_state.name_prefix}_" if bp_state else ''
+        name_prefix = f"{bp_state.name}_" if bp_state else ''
         endpoint = f"{name_prefix}{proxy.__name__}"
 
         app.add_url_rule(rule=rule, view_func=proxy, methods=[method], endpoint=endpoint)
