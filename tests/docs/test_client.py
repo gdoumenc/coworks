@@ -22,6 +22,6 @@ class TestClass:
         obj = ScriptInfo(create_app=lambda _: app, set_debug_flag=False)
         client.main(['--project-dir', samples_docs_dir, 'routes'], 'cws', obj=obj, standalone_mode=False)
         del os.environ["FLASK_RUN_FROM_CLI"]
-        mclick.assert_any_call('get           GET      /')
-        mclick.assert_any_call('post          POST     /')
-        mclick.assert_any_call('_get_route    GET      /admin/route')
+        mclick.assert_any_call('admin_get_route    GET      /admin/route')
+        mclick.assert_any_call('get                GET      /')
+        mclick.assert_any_call('post               POST     /')

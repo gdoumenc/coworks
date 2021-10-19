@@ -311,14 +311,15 @@ class TechMicroService(Flask):
         def is_json(mt):
             return (
                     mt == "application/json"
-                    or mt.startswith("application/")
+                    or type(mt) is str
+                    and mt.startswith("application/")
                     and mt.endswith("+json")
             )
 
-        content_type = event['headers']['content-type']
-        kwargs = {
-            'content_type': content_type
-        }
+        kwargs = {}
+        content_type = event['headers'].get('content-type')
+        if content_type:
+            kwargs['content_type'] = content_type
 
         method = event['httpMethod']
         if method not in ['PUT', 'POST']:
