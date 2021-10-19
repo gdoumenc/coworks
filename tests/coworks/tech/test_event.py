@@ -158,3 +158,12 @@ class TestClass:
             response = app(get_event('/event/method', 'get'), empty_context)
             assert response['statusCode'] == 200
             assert response['body'] == "GET"
+
+    def test_request_no_content_type(self, empty_context):
+        app = SimpleMS()
+        with app.app_context() as c:
+            event = get_event('/content', 'post', body={"other": 'other'})
+            del event['headers']['content-type']
+            response = app(event, empty_context)
+            assert response['statusCode'] == 200
+            assert response['body'] == "post content without value but other"
