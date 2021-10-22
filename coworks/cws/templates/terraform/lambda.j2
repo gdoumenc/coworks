@@ -53,7 +53,7 @@ resource "aws_lambda_function" "{{ resource_name }}" {
 {%- if environment_variable_files %}
       [for item in local.{{ resource_name }}_environment_variables: merge(item,local.{{ resource_name }}_environment_variables...)][0],
 {%- endif %}
-      {"WORKSPACE":"{{ workspace }}"}
+      {"FLASK_DEBUG":"{{ workspace == "dev" }}", "WORKSPACE":"{{ workspace }}"}
     )
   }
   tracing_config {
