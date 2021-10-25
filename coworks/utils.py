@@ -7,8 +7,11 @@ import traceback
 from functools import partial
 from functools import update_wrapper
 
-from flask import make_response as make_flask_response
+from flask import make_response as flask_make_response
 from flask.blueprints import BlueprintSetupState
+from werkzeug.exceptions import BadRequest
+from werkzeug.exceptions import BadRequestKeyError
+from werkzeug.exceptions import HTTPException
 
 from .globals import request
 
@@ -47,6 +50,7 @@ def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
             kwarg_keys = {}
 
         proxy = _create_rest_proxy(scaffold, fun, kwarg_keys, args, varkw)
+        proxy.__CWS_BINARY = getattr(fun, '__CWS_BINARY', False)
 
         # Creates the entry
         url_prefix = bp_state.url_prefix if bp_state else ''
@@ -66,7 +70,7 @@ def _create_rest_proxy(scaffold, func, kwarg_keys, args, varkw):
                 """Alerts when more parameters than expected are defined in request."""
                 if param_name not in kwarg_keys and varkw is None:
                     _err_msg = f"TypeError: got an unexpected keyword argument '{param_name}'"
-                    return _err_msg, 400
+                    raise BadRequestKeyError(_err_msg)
 
             def as_fun_params(values: dict, flat=True):
                 """Set parameters as simple value or list of values if multiple defined.
@@ -109,31 +113,57 @@ def _create_rest_proxy(scaffold, func, kwarg_keys, args, varkw):
                     except Exception as e:
                         scaffold.logger.error(traceback.print_exc())
                         scaffold.logger.debug(e)
-                        return str(e), 400
+                        raise BadRequest(str(e))
 
                 else:
                     err_msg = f"Keyword arguments are not permitted for {request.method} method."
-                    return err_msg, 400
+                    raise BadRequestKeyError(err_msg)
 
             else:
                 if not args:
                     if request.content_length is not None:
                         err_msg = f"TypeError: got an unexpected arguments (body: {request.json})"
-                        return err_msg, 400
+                        raise BadRequestKeyError(err_msg)
                     if request.query_string:
                         err_msg = f"TypeError: got an unexpected arguments (query: {request.query_string})"
-                        return err_msg, 400
+                        raise BadRequestKeyError(err_msg)
 
             resp = func(scaffold, **kwargs)
             return make_response(resp)
+        except HTTPException:
+            raise
         except TypeError as e:
-            return str(e), 400
+            raise BadRequest(str(e))
         except Exception as e:
             scaffold.logger.error(f"Exception: {str(e)}")
             scaffold.logger.error(traceback.print_exc())
-            return str(e), 500
+            return make_response((str(e), 500))
 
     return update_wrapper(proxy, func)
+
+
+def make_response(resp):
+    """Set the right mimetype in response in case if not defined in header.
+    """
+
+    headers = {}
+    if resp is None:
+        return "", 204
+    if type(resp) is tuple:
+        if len(resp) == 2 and type(resp[1]) is dict:
+            headers = resp[1]
+        elif len(resp) == 3:
+            headers = resp[2]
+
+    resp = flask_make_response(resp)
+
+    accept = request.accept_mimetypes
+    if 'Content-Type' not in headers:
+        if not accept.provided or accept.accept_json:
+            resp.headers['Content-Type'] = 'application/json'
+        else:
+            resp.headers['Content-Type'] = 'text/plain'
+    return resp
 
 
 def import_attr(module, attr: str, cwd='.'):
@@ -204,27 +234,6 @@ def as_list(var):
     if type(var) is list:
         return var
     return [var]
-
-
-def make_response(resp):
-    headers = {}
-    if resp is None:
-        return "", 204
-    if type(resp) is tuple:
-        if len(resp) == 2 and type(resp[1]) is dict:
-            headers = resp[1]
-        elif len(resp) == 3:
-            headers = resp[2]
-
-    resp = make_flask_response(resp)
-
-    accept = request.accept_mimetypes
-    if 'Content-Type' not in headers:
-        if not accept.provided or accept.accept_json:
-            resp.headers['Content-Type'] = 'application/json'
-        else:
-            resp.headers['Content-Type'] = 'text/plain'
-    return resp
 
 
 def get_system_info():

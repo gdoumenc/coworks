@@ -1,4 +1,4 @@
-import threading
+import multiprocessing
 import time
 
 import requests
@@ -10,7 +10,7 @@ class TestClass:
 
     def test_run_complete(self, samples_docs_dir, unused_tcp_port):
         app = import_attr('complete', 'app', cwd=samples_docs_dir)
-        server = threading.Thread(target=run_server, args=(app, unused_tcp_port), daemon=True)
+        server = multiprocessing.Process(target=run_server, args=(app, unused_tcp_port), daemon=False)
         server.start()
         counter = 1
         time.sleep(counter)
@@ -21,8 +21,9 @@ class TestClass:
         assert response.text == "Stored value 0.\n"
         response = requests.get(f'http://localhost:{unused_tcp_port}/admin/route', headers={'Authorization': "token"})
         assert response.status_code == 200
+        server.terminate()
 
 
 def run_server(app, port):
     print(f"Server starting on port {port}")
-    app.run(host='localhost', port=port)
+    app.run(host='localhost', port=port, use_reloader=False, debug=False)

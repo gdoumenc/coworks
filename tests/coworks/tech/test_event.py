@@ -1,3 +1,5 @@
+from coworks import entry
+from coworks import TechMicroService
 from tests.coworks.ms import GlobalMS
 from tests.coworks.ms import SimpleMS
 
@@ -85,6 +87,16 @@ def get_event(path, method, params=None, body=None):
         }
     }
 
+class ErrorMS(TechMicroService):
+
+    def token_authorizer(self, token):
+        return True
+
+    @entry
+    def get(self):
+        """Root access."""
+        return "Error 404", 404
+
 
 class TestClass:
     def test_request_arg(self, empty_context):
@@ -98,9 +110,11 @@ class TestClass:
             assert 'Content-Length' in response['headers']
             assert response['headers']['Content-Length'] == str(len(response['body']))
             response = app(get_event('/', 'post'), empty_context)
-            assert response['statusCode'] == 405
+            assert response['statusCode'] == 200
+            assert response['body']['statusCode'] == 405
             response = app(get_event('/get1', 'get'), empty_context)
-            assert response['statusCode'] == 404
+            assert response['statusCode'] == 200
+            assert response['body']['statusCode'] == 404
             response = app(get_event('/content', 'get'), empty_context)
             assert response['statusCode'] == 200
             assert response['body'] == "get content"
@@ -120,7 +134,8 @@ class TestClass:
             assert response['statusCode'] == 200
             assert response['body'] == "post content with 3 and other"
             response = app(get_event('/content/3', 'post', body={"other": 'other', "value": 5}), empty_context)
-            assert response['statusCode'] == 400
+            assert response['statusCode'] == 200
+            assert response['body']['statusCode'] == 400
 
     def test_request_kwargs(self, empty_context):
         app = SimpleMS()
@@ -129,7 +144,8 @@ class TestClass:
             assert response['statusCode'] == 200
             assert response['body'] == "get **param with only 5"
             response = app(get_event('/kwparam1', 'get', params={"other": ['other'], "value": [5]}), empty_context)
-            assert response['statusCode'] == 400
+            assert response['statusCode'] == 200
+            assert response['body']['statusCode'] == 400
             response = app(get_event('/kwparam1', 'get', params={"value": [5]}), empty_context)
             assert response['statusCode'] == 200
             assert response['body'] == "get **param with only 5"
@@ -167,3 +183,15 @@ class TestClass:
             response = app(event, empty_context)
             assert response['statusCode'] == 200
             assert response['body'] == "post content without value but other"
+
+#MAKE SPECIFIC ERROR TEST CASES
+    import pytest
+    @pytest.mark.skip
+    def test_request_error(self, empty_context):
+        app = ErrorMS()
+        with app.app_context() as c:
+            event = get_event('/', 'get')
+            del event['headers']['content-type']
+            response = app(event, empty_context)
+            assert response['statusCode'] == 404
+            assert response['body'] == "Error 404"

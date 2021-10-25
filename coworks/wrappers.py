@@ -1,4 +1,5 @@
 import typing as t
+
 from flask import Request as FlaskRequest
 from flask import Response as FlaskResponse
 
@@ -37,7 +38,7 @@ class Request(FlaskRequest):
 
     def __init__(self, environ, **kwargs):
         super().__init__(environ, **kwargs)
-        self._in_lambda_context = 'aws_event' in environ
+        self._in_lambda_context: bool = bool(environ.get('aws_event'))
 
     @property
     def in_lambda_context(self):

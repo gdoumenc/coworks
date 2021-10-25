@@ -32,6 +32,7 @@ class TerraformResource:
     parent_uid: str
     path: str
     rules: t.List[Rule] = None
+    binary: bool = False
 
     @cached_property
     def uid(self) -> str:
@@ -103,11 +104,14 @@ class Terraform:
     @property
     def api_resources(self):
         """Returns the list of flatten path (prev_uid, last, rule)."""
-        resources = {}
+        resources: t.Dict[str, TerraformResource] = {}
 
         def add_rule(previous: t.Optional[str], path: t.Optional[str], rule_: t.Optional[Rule]):
             path = None if path is None else path.replace('<', '{').replace('>', '}')
             resource = TerraformResource(previous, path)
+            if rule_:
+                view_function = self.app.view_functions.get(rule_.endpoint)
+                resource.binary = getattr(view_function, '__CWS_BINARY', False)
 
             # Creates the terraform ressource if doesn't exist.
             uid = resource.uid
@@ -297,183 +301,6 @@ def deploy_command(info, ctx, output, terraform_class=Terraform, **options) -> N
     # Traces output
     click.echo(f"terraform output :\n{terraform.output()}")
 
-# class CwsTerraformCommand(CwsCommand, ABC):
-#     WRITER_CMD = 'export'
-#
-#     terraform = Terraform()
-#
-#     @property
-#     def options(self):
-#         return [
-#             *super().options,
-#             click.option('--terraform-timeout', default=60),
-#         ]
-#
-#     def __init__(self, app=None, **kwargs):
-#         super().__init__(app, **kwargs)
-#         self.writer_cmd = self.add_writer_command(app)
-#
-#     def add_writer_command(self, app):
-#         """Default writer command added if not already defined.
-#         Defined as function to be redefined in subclass if needed."""
-#         return app.commands.get(self.WRITER_CMD) or CwsTemplateWriter(app)
-#
-#     def generate_terraform_files(self, template, filename, msg, **options):
-#         debug = options['debug']
-#         profile_name = options['profile_name']
-#         aws_region = boto3.Session(profile_name=profile_name).region_name
-#
-#         if debug:
-#             print(msg)
-#
-#         output = str(Path(self.terraform.working_dir) / filename)
-#         self.app.execute(self.WRITER_CMD, template=[template], output=output, aws_region=aws_region,
-#                          api_resources=self.terraform_api_resources(), **options)
-#
-#     def terraform_api_resources(self):
-#         """Returns the list of flatten path (prev, last, entry)."""
-#         resources = {}
-#
-#         def add_entries(previous, last, entries_: Optional[Dict[str, Entry]]):
-#             ter_entry = TerraformResource(previous, last, entries_, self.app.config.cors)
-#             uid = ter_entry.uid
-#             if uid not in resources:
-#                 resources[uid] = ter_entry
-#             if resources[uid].entries is None:
-#                 resources[uid].entries = entries_
-#             return uid
-#
-#         for route, entries in self.app.entries.items():
-#             previous_uid = ''
-#             if route.startswith('/'):
-#                 route = route[1:]
-#             splited_route = route.split('/')
-#
-#             # special root case
-#             if splited_route == ['']:
-#                 add_entries(None, None, entries)
-#                 continue
-#
-#             # creates intermediate resources
-#             last_path = splited_route[-1:][0]
-#             for prev in splited_route[:-1]:
-#                 previous_uid = add_entries(previous_uid, prev, None)
-#
-#             # set entry keys for last entry
-#             add_entries(previous_uid, last_path, entries)
-#
-#         return resources
-#
-#
-# class CwsTerraformDeployer(CwsTerraformCommand):
-#     """ Deploiement in 2 steps:
-#         Step 1. Create API and routes integrations
-#         Step 2. Deploy API and Lambda
-#     """
-#
-#     ZIP_CMD = 'zip'
-#
-#     @property
-#     def options(self):
-#         return [
-#             *super().options,
-#             *self.zip_cmd.options,
-#             click.option('--binary-media-types'),
-#             click.option('--cloud', is_flag=True, help="Use cloud workspaces."),
-#             click.option('--dry', is_flag=True, help="Doesn't perform deploy [Global option only]."),
-#             click.option('--layers', '-l', multiple=True, help="Add layer (full arn: aws:lambda:...)"),
-#             click.option('--memory-size', default=128),
-#             click.option('--output', '-o', is_flag=True, help="Print terraform output values."),
-#             click.option('--python', '-p', type=click.Choice(['3.7', '3.8']), default='3.8',
-#                          help="Python version for the lambda."),
-#             click.option('--timeout', default=60),
-#         ]
-#
-#     @classmethod
-#     def multi_execute(cls, project_dir, workspace, execution_list):
-#         # Output, dry are global options
-#         dry = output = False
-#         for command, options in execution_list:
-#             dry = options.pop('dry', False) or dry
-#
-#             # Set default bucket key value
-#             options['key'] = options['key'] or f"{options.get('module')}-{command.app.name}/archive.zip"
-#             output = output or options.pop('output', False)
-#
-#         if output:  # Stop if only print output
-#             print(f"terraform output : {cls.terraform.output()}", flush=True)
-#             return
-#
-#         # Transfert zip file to S3 (to be done on each service)
-#         for command, options in execution_list:
-#             print(f"Uploading zip to S3")
-#             module_name = options.pop('module_name')
-#             ignore = options.pop('ignore') or ['.*', 'terraform']
-#             options.pop('hash')
-#             command.app.execute(cls.ZIP_CMD, ignore=ignore, module_name=module_name, hash=True, dry=dry, **options)
-#
-#         # Generates common terraform files
-#         cls.generate_common_terraform_files(workspace, execution_list)
-#
-#         # Generates terraform files and copy environment variable files in terraform working dir for provisionning
-#         for command, options in execution_list:
-#             terraform_filename = f"{command.app.name}.{command.app.ms_type}.tf"
-#             msg = f"Generate terraform files for updating API routes and deploiement for {command.app.name}"
-#             command.generate_terraform_files("deploy.j2", terraform_filename, msg, dry=dry, **options)
-#
-#             config = command.app.get_config(workspace)
-#             environment_variable_files = [p.as_posix() for p in
-#                                           config.existing_environment_variables_files(project_dir)]
-#             for file in environment_variable_files:
-#                 copy(file, cls.terraform.working_dir)
-#
-#         # Apply terraform if not dry
-#         if not dry:
-#             msg = ["Create API routes", f"Deploy API and Lambda for the {workspace} stage"]
-#             cls.terraform_apply(workspace, msg)
-#
-#         # Traces output
-#         print(f"terraform output : {cls.terraform.output()}", flush=True)
-#
-#     @classmethod
-#     def generate_common_terraform_files(cls, workspace, execution_list):
-#         pass
-#
-#     def __init__(self, app=None, name='deploy'):
-#         self.zip_cmd = self.add_zip_command(app)
-#         super().__init__(app, name=name)
-#
-#     def add_zip_command(self, app):
-#         """Default zip command added if not already defined."""
-#         return app.commands.get(self.ZIP_CMD) or CwsZipArchiver(app)
-#
-#     @classmethod
-#     def terraform_apply(cls, workspace, traces):
-#         """In the default terraform workspace, we have the API.
-#         In the specific workspace, we have the corresponding stagging lambda.
-#         """
-#         stop = False
-#
-#         def display_spinning_cursor():
-#             spinner = itertools.cycle('|/-\\')
-#             while not stop:
-#                 sys.stdout.write(next(spinner))
-#                 sys.stdout.write('\b')
-#                 sys.stdout.flush()
-#                 sleep(0.1)
-#
-#         spin_thread = Thread(target=display_spinning_cursor)
-#         spin_thread.start()
-#
-#         try:
-#             print(f"Terraform apply ({traces[0]})", flush=True)
-#             cls.terraform.apply("default")
-#             print(f"Terraform apply ({traces[1]})", flush=True)
-#             cls.terraform.apply(workspace)
-#         finally:
-#             stop = True
-#
-#
 # class CwsTerraformDestroyer(CwsTerraformCommand):
 #
 #     @property

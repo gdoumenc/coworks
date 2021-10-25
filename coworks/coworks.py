@@ -11,6 +11,7 @@ from flask import Blueprint as FlaskBlueprint
 from flask import Flask
 from flask import abort
 from flask import current_app
+from flask import make_response
 from flask.blueprints import BlueprintSetupState
 from flask.ctx import RequestContext
 from flask.testing import FlaskClient
@@ -36,11 +37,15 @@ from .wrappers import TokenResponse
 #
 
 
-def entry(fun: t.Callable) -> t.Callable:
+def entry(fun: t.Callable = None, binary: bool = False) -> t.Callable:
     """Decorator to create a microservice entry point from function name."""
+    if fun is None:
+        return partial(entry, binary=binary)
+
     name = fun.__name__.upper()
     for method in HTTP_METHODS:
         fun.__CWS_METHOD = method
+        fun.__CWS_BINARY = binary
         if name == method:
             fun.__CWS_PATH = ''
             return fun
@@ -164,8 +169,13 @@ class TechMicroService(Flask):
         @self.errorhandler(Exception)
         def handle_exception(e):
             if isinstance(e, HTTPException):
-                return e
-            return str(e), 500
+                resp = make_response(e.description, e.code)
+            else:
+                resp = make_response(str(e), 500)
+
+            if request.in_lambda_context:
+                return self._convert_to_lambda_response(resp)
+            return resp
 
     def app_context(self):
         """Override to initialize coworks microservice."""
@@ -297,6 +307,9 @@ class TechMicroService(Flask):
                 kwargs = self._get_kwargs(event)
                 resp = getattr(c, method.lower())(full_path(), **kwargs)
                 return self._convert_to_lambda_response(resp)
+        except HTTPException as e:
+            self.logger.debug(f"Error in API handler for {self.name} : {e}")
+            raise
         except Exception as e:
             self.logger.debug(f"Error in API handler for {self.name} : {e}")
             raise
@@ -352,28 +365,38 @@ class TechMicroService(Flask):
 
     def _convert_to_lambda_response(self, resp):
         """Convert Lambda response."""
+
+        def structured_payload(body, status_code=None):
+            return {
+                "statusCode": status_code or resp.status_code,
+                "headers": {k: v for k, v in resp.headers},
+                "body": body,
+                "isBase64Encoded": False,
+            }
+
         try:
+            # returns JSON structure
             if resp.is_json:
-                return {
-                    "statusCode": resp.status_code,
-                    "headers": {k: v for k, v in resp.headers},
-                    "body": resp.json,
-                    "isBase64Encoded": False,
-                }
-        except JSONDecodeError:
-            resp.mimetype = "text/plain"
+                try:
+                    return structured_payload(resp.json)
+                except JSONDecodeError:
+                    resp.mimetype = "text/plain"
 
-        as_text = resp.mimetype.startswith('text')
-        body = resp.get_data(as_text=as_text)
-        if not as_text:
-            body = self._base64encode(body)
+            # returns simple string JSON structure
+            if resp.mimetype.startswith('text'):
+                try:
+                    return structured_payload(resp.get_data(True))
+                except ValueError:
+                    pass
 
-        return {
-            "statusCode": resp.status_code,
-            "headers": {k: v for k, v in resp.headers},
-            "body": body,
-            "isBase64Encoded": not as_text,
-        }
+            # returns direct payload
+            return self._base64encode(resp.get_data())
+
+        # returns internal exception
+        except HTTPException as e:
+            return structured_payload(e.description, e.code)
+        except Exception as e:
+            return structured_payload(str(e), 500)
 
     def schedule(self, *args, **kwargs):
         raise Exception("Schedule decorator is defined on BizMicroService, not on TechMicroService")

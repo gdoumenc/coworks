@@ -2,7 +2,7 @@ locals {
   {{ resource_name }}_api_arn = join("", aws_api_gateway_rest_api.{{ resource_name }}.*.arn, data.aws_api_gateway_rest_api.{{ resource_name }}.*.arn)
   {{ resource_name }}_api_id = join("", aws_api_gateway_rest_api.{{ resource_name }}.*.id, data.aws_api_gateway_rest_api.{{ resource_name }}.*.id)
   {{ resource_name }}_api_root_id = join("", aws_api_gateway_rest_api.{{ resource_name }}.*.root_resource_id, data.aws_api_gateway_rest_api.{{ resource_name }}.*.root_resource_id)
-  {{ resource_name }}_api_binary_media_types = ["multipart/form-data"]
+  {{ resource_name }}_api_binary_media_types = ["multipart/form-data", "application/octet-stream", "image/*"]
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -119,8 +119,9 @@ resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_{
   {%- endif %}
   http_method = join("", aws_api_gateway_method.{{ resource_name }}_{{ uid }}_{{ method }}.*.http_method)
   status_code = join("", aws_api_gateway_method_response.{{ resource_name }}_{{ uid }}_{{ method }}_response_200.*.status_code)
+  {%- if not resource.binary %}
 
-  # Transforms the backend JSON response to XML
+  # Transforms the backend JSON response
   response_templates = {
     "application/json" = <<-EOF
       #set($inputRoot = $input.path('$'))
@@ -129,6 +130,7 @@ resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_{
       $inputRoot.body
     EOF
   }
+  {%- endif %}
 }
 {%- endfor %}
 {%- endfor %}
