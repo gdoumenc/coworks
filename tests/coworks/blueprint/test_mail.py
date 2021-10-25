@@ -22,6 +22,7 @@ class MailMS(TechMicroService):
     def __init__(self, **mail_names):
         super().__init__('mail')
         self.register_blueprint(Mail(**mail_names))
+        self.any_token_authorized = True
 
 
 class TestClass:
@@ -58,13 +59,13 @@ class TestClass:
         "SMTP_LOGIN": "myself@test.com",
         "SMTP_PASSWD": "passwd"
     })
-    def test_wrong_params(self):
+    def test_wrong_params(self, auth_headers):
         app = MailMS(env_var_prefix='SMTP')
         with app.test_client() as c:
             data = {
                 'subject': "Test",
             }
-            response = c.post('/send', data=data)
+            response = c.post('/send', data=data, headers=auth_headers)
             assert response.status_code == 400
             assert response.get_data(as_text=True) == "From address not defined (from_addr:str)"
 
@@ -74,7 +75,7 @@ class TestClass:
         "SMTP_PASSWD": "passwd"
     })
     @mock.patch.object(smtplib, 'SMTP', smtp_mock)
-    def test_send_text(self):
+    def test_send_text(self, auth_headers):
         app = MailMS(env_var_prefix='SMTP')
         with app.test_client() as c:
             data = {
@@ -82,7 +83,7 @@ class TestClass:
                 'from_addr': "from@test.fr",
                 'to_addrs': "to@test.fr",
             }
-            response = c.post('/send', data=data)
+            response = c.post('/send', data=data, headers=auth_headers)
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "Mail sent to to@test.fr"
             login_mock.assert_called_with('myself@test.com', 'passwd')
@@ -95,7 +96,7 @@ class TestClass:
     })
     @mock.patch.object(smtplib, 'SMTP', smtp_mock)
     @mock.patch.object(message, 'EmailMessage', email_mock)
-    def test_send_attachment(self):
+    def test_send_attachment(self, auth_headers):
         app = MailMS(env_var_prefix='SMTP')
         with app.test_client() as c:
             file = BytesIO(b"hello {{ world_name }}")
@@ -105,7 +106,7 @@ class TestClass:
                 'to_addrs': "to@test.fr",
                 'attachments': [(file, 'file.txt')]
             }
-            response = c.post('/send', data=data)
+            response = c.post('/send', data=data, headers=auth_headers)
             assert response.status_code == 200
             login_mock.assert_called_with('myself@test.com', 'passwd')
             add_mock.assert_called_once()

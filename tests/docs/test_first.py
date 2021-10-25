@@ -1,6 +1,7 @@
-import requests
-import threading
+import multiprocessing
 import time
+
+import requests
 
 from coworks.utils import import_attr
 
@@ -8,7 +9,7 @@ from coworks.utils import import_attr
 class TestClass:
     def test_run_first_no_token(self, samples_docs_dir, unused_tcp_port):
         app = import_attr('first', 'app', cwd=samples_docs_dir)
-        server = threading.Thread(target=run_server, args=(app, unused_tcp_port), daemon=True)
+        server = multiprocessing.Process(target=run_server, args=(app, unused_tcp_port), daemon=True)
         server.start()
         counter = 1
         time.sleep(counter)
@@ -17,10 +18,11 @@ class TestClass:
             counter += 1
         response = requests.get(f'http://localhost:{unused_tcp_port}/')
         assert response.status_code == 401
+        server.terminate()
 
     def test_run_first_wrong_token(self, samples_docs_dir, unused_tcp_port):
         app = import_attr('first', 'app', cwd=samples_docs_dir)
-        server = threading.Thread(target=run_server, args=(app, unused_tcp_port), daemon=True)
+        server = multiprocessing.Process(target=run_server, args=(app, unused_tcp_port), daemon=True)
         server.start()
         counter = 1
         time.sleep(counter)
@@ -32,7 +34,7 @@ class TestClass:
 
     def test_run_first(self, samples_docs_dir, unused_tcp_port):
         app = import_attr('first', 'app', cwd=samples_docs_dir)
-        server = threading.Thread(target=run_server, args=(app, unused_tcp_port), daemon=True)
+        server = multiprocessing.Process(target=run_server, args=(app, unused_tcp_port), daemon=True)
         server.start()
         counter = 1
         time.sleep(counter)
@@ -46,8 +48,9 @@ class TestClass:
         assert response.text == "Value stored (1).\n"
         response = requests.get(f'http://localhost:{unused_tcp_port}/', headers={'Authorization': "token"})
         assert response.text == "Stored value 1.\n"
+        server.terminate()
 
 
 def run_server(app, port):
     print(f"Server starting on port {port}")
-    app.run(host='localhost', port=port, debug=False, passthrough_errors=True)
+    app.run(host='localhost', port=port, use_reloader=False, debug=False)

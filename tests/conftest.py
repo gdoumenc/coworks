@@ -31,6 +31,13 @@ def unused_tcp_port():
 
 
 @pytest.fixture
+def auth_headers():
+    yield {
+        'authorization': 'any',
+    }
+
+
+@pytest.fixture
 def empty_context():
     return LambdaContextTest()
 

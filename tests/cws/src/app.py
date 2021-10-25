@@ -5,12 +5,12 @@ from coworks import TechMicroService, entry
 
 
 class EnvTechMS(TechMicroService):
-    version = "1.2"
     values = defaultdict(int)
     init_value = None
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.any_token_authorized = True
 
         @self.before_first_request
         def init():

@@ -34,6 +34,10 @@ class TechMS(TechMicroService):
     def get(self):
         return "simple get"
 
+    @entry(binary=True)
+    def get_img(self):
+        return b"image content"
+
 
 class TestClass:
     def test_api_resources(self, example_dir):
@@ -42,9 +46,10 @@ class TestClass:
             info = ScriptInfo(create_app=lambda _: app)
             terraform = Terraform(info, terraform_dir="terraform")
             ressources = terraform.api_resources
-        assert len(ressources) == 6
+        assert len(ressources) == 7
         assert ressources[''].rules is not None
         assert len(ressources[''].rules) == 1
+        assert ressources['img'].binary
         assert ressources['test'].rules is None
         assert ressources['test_index'].rules is not None
         assert len(ressources['test_index'].rules) == 1

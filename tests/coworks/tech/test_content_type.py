@@ -4,6 +4,10 @@ from coworks import entry
 
 class ContentMS(TechMicroService):
 
+    def __init__(self):
+        super().__init__()
+        self.any_token_authorized = True
+
     @entry
     def get(self):
         return "test"
