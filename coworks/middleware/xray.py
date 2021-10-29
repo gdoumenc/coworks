@@ -27,21 +27,25 @@ class XRayMiddleware:
         self._app.handle_exception = self.capture_exception
         self._recorder = recorder
         app.logger.debug(f"Initializing xray middleware {name}")
+        self._enabled = False
 
-        # Checks XRay is enabled
-        self._enabled = global_sdk_config.sdk_enabled()
-        if self._enabled:
-            try:
-                subsegment = self._recorder.current_subsegment()
-            except (Exception,) as e:
-                self._app.logger.debug(str(e))
-                self._enabled = False
+        def first():
+            # Checks XRay is enabled
+            self._enabled = global_sdk_config.sdk_enabled()
+            if self._enabled:
+                try:
+                    subsegment = self._recorder.current_subsegment()
+                except (Exception,) as e:
+                    self._app.logger.debug(str(e))
+                    self._enabled = False
 
-        if not self._enabled:
-            self._app.logger.debug("Skipped capture routes because the SDK is currently disabled.")
-            return
+            if not self._enabled:
+                self._app.logger.debug("Skipped capture routes because the SDK is currently disabled.")
+                return
 
-        patch_all()
+            patch_all()
+
+        app.before_first_request_funcs = [first, *app.before_first_request_funcs]
 
     def capture_routes(self):
         if not self._enabled:
@@ -103,12 +107,10 @@ class XRayMiddleware:
 
     def capture_exception(self, e):
         if not self._enabled:
-            try:
-                self._app.logger.error(f"Event: {aws_event}")
-                self._app.logger.error(f"Context: {aws_context}")
-                self._app.logger.debug("Skipped capture exception because the SDK is currently disabled.")
-            except (Exception,):
-                raise e
+            self._app.logger.error(f"Event: {aws_event}")
+            self._app.logger.error(f"Context: {aws_context}")
+            self._app.logger.debug("Skipped capture exception because the SDK is currently disabled.")
+            raise e
 
         subsegment = self._recorder.current_subsegment()
         if subsegment:
