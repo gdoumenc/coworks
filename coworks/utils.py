@@ -130,14 +130,10 @@ def _create_rest_proxy(scaffold, func, kwarg_keys, args, varkw):
 
             resp = func(scaffold, **kwargs)
             return make_response(resp)
-        except HTTPException:
-            raise
         except TypeError as e:
             raise BadRequest(str(e))
-        except Exception as e:
-            scaffold.logger.error(f"Exception: {str(e)}")
-            scaffold.logger.error(traceback.print_exc())
-            return make_response((str(e), 500))
+        except (Exception,):
+            raise
 
     return update_wrapper(proxy, func)
 
@@ -159,10 +155,7 @@ def make_response(resp):
 
     accept = request.accept_mimetypes
     if 'Content-Type' not in headers:
-        if not accept.provided or accept.accept_json:
-            resp.headers['Content-Type'] = 'application/json'
-        else:
-            resp.headers['Content-Type'] = 'text/plain'
+        resp.headers['Content-Type'] = accept.to_header() if  accept.provided else 'application/json'
     return resp
 
 

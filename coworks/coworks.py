@@ -5,17 +5,16 @@ import typing as t
 from dataclasses import dataclass
 from functools import partial
 from inspect import isfunction
-from json import JSONDecodeError
 
 from flask import Blueprint as FlaskBlueprint
 from flask import Flask
 from flask import abort
 from flask import current_app
-from flask import make_response
 from flask.blueprints import BlueprintSetupState
 from flask.ctx import RequestContext
 from flask.testing import FlaskClient
 from werkzeug.exceptions import HTTPException
+from werkzeug.exceptions import InternalServerError
 from werkzeug.routing import Rule
 
 from .config import Config
@@ -166,17 +165,6 @@ class TechMicroService(Flask):
                 if not valid:
                     abort(403)
 
-        @self.errorhandler(Exception)
-        def handle_exception(e):
-            if isinstance(e, HTTPException):
-                resp = make_response(e.description, e.code)
-            else:
-                resp = make_response(str(e), 500)
-
-            if request.in_lambda_context:
-                return self._convert_to_lambda_response(resp)
-            return resp
-
     def app_context(self):
         """Override to initialize coworks microservice."""
         if not self._cws_app_initialized:
@@ -300,19 +288,22 @@ class TechMicroService(Flask):
                         url += f"{k}={vl}"
             return url
 
-        # Transform as simple test call
+        # Transform as simple client call and manage exception if needed
         try:
             with self.cws_client(event, context) as c:
                 method = event['httpMethod']
                 kwargs = self._get_kwargs(event)
-                resp = getattr(c, method.lower())(full_path(), **kwargs)
-                return self._convert_to_lambda_response(resp)
-        except HTTPException as e:
-            self.logger.debug(f"Error in API handler for {self.name} : {e}")
-            raise
+                try:
+                    resp = getattr(c, method.lower())(full_path(), **kwargs)
+                    return self._convert_to_lambda_response(resp)
+                except Exception as e:
+                    handler = self._find_error_handler(e)
+                    if handler is None:
+                        raise
+                    return self._convert_to_lambda_response(handler(e))
         except Exception as e:
-            self.logger.debug(f"Error in API handler for {self.name} : {e}")
-            raise
+            error = e if isinstance(e, HTTPException) else InternalServerError(original_exception=e)
+            return self._structured_error(error)
 
     def _flask_handler(self, environ: t.Dict[str, t.Any], start_response: t.Callable[[t.Any], None]):
         """Flask handler.
@@ -366,37 +357,34 @@ class TechMicroService(Flask):
     def _convert_to_lambda_response(self, resp):
         """Convert Lambda response."""
 
-        def structured_payload(body, status_code=None):
-            return {
-                "statusCode": status_code or resp.status_code,
-                "headers": {k: v for k, v in resp.headers},
-                "body": body,
-                "isBase64Encoded": False,
-            }
+        # returns JSON structure
+        if resp.is_json:
+            try:
+                return self._structured_payload(resp.json, resp.status_code, resp.headers)
+            except (Exception,):
+                resp.mimetype = "text/plain"
 
-        try:
-            # returns JSON structure
-            if resp.is_json:
-                try:
-                    return structured_payload(resp.json)
-                except JSONDecodeError:
-                    resp.mimetype = "text/plain"
+        # returns simple string JSON structure
+        if resp.mimetype.startswith('text'):
+            try:
+                return self._structured_payload(resp.get_data(True), resp.status_code, resp.headers)
+            except ValueError:
+                pass
 
-            # returns simple string JSON structure
-            if resp.mimetype.startswith('text'):
-                try:
-                    return structured_payload(resp.get_data(True))
-                except ValueError:
-                    pass
+        # returns direct payload
+        return self._base64encode(resp.get_data())
 
-            # returns direct payload
-            return self._base64encode(resp.get_data())
+    def _structured_payload(self, body, status_code, headers):
+        return {
+            "statusCode": status_code,
+            "headers": {k: v for k, v in headers},
+            "body": body,
+            "isBase64Encoded": False,
+        }
 
-        # returns internal exception
-        except HTTPException as e:
-            return structured_payload(e.description, e.code)
-        except Exception as e:
-            return structured_payload(str(e), 500)
+    def _structured_error(self, e: HTTPException):
+        headers = {'content_type': "application/json"}
+        return self._structured_payload(e.description, e.code, headers)
 
     def schedule(self, *args, **kwargs):
         raise Exception("Schedule decorator is defined on BizMicroService, not on TechMicroService")
