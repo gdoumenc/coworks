@@ -153,12 +153,12 @@ class TechMicroService(Flask):
         self.any_token_authorized = False
         self.deferred_init_routes_functions: t.List[t.Callable] = []
         self._cws_app_initialized = False
-        self._cws_env_initialized = False
+        self._cws_conf_updated = False
 
         @self.before_request
         def check_token():
             if not request.in_lambda_context:
-                token = request.headers.get('Authorization', self.config.get('default_token'))
+                token = request.headers.get('Authorization', self.config.get('DEFAULT_TOKEN'))
                 if token is None:
                     abort(401)
                 valid = self.token_authorizer(token)
@@ -182,14 +182,6 @@ class TechMicroService(Flask):
         ctx = super().request_context(environ)
         ctx.aws_event = environ.get('aws_event')
         ctx.aws_context = environ.get('aws_context')
-
-        cws_request = t.cast(Request, ctx.request)
-        if not self._cws_env_initialized and not cws_request.in_lambda_context:
-            workspace = os.environ.get('WORKSPACE', DEFAULT_DEV_WORKSPACE)
-            config = self.get_config(workspace)
-            self.config.update(config.asdict())
-            config.load_environment_variables(self.root_path)
-
         return ctx
 
     def cws_client(self, event, context):
@@ -248,6 +240,7 @@ class TechMicroService(Flask):
         self.logger.debug(f"Event: {event}")
         self.logger.debug(f"Context: {context}")
 
+        self._update_config(load_env=False)
         if event.get('type') == 'TOKEN':
             return self._token_handler(event, context)
         return self._api_handler(event, context)
@@ -309,7 +302,18 @@ class TechMicroService(Flask):
         """Flask handler.
         """
 
+        self._update_config(load_env=True)
         return self.wsgi_app(environ, start_response)
+
+    def _update_config(self, load_env: bool):
+        if not self._cws_conf_updated:
+            workspace = os.environ.get('WORKSPACE', DEFAULT_DEV_WORKSPACE)
+            config = self.get_config(workspace)
+            self.config['WORKSPACE'] = config.workspace
+            self.config['DEFAULT_TOKEN'] = config.default_token
+            if load_env:
+                config.load_environment_variables(self.root_path)
+            self._cws_conf_updated = True
 
     def _get_kwargs(self, event):
         def is_json(mt):

@@ -59,8 +59,8 @@ class TerraformResource:
         return f"{self.uid}:{self.rules}"
 
 
-class Terraform:
-    """Terraform calss to manage local terraform deployement."""
+class TerraformLocal:
+    """Terraform class to manage local terraform deployements."""
     TIMEOUT = 300
 
     def __init__(self, info, **options):
@@ -231,6 +231,111 @@ class Terraform:
         return p
 
 
+class RemoteTerraform(TerraformLocal):
+
+    def select_workspace(self, workspace) -> None:
+        """Workspace are defined remotly."""
+        pass
+
+    def apply(self, workspace=None) -> None:
+        if not (self.working_dir / '.terraform').exists():
+            self.init()
+        self._execute(['apply', '-auto-approve'])
+
+
+class TerraformCloud:
+    """Terraform class to manage remote deployements. Two terraform interfaces are used:
+    - One for the API,
+    - One for for the stage.
+    """
+
+    def __init__(self, info, **options):
+        self.info = info
+        self.working_dir = Path(options['terraform_dir'])
+        self.workspace = options['workspace']
+        self._api_terraform = self._workspace_terraform = None
+
+    @property
+    def api_terraform(self):
+        if self._api_terraform is None:
+            self._api_terraform = RemoteTerraform(self.info, terraform_dir=self.working_dir)
+        return self._api_terraform
+
+    @property
+    def workspace_terraform(self):
+        if self._workspace_terraform is None:
+            terraform_dir = f"{self.working_dir}_{self.workspace}"
+            self._workspace_terraform = RemoteTerraform(self.info, terraform_dir=terraform_dir)
+        return self._workspace_terraform
+
+    def init(self):
+        self.api_terraform.init()
+        self.workspace_terraform.init()
+
+    def apply(self, workspace) -> None:
+        if workspace == "default":
+            self.api_terraform.apply(workspace)
+        else:
+            self.workspace_terraform.apply(workspace)
+
+    def output(self):
+        api_out = self.api_terraform.output()
+        workspace_out = self.workspace_terraform.output()
+        return api_out
+
+    def select_workspace(self, workspace) -> None:
+        self.api_terraform.select_workspace(workspace)
+        self.workspace_terraform.select_workspace(workspace)
+
+    def generate_common_files(self, **options) -> None:
+        stage = ""
+        self._generate_common_file(self.api_terraform, stage=stage, **options)
+        stage = f"_{options['workspace']}"
+        self._generate_common_file(self.workspace_terraform, stage=stage, **options)
+
+    def generate_files(self, template_filename, output_filename, **options) -> None:
+        options_for_api = {**options, **{'stage': ''}}
+
+        self.api_terraform.generate_files(template_filename, output_filename, **options_for_api)
+        options_for_stage = {**options, **{'stage': f"_{options['workspace']}", 'debug': False}}
+        self.workspace_terraform.generate_files(template_filename, output_filename, **options_for_stage)
+
+    def create_stage(self, **options) -> None:
+        """In the default terraform workspace, we have the API.
+        In the specific workspace, we have the corresponding stagging lambda.
+        """
+        stop = False
+        workspace = options['workspace']
+
+        def display_spinning_cursor():
+            spinner = itertools.cycle('|/-\\')
+            while not stop:
+                sys.stdout.write(next(spinner))
+                sys.stdout.write('\b')
+                sys.stdout.flush()
+                sleep(0.1)
+
+        spin_thread = Thread(target=display_spinning_cursor)
+        spin_thread.start()
+
+        try:
+            click.echo(f"Terraform apply (Create API routes)")
+            self.api_terraform.apply()
+            click.echo(f"Terraform apply (Deploy API and Lambda for the {workspace} stage)")
+            self.workspace_terraform.apply()
+        finally:
+            stop = True
+
+    def copy_file(self, file):
+        self.workspace_terraform.copy_file(file)
+
+    def _generate_common_file(self, terraform, **options):
+        template = terraform.jinja_env.get_template("terraform.j2")
+        with open(f"{terraform.working_dir}/terraform.tf", 'w+') as f:
+            data = self.api_terraform.get_context_data(**options)
+            f.write(template.render(**data))
+
+
 @click.command("deploy", short_help="Deploy the CoWorks microservice on AWS Lambda.")
 # Zip options (redefined)
 @click.option('--api', is_flag=True, help="Stop after API create step (forces also dry mode).")
@@ -253,7 +358,7 @@ class Terraform:
 @click.pass_context
 @pass_script_info
 @with_appcontext
-def deploy_command(info, ctx, output, terraform_class=Terraform, **options) -> None:
+def deploy_command(info, ctx, output, terraform_class=TerraformLocal, **options) -> None:
     """ Deploiement in 2 steps:
         Step 1. Create API and routes integrations
         Step 2. Deploy API and Lambda
