@@ -2,17 +2,19 @@ import os
 
 from setuptools import setup, find_packages
 
+from coworks.version import __version__
+
 _here = os.path.abspath(os.path.dirname(__file__))
 
 with open(os.path.join(_here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
-from coworks import __version__
+desc = 'Coworks is a unified compositional microservices framework using Flask on AWS serverless technologies.'
 
 setup(
     name='coworks',
     version=__version__,
-    description='Coworks is a unified compositional microservices framework using Flask on AWS serverless technologies.',
+    description=desc,
     long_description=long_description,
     author='Guillaume Doumenc',
     author_email='gdoumenc@fpr-coworks.com',
