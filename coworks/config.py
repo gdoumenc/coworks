@@ -1,56 +1,36 @@
-from dataclasses import dataclass
-from json import JSONDecodeError
-
+import dataclasses
 import json
 import os
 import re
-from chalice import CORSConfig as ChaliceCORSConfig, AuthResponse
-from chalice.app import AuthRequest as ChaliceAuthRequest
+import typing as t
+from dataclasses import dataclass
+from json import JSONDecodeError
 from pathlib import Path
-from typing import Callable, Union, List, Tuple
 
-from .mixins import CoworksMixin
 from .utils import as_list
 
 DEFAULT_PROJECT_DIR = '.'
-DEFAULT_WORKSPACE = 'dev'
+DEFAULT_LOCAL_WORKSPACE = 'local'
+DEFAULT_DEV_WORKSPACE = 'dev'
 
 ENV_FILE_SUFFIX = '.json'
 SECRET_ENV_FILE_SUFFIX = '.secret.json'
-
-
-class AuthRequest(ChaliceAuthRequest):
-    def __init__(self, auth_type, token, method_arn):
-        self.auth_type = auth_type
-        self.token = token
-        self.method_arn = method_arn
-
-        _, self.workspace, self.method, self.route = method_arn.split('/', 3)
-
-
-class CORSConfig(ChaliceCORSConfig):
-
-    def get_access_control_headers(self):
-        if not self.allow_origin:
-            return {}
-        return super().get_access_control_headers()
 
 
 @dataclass
 class Config:
     """ Configuration class for deployment."""
 
-    workspace: str = DEFAULT_WORKSPACE
-    environment_variables_file: Union[str, List[str]] = 'vars.json'
-    environment_variables: Union[dict, List[dict]] = None
-    auth: Union[
-        Callable[[AuthRequest], Union[bool, list, AuthResponse]],
-        Callable[[CoworksMixin, AuthRequest], Union[bool, list, AuthResponse]],
-    ] = None
-    cors: CORSConfig = CORSConfig(allow_origin='')
-    content_type: Tuple[str] = ('multipart/form-data', 'application/json', 'text/plain')
+    workspace: str = DEFAULT_DEV_WORKSPACE
+    environment_variables_file: t.Union[str, t.List[str], Path, t.List[Path]] = 'vars.json'
+    environment_variables: t.Union[dict, t.List[dict]] = None
+    default_token: str = None
 
-    def is_valid_for(self, workspace) -> bool:
+    @property
+    def ENV(self):
+        return self.workspace
+
+    def is_valid_for(self, workspace: str) -> bool:
         return self.workspace == workspace
 
     def existing_environment_variables_files(self, project_dir):
@@ -59,9 +39,9 @@ class Config:
         # store in a dict to allow specific environment variable files to be overloaded
         files = {}
 
-        def add_file(dir):
+        def add_file(_dir):
             for file in environment_variables_file:
-                var_file = Path(dir) / file
+                var_file = Path(_dir) / file
                 if var_file.is_file():
                     files[file] = var_file
                 var_secret_file = var_file.with_suffix(SECRET_ENV_FILE_SUFFIX)
@@ -73,7 +53,7 @@ class Config:
         # get default then specific
         add_file('.')
         add_file(project_dir)
-        return files.values()
+        return [f.as_posix() for f in files.values()]
 
     def load_environment_variables(self, project_dir):
         """Uploads environment variables from the environment variables files and variables."""
@@ -82,7 +62,7 @@ class Config:
         # Environment variables from files and from config
         for file in self.existing_environment_variables_files(project_dir):
             try:
-                with file.open() as f:
+                with Path(file).open() as f:
                     environment_variables.update(json.loads(f.read()))
             except JSONDecodeError as e:
                 raise FileNotFoundError(f"Syntax error in file {file}: {str(e)}.\n")
@@ -108,40 +88,32 @@ class Config:
         if not hasattr(self, key):
             setattr(self, key, value)
 
+    def asdict(self):
+        return dataclasses.asdict(self)
+
 
 class LocalConfig(Config):
-    def __init__(self, workspace='local', **kwargs):
-        if 'environment_variables' not in kwargs:
-            kwargs['environment_variables'] = {"AWS_XRAY_SDK_ENABLED": False}
+    """ Production configuration have workspace's name corresponding to version's index."""
+
+    def __init__(self, workspace=DEFAULT_LOCAL_WORKSPACE, **kwargs):
         super().__init__(workspace=workspace, **kwargs)
-
-        if self.auth is None:
-            def no_check(auth_request):
-                """Authorization method always validated."""
-                return True
-
-            self.auth = no_check
+        self.environment_variables = {
+            'AWS_XRAY_SDK_ENABLED': False
+        }
 
 
 class DevConfig(Config):
-    def __init__(self, workspace=DEFAULT_WORKSPACE, token_var_name='TOKEN', **kwargs):
+    """ Production configuration have workspace's name corresponding to version's index."""
+
+    def __init__(self, workspace=DEFAULT_DEV_WORKSPACE, **kwargs):
         super().__init__(workspace=workspace, **kwargs)
-
-        if self.auth is None:
-            def check_token(auth_request):
-                """Authorization method testing token value in header."""
-                valid = (auth_request.token == os.getenv(token_var_name))
-                return valid
-
-            self.auth = check_token
 
 
 class ProdConfig(DevConfig):
-    """ Production configuration have workspace's name corresponding to version's name."""
+    """ Production configuration have workspace's name corresponding to version's index."""
 
-    def __init__(self, environment_variables_file="vars.prod.json", pattern=r"v[1-9]+", token_var_name='TOKEN',
-                 **kwargs):
-        super().__init__(environment_variables_file=environment_variables_file, token_var_name=token_var_name, **kwargs)
+    def __init__(self, pattern=r"v[1-9]+", **kwargs):
+        super().__init__(**kwargs)
         self.pattern = pattern
 
     def is_valid_for(self, workspace):

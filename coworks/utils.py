@@ -1,23 +1,165 @@
 import importlib
 import inspect
-import json
 import os
 import platform
-from functools import partial
-
 import sys
+import traceback
+from functools import partial
+from functools import update_wrapper
+
+from flask import make_response as flask_make_response
+from flask.blueprints import BlueprintSetupState
+from werkzeug.exceptions import BadRequest
+from werkzeug.exceptions import BadRequestKeyError
+
+from .globals import request
 
 HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
 
 
-def jsonify(result, pretty=False, indent=None, separators=None):
-    if pretty:
-        indent = indent or 4
-        separators = separators or (",", ": ")
-    else:
-        separators = separators or (",", ":")
+def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
+    """ Creates all routes for a microservice.
+    :param app the app microservice
+    :param bp_state the blueprint state
+    """
 
-    return json.dumps(result, indent=indent, separators=separators)
+    # Adds entrypoints
+    scaffold = bp_state.blueprint if bp_state else app
+    method_members = inspect.getmembers(scaffold.__class__, lambda x: inspect.isfunction(x))
+    methods = [fun for _, fun in method_members if hasattr(fun, '__CWS_METHOD')]
+    for fun in methods:
+        if getattr(fun, '__CWS_HIDDEN', False):
+            continue
+
+        method = getattr(fun, '__CWS_METHOD')
+        entry_path = path_join(getattr(fun, '__CWS_PATH'))
+
+        # Get parameters
+        args = inspect.getfullargspec(fun).args[1:]
+        defaults = inspect.getfullargspec(fun).defaults
+        varkw = inspect.getfullargspec(fun).varkw
+        if defaults:
+            len_defaults = len(defaults)
+            for index, arg in enumerate(args[:-len_defaults]):
+                entry_path = path_join(entry_path, f"/<{arg}>")
+            kwarg_keys = args[-len_defaults:]
+        else:
+            for index, arg in enumerate(args):
+                entry_path = path_join(entry_path, f"/<{arg}>")
+            kwarg_keys = {}
+
+        proxy = _create_rest_proxy(scaffold, fun, kwarg_keys, args, varkw)
+        proxy.__CWS_BINARY = getattr(fun, '__CWS_BINARY', False)
+        proxy.__CWS_CONTENT_TYPE = getattr(fun, '__CWS_CONTENT_TYPE', '')
+
+        # Creates the entry
+        url_prefix = bp_state.url_prefix if bp_state else ''
+        rule = make_absolute(entry_path, url_prefix)
+
+        name_prefix = f"{bp_state.blueprint.name}_" if bp_state else ''
+        endpoint = f"{name_prefix}{proxy.__name__}"
+
+        app.add_url_rule(rule=rule, view_func=proxy, methods=[method], endpoint=endpoint)
+
+
+def _create_rest_proxy(scaffold, func, kwarg_keys, args, varkw):
+    def proxy(**kwargs):
+        try:
+            # Adds kwargs parameters
+            def check_param_expected_in_lambda(param_name):
+                """Alerts when more parameters than expected are defined in request."""
+                if param_name not in kwarg_keys and varkw is None:
+                    _err_msg = f"TypeError: got an unexpected keyword argument '{param_name}'"
+                    raise BadRequestKeyError(_err_msg)
+
+            def as_fun_params(values: dict, flat=True):
+                """Set parameters as simple value or list of values if multiple defined.
+               :param values: Dict of values.
+               :param flat: If set to True the list values of lenth 1 is retrun as single value.
+                """
+                params = {}
+                for k, v in values.items():
+                    check_param_expected_in_lambda(k)
+                    params[k] = v[0] if flat and len(v) == 1 else v
+                return params
+
+            # get keyword arguments from request
+            if kwarg_keys or varkw:
+
+                # adds parameters from query parameters
+                if request.method == 'GET':
+                    data = request.values.to_dict(False)
+                    kwargs = dict(**kwargs, **as_fun_params(data))
+
+                # adds parameters from body parameter
+                elif request.method in ['POST', 'PUT']:
+                    try:
+                        if request.is_json:
+                            data = request.json
+                            if type(data) is dict:
+                                kwargs = dict(**kwargs, **as_fun_params(data, False))
+                            else:
+                                kwargs[kwarg_keys[0]] = data
+                        elif request.is_multipart:
+                            data = request.form.to_dict(False)
+                            files = request.files.to_dict(False)
+                            kwargs = dict(**kwargs, **as_fun_params(data), **as_fun_params(files))
+                        elif request.is_form_urlencoded:
+                            data = request.form.to_dict(False)
+                            kwargs = dict(**kwargs, **as_fun_params(data))
+                        else:
+                            data = request.values.to_dict(False)
+                            kwargs = dict(**kwargs, **as_fun_params(data))
+                    except Exception as e:
+                        scaffold.logger.error(traceback.print_exc())
+                        scaffold.logger.debug(e)
+                        raise BadRequest(str(e))
+
+                else:
+                    err_msg = f"Keyword arguments are not permitted for {request.method} method."
+                    raise BadRequestKeyError(err_msg)
+
+            else:
+                if not args:
+                    if request.content_length is not None:
+                        err_msg = f"TypeError: got an unexpected arguments (body: {request.json})"
+                        raise BadRequestKeyError(err_msg)
+                    if request.query_string:
+                        err_msg = f"TypeError: got an unexpected arguments (query: {request.query_string})"
+                        raise BadRequestKeyError(err_msg)
+
+            resp = func(scaffold, **kwargs)
+            return make_response(resp, getattr(func, '__CWS_CONTENT_TYPE', ''))
+        except TypeError as e:
+            raise BadRequest(str(e))
+        except (Exception,):
+            raise
+
+    return update_wrapper(proxy, func)
+
+
+def make_response(resp, content_type_entry=''):
+    """Set the right mimetype in response in case if not defined in header.
+    """
+
+    headers = {}
+    if resp is None:
+        return "", 204
+    if type(resp) is tuple:
+        if len(resp) == 2 and type(resp[1]) is dict:
+            headers = resp[1]
+        elif len(resp) == 3:
+            headers = resp[2]
+
+    resp = flask_make_response(resp)
+
+    accept = request.accept_mimetypes
+    if 'Content-Type' not in headers:
+        if content_type_entry:
+            resp.headers['Content-Type'] = content_type_entry
+        else:
+            resp.headers['Content-Type'] = accept.to_header() if accept.provided else resp.default_mimetype
+    return resp
 
 
 def import_attr(module, attr: str, cwd='.'):
@@ -45,13 +187,6 @@ def class_auth_methods(obj):
     return None
 
 
-def class_cws_methods(obj):
-    """Returns the list of methods from the class."""
-    methods = inspect.getmembers(obj.__class__, lambda x: inspect.isfunction(x))
-
-    return [fun for _, fun in methods if hasattr(fun, '__CWS_METHOD')]
-
-
 def class_attribute(obj, name: str = None, defaut=None):
     """Returns the list of attributes from the class or the attribute if name parameter is defined
     or default value if not found."""
@@ -66,15 +201,19 @@ def class_attribute(obj, name: str = None, defaut=None):
 
 def path_join(*args):
     """ Joins given arguments into an entry route.
-    Trailing but not leading slashes are stripped for each argument.
+    Slashes are stripped for each argument.
     """
 
     reduced = [x.lstrip('/').rstrip('/') for x in args if x]
     return '/'.join([x for x in reduced if x])
 
 
-def make_absolute(route):
-    return '/' + path_join(route)
+def make_absolute(route, url_prefix):
+    if not route.startswith('/'):
+        route = '/' + route
+    if url_prefix:
+        route = '/' + url_prefix.lstrip('/').rstrip('/') + route
+    return route
 
 
 def trim_underscores(name):
@@ -94,8 +233,23 @@ def as_list(var):
 
 
 def get_system_info():
+    from flask import __version__ as flask_version
+
+    flask_info = f"flask {flask_version}"
     python_info = f"python {sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}"
     platform_system = platform.system().lower()
     platform_release = platform.release()
     platform_info = f"{platform_system} {platform_release}"
-    return f"{python_info}, {platform_info}"
+    return f"{flask_info}, {python_info}, {platform_info}"
+
+
+class FileParam:
+
+    def __init__(self, file, mime_type):
+        self.file = file
+        self.mime_type = mime_type
+
+    def __repr__(self):
+        if self.mime_type:
+            return f'FileParam({self.file.name}, {self.mime_type})'
+        return f'FileParam({self.file.name})'

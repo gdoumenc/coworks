@@ -1,113 +1,109 @@
-import os
-import threading
+import multiprocessing
 import time
 from pathlib import Path
 
 import pytest
 import requests
+from flask.cli import ScriptInfo
 
 from coworks.config import Config, ProdConfig
-from coworks.cws.runner import CwsRunner
-from coworks.cws.runner import ThreadedLocalServer
-from tests.coworks.tech_ms import *
-
-
-class WithEnvMS(SimpleMS):
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-        @self.before_first_activation
-        def init(event, context):
-            assert os.getenv("test") is not None
-
-    @entry
-    def get(self):
-        """Root access."""
-        return os.getenv("test")
+from coworks.cws.client import client
+from tests.cws.src.app import EnvTechMS
 
 
 class TestClass:
+    def test_no_env(self, example_dir):
+        with pytest.raises(AssertionError) as pytest_wrapped_e:
+            app = EnvTechMS()
+            with app.test_client() as c:
+                response = c.get('/', headers={'Authorization': 'token'})
+        assert pytest_wrapped_e.type == AssertionError
+        assert pytest_wrapped_e.value.args[0] == "no environment variable 'test'"
 
-    def test_dev_stage(self, local_server_factory, example_dir):
-        config = Config(environment_variables_file=Path(example_dir) / "config" / "vars_dev.json")
-        local_server = local_server_factory(WithEnvMS(configs=config))
-        response = local_server.make_call(requests.get, '/')
-        assert response.status_code == 200
-        assert response.text == 'test dev environment variable'
-
-    def test_run_dev_stage(self, example_dir):
-        config = Config(environment_variables_file=Path("config") / "vars_dev.json")
-        app = WithEnvMS(configs=config)
-        CwsRunner(app)
-        port = ThreadedLocalServer.unused_tcp_port()
-        server = threading.Thread(target=run_server_example, args=(example_dir, app, port), daemon=True)
+    def test_run_dev_env(self, example_dir, unused_tcp_port):
+        config = Config(environment_variables_file=Path("config") / "vars.dev.json")
+        app = EnvTechMS(configs=config, root_path=example_dir)
+        server = multiprocessing.Process(target=run_server, args=(example_dir, app, unused_tcp_port), daemon=True)
         server.start()
         counter = 1
         time.sleep(counter)
         while not server.is_alive() and counter < 3:
             time.sleep(counter)
             counter += 1
-        response = requests.get(f'http://localhost:{port}/', headers={'Authorization': "token"})
-        assert response.text == "test dev environment variable"
+        response = requests.get(f'http://localhost:{unused_tcp_port}/env', headers={'Authorization': "token"})
+        assert response.text == "Value of environment variable test is : test dev environment variable."
+        server.terminate()
 
-    def test_secret_stage(self, local_server_factory, example_dir):
-        config = Config(environment_variables_file=Path(example_dir) / "config" / "vars_prod.json")
-        local_server = local_server_factory(WithEnvMS(configs=config))
-        response = local_server.make_call(requests.get, '/')
-        assert response.status_code == 200
-        assert response.text == 'test secret environment variable'
+    def test_run_prod_env(self, example_dir, unused_tcp_port):
+        config = Config(environment_variables_file=Path("config") / "vars.prod.json")
+        app = EnvTechMS(configs=config, root_path=example_dir)
+        server = multiprocessing.Process(target=run_server, args=(example_dir, app, unused_tcp_port), daemon=True)
+        server.start()
+        counter = 1
+        time.sleep(counter)
+        while not server.is_alive() and counter < 3:
+            time.sleep(counter)
+            counter += 1
+        response = requests.get(f'http://localhost:{unused_tcp_port}/env', headers={'Authorization': "token"})
+        assert response.text == "Value of environment variable test is : test prod environment variable."
+        server.terminate()
 
-    def test_workspace_stage(self, local_server_factory, example_dir):
-        config = Config(workspace='test', environment_variables_file=Path(example_dir) / "config" / "vars_prod.json")
-        local_server = local_server_factory(WithEnvMS(configs=config), workspace='test')
-        response = local_server.make_call(requests.get, '/')
-        assert response.status_code == 200
-        assert response.text == 'test secret environment variable'
+    def test_run_dev_stage(self, example_dir, unused_tcp_port):
+        config_dev = Config(environment_variables_file=Path("config") / "vars.dev.json")
+        config_prod = ProdConfig(environment_variables_file=Path("config") / "vars.prod.json")
+        app = EnvTechMS(configs=[config_dev, config_prod], root_path=example_dir)
+        server = multiprocessing.Process(target=run_server_with_workspace,
+                                         args=(example_dir, app, unused_tcp_port, "dev"),
+                                         daemon=True)
+        server.start()
+        counter = 1
+        time.sleep(counter)
+        while not server.is_alive() and counter < 3:
+            time.sleep(counter)
+            counter += 1
+        response = requests.get(f'http://localhost:{unused_tcp_port}/env', headers={'Authorization': "token"})
+        assert response.text == "Value of environment variable test is : test dev environment variable."
+        server.terminate()
 
-    def test_prod_stage(self, local_server_factory, example_dir):
-        def auth(*args):
-            return True
+    def test_run_prod_stage(self, example_dir, unused_tcp_port):
+        config_dev = Config(environment_variables_file=Path("config") / "vars.dev.json")
+        config_prod = ProdConfig(environment_variables_file=Path("config") / "vars.prod.json")
+        app = EnvTechMS(configs=[config_dev, config_prod], root_path=example_dir)
+        app.any_token_authorized = True
+        server = multiprocessing.Process(target=run_server_with_workspace,
+                                         args=(example_dir, app, unused_tcp_port, "v1"),
+                                         daemon=True)
+        server.start()
+        counter = 1
+        time.sleep(counter)
+        while not server.is_alive() and counter < 3:
+            time.sleep(counter)
+            counter += 1
+        response = requests.get(f'http://localhost:{unused_tcp_port}/env', headers={'Authorization': "token"})
+        assert response.text == "Value of environment variable test is : test prod environment variable."
+        server.terminate()
 
-        config1 = Config(environment_variables_file=Path(example_dir) / "config" / "vars_dev.json")
-        config2 = ProdConfig(environment_variables_file=Path(example_dir) / "config" / "vars_prod.json", auth=auth)
-        local_server = local_server_factory(WithEnvMS(configs=[config1, config2]), workspace="v1")
-        response = local_server.make_call(requests.get, '/', headers={'authorization':'token'})
-        assert response.status_code == 200
-        assert response.text == 'test secret environment variable'
-
-    def test_not_prod_stage(self, local_server_factory, example_dir):
-        config1 = Config(workspace='1', environment_variables_file=Path(example_dir) / "config" / "vars_dev.json")
-        config2 = ProdConfig(environment_variables_file=Path(example_dir) / "config" / "vars_prod.json")
-        local_server = local_server_factory(WithEnvMS(configs=[config1, config2]), workspace='1')
-        response = local_server.make_call(requests.get, '/')
-        assert response.status_code == 200
-        assert response.text == 'test dev environment variable'
-
-    def test_no_config_stage(self, local_server_factory, example_dir):
-        config1 = Config(environment_variables_file=Path(example_dir) / "config" / "vars_dev.json")
-        config2 = ProdConfig(environment_variables_file=Path(example_dir) / "config" / "vars_prod.json")
-        local_server = local_server_factory(WithEnvMS(configs=[config1, config2]),
-                                            project_dir=Path(example_dir) / "config", workspace='1')
-        response = local_server.make_call(requests.get, '/')
-        assert response.status_code == 200
-        assert response.text == 'test default environment variable'
-
-    def test_env_var(self, local_server_factory):
+    def test_env_var(self, example_dir, unused_tcp_port):
         config = Config(environment_variables={'test': 'test value environment variable'})
-        local_server = local_server_factory(WithEnvMS(configs=config))
-        response = local_server.make_call(requests.get, '/')
-        assert response.status_code == 200
-        assert response.text == 'test value environment variable'
+        app = EnvTechMS(configs=config, root_path=example_dir)
+        app.any_token_authorized = True
+        server = multiprocessing.Process(target=run_server, args=(example_dir, app, unused_tcp_port), daemon=True)
+        server.start()
+        counter = 1
+        time.sleep(counter)
+        while not server.is_alive() and counter < 3:
+            time.sleep(counter)
+            counter += 1
+        response = requests.get(f'http://localhost:{unused_tcp_port}/env', headers={'Authorization': "token"})
+        assert response.text == "Value of environment variable test is : test value environment variable."
+        server.terminate()
 
-    def test_wrong_env_var_name(self, local_server_factory):
-        config = Config(environment_variables={'1test': 'test value environment variable'})
-        with pytest.raises(KeyError) as pytest_wrapped_e:
-            local_server = local_server_factory(WithEnvMS(configs=config))
-        assert pytest_wrapped_e.type == KeyError
-        assert pytest_wrapped_e.value.args[0] == "Wrong environment variable name: 1test"
+
+def run_server(project_dir, app, port):
+    obj = ScriptInfo(create_app=lambda _: app, set_debug_flag=False)
+    client.main(['--project-dir', project_dir, 'run', '--port', port], 'cws', obj=obj, standalone_mode=False)
 
 
-def run_server_example(example_dir, app, port):
-    print(f"Server starting on port {port}")
-    app.execute('run', host='localhost', port=port, project_dir=example_dir, module='example', workspace='dev')
+def run_server_with_workspace(project_dir, app, port, workspace):
+    obj = ScriptInfo(create_app=lambda _: app, set_debug_flag=False)
+    client.main(['-p', project_dir, '-w', workspace, 'run', '--port', port], 'cws', obj=obj, standalone_mode=False)

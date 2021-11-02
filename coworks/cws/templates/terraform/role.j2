@@ -24,8 +24,11 @@ resource "aws_iam_role" "{{ resource_name }}_microservice" {
       }
    ]
   })
-
-  tags = local.{{ resource_name }}_tags
+}
+data "aws_iam_role" "{{ resource_name }}_microservice" {
+  provider = aws.{{ resource_name }}
+  count = local.{{ resource_name }}_when_stage
+  name = "{{ resource_name }}_microservice_role"
 }
 
 resource "aws_iam_role_policy_attachment" "{{ resource_name }}_s3" {
@@ -91,11 +94,4 @@ resource "aws_iam_role_policy" "{{ resource_name }}_destination" {
       }
     ]
   })
-}
-
-data "aws_iam_role" "{{ resource_name }}_microservice" {
-  provider = aws.{{ resource_name }}
-  count = local.{{ resource_name }}_when_stage
-  name = "{{ resource_name }}_microservice_role"
-  tags = local.{{ resource_name }}_tags
 }

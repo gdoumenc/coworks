@@ -1,8 +1,5 @@
-from aws_xray_sdk.core import xray_recorder
-
-from coworks import TechMicroService, entry
-from coworks.context_manager import XRayContextManager
-from coworks.cws.runner import CwsRunner
+from coworks import TechMicroService
+from coworks import entry
 
 
 class SimpleMicroService(TechMicroService):
@@ -11,8 +8,8 @@ class SimpleMicroService(TechMicroService):
         super().__init__(**kwargs)
         self.value = 0
 
-    def auth(self, auth_request):
-        return auth_request.token == "token"
+    def token_authorizer(self, token):
+        return token == "token"
 
     @entry
     def get(self):
@@ -26,8 +23,3 @@ class SimpleMicroService(TechMicroService):
 
 
 app = SimpleMicroService(name="sample-first-microservice")
-CwsRunner(app)
-XRayContextManager(app, xray_recorder)
-
-if __name__ == '__main__':
-    app.execute('run')

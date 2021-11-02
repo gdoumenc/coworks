@@ -2,7 +2,7 @@ import json
 
 import requests
 
-from coworks.tech.csv import CSVMicroService
+# from coworks.tech.csv import CSVMicroService
 
 csv_content = json.dumps([
     {"col1": "value1", "col2": "value2"},
@@ -10,6 +10,8 @@ csv_content = json.dumps([
 ])
 
 
+import pytest
+@pytest.mark.skip
 class ToBeRedoneTestCSV:
 
     def test_format(self, local_server_factory):

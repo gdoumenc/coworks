@@ -6,7 +6,12 @@ import requests
 
 class MicroServiceProxy:
 
-    def __init__(self, env_name, config=None, **kwargs):
+    def __init__(self, env_name, config=None):
+        """Proxy class to access deployed CoWorks microservice.
+        Get id, token and stage from environment name
+        :param env_name: if XX then XXX_CWS_ID for id, XXX_CWS_TOKEN for token and XXX_CWS_STAGE for stage.
+        :param config: if defined must be dict like variable to retrieve id, token and stage.
+        """
         self.session = requests.Session()
 
         if config is not None:
@@ -50,6 +55,15 @@ class MicroServiceProxy:
         resp = self.session.post(urljoin(self.url, path), json=json or {}, headers=headers)
         return self.convert(resp, response_content_type)
 
+    def put(self, path, json=None, headers=None, sync=True, response_content_type='json'):
+        if path.startswith('/'):
+            path = path[1:]
+        headers = {**self.session.headers, **headers} if headers else self.session.headers
+        if not sync:
+            headers.update({'InvocationType': 'Event'})
+        resp = self.session.put(urljoin(self.url, path), json=json or {}, headers=headers)
+        return self.convert(resp, response_content_type)
+
     @property
     def routes(self):
         return self.get('/admin/route')
@@ -64,5 +78,5 @@ class MicroServiceProxy:
             else:
                 content = resp.content
         else:
-            content = resp.reason
+            content = resp.text or resp.reason
         return content, resp.status_code

@@ -1,38 +1,58 @@
 import inspect
+import os
 import sys
 from inspect import Parameter
 
-from jinja2 import Environment, PackageLoader, select_autoescape
+from flask import current_app
+from flask import json
+from jinja2 import Environment
+from jinja2 import PackageLoader
+from jinja2 import select_autoescape
 
-from coworks import Blueprint, entry, jsonify
-from coworks.utils import make_absolute
+from coworks import Blueprint
+from coworks import entry
+from coworks.globals import aws_event, aws_context
 
 
 class Admin(Blueprint):
+
+    def __init__(self, name: str = 'admin', **kwargs):
+        super().__init__(name=name, **kwargs)
 
     @entry
     def get_route(self, pretty=False):
         """Returns the list of entrypoints with signature."""
         routes = {}
-        for path, entrypoint in self.current_app.entries.items():
+        for rule in current_app.url_map.iter_rules():
             route = {}
-            for http_method, route_entry in entrypoint.items():
-                function_called = route_entry.fun
-                doc = inspect.getdoc(function_called)
-                route[http_method] = {
-                    'doc': doc.replace('\n', ' ') if doc else '',
-                    'signature': get_signature(function_called)
-                }
-            routes[make_absolute(path)] = route
+            for http_method in rule.methods:
+                if http_method not in ['HEAD', 'OPTIONS']:
+                    function_called = current_app.view_functions[rule.endpoint]
+                    doc = inspect.getdoc(function_called)
+                    route[http_method] = {
+                        'doc': doc.replace('\n', ' ') if doc else '',
+                        'signature': get_signature(function_called)
+                    }
+            routes[rule.rule] = route
 
-        return jsonify({k: routes[k] for k in sorted(routes.keys())}, pretty)
+        kwargs = {'indent': 4, 'separators': (",", ": ")} if pretty else {}
+        return json.dumps({k: routes[k] for k in sorted(routes.keys())}, **kwargs)
+
+    @entry
+    def get_event(self):
+        """Returns the calling context."""
+        return aws_event
 
     @entry
     def get_context(self):
         """Returns the calling context."""
-        return self.current_request.to_dict()
+        return aws_context
 
     @entry
+    def get_env(self):
+        """Returns the stage environment."""
+        return {k: v for k, v in os.environ.items()}
+
     def get_proxy(self):
         """Returns the calling context."""
         env = Environment(
@@ -43,8 +63,8 @@ class Admin(Blueprint):
         env.filters["keyword_params"] = keyword_params
 
         data = {
-            'name': self.current_app.name,
-            'entries': self.current_app.entries,
+            'name': current_app.name,
+            'entries': current_app.url_map,
         }
         template = env.get_template("proxy.j2")
         return template.render(**data)

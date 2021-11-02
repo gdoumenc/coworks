@@ -23,57 +23,149 @@
 </head>
 <body>
 
-<!-- Fake page loading -->
+{# Fake page loading #}
 <div id="fakeLoader"></div>
 
-<!-- Wrapper -->
+{# Wrapper #}
 <div class="wrapper">
-    {% block wrapper %}{% endblock %}
-    <!-- Footer -->
+    {% block wrapper %}
+
+        {# Navigation #}
+        <div class="navbar section no-padding" role="navigation">
+            {# Heading #}
+            <div class="heading">
+                <div class="container">
+                    <div class="row">
+                        <div class="col-sm-4 hidden-xs">
+                            <ul class="social">
+                                <li><a href="#" class="fa fa-instagram"></a></li>
+                                <li><a href="#" class="fa fa-facebook-square"></a></li>
+                                <li><a href="#" class="fa fa-twitter-square"></a></li>
+                            </ul>
+                        </div>
+                        {#							<div class="col-sm-8">#}
+                        {#								<div class="finder">#}
+                        {#									<a href="#">#}
+                        {#										<span class="fa fa-map-marker"></span> Find our beer#}
+                        {#									</a>#}
+                        {#								</div>#}
+                        {#								<div class="cart">#}
+                        {#									<a href="cart.html">#}
+                        {#										<span class="fa fa-shopping-cart"></span> Empty#}
+                        {#									</a>#}
+                        {#								</div>#}
+                        {#							</div>#}
+                    </div>
+                </div>
+            </div>
+
+            <div class="container">
+                <div class="navbar-header">
+                    <a href="index.html" class="logo" title="Brasserie des Alpages">
+                        <img src="assets/images/BrasserieDesAlpages.png" alt="Brasserie des Alpages" class="logo">
+                    </a>
+                    <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar top-bar"></span>
+                        <span class="icon-bar middle-bar"></span>
+                        <span class="icon-bar bottom-bar"></span>
+                    </button>
+                </div>
+                <div class="navbar-collapse collapse">
+                    <ul id="menu-primary" class="nav navbar-nav">
+                        <li class="active">
+                        <span>
+                            <a href="/">Accueil</a>
+                        </span>
+                        </li>
+                        {#							<li>#}
+                        {#								<span>#}
+                        {#									<a href="shop.html">Shop</a>#}
+                        {#								</span>#}
+                        {#							</li>#}
+                        <li class="dropdown">
+                        <span>
+                            <a href="/biere">Nos bières</a>
+                        </span>
+                            <ul class="dropdown-menu">
+                                {% for slug, beer in beers.items() %}
+                                    <li><a href="/biere?name={{ slug }}">{{ beer['nom_de_la_biere'] }}</a></li>
+                                {% endfor %}
+                            </ul>
+                        </li>
+                        {#							<li>#}
+                        {#								<span>#}
+                        {#									<a href="our-story.html">Our story</a>#}
+                        {#								</span>#}
+                        {#							</li>#}
+                        {#							<li>#}
+                        {#								<span>#}
+                        {#									<a href="contact.html">Contact</a>#}
+                        {#								</span>#}
+                        {#							</li>#}
+                        {#							<li class="dropdown">#}
+                        {#								<span>#}
+                        {#									<a href="blog.html">Blog</a>#}
+                        {#								</span>#}
+                        {#								<ul class="dropdown-menu">#}
+                        {#									<li><a href="blog-single.html">Single post</a></li>#}
+                        {#								</ul>#}
+                        {#							</li>#}
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        {% block content %}
+        {% endblock content %}
+
+    {% endblock wrapper %}
+
+    {# Footer #}
     <footer>
         <div class="container">
-{#            <div class="row">#}
-{#                <div class="col-sm-2">#}
-{#                    <h6>Useful</h6>#}
-{#                    <ul>#}
-{#                        <li><a href="index.html">Home</a></li>#}
-{#                        <li><a href="shop.html">Shop</a></li>#}
-{#                        <li><a href="our-story.html">Our story</a></li>#}
-{#                        <li><a href="blog.html">Blog</a></li>#}
-{#                        <li><a href="#">Login</a></li>#}
-{#                    </ul>#}
-{#                </div>#}
-{#                <div class="col-sm-2">#}
-{#                    <h6>Help</h6>#}
-{#                    <ul>#}
-{#                        <li><a href="#">Customer service</a></li>#}
-{#                        <li><a href="#">Find our beer</a></li>#}
-{#                        <li><a href="#">Recent orders</a></li>#}
-{#                        <li><a href="#">Contact</a></li>#}
-{#                        <li><a href="#">Terms &amp; Privacy</a></li>#}
-{#                    </ul>#}
-{#                </div>#}
-{#                <div class="col-sm-2">#}
-{#                    <h6>Shop</h6>#}
-{#                    <ul>#}
-{#                        <li><a href="#">Pale ale</a></li>#}
-{#                        <li><a href="#">Golden ale</a></li>#}
-{#                        <li><a href="#">Dark ale</a></li>#}
-{#                        <li><a href="#">IPA</a></li>#}
-{#                    </ul>#}
-{#                </div>#}
-{#                <div class="col-sm-5 col-sm-push-1">#}
-{#                    <h6>Our information</h6>#}
-{#                    <p><i class="fa fa-map-marker"></i> 94 River Road, London, United Kingdom</p>#}
-{#                    <p><i class="fa fa-envelope-o"></i> sales@craftbeer-nation.com</p>#}
-{#                    <p><i class="fa fa-phone"></i> (0)203 123 4567</p>#}
-{#                    <ul class="social">#}
-{#                        <li><a href="#" class="fa fa-instagram"></a></li>#}
-{#                        <li><a href="#" class="fa fa-facebook-square"></a></li>#}
-{#                        <li><a href="#" class="fa fa-twitter-square"></a></li>#}
-{#                    </ul>#}
-{#                </div>#}
-{#            </div>#}
+            {#            <div class="row">#}
+            {#                <div class="col-sm-2">#}
+            {#                    <h6>Useful</h6>#}
+            {#                    <ul>#}
+            {#                        <li><a href="index.html">Home</a></li>#}
+            {#                        <li><a href="shop.html">Shop</a></li>#}
+            {#                        <li><a href="our-story.html">Our story</a></li>#}
+            {#                        <li><a href="blog.html">Blog</a></li>#}
+            {#                        <li><a href="#">Login</a></li>#}
+            {#                    </ul>#}
+            {#                </div>#}
+            {#                <div class="col-sm-2">#}
+            {#                    <h6>Help</h6>#}
+            {#                    <ul>#}
+            {#                        <li><a href="#">Customer service</a></li>#}
+            {#                        <li><a href="#">Find our beer</a></li>#}
+            {#                        <li><a href="#">Recent orders</a></li>#}
+            {#                        <li><a href="#">Contact</a></li>#}
+            {#                        <li><a href="#">Terms &amp; Privacy</a></li>#}
+            {#                    </ul>#}
+            {#                </div>#}
+            {#                <div class="col-sm-2">#}
+            {#                    <h6>Shop</h6>#}
+            {#                    <ul>#}
+            {#                        <li><a href="#">Pale ale</a></li>#}
+            {#                        <li><a href="#">Golden ale</a></li>#}
+            {#                        <li><a href="#">Dark ale</a></li>#}
+            {#                        <li><a href="#">IPA</a></li>#}
+            {#                    </ul>#}
+            {#                </div>#}
+            {#                <div class="col-sm-5 col-sm-push-1">#}
+            {#                    <h6>Our information</h6>#}
+            {#                    <p><i class="fa fa-map-marker"></i> 94 River Road, London, United Kingdom</p>#}
+            {#                    <p><i class="fa fa-envelope-o"></i> sales@craftbeer-nation.com</p>#}
+            {#                    <p><i class="fa fa-phone"></i> (0)203 123 4567</p>#}
+            {#                    <ul class="social">#}
+            {#                        <li><a href="#" class="fa fa-instagram"></a></li>#}
+            {#                        <li><a href="#" class="fa fa-facebook-square"></a></li>#}
+            {#                        <li><a href="#" class="fa fa-twitter-square"></a></li>#}
+            {#                    </ul>#}
+            {#                </div>#}
+            {#            </div>#}
             <div class="copyright">
                 <p>{{ footer.copyright }}</p>
             </div>

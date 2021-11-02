@@ -1,60 +1,65 @@
-from unittest.mock import Mock
+import os
+from unittest import mock
 
-import click
 import pytest
+from click import NoSuchOption
+from click import UsageError
 
-from coworks.cws.command import CwsCommand, CwsCommandError
-from tests.coworks.tech_ms import *
-
-cmd_mock = Mock()
-
-
-class MyCommand(CwsCommand):
-    def multi_execute(cls, project_dir, workspace, execution_list):
-        cmd_mock()
-        for command, options in execution_list:
-            assert project_dir == 'tests/cws'
-            assert options['module'] == 'test_cmd'
-            assert options['workspace'] == 'dev'
-            assert options['service'] == 'test'
+from coworks.cws.client import client
 
 
-class MyCommandWithOptions(MyCommand):
+class TestClass:
 
-    @property
-    def options(self):
-        return [
-            *super().options,
-            click.option('--param', required=True),
-            click.option('--other', required=True),
-            click.option('--nothing'),
-        ]
+    @mock.patch.dict(os.environ, {"FLASK_APP": "cmd:app"})
+    def test_wrong_project_dir(self, example_dir):
+        with pytest.raises(UsageError) as pytest_wrapped_e:
+            client.main(['--project-dir', 'doesntexist', 'test'], 'cws', standalone_mode=False)
+            client(prog_name='cws', args=['-p', 'doesntexist', 'test'])
+        assert pytest_wrapped_e.type == UsageError
+        assert pytest_wrapped_e.value.args[0] == "No such command 'test'."
 
+    def test_wrong_project_config_version(self, example_dir):
+        with pytest.raises(RuntimeError) as pytest_wrapped_e:
+            client.main(['--project-dir', example_dir, '--config-file-suffix', '.wrong.yml', 'cmd'], 'cws',
+                        standalone_mode=False)
+        assert pytest_wrapped_e.type == RuntimeError
+        assert pytest_wrapped_e.value.args[0] == "Wrong project file version (should be 3).\n"
 
-class TestCommand:
+    def test_wrong_cmd(self, example_dir):
+        with pytest.raises(UsageError) as pytest_wrapped_e:
+            client.main(['--project-dir', example_dir, 'cmd'], 'cws', standalone_mode=False)
+        assert pytest_wrapped_e.type == UsageError
+        assert pytest_wrapped_e.value.args[0] == "No such command 'cmd'."
 
-    def test_command(self):
-        simple = SimpleMS()
-        MyCommand(simple, name='test')
+    @mock.patch.dict(os.environ, {"FLASK_APP": "cmd:app"})
+    def test_cmd(self, example_dir, capsys):
+        client.main(['--project-dir', example_dir, 'test'], 'cws', standalone_mode=False)
+        captured = capsys.readouterr()
+        assert captured.out == "test command with a=default/test command with b=value"
 
-        with pytest.raises(CwsCommandError) as pytest_wrapped_e:
-            simple.execute('autre', project_dir='tests/cws', module='test_cmd', workspace='dev')
-        assert pytest_wrapped_e.type == CwsCommandError
-        assert pytest_wrapped_e.value.msg == 'The command autre was not added to the microservice test.\n'
+    def test_cmd_wrong_option(self, example_dir):
+        with pytest.raises(NoSuchOption) as pytest_wrapped_e:
+            client.main(['--project-dir', example_dir, 'test', '-t', 'wrong'], 'cws', standalone_mode=False)
+        assert pytest_wrapped_e.type == NoSuchOption
+        assert pytest_wrapped_e.value.args[0] == "No such option: -t"
 
-        simple.execute('test', project_dir='tests/cws', module='test_cmd', workspace='dev')
-        cmd_mock.assert_called_once()
+    @mock.patch.dict(os.environ, {"FLASK_APP": "cmd:app"})
+    def test_cmd_right_option(self, example_dir, capsys):
+        client.main(['--project-dir', example_dir, 'test', '-a', 'right'], 'cws', standalone_mode=False)
+        captured = capsys.readouterr()
+        assert captured.out == "test command with a=right/test command with b=value"
 
-        simple.execute('test', project_dir='tests/cws', module='test_cmd', workspace='dev', help=None)
+    @mock.patch.dict(os.environ, {"FLASK_APP": "cmd:app"})
+    def test_cmd_wrong_b_option(self, example_dir, capsys):
+        with pytest.raises(NoSuchOption) as pytest_wrapped_e:
+            client.main(['--project-dir', example_dir, 'test', '-b', 'right'], 'cws', standalone_mode=False)
+        assert pytest_wrapped_e.type == NoSuchOption
 
-    def test_command_with_options(self):
-        simple = SimpleMS()
-        MyCommandWithOptions(simple, name='test_command_with_options')
-
-        with pytest.raises(CwsCommandError) as pytest_wrapped_e:
-            simple.execute('test_command_with_options', project_dir='tests/cws', module='test_cmd', workspace='dev')
-        assert pytest_wrapped_e.type == CwsCommandError
-        assert pytest_wrapped_e.value.msg == 'missing parameter: param'
-
-        simple.execute('test_command_with_options', project_dir='tests/cws', module='test_cmd', workspace='dev',
-                       param='param', other='other')
+    @mock.patch.dict(os.environ, {"FLASK_APP": "cmd:app"})
+    def test_cmd_right_b_option(self, example_dir, capsys):
+        try:
+            client.main(['--project-dir', example_dir, 'test', '--b', 'right'], 'cws', standalone_mode=False)
+        finally:
+            os.unsetenv("FLASK_RUN_FROM_CLI")
+        captured = capsys.readouterr()
+        assert captured.out == "test command with a=default/test command with b=right"

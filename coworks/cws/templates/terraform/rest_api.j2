@@ -2,6 +2,7 @@ locals {
   {{ resource_name }}_api_arn = join("", aws_api_gateway_rest_api.{{ resource_name }}.*.arn, data.aws_api_gateway_rest_api.{{ resource_name }}.*.arn)
   {{ resource_name }}_api_id = join("", aws_api_gateway_rest_api.{{ resource_name }}.*.id, data.aws_api_gateway_rest_api.{{ resource_name }}.*.id)
   {{ resource_name }}_api_root_id = join("", aws_api_gateway_rest_api.{{ resource_name }}.*.root_resource_id, data.aws_api_gateway_rest_api.{{ resource_name }}.*.root_resource_id)
+  {{ resource_name }}_api_binary_media_types = ["multipart/form-data", "application/octet-stream", "image/*"]
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -14,12 +15,13 @@ resource "aws_api_gateway_rest_api" "{{ resource_name }}" {
   name = "{{ resource_name }}"
   description = "{{ description | replace("\n", "\\n") }}"
   {%- if binary_media_types %}
-  binary_media_types = {{ binary_media_types | tojson }}
+  binary_media_types = concat(local.{{ resource_name }}_api_binary_media_types, {{ binary_media_types | tojson }})
+  {%- else %}
+  binary_media_types = local.{{ resource_name }}_api_binary_media_types
   {%- endif %}
   endpoint_configuration {
     types = ["REGIONAL"]
   }
-  tags = local.{{ resource_name }}_tags
 }
 
 data "aws_api_gateway_rest_api" "{{ resource_name }}" {
@@ -51,8 +53,9 @@ resource "aws_api_gateway_resource" "{{ resource_name }}_{{ uid }}" {
   path_part = "{{ resource.path }}"
 }
   {% endif %}
-  {%- if resource.entries %}
-    {%- for method, entry in resource.entries.items() %}
+  {%- if resource.rules %}
+    {%- for rule in resource.rules %}
+    {%- for method in rule.methods if method not in ['HEAD', 'OPTIONS'] %}
 resource "aws_api_gateway_method" "{{ resource_name }}_{{ uid }}_{{ method }}" {
   provider = aws.{{ resource_name }}
   count = {{ "local.{}_when_default".format(resource_name) }}
@@ -63,14 +66,11 @@ resource "aws_api_gateway_method" "{{ resource_name }}_{{ uid }}_{{ method }}" {
   resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
   {%- endif %}
   http_method = "{{ method }}"
-  {%- if entry.auth %}
   authorization = "CUSTOM"
   authorizer_id = aws_api_gateway_authorizer.{{ resource_name }}[0].id
-  {%- else %}
-  authorization = "NONE"
-  {%- endif %}
   request_parameters = {
     "method.request.header.InvocationType" = false
+    "method.request.header.Accept" = false
   }
 }
 resource "aws_api_gateway_integration" "{{ resource_name }}_{{ uid }}_{{ method }}" {
@@ -87,8 +87,10 @@ resource "aws_api_gateway_integration" "{{ resource_name }}_{{ uid }}_{{ method 
   type = "AWS"
   uri = "arn:aws:apigateway:eu-west-1:lambda:path/2015-03-31/functions/arn:aws:lambda:eu-west-1:935392763270:function:{{ resource_name }}-$${stageVariables.stage}/invocations"
   passthrough_behavior = "NEVER"
+  content_handling = "CONVERT_TO_TEXT"
   request_parameters = {
-    "integration.request.header.X-Amz-Invocation-Type" = "method.request.header.InvocationType"
+    "integration.request.header.X-Amz-Invocation-Type" = "method.request.header.InvocationType",
+    "integration.request.header.Accept" = "method.request.header.Accept",
   }
   request_templates  = {
     {% include "terraform/request_templates.j2" %}
@@ -117,8 +119,9 @@ resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_{
   {%- endif %}
   http_method = join("", aws_api_gateway_method.{{ resource_name }}_{{ uid }}_{{ method }}.*.http_method)
   status_code = join("", aws_api_gateway_method_response.{{ resource_name }}_{{ uid }}_{{ method }}_response_200.*.status_code)
+  {%- if not resource.binary %}
 
-  # Transforms the backend JSON response to XML
+  # Transforms the backend JSON response
   response_templates = {
     "application/json" = <<-EOF
       #set($inputRoot = $input.path('$'))
@@ -127,11 +130,12 @@ resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_{
       $inputRoot.body
     EOF
   }
-}    {%- endfor %}
-
+  {%- endif %}
+}
+{%- endfor %}
+{%- endfor %}
 {#     Preflighted requests in CORS #}
 
-    {%- if resource.cors %}
 resource "aws_api_gateway_method" "{{ resource_name }}_{{ uid }}_OPTIONS" {
   provider = aws.{{ resource_name }}
   count = {{ "local.{}_when_default".format(resource_name) }}
@@ -172,9 +176,9 @@ resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_O
   {%- endif %}
   http_method =  join("", aws_api_gateway_method.{{ resource_name }}_{{ uid }}_OPTIONS.*.http_method)
   response_parameters = {
-  {%- for k,v in resource.cors.get_access_control_headers().items() %}
-    "method.response.header.{{ k }}" = "'{{ v }}'",
-  {%- endfor %}
+{#  {%- for k,v in resource.cors.get_access_control_headers().items() %}#}
+{#    "method.response.header.{{ k }}" = "'{{ v }}'",#}
+{#  {%- endfor %}#}
   }
   status_code = 200
   response_templates = {
@@ -204,15 +208,14 @@ resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_OPTION
     "method.response.header.Access-Control-Allow-Headers" = true,
     "method.response.header.Access-Control-Allow-Methods" = true,
     "method.response.header.Access-Control-Allow-Origin" = true,
-    {%- if 'Access-Control-Max-Age' in resource.cors.get_access_control_headers() %}
-    "method.response.header.Access-Control-Max-Age" = true,
-    {%- endif %}
+{#    {%- if 'Access-Control-Max-Age' in resource.cors.get_access_control_headers() %}#}
+{#    "method.response.header.Access-Control-Max-Age" = true,#}
+{#    {%- endif %}#}
   }
   depends_on = [
     aws_api_gateway_method.{{ resource_name }}_{{ uid }}_OPTIONS,
   ]
 }
-    {% endif -%}
   {% endif -%}
 {%- endfor %}
 
@@ -257,11 +260,3 @@ resource "aws_cloudwatch_log_group" "api_{{ resource_name }}" {
   retention_in_days = 7
 }
 {% endif -%}
-
-# ---------------------------------------------------------------------------------------------------------------------
-# OUTPUT
-# ---------------------------------------------------------------------------------------------------------------------
-
-output "{{ resource_name }}_id" {
-  value = terraform.workspace == "default" ? aws_api_gateway_rest_api.{{ resource_name }}[0].id : ""
-}

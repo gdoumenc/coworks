@@ -604,6 +604,10 @@ hr.space-40 {
     display: inline-block;
 }
 
+img.logo {
+    max-height: 80px;
+}
+
 .navbar-toggle {
     -webkit-transition: all 300ms ease-in-out;
        -moz-transition: all 300ms ease-in-out;

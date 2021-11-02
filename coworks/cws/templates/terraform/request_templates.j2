@@ -10,7 +10,7 @@
     "httpMethod": "$context.httpMethod",
     "headers": {
       #foreach($key in $headers.keySet())
-      "$key" : "$util.escapeJavaScript($headers.get($key))"#if($foreach.hasNext),#end
+      "$key.toLowerCase()" : "$util.escapeJavaScript($headers.get($key))"#if($foreach.hasNext),#end
       #end
     },
     "multiValueHeaders": {},
@@ -74,7 +74,7 @@
   {{ event("\"body\": $input.json('$')", "\"isBase64Encoded\": false") }}
 EOT
 "multipart/form-data" = <<-EOT
-  {{ event("\"body\": \"$util.base64Encode($input.body)\"", "\"isBase64Encoded\": true") }}
+  {{ event("\"body\": \"$input.body\"", "\"isBase64Encoded\": true") }}
 EOT
 
 
