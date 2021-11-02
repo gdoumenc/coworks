@@ -11,7 +11,6 @@ from flask import make_response as flask_make_response
 from flask.blueprints import BlueprintSetupState
 from werkzeug.exceptions import BadRequest
 from werkzeug.exceptions import BadRequestKeyError
-from werkzeug.exceptions import HTTPException
 
 from .globals import request
 
@@ -51,12 +50,13 @@ def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
 
         proxy = _create_rest_proxy(scaffold, fun, kwarg_keys, args, varkw)
         proxy.__CWS_BINARY = getattr(fun, '__CWS_BINARY', False)
+        proxy.__CWS_CONTENT_TYPE = getattr(fun, '__CWS_CONTENT_TYPE', '')
 
         # Creates the entry
         url_prefix = bp_state.url_prefix if bp_state else ''
         rule = make_absolute(entry_path, url_prefix)
 
-        name_prefix = f"{bp_state.name}_" if bp_state else ''
+        name_prefix = f"{bp_state.blueprint.name}_" if bp_state else ''
         endpoint = f"{name_prefix}{proxy.__name__}"
 
         app.add_url_rule(rule=rule, view_func=proxy, methods=[method], endpoint=endpoint)
@@ -129,7 +129,7 @@ def _create_rest_proxy(scaffold, func, kwarg_keys, args, varkw):
                         raise BadRequestKeyError(err_msg)
 
             resp = func(scaffold, **kwargs)
-            return make_response(resp)
+            return make_response(resp, getattr(func, '__CWS_CONTENT_TYPE', ''))
         except TypeError as e:
             raise BadRequest(str(e))
         except (Exception,):
@@ -138,7 +138,7 @@ def _create_rest_proxy(scaffold, func, kwarg_keys, args, varkw):
     return update_wrapper(proxy, func)
 
 
-def make_response(resp):
+def make_response(resp, content_type_entry=''):
     """Set the right mimetype in response in case if not defined in header.
     """
 
@@ -155,7 +155,10 @@ def make_response(resp):
 
     accept = request.accept_mimetypes
     if 'Content-Type' not in headers:
-        resp.headers['Content-Type'] = accept.to_header() if  accept.provided else 'application/json'
+        if content_type_entry:
+            resp.headers['Content-Type'] = content_type_entry
+        else:
+            resp.headers['Content-Type'] = accept.to_header() if accept.provided else resp.default_mimetype
     return resp
 
 

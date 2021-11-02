@@ -36,15 +36,16 @@ from .wrappers import TokenResponse
 #
 
 
-def entry(fun: t.Callable = None, binary: bool = False) -> t.Callable:
+def entry(fun: t.Callable = None, binary: bool = False, content_type: str = '') -> t.Callable:
     """Decorator to create a microservice entry point from function name."""
     if fun is None:
-        return partial(entry, binary=binary)
+        return partial(entry, binary=binary, content_type=content_type)
 
     name = fun.__name__.upper()
     for method in HTTP_METHODS:
         fun.__CWS_METHOD = method
         fun.__CWS_BINARY = binary
+        fun.__CWS_CONTENT_TYPE = content_type
         if name == method:
             fun.__CWS_PATH = ''
             return fun

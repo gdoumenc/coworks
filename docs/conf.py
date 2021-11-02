@@ -6,7 +6,7 @@
 
 # -- Path setup --------------------------------------------------------------
 
-from coworks.version import __version__
+from coworks import __version__
 
 master_doc = 'index'
 

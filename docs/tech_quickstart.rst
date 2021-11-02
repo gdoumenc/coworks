@@ -1,12 +1,10 @@
 .. _tech_quickstart:
 
-TechMicroService Quickstart
-===========================
+TechMS Quickstart
+=================
 
-This page gives a quick and partial introduction to CoWorks Technical Microservices.
-Follow :doc:`installation` to set up a project and install Coworks first.
-
-
+This page gives a quick and partial introduction to Coworks Technical Microservices.
+Follow :doc:`installation` to install Coworks and set up a new project.
 
 A tech microservice is simply defined by a single python class which looks like this:
 
@@ -28,13 +26,12 @@ This first example defines a very simple microservice ``app`` with a simple ``GE
 (see :ref:`routing` for more details on entry)
 
 We set the attribute ``any_token_authorized`` to allow any token as valid.
-For security reaqson the default value is ``False``
-(see :ref:`auth` for more details on authorizer).
+For security reason the default value is ``False`` (see :ref:`auth` for more details on authorizer).
 
 We now can launch the ``run`` command defined by the ``Flask`` framework. So to test this microservice locally
 (see `Flask <https://flask.palletsprojects.com/en/2.0.x/quickstart/#a-minimal-application>`_ for more details)::
 
-	(project) $ FLASK_APP=simple:app cws run
+	(project) $ FLASK_APP=simple cws run
 	* Serving Flask app 'simple:app' (lazy loading)
 	* Environment: production
 	  WARNING: This is a development server. Do not use it in a production deployment.
@@ -83,7 +80,8 @@ On the another terminal enter::
 	(project) $ curl -H "Authorization:token" http://127.0.0.1:5000/
 	Stored value 20.
 
-*Beware* : the value stored is just for example, if the lambda is redeployed or another lambda instance used the value is lost.
+*Beware* : the value is stored in memory just for this example, if the lambda is redeployed or another lambda instance
+is used the value is lost.
 
 Complete
 --------
@@ -92,7 +90,7 @@ At last to have a complete case, enter the following content:
 
 .. literalinclude:: ../samples/docs/complete.py
 
-*Note* : `aws_xray_sdk` must be installed in your python environment for the lambda.
+*Note* : `aws_xray_sdk` must be installed in your python environment or you will get an ``ImportError``.
 
 We have added some blueprints and middlewares to add routes and functionalities.
 
@@ -153,18 +151,13 @@ We have also a WSGI middleware ``ProfilerMiddleware`` to profile the last reques
 			14    0.001    0.000    0.006    0.000 /home/gdo/.local/share/virtualenvs/coworks-otSHAmdg/lib/python3.8/site-packages/werkzeug/routing.py:968(_compile_builder)
 	...
 
-And at last we have a CoWorks middleware to add XRay traces (available only in case of deployed).
+And at last we have a Coworks middleware to add XRay traces (available only in case of deployed microservice).
 
 Deploy
 ------
 
-We the add a ``deploy`` command defined in the file ``project.cws.yml``:
-
-.. literalinclude:: ../samples/docs/project.cws.yml
-
-This project configuration file defines two commands ``zip`` and ``deploy`` (``zip`` is used by ``deploy``).
-
-And now we can upload the sources files to AWS S3 and apply predefined terraform planifications::
+And now we can upload the sources files to AWS S3 and apply predefined terraform planifications (options may be defined
+in project file to avoid given then on command line see :ref:`configuration` )::
 
 	(project) $ FLASK_APP=simple:app cws deploy
 	Terraform apply (Create API routes)

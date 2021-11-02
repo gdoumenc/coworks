@@ -7,7 +7,7 @@ from flask.cli import ScriptInfo
 from coworks import Blueprint
 from coworks import TechMicroService
 from coworks import entry
-from coworks.cws.deploy import Terraform
+from coworks.cws.deploy import TerraformLocal
 from coworks.utils import import_attr
 
 
@@ -44,7 +44,7 @@ class TestClass:
         app = TechMS()
         with app.test_request_context() as ctx:
             info = ScriptInfo(create_app=lambda _: app)
-            terraform = Terraform(info, terraform_dir="terraform")
+            terraform = TerraformLocal(info, terraform_dir="terraform")
             ressources = terraform.api_resources
         assert len(ressources) == 7
         assert ressources[''].rules is not None
@@ -59,7 +59,7 @@ class TestClass:
         app = import_attr('cmd', 'app', cwd=example_dir)
         info = ScriptInfo(create_app=lambda _: app)
         with app.test_request_context() as ctx:
-            api_ressources = Terraform(info, terraform_dir=example_dir).api_resources
+            api_ressources = TerraformLocal(info, terraform_dir=example_dir).api_resources
         assert len(api_ressources) == 5
         assert '' in api_ressources
         assert 'init' in api_ressources
@@ -85,7 +85,7 @@ class TestClass:
                 'memory_size': 100,
             }
             info = ScriptInfo(create_app=lambda _: app)
-            terraform = Terraform(info, terraform_dir=Path(example_dir) / "terraform")
+            terraform = TerraformLocal(info, terraform_dir=Path(example_dir) / "terraform")
             terraform.generate_files("deploy.j2", "test.tf", **options)
         with (Path(example_dir) / "terraform" / "test.tf").open() as f:
             lines = f.readlines()

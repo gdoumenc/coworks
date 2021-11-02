@@ -11,7 +11,7 @@ class BP(Blueprint):
 
     @entry
     def get_test(self, index):
-        return f"blueprint {self} {index}"
+        return f"blueprint BP {index}"
 
     @entry
     def get_extended_test(self, index):

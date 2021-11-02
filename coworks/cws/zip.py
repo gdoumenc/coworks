@@ -50,6 +50,13 @@ def zip_command(info, ctx, bucket, dry, hash, ignore, module_name, key, profile_
 
         # Creates archive
         project_dir = ctx.find_root().params.get('project_dir')
+        full_project_dir = Path(project_dir).resolve()
+        try:
+            if tmp_path.relative_to(full_project_dir):
+                msg = f"Cannot deploy a project defined in tmp folder (project dir id {full_project_dir})"
+                raise click.exceptions.UsageError(msg)
+        except (Exception,):
+            pass
         copytree(project_dir, str(tmp_path / 'filtered_dir'),
                  ignore=full_ignore_patterns('*cws.yml', 'env_variables*'))
         for name in module_name:

@@ -1,18 +1,18 @@
+import os
+import typing as t
 from logging import WARNING, getLogger
+from pathlib import Path
 
 import anyconfig
 import click
-import os
-import typing as t
 from flask.cli import FlaskGroup
-from pathlib import Path
 
 from coworks import __version__
 from .deploy import deploy_command
 from .new import new_command
 from .zip import zip_command
-from ..config import DEFAULT_PROJECT_DIR
 from ..config import DEFAULT_DEV_WORKSPACE
+from ..config import DEFAULT_PROJECT_DIR
 from ..utils import get_system_info
 from ..utils import import_attr
 
@@ -41,18 +41,19 @@ class CoWorksGroup(FlaskGroup):
 
         # Adds defined commands from project file
         project_config = ProjectConfig(project_dir, config_file, config_file_suffix)
-        for name, options in project_config.all_commands.items():
-            cmd_class_name = options.pop('class', None)
-            if cmd_class_name:
-                splitted = cmd_class_name.split('.')
-                cmd = import_attr('.'.join(splitted[:-1]), splitted[-1], cwd=project_dir)
+        if project_config.all_commands:
+            for name, options in project_config.all_commands.items():
+                cmd_class_name = options.pop('class', None)
+                if cmd_class_name:
+                    splitted = cmd_class_name.split('.')
+                    cmd = import_attr('.'.join(splitted[:-1]), splitted[-1], cwd=project_dir)
 
-                # Sets options value as default command param (may then be forced in command line or defined by default)
-                for param in cmd.params:
-                    if param.name in options:
-                        param.default = options.get(param.name)
+                    # Sets options value as default command param (may then be forced in command line or defined by default)
+                    for param in cmd.params:
+                        if param.name in options:
+                            param.default = options.get(param.name)
 
-                self.add_command(cmd, name)
+                    self.add_command(cmd, name)
 
         return ctx
 
@@ -78,9 +79,7 @@ class ProjectConfig:
         getLogger('anyconfig').setLevel(WARNING)
         self.project_dir = project_dir
         self.params = self._load_config(project_dir, file_name, file_suffix)
-        if not self.params:
-            raise RuntimeError(f"Cannot find project file ({file_name + file_suffix}).\n")
-        if self.params.get('version', PROJECT_CONFIG_VERSION) != PROJECT_CONFIG_VERSION:
+        if self.params and self.params.get('version', PROJECT_CONFIG_VERSION) != PROJECT_CONFIG_VERSION:
             raise RuntimeError(f"Wrong project file version (should be {PROJECT_CONFIG_VERSION}).\n")
 
     @property
