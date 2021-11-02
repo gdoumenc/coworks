@@ -2,29 +2,29 @@
     :height: 80px
     :alt: Coworks Logo
 
-|
+|Maintenance| |Build Status| |Documentation Status| |Coverage| |Python versions| |Licence|
 
-|Maintenance yes| |Build status| |Documentation status| |Coverage rate| |Python versions| |GitHub license|
-
-.. |Maintenance yes| image:: https://img.shields.io/badge/Maintained%3F-yes-green.svg?style=plastic
-   :target: https://GitHub.com/Naereen/StrapDown.js/graphs/commit-activity
-.. |Build status| image:: https://img.shields.io/travis/com/gdoumenc/coworks?style=plastic
-    :alt: Travis (.com)
-.. |Documentation status| image:: https://img.shields.io/readthedocs/coworks?style=plastic
-    :alt: Read the Docs
-.. |Coverage rate| image:: https://img.shields.io/codecov/c/github/gdoumenc/coworks?style=plastic
-    :alt: Codecov.. image:: https://codecov.io/gh/gdoumenc/coworks/branch/dev/graph/badge.svg
+.. |Maintenance| image:: https://img.shields.io/badge/Maintained%3F-yes-green.svg?style=plastic
+    :alt: Maintenance
+.. |Build Status| image:: https://img.shields.io/travis/com/gdoumenc/coworks?style=plastic
+    :alt: Build Status
+.. |Documentation Status| image:: https://readthedocs.org/projects/coworks/badge/?version=master&style=plastic
+    :alt: Documentation Status
+.. |Coverage| image:: https://img.shields.io/codecov/c/github/gdoumenc/coworks?style=plastic
+    :alt: Codecov
 .. |Python versions| image:: https://img.shields.io/pypi/pyversions/coworks?style=plastic
-    :alt: PyPI - Python Version
-.. |GitHub license| image:: https://img.shields.io/github/license/gdoumenc/coworks?style=plastic
-    :alt: GitHub
+    :alt: Python Versions
+.. |Licence| image:: https://img.shields.io/github/license/gdoumenc/coworks?style=plastic
+    :alt: Licence
 
 Coworks is a unified serverless microservices framework based on AWS technologies
-(`API Gateway <https://aws.amazon.com/api-gateway/>`_, `AWS Lambda <https://aws.amazon.com/lambda/>`_) and
-the `Flask <https://github.com/pallets/flask>`_ framework.
+(`API Gateway <https://aws.amazon.com/api-gateway/>`_, `AWS Lambda <https://aws.amazon.com/lambda/>`_),
+the `Flask <https://github.com/pallets/flask>`_ framework and the `Airflow <https://github.com/apache/airflow>`_
+plateform.
 
 The aim of this project, is to offer a very simplified experience of microservices over the Lambda product
-of AWS and the simple web development framework Flask. Mainly it extends their usage over the asynchronous and orchestration topics.
+of AWS and the simple web development framework Flask.
+Mainly it extends their usage with asynchronous and orchestration topics.
 
 Each atomic microservice (Tech Microservice) is a simple python class deployed as serverless Lambda and
 can be called synchronously or asynchronously.
@@ -40,7 +40,7 @@ Documentation
 -------------
 
 * Get started: `Installation <https://coworks.readthedocs.io/en/latest/installation.html/>`_
-* Complete reference guide: `Documentation <https://coworks.readthedocs.io/en/latest/>`_.
+* Complete reference guide: `Documentation <https://coworks.readthedocs.io/>`_.
 * Read `FAQ <https://coworks.readthedocs.io/en/latest/faq.html/>`_ for other informations.
 
 
