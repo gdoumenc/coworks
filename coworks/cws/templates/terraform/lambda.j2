@@ -1,3 +1,7 @@
+# ---------------------------------------------------------------------------------------------------------------------
+# LAMBDA
+# ---------------------------------------------------------------------------------------------------------------------
+
 locals {
   {{ resource_name }}_lambda_name = "{{ resource_name }}-{{ workspace }}"
   {%- if environment_variable_files %}
@@ -15,10 +19,6 @@ data "aws_lambda_layer_version" "{{ resource_name }}" {
 }
 {%- endif %}
 
-# ---------------------------------------------------------------------------------------------------------------------
-# LAMBDA
-# ---------------------------------------------------------------------------------------------------------------------
-
 data "aws_s3_bucket_object" "{{ resource_name }}-b64sha256" {
   provider = aws.{{ resource_name }}
   bucket = "{{ bucket }}"
@@ -27,7 +27,7 @@ data "aws_s3_bucket_object" "{{ resource_name }}-b64sha256" {
 
 {% if environment_variable_files -%}
 data "local_file" "{{ resource_name }}_environment_variables_files" {
-  for_each = {for envar_file in {{ environment_variable_files | tojson }}: envar_file => "${envar_file}"}
+  for_each = local.{{ resource_name }}_when_stage == 1 ? {for envar_file in {{ environment_variable_files | tojson }}: envar_file => envar_file} : {}
   filename = each.value
 }
 {%- endif %}
@@ -40,25 +40,22 @@ resource "aws_lambda_function" "{{ resource_name }}" {
   s3_key = "{{ key }}"
   source_code_hash = local.{{ resource_name }}_when_stage > 0 ? data.aws_s3_bucket_object.{{ resource_name }}-b64sha256.body : ""
   role = local.{{ resource_name }}_role_arn
-  handler = "{{ module_file }}.{{ handler }}"
+  handler = "{{ app_import_path }}"
   {%- if layers %}
   layers = [for layer in data.aws_lambda_layer_version.{{ resource_name }} : layer.arn]
   {%- endif %}
   runtime = "python{{ python }}"
   timeout = {{ timeout }}
   memory_size = {{ memory_size }}
-  {%- if environment_variable_files != [] %}
   environment {
     variables = merge(
       {{ environment_variables | tojson }},
+{%- if environment_variable_files %}
       [for item in local.{{ resource_name }}_environment_variables: merge(item,local.{{ resource_name }}_environment_variables...)][0],
-      {"WORKSPACE":"{{ workspace }}"})
+{%- endif %}
+      {"FLASK_DEBUG":"{{ '1' if workspace == "dev" else '0' }}", "WORKSPACE":"{{ workspace }}"}
+    )
   }
-  {%- else %}
-  environment {
-    variables = {"WORKSPACE":"{{ workspace }}"}
-  }
-  {%- endif %}
   tracing_config {
     mode = "Active"
   }
@@ -66,7 +63,6 @@ resource "aws_lambda_function" "{{ resource_name }}" {
     security_group_ids = local.{{ resource_name }}_security_group_ids
     subnet_ids = local.{{ resource_name }}_subnet_ids
   }
-  tags = local.{{ resource_name }}_tags
 
   depends_on = [
     aws_cloudwatch_log_group.lambda_{{ resource_name }},

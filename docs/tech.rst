@@ -27,30 +27,29 @@ Composed routes are defined with the ``_`` separator.
 Examples
 ^^^^^^^^
 
-The following function defines the GET method for the root of the microservice:
+The following function defines the GET method for the root path of the microservice:
 
 .. code-block:: python
 
     @entry
-	def get(self):
-		return "root"
+    def get(self):
+        return "root"
 
 The following function defines the GET method for the route ``/service/test``:
 
 .. code-block:: python
 
     @entry
-	def get_service_test(self):
+    def get_service_test(self):
 		return "service test"
 
-The following function defines the PUT method for the root of the microservice:
+The following function defines the PUT method for the root path:
 
 .. code-block:: python
 
     @entry
-	def put(self):
+    def put(self):
 		return "put"
-
 
 Entrypoint Parameters
 ---------------------
@@ -125,14 +124,6 @@ This is usefull for offering a CRUD microservice:
 	def put_(self, id, data):
 		return f"modifies an instance identified by {id} with {data}"
 
-*Note*: `API Gateway` only accepts numbered parameters for routes, so the uri_parameters are renamed
-for deployement as::
-
-	/content
-	/content/{_0}
-	/content/{_0}/{_1}
-
-The actual routes are defined this way for the microservice.
 
 Query or body parameters
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -176,29 +167,37 @@ You can also use the ``**`` notation to get any values::
 		return f"here are all the parameters: {kwargs}"
 
 **Note**: The current implementation doesn't take into account the typing of the entrypoint function parameters
-(forcasted).
-So all query parameters are from type ``string``.
-If you want to pass typed or structured values, use the JSON mode.
+(forcasted in a future release).
+So all query parameters are from type ``string``. If you want to pass typed or structured values, use the JSON mode.
 
 Microservice Response
 ---------------------
 
-As for ``Flask`` and ``Chalice``, the return value from a class microservice is automatically converted into a response
+As for ``Flask``, the return value from a class microservice is automatically converted into a response
 object for you.
 
 * If the return value is a ``string`` or ``bytes``, it’s converted into a response object with the string or bytes
-  list as response body, a 200 OK status code and a ``application/json mimetype``.
+  list as response body, a 200 OK status code and a ``application/json`` mimetype.
 * If the return value is a ``dict`` or a ``list``, it's converted to a JSON structure, a 200 OK status code and
   a ``application/json`` mimetype.
 * If a ``tuple`` is returned the items in the tuple can provide extra information. Such tuples have to be in the
   form (response, status), or (response, status, headers). The status value will override the status code and headers
   can be a list or dictionary of additional header values.
 
-If none of that works, ``Coworks`` will assume the return value is a valid
-``Chalice`` `Response <https://chalice.readthedocs.io/en/latest/api.html#Response>`_ instance.
+Binary response
+---------------
 
+You can return a binary response on a specifiy entry::
 
-Global authorizer allow to control route access.
+	@entry(binary=True)
+	def get(self):
+		return b"the image bytes"
+
+For such entry the returned value must be a list of bytes.
+
+Unfortunatly it is not possible with the Lambda to set dynamicaly the returned type. So the content-type value may be
+set by the accept header parameter or by fixing it for the route.
+
 
 .. _blueprint:
 

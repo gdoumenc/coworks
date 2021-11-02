@@ -17,15 +17,16 @@
 Introduction
 ============
 
-Coworks is a unified serverless microservices framework based on AWS technologies.
+Coworks is a unified serverless microservices framework based on AWS technologies
+(`API Gateway <https://aws.amazon.com/api-gateway/>`_, `AWS Lambda <https://aws.amazon.com/lambda/>`_),
+the `Flask <https://github.com/pallets/flask>`_ framework and the `Airflow <https://github.com/apache/airflow>`_
+plateform.
 
 Each atomic microservice (defined as ``class TechMicroService``) is a simple python class deployed as a serverless
 AWS Lambda and can be called synchronously and asynchrously.
 
 Composition of microservices (defined as ``class BizMicroService``) is performed over the tech microservices and
-constructed mainly by asynchronous orchestration.
-
-Other AWS technologies are used for logging, administration, ...
+constructed by Airflow workflows.
 
 Technical documentation :
 
@@ -35,11 +36,14 @@ Technical documentation :
 * Full documentation: :ref:`doc`.
 * At least :ref:`faq` if not enough...
 
-Using and derived from `Chalice <https://github.com/aws/chalice>`_. Other tools used:
+Using and derived from `Flask <https://github.com/pallets/flask>`_
+(`Donate to Pallets <https://palletsprojects.com/donate>`_).
+Main other tools used:
 
 * `Click <https://github.com/pallets/click>`_ - Command Line Interface Creation Kit.
 * `Terraform <https://github.com/hashicorp/terraform>`_ - Infrastructure Configuration Management Tool.
 
+Other AWS or Terraform technologies are used for logging, administration, …
 
 What does microservice mean in Coworks?
 ---------------------------------------
@@ -96,7 +100,7 @@ Coworks microservices are divided in two categories :
 
 **Functional business microservice**
 
-  Implemented over AWS Step Function, this kind of microservice allows non programmer to construct
+  Implemented by Airflow workflow, this kind of microservice allows non programmer to construct
   functional business workflows.
 
 
@@ -115,8 +119,8 @@ documenting or deploying over it.
 
 The main advantage of using Coworks is its ability to defined those tools, called `commands`, directly in
 the microservice code.
-Predefined commands like ``run`` or ``deploy`` are provided, but you can redefined them or creates new ones like for
-documentation or testing.
+Predefined commands like ``run`` (defined by the Flask framework) or ``deploy`` are provided,
+but you can redefined them or creates new ones like for documentation or testing.
 
 For more details, see: :ref:`command`.
 

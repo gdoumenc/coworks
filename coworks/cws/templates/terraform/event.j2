@@ -20,7 +20,6 @@ resource "aws_cloudwatch_event_rule" "{{ resource_name }}_{{ name }}" {
   name = "{{ name }}-{{ workspace }}-{{ resource_name }}"
   description = "{{ entry.desc }}"
   schedule_expression = "{{ entry.exp }}"
-  tags = local.{{ resource_name }}_tags
 }
 resource "aws_cloudwatch_event_target" "{{ resource_name }}_{{ name }}" {
   provider = aws.{{ resource_name }}

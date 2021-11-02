@@ -19,10 +19,12 @@
 .. |GitHub license| image:: https://img.shields.io/github/license/gdoumenc/coworks?style=plastic
     :alt: GitHub
 
-Coworks is an unified compositional microservices framework over AWS technologies and
-based on the `Chalice <https://github.com/aws/chalice>`__ microframework.
+Coworks is a unified serverless microservices framework based on AWS technologies
+(`API Gateway <https://aws.amazon.com/api-gateway/>`_, `AWS Lambda <https://aws.amazon.com/lambda/>`_) and
+the `Flask <https://github.com/pallets/flask>`_ framework.
+
 The aim of this project, is to offer a very simplified experience of microservices over the Lambda product
-of AWS and mainly to extends their usage over the asynchronous and orchestration topics.
+of AWS and the simple web development framework Flask. Mainly it extends their usage over the asynchronous and orchestration topics.
 
 Each atomic microservice (Tech Microservice) is a simple python class deployed as serverless Lambda and
 can be called synchronously or asynchronously.
@@ -54,7 +56,7 @@ or `pull requests <https://github.com/aws/coworks/pulls>`__ through GitHub.
 Related Projects
 ----------------
 
-* `Chalice <https://github.com/aws/chalice>`_ - Python Serverless Microframework for AWS.
+* `Flask <https://github.com/pallets/flask>`_ - Lightweight WSGI web application framework (`Donate to Pallets <https://palletsprojects.com/donate>`_).
 * `Click <https://github.com/pallets/click>`_ -  A package for creating beautiful command line interfaces.
 * `Terraform <https://github.com/hashicorp/terraform>`_ - Infrastructure configuration management tool.
 

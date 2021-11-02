@@ -1,0 +1,17 @@
+version: 3
+commands:
+  test:
+    class: cmd.cmd
+    b: value
+    a: default
+    services:
+      - module: example
+        service: project2
+        a: project2
+        workspaces:
+          - workspace: prod
+            a: prod2
+      - module: example
+        service: autre
+        a: autre1
+
