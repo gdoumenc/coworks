@@ -1,5 +1,7 @@
 import multiprocessing
+import os
 import time
+from unittest import mock
 
 import requests
 
@@ -7,7 +9,7 @@ from coworks.utils import import_attr
 
 
 class TestClass:
-
+    @mock.patch.dict(os.environ, {"FLASK_RUN_FROM_CLI": "false", "AWS_XRAY_SDK_ENABLED": "false"})
     def test_run_complete(self, samples_docs_dir, unused_tcp_port):
         app = import_attr('complete', 'app', cwd=samples_docs_dir)
         server = multiprocessing.Process(target=run_server, args=(app, unused_tcp_port), daemon=False)

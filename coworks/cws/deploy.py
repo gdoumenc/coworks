@@ -343,8 +343,8 @@ class TerraformCloud:
 @click.option('--dry', is_flag=True, help="Doesn't perform deploy [Global option only].")
 @click.option('--ignore', '-i', multiple=True, help="Ignore pattern.")
 @click.option('--key', '-k', help="Sources zip file bucket's name.")
-@click.option('--module_name', '-m', multiple=True, help="Python module added from current pyenv (module or file.py).")
-@click.option('--profile_name', '-p', required=True, help="AWS credential profile.")
+@click.option('--module-name', '-m', multiple=True, help="Python module added from current pyenv (module or file.py).")
+@click.option('--profile-name', '-pn', required=True, help="AWS credential profile.")
 # Deploy specific optionsElle est immédiatement opérationnelle et fonctionnell
 @click.option('--binary-media-types')
 @click.option('--cloud', is_flag=True, help="Use cloud workspaces.")

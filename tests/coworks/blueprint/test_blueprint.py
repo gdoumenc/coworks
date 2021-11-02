@@ -13,7 +13,7 @@ class TestClass:
             assert response.get_data(as_text=True) == 'get'
             response = c.get('/test/3', headers={'Authorization': 'token'})
             assert response.status_code == 200
-            assert response.get_data(as_text=True) == "blueprint <BP 'bp'> 3"
+            assert response.get_data(as_text=True) == "blueprint BP 3"
             response = c.get('/extended/test/3', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == 'blueprint extended test 3'
@@ -24,7 +24,7 @@ class TestClass:
         with app.test_client() as c:
             response = c.get('/prefix/test/3', headers={'Authorization': 'token'})
             assert response.status_code == 200
-            assert response.get_data(as_text=True) == "blueprint <BP 'bp'> 3"
+            assert response.get_data(as_text=True) == "blueprint BP 3"
             response = c.get('/prefix/extended/test/3', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == 'blueprint extended test 3'
@@ -36,7 +36,7 @@ class TestClass:
         with app.test_client() as c:
             response = c.get('/prefix/test/3', headers={'Authorization': 'token'})
             assert response.status_code == 200
-            assert response.get_data(as_text=True) == "blueprint <InitBP 'initbp'> 3"
+            assert response.get_data(as_text=True) == "blueprint BP 3"
             init_bp.do_before_first_activation.assert_called_once()
             init_bp.do_before_activation.assert_called_once()
             init_bp.do_after_activation.assert_called_once()

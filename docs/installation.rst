@@ -29,6 +29,13 @@ Coworks is now ready for you.
 *Beware*: As ``awscli`` (even ``boto3``) often evolves, make sure you have a compatible version of it in
 your python virtual environment or dependencies conflicts may occur.
 
+Create a project
+----------------
+
+To create a new project, go to the folder you want to set the project and enter::
+
+	(project) $ cws new
+
 If you want to try now without deploying, you may skip directly to :ref:`tech_quickstart`.
 
 Other tools
@@ -50,8 +57,8 @@ Terraform
 
 *If you have previously installed terraform then you can skip this section.*
 
-For deployment, ``chalice`` provide a very simple and powerfull deployment command (``deploy``) but we prefer using
-``terraform`` as it allows more controls on the architecture.
+For deployment, for the deployment command (``deploy``) we are using ``terraform``. We can use it locally or on
+online cloud plateform ``terraform.io``.
 
 Follow these `instructions <https://www.terraform.io/downloads.html>`_ to install terraform. Check installation with::
 

@@ -3,7 +3,7 @@
 BizMS Quickstart
 =================
 
-This page gives a quick and partial introduction to CoWorks Business Microservices.
+This page gives a quick and partial introduction to Coworks Business Microservices.
 You must have understand first how to deploy technical microservice :doc:`tech`.
 
 MicroServiceProxy
