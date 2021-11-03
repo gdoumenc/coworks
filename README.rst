@@ -40,7 +40,7 @@ Documentation
 -------------
 
 * Get started: `Installation <https://coworks.readthedocs.io/en/latest/installation.html/>`_
-* Complete reference guide: `Documentation <https://coworks.readthedocs.io/en/latest/>`_.
+* Complete reference guide: `Documentation <https://coworks.readthedocs.io/>`_.
 * Read `FAQ <https://coworks.readthedocs.io/en/latest/faq.html/>`_ for other informations.
 
 
