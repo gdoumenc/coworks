@@ -3,16 +3,20 @@
   :alt: Coworks Logo
   :target: https://coworks.readthedocs.io/en/latest/?badge=latest
 
-.. image:: https://img.shields.io/travis/com/gdoumenc/coworks?style=plastic
-    :alt: Travis (.com)
-.. image:: https://img.shields.io/readthedocs/coworks?style=plastic
-    :alt: Read the Docs
-.. image:: https://img.shields.io/codecov/c/github/gdoumenc/coworks?style=plastic
-    :alt: Codecov.. image:: https://codecov.io/gh/gdoumenc/coworks/branch/dev/graph/badge.svg
-.. image:: https://img.shields.io/pypi/pyversions/coworks?style=plastic
-    :alt: PyPI - Python Version
-.. image:: https://img.shields.io/github/license/gdoumenc/coworks?style=plastic
-    :alt: GitHub
+|Maintenance| |Build Status| |Documentation Status| |Coverage| |Python versions| |Licence|
+
+.. |Maintenance| image:: https://img.shields.io/badge/Maintained%3F-yes-green.svg?style=plastic
+    :alt: Maintenance
+.. |Build Status| image:: https://img.shields.io/travis/com/gdoumenc/coworks?style=plastic
+    :alt: Build Status
+.. |Documentation Status| image:: https://readthedocs.org/projects/coworks/badge/?version=master&style=plastic
+    :alt: Documentation Status
+.. |Coverage| image:: https://img.shields.io/codecov/c/github/gdoumenc/coworks?style=plastic
+    :alt: Codecov
+.. |Python versions| image:: https://img.shields.io/pypi/pyversions/coworks?style=plastic
+    :alt: Python Versions
+.. |Licence| image:: https://img.shields.io/github/license/gdoumenc/coworks?style=plastic
+    :alt: Licence
 
 Introduction
 ============
