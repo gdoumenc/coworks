@@ -151,15 +151,7 @@ def make_response(resp, content_type_entry=''):
         elif len(resp) == 3:
             headers = resp[2]
 
-    resp = flask_make_response(resp)
-
-    accept = request.accept_mimetypes
-    if 'Content-Type' not in headers:
-        if content_type_entry:
-            resp.headers['Content-Type'] = content_type_entry
-        else:
-            resp.headers['Content-Type'] = accept.to_header() if accept.provided else resp.default_mimetype
-    return resp
+    return flask_make_response(resp)
 
 
 def import_attr(module, attr: str, cwd='.'):
