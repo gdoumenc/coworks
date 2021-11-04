@@ -141,16 +141,8 @@ def _create_rest_proxy(scaffold, func, kwarg_keys, args, varkw):
 def make_response(resp, content_type_entry=''):
     """Set the right mimetype in response in case if not defined in header.
     """
-
-    headers = {}
     if resp is None:
         return "", 204
-    if type(resp) is tuple:
-        if len(resp) == 2 and type(resp[1]) is dict:
-            headers = resp[1]
-        elif len(resp) == 3:
-            headers = resp[2]
-
     return flask_make_response(resp)
 
 
