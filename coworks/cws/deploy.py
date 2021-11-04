@@ -368,6 +368,12 @@ def deploy_command(info, ctx, output, terraform_class=TerraformLocal, **options)
     workspace = root_command_params['workspace']
     debug = root_command_params['debug']
 
+    if '/' in info.app_import_path:
+        msg = f"""Cannot deploy a project with handler not on project folder : {info.app_import_path}
+        Set -p option to resolve this.""".replace('    ','')
+        click.echo(msg)
+        return
+
     terraform = terraform_class(info, **root_command_params, **options)
     if output:  # Stop if only print output
         click.echo(f"terraform output : {terraform.output()}")
