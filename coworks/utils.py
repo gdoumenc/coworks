@@ -7,7 +7,7 @@ import traceback
 from functools import partial
 from functools import update_wrapper
 
-from flask import make_response as flask_make_response
+from flask import make_response
 from flask.blueprints import BlueprintSetupState
 from werkzeug.exceptions import BadRequest
 from werkzeug.exceptions import BadRequestKeyError
@@ -50,7 +50,7 @@ def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
 
         proxy = _create_rest_proxy(scaffold, fun, kwarg_keys, args, varkw)
         proxy.__CWS_BINARY = getattr(fun, '__CWS_BINARY', False)
-        proxy.__CWS_CONTENT_TYPE = getattr(fun, '__CWS_CONTENT_TYPE', '')
+        proxy.__CWS_CONTENT_TYPE = getattr(fun, '__CWS_CONTENT_TYPE')
 
         # Creates the entry
         url_prefix = bp_state.url_prefix if bp_state else ''
@@ -121,7 +121,7 @@ def _create_rest_proxy(scaffold, func, kwarg_keys, args, varkw):
 
             else:
                 if not args:
-                    if request.content_length is not None:
+                    if request.content_length:
                         err_msg = f"TypeError: got an unexpected arguments (body: {request.json})"
                         raise BadRequestKeyError(err_msg)
                     if request.query_string:
@@ -129,21 +129,21 @@ def _create_rest_proxy(scaffold, func, kwarg_keys, args, varkw):
                         raise BadRequestKeyError(err_msg)
 
             resp = func(scaffold, **kwargs)
-            return make_response(resp, getattr(func, '__CWS_CONTENT_TYPE', ''))
+            if resp is None:
+                return "", 204
+
+            if getattr(func, '__CWS_CONTENT_TYPE'):
+                return resp, 200, {'content-type': getattr(func, '__CWS_CONTENT_TYPE')}
+
+            return make_response(resp)
         except TypeError as e:
+            scaffold.logger.error(f"Bad request error: {str(e)}")
             raise BadRequest(str(e))
-        except (Exception,):
+        except (Exception,) as e:
+            scaffold.logger.error(e)
             raise
 
     return update_wrapper(proxy, func)
-
-
-def make_response(resp, content_type_entry=''):
-    """Set the right mimetype in response in case if not defined in header.
-    """
-    if resp is None:
-        return "", 204
-    return flask_make_response(resp)
 
 
 def import_attr(module, attr: str, cwd='.'):

@@ -1,6 +1,7 @@
 import os
 
 from aws_xray_sdk.core import xray_recorder
+
 from coworks import TechMicroService
 from coworks import entry
 from coworks.blueprint.admin_blueprint import Admin
@@ -16,8 +17,20 @@ class MyMicroService(TechMicroService):
         self.register_blueprint(Profiler(), url_prefix='/profiler')
         XRayMiddleware(self, xray_recorder)
 
+        @self.before_first_request
+        def first():
+            var = int(os.getenv('VAR'))
+
+        @self.before_request
+        def before():
+            ...
+
+        @self.errorhandler(500)
+        def handle(e):
+            ...
+
     def token_authorizer(self, token):
-        return token == 'test' # os.getenv('TOKEN')
+        return token == os.getenv('TOKEN')
 
     @entry
     def get(self):

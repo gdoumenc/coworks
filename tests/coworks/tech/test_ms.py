@@ -77,7 +77,7 @@ class TestClass:
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "get"
             assert 'Content-Type' in response.headers
-            assert response.headers['Content-Type'] == 'text/plain'
+            assert response.headers['Content-Type'] == 'application/json'
             assert 'Content-Length' in response.headers
             assert response.headers['Content-Length'] == str(len(response.get_data(as_text=True)))
             response = c.post('/', headers={'Authorization': 'token'})
@@ -207,7 +207,7 @@ class TestClass:
             response = c.get('/', headers=headers)
             assert response.status_code == 200
             assert response.get_data(as_text=True) == 'ok'
-            assert response.headers['content-type'] == 'text/plain'
+            assert response.headers['content-type'] == 'application/json'
             response = c.get('/json', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.json['value'] == 'ok'

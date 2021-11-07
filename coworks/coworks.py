@@ -36,9 +36,11 @@ from .wrappers import TokenResponse
 #
 
 
-def entry(fun: t.Callable = None, binary: bool = False, content_type: str = '') -> t.Callable:
+def entry(fun: t.Callable = None, binary: bool = False, content_type: str = None) -> t.Callable:
     """Decorator to create a microservice entry point from function name."""
     if fun is None:
+        if binary and not content_type:
+            content_type = 'application/octet-stream'
         return partial(entry, binary=binary, content_type=content_type)
 
     name = fun.__name__.upper()
@@ -222,6 +224,21 @@ class TechMicroService(Flask):
 
         return self.any_token_authorized
 
+    def base64decode(self, data):
+        """Base64 decode function used for lambda interaction."""
+        if not isinstance(data, bytes):
+            data = data.encode('ascii')
+        output = base64.b64decode(data)
+        return output
+
+    def base64encode(self, data):
+        """Base64 encode function used for lambda interaction."""
+        if not isinstance(data, bytes):
+            msg = f'Expected bytes type for body with binary Content-Type. Got {type(data)} type body instead.'
+            raise ValueError(msg)
+        data = base64.b64encode(data).decode('ascii')
+        return data
+
     def __call__(self, arg1, arg2) -> dict:
         """Main microservice entry point."""
 
@@ -287,14 +304,8 @@ class TechMicroService(Flask):
             with self.cws_client(event, context) as c:
                 method = event['httpMethod']
                 kwargs = self._get_kwargs(event)
-                try:
-                    resp = getattr(c, method.lower())(full_path(), **kwargs)
-                    return self._convert_to_lambda_response(resp)
-                except Exception as e:
-                    handler = self._find_error_handler(e)
-                    if handler is None:
-                        raise
-                    return self._convert_to_lambda_response(handler(e))
+                resp = getattr(c, method.lower())(full_path(), **kwargs)
+                return self._convert_to_lambda_response(resp)
         except Exception as e:
             error = e if isinstance(e, HTTPException) else InternalServerError(original_exception=e)
             return self._structured_error(error)
@@ -337,7 +348,7 @@ class TechMicroService(Flask):
         is_encoded = event.get('isBase64Encoded', False)
         body = event['body']
         if body and is_encoded:
-            body = self._base64decode(body)
+            body = self.base64decode(body)
         self.logger.debug(f"Body: {body}")
 
         if is_json(content_type):
@@ -345,19 +356,6 @@ class TechMicroService(Flask):
             return kwargs
         kwargs['data'] = body
         return kwargs
-
-    def _base64decode(self, data):
-        if not isinstance(data, bytes):
-            data = data.encode('ascii')
-        output = base64.b64decode(data)
-        return output
-
-    def _base64encode(self, data):
-        if not isinstance(data, bytes):
-            msg = f'Expected bytes type for body with binary Content-Type. Got {type(data)} type body instead.'
-            raise ValueError(msg)
-        data = base64.b64encode(data).decode('ascii')
-        return data
 
     def _convert_to_lambda_response(self, resp):
         """Convert Lambda response."""
@@ -377,12 +375,12 @@ class TechMicroService(Flask):
                 pass
 
         # returns direct payload
-        return self._base64encode(resp.get_data())
+        return self.base64encode(resp.get_data())
 
     def _structured_payload(self, body, status_code, headers):
         return {
             "statusCode": status_code,
-            "headers": {k: v for k, v in headers},
+            "headers": {k: v for k, v in headers.items()},
             "body": body,
             "isBase64Encoded": False,
         }
