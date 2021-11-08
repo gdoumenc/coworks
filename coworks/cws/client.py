@@ -48,7 +48,8 @@ class CoWorksGroup(FlaskGroup):
                     splitted = cmd_class_name.split('.')
                     cmd = import_attr('.'.join(splitted[:-1]), splitted[-1], cwd=project_dir)
 
-                    # Sets options value as default command param (may then be forced in command line or defined by default)
+                    # Sets options value as default command param
+                    # (may then be forced in command line or defined by default)
                     for param in cmd.params:
                         if param.name in options:
                             param.default = options.get(param.name)
