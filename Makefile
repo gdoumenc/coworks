@@ -1,20 +1,20 @@
-.PHONY: deploy fury sdist clean
+.PHONY: deploy fury dist clean
 
-sdist:
-	pipenv run python setup.py sdist
+dist:
+	pipenv run python setup.py bdist_wheel
 
-fury: sdist
+fury: clean dist
 	(export VERSION=`python -c "import coworks;print(coworks.__version__)"`;\
-	curl -F package=@dist/coworks-$$VERSION.tar.gz https://1PqF0I-J1eMroTnd6GFKWBV1Xxs0x5Xx8@push.fury.io/gdoumenc;\
+	curl -F package=@dist/coworks-$$VERSION-py2.py3-none-any.whl https://1PqF0I-J1eMroTnd6GFKWBV1Xxs0x5Xx8@push.fury.io/gdoumenc;\
 	unset VERSION)
 
-deploy: clean sdist
+deploy: clean dist
 	pipenv run twine upload dist/*
 
-deploy-test: clean sdist
+deploy-test: clean dist
 	pipenv run twine upload --repository testpypi dist/*
 
 clean:
-	rm -rf dist build coworks.egg-info
+	rm -rf dist build coworks.egg-info .pytest_cache
 	find . -type f -name \*.pyc -delete
 	find . -type d -name __pycache__ -exec rm -rf {} \; || true

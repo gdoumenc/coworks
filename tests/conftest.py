@@ -1,6 +1,7 @@
 import contextlib
 import os
 import socket
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -21,6 +22,11 @@ def example_dir():
 @pytest.fixture
 def samples_docs_dir():
     yield fixture_samples_docs_dir()
+
+
+@pytest.fixture
+def progressbar():
+    yield MagicMock()
 
 
 @pytest.fixture
