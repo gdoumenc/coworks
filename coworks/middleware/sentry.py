@@ -12,11 +12,9 @@ MIDDLEWARE_NAME = 'sentry'
 class SentryMiddleware:
 
     def __init__(self, app: "TechMicroService", **kwargs):
-        self._app = app
-        app.logger.debug(f"Initializing sentry middleware")
-
         def first():
-            if os.getenv('ENV') in ('development', 'production'):
+            if os.getenv('WORKSPACE') != 'local':
+                app.logger.debug(f"Initializing sentry middleware")
                 sentry_sdk.init(
                     dsn=os.getenv('SENTRY_DSN'),
                     integrations=[AwsLambdaIntegration()],

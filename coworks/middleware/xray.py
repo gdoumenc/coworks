@@ -26,10 +26,11 @@ class XRayMiddleware:
         self._app.before_first_request(self.capture_routes)
         self._app.errorhandler(500)(self.capture_exception)
         self._recorder = recorder
-        app.logger.debug(f"Initializing xray middleware {name}")
         self._enabled = False
 
         def first():
+            app.logger.debug(f"Initializing xray middleware {name}")
+
             # Checks XRay is enabled
             self._enabled = global_sdk_config.sdk_enabled()
             if self._enabled:
