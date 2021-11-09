@@ -14,7 +14,7 @@ def new_command(ctx, force) -> None:
     project_dir = Path(ctx.parent.params['project_dir'])
     project_templates = Path(__file__).parent / 'project_templates'
 
-    with progressbar(3, threaded=False, label='Creating new project') as bar:
+    with progressbar(3, label='Creating new project') as bar:
 
         # Creates folder
         if not project_dir.exists():

@@ -338,50 +338,54 @@ def deploy_command(info, ctx, output, terraform_class=TerraformLocal, **options)
     workspace = root_command_params['workspace']
     debug = root_command_params['debug']
 
-    with progressbar(label='Deploy microservice') as bar:
-        if info.app_import_path and '/' in info.app_import_path:
-            msg = f"""Cannot deploy a project with handler not on project folder : {info.app_import_path}
-            Set -p option to resolve this.""".replace('    ', '')
-            bar.terminate(msg)
-            return
+    with progressbar(label='Deploy microservice', threaded=True) as bar:
+        try:
+            if info.app_import_path and '/' in info.app_import_path:
+                msg = f"""Cannot deploy a project with handler not on project folder : {info.app_import_path}
+                Set -p option to resolve this.""".replace('    ', '')
+                bar.terminate(msg)
+                return
 
-        terraform = terraform_class(info, bar, **root_command_params, **options)
-        if output:  # Stop if only print output
-            bar.terminate(f"terraform output : {terraform.output()}")
-            return
+            terraform = terraform_class(info, bar, **root_command_params, **options)
+            if output:  # Stop if only print output
+                bar.terminate(f"terraform output : {terraform.output()}")
+                return
 
-        # Set default options calculated value
-        app = info.load_app()
-        options['hash'] = True
-        options['ignore'] = options['ignore'] or ['.*', 'terraform']
-        options['key'] = options['key'] or f"{app.__module__}-{app.name}/archive.zip"
-        if options['api']:
-            options['dry'] = True
-        dry = options['dry']
+            # Set default options calculated value
+            app = info.load_app()
+            options['hash'] = True
+            options['ignore'] = options['ignore'] or ['.*', 'terraform']
+            options['key'] = options['key'] or f"{app.__module__}-{app.name}/archive.zip"
+            if options['api']:
+                options['dry'] = True
+            dry = options['dry']
 
-        # Transfert zip file to S3 (to be done on each service)
-        zip_options = {zip_param.name: options[zip_param.name] for zip_param in zip_command.params}
-        ctx.invoke(zip_command, **zip_options)
+            # Transfert zip file to S3 (to be done on each service)
+            zip_options = {zip_param.name: options[zip_param.name] for zip_param in zip_command.params}
+            ctx.invoke(zip_command, **zip_options)
 
-        # Copy environment files
-        config = app.get_config(workspace)
-        environment_variable_files = config.existing_environment_variables_files(project_dir)
-        for file in environment_variable_files:
-            terraform.copy_file(file)
+            # Copy environment files
+            config = app.get_config(workspace)
+            environment_variable_files = config.existing_environment_variables_files(project_dir)
+            for file in environment_variable_files:
+                terraform.copy_file(file)
 
-        # Generates common terraform files
-        terraform.generate_common_files(**root_command_params, **options)
+            # Generates common terraform files
+            terraform.generate_common_files(**root_command_params, **options)
 
-        # Generates terraform files and copy environment variable files in terraform working dir for provisionning
-        terraform_filename = f"{app.name}.{app.ms_type}.tf"
-        terraform.generate_files("deploy.j2", terraform_filename, **root_command_params, **options)
+            # Generates terraform files and copy environment variable files in terraform working dir for provisionning
+            terraform_filename = f"{app.name}.{app.ms_type}.tf"
+            terraform.generate_files("deploy.j2", terraform_filename, **root_command_params, **options)
 
-        # Apply terraform if not dry
-        if not dry:
-            terraform.create_stage(**root_command_params, **options)
+            # Apply terraform if not dry
+            if not dry:
+                terraform.create_stage(**root_command_params, **options)
 
-        # Traces output
-        bar.terminate(f"terraform output :\n{terraform.output()}")
+            # Traces output
+            bar.terminate(f"terraform output :\n{terraform.output()}")
+        except Exception:
+            bar.terminate()
+            raise
 
 # class CwsTerraformDestroyer(CwsTerraformCommand):
 #

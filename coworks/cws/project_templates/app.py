@@ -6,6 +6,8 @@ from coworks import TechMicroService
 from coworks import entry
 from coworks.blueprint.admin_blueprint import Admin
 from coworks.blueprint.profiler_blueprint import Profiler
+from coworks.config import LocalConfig
+from coworks.config import ProdConfig
 from coworks.middleware.xray import XRayMiddleware
 
 
@@ -37,4 +39,9 @@ class MyMicroService(TechMicroService):
         return 'project ready!'
 
 
-app = MyMicroService()
+local = LocalConfig()
+local.environment_variables = {
+    'LOCAL': 'my_value',
+}
+prod = ProdConfig()
+app = MyMicroService(congigs=[local, prod])

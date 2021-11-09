@@ -35,7 +35,7 @@ class ProgressBar:
 
 
 @contextmanager
-def progressbar(length=100, *, threaded=True, label=None):
+def progressbar(length=200, *, threaded=False, label=None):
     with click.progressbar(range(length - 1), label=label, show_eta=False) as bar:
         pg = ProgressBar(bar)
         if threaded:

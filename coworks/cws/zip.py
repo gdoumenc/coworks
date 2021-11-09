@@ -34,7 +34,7 @@ def zip_command(info, ctx, bucket, dry, hash, ignore, module_name, key, profile_
     aws_s3_session = aws.AwsS3Session(profile_name=profile_name)
     module_name = module_name or []
 
-    with progressbar(3, threaded=False, label='Copy files to S3') as bar:
+    with progressbar(3, label='Copy files to S3') as bar:
         key = key if key else info.load_app().name
         if debug:
             where = f"{bucket}/{key}"
