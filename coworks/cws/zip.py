@@ -11,6 +11,7 @@ from shutil import copyfile, copytree, ignore_patterns, make_archive
 import click
 from flask.cli import pass_script_info
 
+from .utils import progressbar
 from .. import aws
 
 
@@ -33,74 +34,80 @@ def zip_command(info, ctx, bucket, dry, hash, ignore, module_name, key, profile_
     aws_s3_session = aws.AwsS3Session(profile_name=profile_name)
     module_name = module_name or []
 
-    key = key if key else info.load_app().name
-    if debug:
-        where = f"{bucket}/{key}"
-        click.echo(f"Uploading zip sources of {info.load_app()} at s3:{where} {'(not done)' if dry else ''}")
+    with progressbar(3, label='Copy files to S3') as bar:
+        key = key if key else info.load_app().name
+        if debug:
+            where = f"{bucket}/{key}"
+            bar.echo(f"Uploading zip sources of {info.load_app()} at s3:{where} {'(not done)' if dry else ''}")
 
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        tmp_path = Path(tmp_dir)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
 
-        if ignore and type(ignore) is not list:
-            if type(ignore) is tuple:
-                ignore = [*ignore]
-            else:
-                ignore = [ignore]
-        full_ignore_patterns = functools.partial(ignore_patterns, '*.pyc', '__pycache__', 'bin', 'test', *ignore)
+            if ignore and type(ignore) is not list:
+                if type(ignore) is tuple:
+                    ignore = [*ignore]
+                else:
+                    ignore = [ignore]
+            ignore = [*ignore, '*.pyc', '__pycache__']
+            ignore = [*ignore, 'Pipfile*', 'requirements.txt']
+            full_ignore_patterns = functools.partial(ignore_patterns, *ignore)
 
-        # Creates archive
-        project_dir = ctx.find_root().params.get('project_dir')
-        full_project_dir = Path(project_dir).resolve()
-        try:
-            if tmp_path.relative_to(full_project_dir):
-                msg = f"Cannot deploy a project defined in tmp folder (project dir id {full_project_dir})"
-                raise click.exceptions.UsageError(msg)
-        except (Exception,):
-            pass
-        copytree(project_dir, str(tmp_path / 'filtered_dir'),
-                 ignore=full_ignore_patterns('*cws.yml', 'env_variables*'))
-        for name in module_name:
-            if name.endswith(".py"):
-                file_path = Path(sysconfig.get_path('purelib')) / name
-                copyfile(file_path, str(tmp_path / f'filtered_dir/{name}'))
-            else:
-                mod = importlib.import_module(name)
-                module_path = Path(mod.__file__).resolve().parent
-                copytree(module_path, str(tmp_path / f'filtered_dir/{name}'), ignore=full_ignore_patterns())
-        module_archive = make_archive(str(tmp_path / 'sources'), 'zip', str(tmp_path / 'filtered_dir'))
-
-        # Uploads archive on S3
-        with open(module_archive, 'rb') as archive:
-            b64sha256 = base64.b64encode(hashlib.sha256(archive.read()).digest())
-            archive.seek(0)
+            # Creates archive
+            project_dir = ctx.find_root().params.get('project_dir')
+            full_project_dir = Path(project_dir).resolve()
             try:
-                if not dry:
-                    if debug:
-                        click.echo("Upload sources...")
-                    aws_s3_session.client.upload_fileobj(archive, bucket, key)
-                    if debug:
-                        click.echo(f"Successfully uploaded sources at s3://{bucket}/{key}")
-                if debug:
-                    click.echo(f"Sources is {int(os.path.getsize(module_archive) / 1000)} Kb")
-            except Exception as e:
-                click.echo(f"Failed to upload module sources on S3 : {e}")
-                raise e
+                if tmp_path.relative_to(full_project_dir):
+                    msg = f"Cannot deploy a project defined in tmp folder (project dir id {full_project_dir})"
+                    raise click.exceptions.UsageError(msg)
+            except (Exception,):
+                pass
+            copytree(project_dir, str(tmp_path / 'filtered_dir'),
+                     ignore=full_ignore_patterns('*cws.yml', 'env_variables*'))
+            for name in module_name:
+                if name.endswith(".py"):
+                    file_path = Path(sysconfig.get_path('purelib')) / name
+                    copyfile(file_path, str(tmp_path / f'filtered_dir/{name}'))
+                else:
+                    mod = importlib.import_module(name)
+                    module_path = Path(mod.__file__).resolve().parent
+                    copytree(module_path, str(tmp_path / f'filtered_dir/{name}'), ignore=full_ignore_patterns())
+            module_archive = make_archive(str(tmp_path / 'sources'), 'zip', str(tmp_path / 'filtered_dir'))
+            bar.update()
 
-        # Creates hash value
-        if hash:
-            with tmp_path.with_name('b64sha256_file').open('wb') as b64sha256_file:
-                b64sha256_file.write(b64sha256)
-
-            # Uploads archive hash value to bucket
-            with tmp_path.with_name('b64sha256_file').open('rb') as b64sha256_file:
+            # Uploads archive on S3
+            with open(module_archive, 'rb') as archive:
+                b64sha256 = base64.b64encode(hashlib.sha256(archive.read()).digest())
+                archive.seek(0)
                 try:
                     if not dry:
                         if debug:
-                            click.echo(f"Upload sources hash...")
-                        aws_s3_session.client.upload_fileobj(b64sha256_file, bucket, f"{key}.b64sha256",
-                                                             ExtraArgs={'ContentType': 'text/plain'})
+                            bar.echo("Upload sources...")
+                        aws_s3_session.client.upload_fileobj(archive, bucket, key)
                         if debug:
-                            click.echo(f"Successfully uploaded sources hash at s3://{bucket}/{key}.b64sha256")
+                            bar.echo(f"Successfully uploaded sources at s3://{bucket}/{key}")
+                    if debug:
+                        bar.echo(f"Sources is {int(os.path.getsize(module_archive) / 1000)} Kb")
                 except Exception as e:
-                    click.echo(f"Failed to upload archive hash on S3 : {e}")
+                    bar.echo(f"Failed to upload module sources on S3 : {e}")
                     raise e
+            bar.update()
+
+            # Creates hash value
+            if hash:
+                with tmp_path.with_name('b64sha256_file').open('wb') as b64sha256_file:
+                    b64sha256_file.write(b64sha256)
+
+                # Uploads archive hash value to bucket
+                with tmp_path.with_name('b64sha256_file').open('rb') as b64sha256_file:
+                    try:
+                        if not dry:
+                            if debug:
+                                bar.echo(f"Upload sources hash...")
+                            aws_s3_session.client.upload_fileobj(b64sha256_file, bucket, f"{key}.b64sha256",
+                                                                 ExtraArgs={'ContentType': 'text/plain'})
+                            if debug:
+                                bar.echo(f"Successfully uploaded sources hash at s3://{bucket}/{key}.b64sha256")
+                    except Exception as e:
+                        click.echo(f"Failed to upload archive hash on S3 : {e}")
+                        raise e
+            bar.terminate()

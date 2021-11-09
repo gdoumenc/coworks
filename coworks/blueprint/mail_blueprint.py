@@ -1,13 +1,13 @@
-import os
 import smtplib
-import typing as t
 from dataclasses import dataclass
 from email import message
+
+import os
+import requests
+import typing as t
 from email.utils import formataddr
 from email.utils import formatdate
 from email.utils import make_msgid
-
-import requests
 from flask import current_app
 from werkzeug.datastructures import FileStorage
 
@@ -30,16 +30,19 @@ class Mail(Blueprint):
     """
 
     def __init__(self, name: str = "mail",
-                 env_server_var_name: str = '', env_login_var_name: str = '', env_passwd_var_name: str = '',
+                 env_server_var_name: str = '', env_port_var_name: str = '',
+                 env_login_var_name: str = '', env_passwd_var_name: str = '',
                  env_var_prefix: str = '', **kwargs):
         super().__init__(name=name, **kwargs)
-        self.smtp_server = self.smtp_login = self.smtp_passwd = None
+        self.smtp_server = self.smtp_port = self.smtp_login = self.smtp_passwd = None
         if env_var_prefix:
             self.env_server_var_name = f"{env_var_prefix}_SERVER"
+            self.env_port_var_name = f"{env_var_prefix}_PORT"
             self.env_login_var_name = f"{env_var_prefix}_LOGIN"
             self.env_passwd_var_name = f"{env_var_prefix}_PASSWD"
         else:
             self.env_server_var_name = env_server_var_name
+            self.env_port_var_name = env_port_var_name
             self.env_login_var_name = env_login_var_name
             self.env_passwd_var_name = env_passwd_var_name
 
@@ -48,6 +51,7 @@ class Mail(Blueprint):
             self.smtp_server = os.getenv(self.env_server_var_name)
             if not self.smtp_server:
                 raise EnvironmentError(f'{self.env_server_var_name} not defined in environment.')
+            self.smtp_port = int(os.getenv(self.env_port_var_name, 587))
             self.smtp_login = os.getenv(self.env_login_var_name)
             if not self.smtp_login:
                 raise EnvironmentError(f'{self.env_login_var_name} not defined in environment.')
@@ -112,7 +116,7 @@ class Mail(Blueprint):
 
         # Send email
         try:
-            with smtplib.SMTP(self.smtp_server) as server:
+            with smtplib.SMTP(self.smtp_server, port=self.smtp_port) as server:
                 if starttls:
                     server.starttls()
                 server.login(self.smtp_login, self.smtp_passwd)

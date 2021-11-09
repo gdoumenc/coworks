@@ -1,6 +1,8 @@
 from coworks import TechMicroService
 from coworks import entry
 
+from ..event import get_event
+
 
 class ContentMS(TechMicroService):
 
@@ -60,8 +62,8 @@ class TestClass:
             headers = {'Accept': 'text/plain', 'Authorization': 'token'}
             response = c.get('/', headers=headers)
             assert response.status_code == 200
-            assert not response.is_json
-            assert response.headers['Content-Type'] == 'text/plain'
+            assert response.is_json
+            assert response.headers['Content-Type'] == 'application/json'
             assert response.get_data(as_text=True) == 'test'
 
     def test_text_api(self):
@@ -84,27 +86,23 @@ class TestClass:
             headers = {'Accept': 'text/plain', 'Authorization': 'token'}
             response = c.get('/json', headers=headers)
             assert response.status_code == 200
-            assert not response.is_json
-            assert response.headers['Content-Type'] == 'text/plain'
+            assert response.is_json
+            assert response.headers['Content-Type'] == 'application/json'
             assert response.get_data(as_text=True) == '{"int":1,"text":"value"}\n'
 
-    def test_binary_content_type(self):
+    def test_binary_content_type(self, empty_context):
         app = ContentMS()
         with app.test_client() as c:
             headers = {'Accept': 'img/webp', 'Authorization': 'token'}
-            response = c.get('/binary', headers=headers)
-            assert response.status_code == 200
-            assert not response.is_json
-            assert response.headers['Content-Type'] == 'img/webp'
-            assert response.get_data() == b'test'
+            response = app(get_event('/binary', 'get', headers=headers), empty_context)
+            assert type(response) == str
+            assert app.base64decode(response) == b"test"
 
-    def test_content_type(self):
+    def test_content_type(self, empty_context):
         app = ContentMS()
         with app.test_client() as c:
             headers = {'Accept': 'img/webp', 'Authorization': 'token'}
-            response = c.get('/content/type', headers=headers)
-            assert response.status_code == 200
-            assert not response.is_json
-            assert response.headers['Content-Type'] == 'application/pdf'
-            assert response.get_data() == b'test'
+            response = app(get_event('/content/type', 'get', headers=headers), empty_context)
+            assert type(response) == str
+            assert app.base64decode(response) == b"test"
 

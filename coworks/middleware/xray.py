@@ -24,12 +24,13 @@ class XRayMiddleware:
     def __init__(self, app: "TechMicroService", recorder: "AWSXRayRecorder", name=MIDDLEWARE_NAME):
         self._app = app
         self._app.before_first_request(self.capture_routes)
-        self._app.handle_exception = self.capture_exception
+        self._app.errorhandler(500)(self.capture_exception)
         self._recorder = recorder
-        app.logger.debug(f"Initializing xray middleware {name}")
         self._enabled = False
 
         def first():
+            app.logger.debug(f"Initializing xray middleware {name}")
+
             # Checks XRay is enabled
             self._enabled = global_sdk_config.sdk_enabled()
             if self._enabled:
@@ -63,12 +64,16 @@ class XRayMiddleware:
                         try:
                             subsegment.put_metadata('context', lambda_context_to_json(aws_context),
                                                     LAMBDA_NAMESPACE)
+
                             metadata = {
                                 'service': self._app.name,
                                 'request': request_to_dict(request),
                             }
                             if request.is_json:
-                                metadata['json'] = request.json
+                                try:
+                                    metadata['json'] = request.json
+                                except (Exception,):
+                                    metadata['json'] = request.get_data(cache=False, as_text=True)
                             elif request.is_multipart:
                                 metadata['multipart'] = request.form.to_dict(False)
                                 metadata['files'] = [*request.files.keys()]
@@ -79,7 +84,8 @@ class XRayMiddleware:
                                 metadata['values'] = request.values.to_dict(False)
                             subsegment.put_metadata('request', metadata, COWORKS_NAMESPACE)
                         except (Exception,) as e:
-                            self._app.logger.info(f"Cannot capture in XRay : {e}")
+                            self._app.logger.error(f"Cannot capture before route in XRay : {e}")
+                            self._app.logger.error(traceback.extract_stack())
 
                     response = _view_function(*args, **kwargs)
 
@@ -94,7 +100,8 @@ class XRayMiddleware:
                             }
                             subsegment.put_metadata('response', metadata, COWORKS_NAMESPACE)
                         except (Exception,) as e:
-                            self._app.logger.info(f"Cannot capture in XRay : {e}")
+                            self._app.logger.error(f"Cannot capture after route in XRay : {e}")
+                            self._app.logger.error(traceback.extract_stack())
                     return response
 
                 wrapped_fun = update_wrapper(partial(captured, view_function), view_function)
@@ -110,21 +117,12 @@ class XRayMiddleware:
             self._app.logger.error(f"Event: {aws_event}")
             self._app.logger.error(f"Context: {aws_context}")
             self._app.logger.debug("Skipped capture exception because the SDK is currently disabled.")
-            raise e
 
         subsegment = self._recorder.current_subsegment()
         if subsegment:
-            try:
-                subsegment.add_error_flag()
-                subsegment.put_annotation('service', self._app.name)
-                subsegment.add_exception(e, traceback.extract_stack())
-            finally:
-                return {
-                    'headers': {},
-                    'multiValueHeaders': {},
-                    'statusCode': 500,
-                    'body': "Exception in microservice, see XRay for more details",
-                }
+            subsegment.add_error_flag()
+            subsegment.put_annotation('service', self._app.name)
+            subsegment.add_exception(e, traceback.extract_stack())
 
     @staticmethod
     def capture(recorder):

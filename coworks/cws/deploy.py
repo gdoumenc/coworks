@@ -1,5 +1,4 @@
 import inspect
-import itertools
 import subprocess
 import sys
 import typing as t
@@ -9,8 +8,6 @@ from pathlib import Path
 from shutil import copy
 from subprocess import CalledProcessError
 from subprocess import CompletedProcess
-from threading import Thread
-from time import sleep
 
 import boto3
 import click
@@ -22,6 +19,7 @@ from jinja2 import PackageLoader
 from jinja2 import select_autoescape
 from werkzeug.routing import Rule
 
+from .utils import progressbar
 from .zip import zip_command
 
 UID_SEP = '_'
@@ -63,8 +61,9 @@ class TerraformLocal:
     """Terraform class to manage local terraform deployements."""
     TIMEOUT = 300
 
-    def __init__(self, info, **options):
+    def __init__(self, info, bar, **options):
         self.info = info
+        self.bar = bar
         self.app = self.info.load_app()
         self.working_dir = Path(options['terraform_dir'])
         self.working_dir.mkdir(exist_ok=True)
@@ -186,7 +185,7 @@ class TerraformLocal:
         aws_region = boto3.Session(profile_name=profile_name).region_name
 
         if debug:
-            click.echo(f"Generate terraform files for updating API routes and deploiement for {self.app.name}")
+            self.bar.update(msg=f"Generate terraform files for updating API routes and deploiement for {self.app.name}")
 
         data = self.get_context_data(**options)
         template = self.jinja_env.get_template(template_filename)
@@ -198,35 +197,22 @@ class TerraformLocal:
         """In the default terraform workspace, we have the API.
         In the specific workspace, we have the corresponding stagging lambda.
         """
-        stop = False
         workspace = options['workspace']
-
-        def display_spinning_cursor():
-            spinner = itertools.cycle('|/-\\')
-            while not stop:
-                sys.stdout.write(next(spinner))
-                sys.stdout.write('\b')
-                sys.stdout.flush()
-                sleep(0.1)
-
-        spin_thread = Thread(target=display_spinning_cursor)
-        spin_thread.start()
-
-        try:
-            click.echo(f"Terraform apply (Create API routes)")
-            self.apply("default")
-            if options['api']:
-                return
-            click.echo(f"Terraform apply (Deploy API and Lambda for the {workspace} stage)")
-            self.apply(workspace)
-        finally:
-            stop = True
+        self.bar.update(msg=f"Terraform apply (Create API routes)")
+        self.apply("default")
+        if options['api']:
+            return
+        self.bar.update(msg=f"Terraform apply (Deploy API and Lambda for the {workspace} stage)")
+        self.apply(workspace)
 
     def copy_file(self, file):
         copy(file, self.working_dir)
+        self.bar.update()
 
     def _execute(self, cmd_args: t.List[str]) -> CompletedProcess:
-        p = subprocess.run(["terraform", *cmd_args], capture_output=True, cwd=self.working_dir, timeout=self.TIMEOUT)
+        # with self.bar:
+        p = subprocess.run(["terraform", *cmd_args], capture_output=True, cwd=self.working_dir,
+                           timeout=self.TIMEOUT)
         p.check_returncode()
         return p
 
@@ -249,8 +235,9 @@ class TerraformCloud:
     - One for for the stage.
     """
 
-    def __init__(self, info, **options):
+    def __init__(self, info, bar, **options):
         self.info = info
+        self.bar = bar
         self.working_dir = Path(options['terraform_dir'])
         self.workspace = options['workspace']
         self._api_terraform = self._workspace_terraform = None
@@ -258,14 +245,14 @@ class TerraformCloud:
     @property
     def api_terraform(self):
         if self._api_terraform is None:
-            self._api_terraform = RemoteTerraform(self.info, terraform_dir=self.working_dir)
+            self._api_terraform = RemoteTerraform(self.info, self.bar, terraform_dir=self.working_dir)
         return self._api_terraform
 
     @property
     def workspace_terraform(self):
         if self._workspace_terraform is None:
             terraform_dir = f"{self.working_dir}_{self.workspace}"
-            self._workspace_terraform = RemoteTerraform(self.info, terraform_dir=terraform_dir)
+            self._workspace_terraform = RemoteTerraform(self.info, self.bar, terraform_dir=terraform_dir)
         return self._workspace_terraform
 
     def init(self):
@@ -280,7 +267,6 @@ class TerraformCloud:
 
     def output(self):
         api_out = self.api_terraform.output()
-        workspace_out = self.workspace_terraform.output()
         return api_out
 
     def select_workspace(self, workspace) -> None:
@@ -304,27 +290,11 @@ class TerraformCloud:
         """In the default terraform workspace, we have the API.
         In the specific workspace, we have the corresponding stagging lambda.
         """
-        stop = False
         workspace = options['workspace']
-
-        def display_spinning_cursor():
-            spinner = itertools.cycle('|/-\\')
-            while not stop:
-                sys.stdout.write(next(spinner))
-                sys.stdout.write('\b')
-                sys.stdout.flush()
-                sleep(0.1)
-
-        spin_thread = Thread(target=display_spinning_cursor)
-        spin_thread.start()
-
-        try:
-            click.echo(f"Terraform apply (Create API routes)")
-            self.api_terraform.apply()
-            click.echo(f"Terraform apply (Deploy API and Lambda for the {workspace} stage)")
-            self.workspace_terraform.apply()
-        finally:
-            stop = True
+        self.bar.update(msg=f"Terraform apply (Create API routes)")
+        self.api_terraform.apply()
+        self.bar.update(msg=f"Terraform apply (Deploy API and Lambda for the {workspace} stage)")
+        self.workspace_terraform.apply()
 
     def copy_file(self, file):
         self.workspace_terraform.copy_file(file)
@@ -368,43 +338,54 @@ def deploy_command(info, ctx, output, terraform_class=TerraformLocal, **options)
     workspace = root_command_params['workspace']
     debug = root_command_params['debug']
 
-    terraform = terraform_class(info, **root_command_params, **options)
-    if output:  # Stop if only print output
-        click.echo(f"terraform output : {terraform.output()}")
-        return
+    with progressbar(label='Deploy microservice', threaded=True) as bar:
+        try:
+            if info.app_import_path and '/' in info.app_import_path:
+                msg = f"""Cannot deploy a project with handler not on project folder : {info.app_import_path}
+                Set -p option to resolve this.""".replace('    ', '')
+                bar.terminate(msg)
+                return
 
-    # Set default options calculated value
-    app = info.load_app()
-    options['hash'] = True
-    options['ignore'] = options['ignore'] or ['.*', 'terraform']
-    options['key'] = options['key'] or f"{app.__module__}-{app.name}/archive.zip"
-    if options['api']:
-        options['dry'] = True
-    dry = options['dry']
+            terraform = terraform_class(info, bar, **root_command_params, **options)
+            if output:  # Stop if only print output
+                bar.terminate(f"terraform output : {terraform.output()}")
+                return
 
-    # Transfert zip file to S3 (to be done on each service)
-    zip_options = {zip_param.name: options[zip_param.name] for zip_param in zip_command.params}
-    ctx.invoke(zip_command, **zip_options)
+            # Set default options calculated value
+            app = info.load_app()
+            options['hash'] = True
+            options['ignore'] = options['ignore'] or ['.*', 'terraform']
+            options['key'] = options['key'] or f"{app.__module__}-{app.name}/archive.zip"
+            if options['api']:
+                options['dry'] = True
+            dry = options['dry']
 
-    # Copy environment files
-    config = app.get_config(workspace)
-    environment_variable_files = config.existing_environment_variables_files(project_dir)
-    for file in environment_variable_files:
-        terraform.copy_file(file)
+            # Transfert zip file to S3 (to be done on each service)
+            zip_options = {zip_param.name: options[zip_param.name] for zip_param in zip_command.params}
+            ctx.invoke(zip_command, **zip_options)
 
-    # Generates common terraform files
-    terraform.generate_common_files(**root_command_params, **options)
+            # Copy environment files
+            config = app.get_config(workspace)
+            environment_variable_files = config.existing_environment_variables_files(project_dir)
+            for file in environment_variable_files:
+                terraform.copy_file(file)
 
-    # Generates terraform files and copy environment variable files in terraform working dir for provisionning
-    terraform_filename = f"{app.name}.{app.ms_type}.tf"
-    terraform.generate_files("deploy.j2", terraform_filename, **root_command_params, **options)
+            # Generates common terraform files
+            terraform.generate_common_files(**root_command_params, **options)
 
-    # Apply terraform if not dry
-    if not dry:
-        terraform.create_stage(**root_command_params, **options)
+            # Generates terraform files and copy environment variable files in terraform working dir for provisionning
+            terraform_filename = f"{app.name}.{app.ms_type}.tf"
+            terraform.generate_files("deploy.j2", terraform_filename, **root_command_params, **options)
 
-    # Traces output
-    click.echo(f"terraform output :\n{terraform.output()}")
+            # Apply terraform if not dry
+            if not dry:
+                terraform.create_stage(**root_command_params, **options)
+
+            # Traces output
+            bar.terminate(f"terraform output :\n{terraform.output()}")
+        except Exception:
+            bar.terminate()
+            raise
 
 # class CwsTerraformDestroyer(CwsTerraformCommand):
 #
