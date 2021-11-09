@@ -11,9 +11,9 @@ MIDDLEWARE_NAME = 'sentry'
 
 class SentryMiddleware:
 
-    def __init__(self, app: "TechMicroService", sentry_entry: str, name=MIDDLEWARE_NAME, **kwargs):
+    def __init__(self, app: "TechMicroService", **kwargs):
         self._app = app
-        app.logger.debug(f"Initializing sentry middleware {name}")
+        app.logger.debug(f"Initializing sentry middleware")
 
         def first():
             if os.getenv('ENV') in ('development', 'production'):
