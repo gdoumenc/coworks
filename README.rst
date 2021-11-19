@@ -22,15 +22,15 @@ Coworks is a unified serverless microservices framework based on AWS technologie
 the `Flask <https://github.com/pallets/flask>`_ framework and the `Airflow <https://github.com/apache/airflow>`_
 plateform.
 
-The aim of this project, is to offer a very simplified experience of microservices over the Lambda product
-of AWS and the simple web development framework Flask.
-Mainly it extends their usage with asynchronous and orchestration topics.
+The aim of this project, is to offer a very simplified experience of microservices. For such purpose, we divided the
+framework in two levels.
 
-Each atomic microservice (Tech Microservice) is a simple python class deployed as serverless Lambda and
-can be called synchronously or asynchronously.
+The first one is made of atomic microservices (``TechMicroservice``) each composed of simple python class deployed as
+Flask application and deployed as serverless Lambda. Those technical microservice may be can be called synchronously
+or asynchronously.
 
-A composition of such tech microservices is done by business microservice (Biz Microservice) with mainly
-decoupled asynchronous interactions.
+The second level is made of composed business microservices (``BizMicroservice``) which are Air flow tasks
+providing orchestration of technical microservices.
 
 You can get a quickstart on `TechMicroService <https://coworks.readthedocs.io/en/latest/tech_quickstart.html>`_ then
 continue with `BizMicroService <https://coworks.readthedocs.io/en/latest/biz_quickstart.html>`_

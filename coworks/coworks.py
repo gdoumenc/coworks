@@ -1,11 +1,9 @@
+from dataclasses import dataclass
+
 import base64
 import logging
 import os
 import typing as t
-from dataclasses import dataclass
-from functools import partial
-from inspect import isfunction
-
 from flask import Blueprint as FlaskBlueprint
 from flask import Flask
 from flask import abort
@@ -13,6 +11,8 @@ from flask import current_app
 from flask.blueprints import BlueprintSetupState
 from flask.ctx import RequestContext
 from flask.testing import FlaskClient
+from functools import partial
+from inspect import isfunction
 from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import InternalServerError
 from werkzeug.routing import Rule
@@ -43,20 +43,28 @@ def entry(fun: t.Callable = None, binary: bool = False, content_type: str = None
             content_type = 'application/octet-stream'
         return partial(entry, binary=binary, content_type=content_type)
 
+    def get_path(start):
+        name_ = fun.__name__[start:]
+        name_ = trim_underscores(name_)  # to allow several functions with different args
+        return name_.replace('_', '/')
+
     name = fun.__name__.upper()
     for method in HTTP_METHODS:
-        fun.__CWS_METHOD = method
-        fun.__CWS_BINARY = binary
-        fun.__CWS_CONTENT_TYPE = content_type
         if name == method:
-            fun.__CWS_PATH = ''
-            return fun
+            path = ''
+            break
         if name.startswith(f'{method}_'):
-            name = fun.__name__[len(method) + 1:]
-            name = trim_underscores(name)  # to allow several functions with different args
-            fun.__CWS_PATH = name.replace('_', '/')
-            return fun
-    raise AttributeError(f"The function name {fun.__name__} doesn't start with a HTTP method name.")
+            path = get_path(len(f'{method}_'))
+            break
+    else:
+        method = 'POST'
+        path = get_path(0)
+
+    fun.__CWS_METHOD = method
+    fun.__CWS_PATH = path
+    fun.__CWS_BINARY = binary
+    fun.__CWS_CONTENT_TYPE = content_type
+    return fun
 
 
 def hide(fun: t.Callable) -> t.Callable:

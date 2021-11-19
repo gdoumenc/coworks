@@ -1,21 +1,28 @@
 import json
 import os
+from pygsheets import Worksheet
+from pygsheets import authorize
 
 from coworks import Blueprint
-from pygsheets import Worksheet, DataRange
-from pygsheets import authorize, WorksheetNotFound
 
 
 class GoogleSheets(Blueprint):
 
-    def __init__(self, client_id_var_name, private_key_var_name, private_key_id_var_name, **kwargs):
+    def __init__(self, name: str = "sheets",
+                 env_client_id_var_name: str = '', env_private_key_var_name: str = '',
+                 env_private_key_id_var_name: str = '', env_var_prefix: str = '', **kwargs):
         super().__init__(**kwargs)
-        self.client_id_var_name = client_id_var_name
-        self.private_key_var_name = private_key_var_name
-        self.private_key_id_var_name = private_key_id_var_name
+        if env_var_prefix:
+            self.client_id_var_name = f"{env_var_prefix}_CLIENT_ID"
+            self.private_key_var_name = f"{env_var_prefix}_PRIVATE_KEY"
+            self.private_key_id_var_name = f"{env_var_prefix}_PRIVATE_KEY_ID"
+        else:
+            self.client_id_var_name = env_client_id_var_name
+            self.private_key_var_name = env_private_key_var_name
+            self.private_key_id_var_name = env_private_key_id_var_name
         self.google_client = None
 
-        @self.before_first_activation
+        @self.before_app_first_request
         def load_crendentials(event, context):
             client_id = os.getenv(self.client_id_var_name)
             if not client_id:

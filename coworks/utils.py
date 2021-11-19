@@ -95,11 +95,15 @@ def _create_rest_proxy(scaffold, func, kwarg_keys, args, varkw):
                 elif request.method in ['POST', 'PUT']:
                     try:
                         if request.is_json:
-                            data = request.json
-                            if type(data) is dict:
-                                kwargs = dict(**kwargs, **as_fun_params(data, False))
+                            data = request.get_data()
+                            if not data :
+                                kwargs[kwarg_keys[0]] = {}
                             else:
-                                kwargs[kwarg_keys[0]] = data
+                                data = request.json
+                                if type(data) is dict:
+                                    kwargs = dict(**kwargs, **as_fun_params(data, False))
+                                else:
+                                    kwargs[kwarg_keys[0]] = data
                         elif request.is_multipart:
                             data = request.form.to_dict(False)
                             files = request.files.to_dict(False)

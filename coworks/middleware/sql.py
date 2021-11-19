@@ -1,18 +1,21 @@
 import os
-from contextlib import contextmanager
-
 import sqlalchemy
-from coworks.coworks import ContextManager
+import typing as t
+from contextlib import contextmanager
 from sqlalchemy import create_engine, MetaData, Table
 from sqlalchemy.orm import sessionmaker, scoped_session
 
+if t.TYPE_CHECKING:
+    from coworks import TechMicroService
 
-class SqlContextManager(ContextManager):
-    NAME = 'sql'
+MIDDLEWARE_NAME = 'sql'
 
-    def __init__(self, app, env_dialect_var_name=None, env_port_var_name=None, env_host_var_name=None,
-                 env_dbname_var_name=None, env_user_var_name=None, env_passwd_var_name=None, env_var_prefix="SQL",
-                 read_only=False, echo=False, name=NAME, **kwargs):
+
+class SqlManager:
+
+    def __init__(self, app: "TechMicroService", env_dialect_var_name=None, env_port_var_name=None,
+                 env_host_var_name=None, env_dbname_var_name=None, env_user_var_name=None, env_passwd_var_name=None,
+                 env_var_prefix="SQL", read_only=False, echo=False, name=MIDDLEWARE_NAME):
         super().__init__(app, name)
         self.dialect = self.port = self.host = self.dbname = self.user = self.passwd = None
         self.read_only = read_only
@@ -33,8 +36,8 @@ class SqlContextManager(ContextManager):
             self.env_user_var_name = env_user_var_name
             self.env_passwd_var_name = env_passwd_var_name
 
-        @app.before_first_activation
-        def check_env_vars(event, context):
+        @app.before_first_request
+        def check_env_vars():
             self.dialect = os.getenv(self.env_dialect_var_name, 'postgresql+psycopg2')
             self.port = os.getenv(self.env_port_var_name, 5432)
             self.host = os.getenv(self.env_host_var_name)
@@ -56,14 +59,14 @@ class SqlContextManager(ContextManager):
             session_factory = sessionmaker(bind=self.engine)
             self.scoped_session = scoped_session(sessionmaker(session_factory))
 
-        @app.after_activation
+        @app.after_request
         def commit_session(response):
             self.scoped_session.commit()
             self.scoped_session.remove()
             return response
 
         @app.handle_exception
-        def rollback_session(event, context, exception):
+        def rollback_session(exception):
             self.scoped_session.rollback()
             self.scoped_session.remove()
 
@@ -85,5 +88,8 @@ class SqlContextManager(ContextManager):
 
     def _reflect_tables(self, schema, tables):
         metadata = MetaData(bind=self.engine)
-        return map(lambda table: Table(table, metadata, autoload=True, autoload_with=self.engine, schema=schema),
-                   tables)
+
+        def table():
+            Table(table, metadata, autoload=True, autoload_with=self.engine, schema=schema)
+
+        return map(table, tables)

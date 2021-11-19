@@ -4,7 +4,7 @@ from werkzeug.middleware.profiler import ProfilerMiddleware
 
 from coworks import TechMicroService
 from coworks import entry
-from coworks.blueprint import Admin
+from coworks.blueprint.admin_blueprint import Admin
 from coworks.middleware.xray import XRayMiddleware
 
 

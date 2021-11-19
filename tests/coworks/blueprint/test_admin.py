@@ -1,6 +1,6 @@
 from flask import json
 
-from coworks.blueprint import Admin
+from coworks.blueprint.admin_blueprint import Admin
 from .blueprint import DocumentedMS
 from .blueprint import HiddenBlueprint
 
