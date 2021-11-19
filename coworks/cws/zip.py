@@ -74,7 +74,7 @@ def zip_command(info, ctx, bucket, dry, hash, ignore, module_name, key, profile_
                     module_path = Path(mod.__file__).resolve().parent
                     copytree(module_path, str(tmp_path / f'filtered_dir/{name}'), ignore=full_ignore_patterns())
             module_archive = make_archive(str(tmp_path / 'sources'), 'zip', str(tmp_path / 'filtered_dir'))
-            bar.update(f"Sources is {int(os.path.getsize(module_archive) / 1000)} Kb" if debug else "")
+            bar.update(msg=f"Sources is {int(os.path.getsize(module_archive) / 1000)} Kb" if debug else "")
 
             # Uploads archive on S3
             if not dry:
@@ -86,7 +86,7 @@ def zip_command(info, ctx, bucket, dry, hash, ignore, module_name, key, profile_
                     except Exception as e:
                         bar.echo(f"Failed to upload module sources on S3 : {e}")
                         raise e
-                bar.update(f"Successfully uploaded sources at s3://{bucket}/{key}" if debug else "")
+                bar.update(msg=f"Successfully uploaded sources at s3://{bucket}/{key}" if debug else "")
 
             # Creates hash value
             if not dry:
@@ -104,4 +104,4 @@ def zip_command(info, ctx, bucket, dry, hash, ignore, module_name, key, profile_
                             raise e
 
                 msg = f"Successfully uploaded sources hash at s3://{bucket}/{key}.b64sha256"
-                bar.update(msg if debug and not dry else "")
+                bar.update(msg=msg if debug and not dry else "")

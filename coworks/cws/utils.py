@@ -1,8 +1,8 @@
+import click
 from contextlib import contextmanager
+from contextlib import AbstractContextManager
 from threading import Thread
 from time import sleep
-
-import click
 
 
 class ProgressBar:
@@ -19,7 +19,7 @@ class ProgressBar:
         click.echo()
         self.bar.format_progress_line = swap
 
-    def update(self, n_steps=1, msg=None):
+    def update(self, n_steps: int = 1, *, msg: str = None):
         if msg:
             self.echo(msg)
         self.bar.update(n_steps)
@@ -35,7 +35,7 @@ class ProgressBar:
 
 
 @contextmanager
-def progressbar(length=200, *, threaded=False, label=None):
+def progressbar(length=200, *, threaded=False, label: str = None) -> AbstractContextManager[ProgressBar]:
     with click.progressbar(range(length - 1), label=label, show_eta=False) as bar:
         pg = ProgressBar(bar)
         if threaded:
@@ -51,4 +51,3 @@ def progressbar(length=200, *, threaded=False, label=None):
         yield pg
         if not pg.stop:
             pg.terminate()
-
