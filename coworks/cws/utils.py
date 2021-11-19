@@ -1,6 +1,6 @@
 import click
+import typing as t
 from contextlib import contextmanager
-from contextlib import AbstractContextManager
 from threading import Thread
 from time import sleep
 
@@ -35,7 +35,7 @@ class ProgressBar:
 
 
 @contextmanager
-def progressbar(length=200, *, threaded=False, label: str = None) -> AbstractContextManager[ProgressBar]:
+def progressbar(length=200, *, threaded=False, label: str = None) -> t.ContextManager[ProgressBar]:
     with click.progressbar(range(length - 1), label=label, show_eta=False) as bar:
         pg = ProgressBar(bar)
         if threaded:
