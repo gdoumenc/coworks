@@ -163,7 +163,7 @@ class TerraformLocal:
         data = {
             'api_resources': self.api_resources,
             'app': self.app,
-            'app_import_path': self.info.app_import_path.replace(':', '.') if self.info.app_import_path else "app.app",
+            'app_import_path': self.info.app_import_path,
             'aws_region': boto3.Session(profile_name=options['profile_name']).region_name,
             'description': inspect.getdoc(self.app) or "",
             'environment_variables': config.environment_variables,
@@ -347,6 +347,12 @@ def deploy_command(info, ctx, output, terraform_class=TerraformLocal, **options)
             if info.app_import_path and '/' in info.app_import_path:
                 msg = f"""Cannot deploy a project with handler not on project folder : {info.app_import_path}
                 Set -p option to resolve this.""".replace('    ', '')
+                bar.terminate(msg)
+                return
+
+            info.app_import_path = info.app_import_path.replace(':', '.') if info.app_import_path else "app.app"
+            if '.' not in info.app_import_path:
+                msg = f"FLASK_APP must be in form 'module:variable' but is {info.app_import_path}."
                 bar.terminate(msg)
                 return
 
