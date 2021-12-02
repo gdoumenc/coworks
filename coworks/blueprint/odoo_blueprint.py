@@ -86,7 +86,7 @@ class Odoo(Blueprint):
             abort(Response("Domain and Id parameters cannot be defined tin same time", status=400))
 
         if id:
-            domain = [[['id', '=', id]]]
+            domain = [[('id', '=', id)]]
             params = {}
         else:
             domain = domain if domain else [[]]

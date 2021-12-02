@@ -89,8 +89,9 @@ class TestClass:
             terraform.generate_files("deploy.j2", "test.tf", **options)
         with (Path(example_dir) / "terraform" / "test.tf").open() as f:
             lines = f.readlines()
-        assert len(lines) == 1617
-        assert lines[3].strip() == 'envtechms_when_default = terraform.workspace == "default" ? 1 : 0'
-        assert lines[4].strip() == 'envtechms_when_stage = terraform.workspace != "default" ? 1 : 0'
+        assert len(lines) == 1615
+        assert lines[3].strip() == 'alias = "envtechms"'
+        assert lines[21].strip() == 'envtechms_when_default = terraform.workspace == "default" ? 1 : 0'
+        assert lines[22].strip() == 'envtechms_when_stage = terraform.workspace != "default" ? 1 : 0'
         (Path(example_dir) / "terraform" / "test.tf").unlink()
         (Path(example_dir) / "terraform").rmdir()

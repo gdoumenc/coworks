@@ -168,13 +168,7 @@ class TechMicroService(Flask):
 
         @self.before_request
         def check_token():
-            if not request.in_lambda_context:
-                token = request.headers.get('Authorization', self.config.get('DEFAULT_TOKEN'))
-                if token is None:
-                    abort(401)
-                valid = self.token_authorizer(token)
-                if not valid:
-                    abort(403)
+            self._check_token()
 
     def app_context(self):
         """Override to initialize coworks microservice."""
@@ -334,6 +328,15 @@ class TechMicroService(Flask):
             if load_env:
                 config.load_environment_variables(self.root_path)
             self._cws_conf_updated = True
+
+    def _check_token(self):
+        if not request.in_lambda_context:
+            token = request.headers.get('Authorization', self.config.get('DEFAULT_TOKEN'))
+            if token is None:
+                abort(401)
+            valid = self.token_authorizer(token)
+            if not valid:
+                abort(403)
 
     def _get_kwargs(self, event):
         def is_json(mt):
