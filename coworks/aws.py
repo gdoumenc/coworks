@@ -7,7 +7,6 @@ class Boto3Mixin:
     def __init__(self, service, profile_name=None, env_var_access_key='aws_access_key_id',
                  env_var_secret_key='aws_secret_access_key', env_var_region='aws_region',
                  **kwargs):
-        super().__init__(**kwargs)
         self.__session__ = self.__client__ = None
         self.__service = service
         self.__env_var_access_key = env_var_access_key
