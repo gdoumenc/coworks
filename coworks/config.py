@@ -24,7 +24,6 @@ class Config:
     workspace: str = DEFAULT_DEV_WORKSPACE
     environment_variables_file: t.Union[str, t.List[str], Path, t.List[Path]] = 'vars.json'
     environment_variables: t.Union[dict, t.List[dict]] = None
-    default_token: str = None
 
     @property
     def ENV(self):

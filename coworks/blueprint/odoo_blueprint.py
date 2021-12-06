@@ -1,14 +1,14 @@
 import json
 import os
+import requests
 import typing as t
 import xmlrpc.client
-
-import requests
 from aws_xray_sdk.core import xray_recorder
-from coworks import Blueprint
-from coworks import entry
 from flask import Response
 from flask import abort
+
+from coworks import Blueprint
+from coworks import entry
 
 
 class AccessDenied(Exception):
@@ -64,6 +64,9 @@ class Odoo(Blueprint):
         def set_session():
             if not self.uid:
                 abort(403)
+
+            # TO BE REMOVED
+            self.session_id, status_code = self.get_session_id_old()
 
     @entry
     def kw(self, model: str, method: str = "search_read", id: t.Union[int, str] = None, fields: t.List[str] = None,
@@ -160,7 +163,7 @@ class Odoo(Blueprint):
         @param rec_ids: records needed to generate the report.
         """
         params = {'params': {'res_ids': json.dumps(rec_ids)}}
-        res, status_code = self.odoo_post(f"{self.url}/report/{report_id}", params=params)
+        res, status_code = self.odoo_post_old(f"{self.url}/report/{report_id}", params=params)
         if status_code == 200:
             return res['result'], 200
         abort(status_code)
@@ -191,3 +194,40 @@ class Odoo(Blueprint):
             return uid, 200
         except Exception as e:
             return str(e), 401
+
+    # TO BE REMOVED
+    def odoo_post_old(self, path, params, headers=None) -> t.Tuple[t.Union[str, dict], int]:
+        _params = {'jsonrpc': "2.0", 'session_id': self.session_id}
+        headers = headers or {}
+        res = requests.post(path, params=_params, json=params, headers=headers)
+        try:
+            result = res.json()
+            if 'error' in result:
+                return f"{result['error']['message']}:{result['error']['data']}", 404
+            return result, res.status_code
+        except (json.decoder.JSONDecodeError, Exception):
+            return res.text, 500
+
+    # TO BE REMOVED
+    def get_session_id_old(self):
+        """Open or checks the connection."""
+        try:
+            data = {
+                'jsonrpc': "2.0",
+                'params': {
+                    'db': self.dbname,
+                    'login': self.user,
+                    'password': self.passwd,
+                }
+            }
+            res = requests.post(
+                f'{self.url}/web/session/authenticate/',
+                data=json.dumps(data),
+                headers={'Content-type': 'application/json'}
+            )
+
+            data = json.loads(res.text)
+            if data['result']['session_id']:
+                return res.cookies["session_id"], 200
+        except Exception as e:
+            raise AccessDenied()

@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 import base64
+import click
 import logging
 import os
 import typing as t
@@ -19,6 +20,7 @@ from werkzeug.routing import Rule
 
 from .config import Config
 from .config import DEFAULT_DEV_WORKSPACE
+from .config import DEFAULT_LOCAL_WORKSPACE
 from .config import DevConfig
 from .config import LocalConfig
 from .config import ProdConfig
@@ -196,6 +198,8 @@ class TechMicroService(Flask):
     def test_client(self, *args, **kwargs):
         """This client must be used only for testing."""
         self.testing = True
+        self._update_config(load_env=True, workspace=DEFAULT_LOCAL_WORKSPACE)
+
         return super().test_client(*args, **kwargs)
 
     @property
@@ -224,7 +228,10 @@ class TechMicroService(Flask):
         By default no entry are accepted for security reason.
         """
 
-        return self.any_token_authorized
+        workspace = self.config['WORKSPACE']
+        if workspace == DEFAULT_LOCAL_WORKSPACE:
+            return True
+        return token == os.getenv('TOKEN')
 
     def base64decode(self, data):
         """Base64 decode function used for lambda interaction."""
@@ -319,12 +326,13 @@ class TechMicroService(Flask):
         self._update_config(load_env=True)
         return self.wsgi_app(environ, start_response)
 
-    def _update_config(self, load_env: bool):
+    def _update_config(self, *, load_env: bool, workspace: str = None):
         if not self._cws_conf_updated:
-            workspace = os.environ.get('WORKSPACE', DEFAULT_DEV_WORKSPACE)
+            workspace = workspace or os.environ.get('WORKSPACE', DEFAULT_DEV_WORKSPACE)
+            if workspace == DEFAULT_LOCAL_WORKSPACE:
+                click.echo(f" * Workspace: {workspace}")
             config = self.get_config(workspace)
             self.config['WORKSPACE'] = config.workspace
-            self.config['DEFAULT_TOKEN'] = config.default_token
             if load_env:
                 config.load_environment_variables(self.root_path)
             self._cws_conf_updated = True

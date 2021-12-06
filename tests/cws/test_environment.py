@@ -1,12 +1,12 @@
 import multiprocessing
-import time
-from pathlib import Path
-
 import pytest
 import requests
+import time
 from flask.cli import ScriptInfo
+from pathlib import Path
 
-from coworks.config import Config, ProdConfig
+from coworks.config import Config
+from coworks.config import ProdConfig
 from coworks.cws.client import client
 from tests.cws.src.app import EnvTechMS
 
