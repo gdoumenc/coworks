@@ -6,10 +6,10 @@ locals {
 # ROLE
 # ---------------------------------------------------------------------------------------------------------------------
 
-resource "aws_iam_role" "{{ resource_name }}_microservice" {
+resource "aws_iam_role" "{{ resource_name }}_cws" {
   provider = aws.{{ resource_name }}
   count = local.{{ resource_name }}_when_default
-  name = "{{ resource_name }}_microservice_role"
+  name = "{{ resource_name }}_cws_role"
 
   assume_role_policy = jsonencode({
     Version: "2012-10-17",
@@ -25,30 +25,30 @@ resource "aws_iam_role" "{{ resource_name }}_microservice" {
    ]
   })
 }
-data "aws_iam_role" "{{ resource_name }}_microservice" {
+data "aws_iam_role" "{{ resource_name }}_cws" {
   provider = aws.{{ resource_name }}
   count = local.{{ resource_name }}_when_stage
-  name = "{{ resource_name }}_microservice_role"
+  name = "{{ resource_name }}_cws_role"
 }
 
 resource "aws_iam_role_policy_attachment" "{{ resource_name }}_s3" {
   provider = aws.{{ resource_name }}
   count = local.{{ resource_name }}_when_default
-  role = join("", aws_iam_role.{{ resource_name }}_microservice.*.name)
+  role = join("", aws_iam_role.{{ resource_name }}_cws.*.name)
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
 }
 
 resource "aws_iam_role_policy_attachment" "{{ resource_name }}_cloud_watch" {
   provider = aws.{{ resource_name }}
   count = local.{{ resource_name }}_when_default
-  role = join("", aws_iam_role.{{ resource_name }}_microservice.*.name)
+  role = join("", aws_iam_role.{{ resource_name }}_cws.*.name)
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
 }
 
 resource "aws_iam_role_policy_attachment" "{{ resource_name }}_xray" {
   provider = aws.{{ resource_name }}
   count = local.{{ resource_name }}_when_default
-  role = join("", aws_iam_role.{{ resource_name }}_microservice.*.name)
+  role = join("", aws_iam_role.{{ resource_name }}_cws.*.name)
   policy_arn = "arn:aws:iam::aws:policy/AWSXrayFullAccess"
 }
 
@@ -56,7 +56,7 @@ resource "aws_iam_role_policy" "{{ resource_name }}_vpc" {
   provider = aws.{{ resource_name }}
   count = local.{{ resource_name }}_when_default
   name = "{{ resource_name }}_vpc"
-  role = join("", aws_iam_role.{{ resource_name }}_microservice.*.name)
+  role = join("", aws_iam_role.{{ resource_name }}_cws.*.name)
   policy = jsonencode({
     Version: "2012-10-17",
     Statement: [
@@ -83,7 +83,7 @@ resource "aws_iam_role_policy" "{{ resource_name }}_destination" {
   provider = aws.{{ resource_name }}
   count = local.{{ resource_name }}_when_default
   name = "{{ resource_name }}_destination"
-  role = join("", aws_iam_role.{{ resource_name }}_microservice.*.name)
+  role = join("", aws_iam_role.{{ resource_name }}_cws.*.name)
   policy = jsonencode({
     Version: "2012-10-17",
     Statement: [
