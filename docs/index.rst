@@ -99,7 +99,7 @@ Coworks microservices are divided in two categories :
 **Small technical microservice**
 
   Implemented as a simple AWS Lambda function, this kind of microservice is dedicated to technical
-  operations over a specific service.
+  operations over a specific service. Technical miscroservice should be stateless.
 
 
 **Functional business microservice**
@@ -111,8 +111,10 @@ Coworks microservices are divided in two categories :
 Distinction between ``TechMicroservice`` and ``BizMicroservice`` is based not only on granularity size but also:
 
 * A ``TechMicroservice`` should only be used as receivers of orders coming from ``BizMicroservices``.
-* A ``BizMicroservice`` represents a logical workflow of actions while a MicroService represents a simple concrete action.
-* A ``TechMicroservice`` is an independant microservice while a ``BizMicroservice`` is connected to event handlers (cron, notification, event, ...).
+* A ``BizMicroservice`` represents a logical workflow of actions while a MicroService represents a simple concrete
+action.
+* A ``TechMicroservice`` is an independant microservice while a ``BizMicroservice`` is connected to event handlers
+(cron, notification, event, ...).
 * A ``TechMicroservice`` is more a handler pattern and ``BizMicroservice`` a reactor pattern.
 
 Code oriented tools

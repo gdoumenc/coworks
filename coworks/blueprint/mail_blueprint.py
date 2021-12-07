@@ -1,5 +1,4 @@
 import smtplib
-from dataclasses import dataclass
 from email import message
 
 import os
@@ -13,7 +12,6 @@ from werkzeug.datastructures import FileStorage
 
 from coworks import Blueprint
 from coworks import entry
-from coworks.utils import FileParam
 
 
 #
@@ -129,22 +127,3 @@ class Mail(Blueprint):
             return "Wrong username/password : cannot connect.", 400
         except Exception as e:
             return f"Cannot send email message (Error: {str(e)}).", 400
-
-
-#
-# PROXY PART
-#
-
-@dataclass
-class MailProxyData:
-    subject = ""
-    from_addr: str = None
-    from_name: str = ''
-    to_addrs: [str] = None
-    cc_addrs: [str] = None
-    bcc_addrs: [str] = None
-    body: str = ""
-    attachments: [FileParam] = None
-    attachment_urls: dict = None
-    subtype: str = "plain"
-    starttls: bool = True

@@ -1,24 +1,25 @@
+from dataclasses import dataclass
+
+import boto3
+import click
 import inspect
 import subprocess
 import sys
 import typing as t
-from dataclasses import dataclass
-from functools import cached_property
-from pathlib import Path
-from shutil import copy
-from subprocess import CalledProcessError
-from subprocess import CompletedProcess
-
-import boto3
-import click
 from flask.cli import pass_script_info
 from flask.cli import with_appcontext
+from functools import cached_property
 from jinja2 import BaseLoader
 from jinja2 import Environment
 from jinja2 import PackageLoader
 from jinja2 import select_autoescape
+from pathlib import Path
+from shutil import copy
+from subprocess import CalledProcessError
+from subprocess import CompletedProcess
 from werkzeug.routing import Rule
 
+from .exception import ExitCommand
 from .utils import progressbar
 from .zip import zip_command
 
@@ -162,7 +163,7 @@ class TerraformLocal:
         data = {
             'api_resources': self.api_resources,
             'app': self.app,
-            'app_import_path': self.info.app_import_path.replace(':', '.') if self.info.app_import_path else "app.app",
+            'app_import_path': self.info.app_import_path,
             'aws_region': boto3.Session(profile_name=options['profile_name']).region_name,
             'description': inspect.getdoc(self.app) or "",
             'environment_variables': config.environment_variables,
@@ -225,7 +226,10 @@ class RemoteTerraform(TerraformLocal):
 
     def apply(self, workspace=None) -> None:
         if not (self.working_dir / '.terraform').exists():
-            self.init()
+            try:
+                self.init()
+            except CalledProcessError:
+                raise ExitCommand("Cannot init terraform: perhaps variables are not defined on terraform cloud.")
         self._execute(['apply', '-auto-approve'])
 
 
@@ -346,6 +350,12 @@ def deploy_command(info, ctx, output, terraform_class=TerraformLocal, **options)
                 bar.terminate(msg)
                 return
 
+            info.app_import_path = info.app_import_path.replace(':', '.') if info.app_import_path else "app.app"
+            if '.' not in info.app_import_path:
+                msg = f"FLASK_APP must be in form 'module:variable' but is {info.app_import_path}."
+                bar.terminate(msg)
+                return
+
             terraform = terraform_class(info, bar, **root_command_params, **options)
             if output:  # Stop if only print output
                 bar.terminate(f"terraform output : {terraform.output()}")
@@ -383,6 +393,9 @@ def deploy_command(info, ctx, output, terraform_class=TerraformLocal, **options)
 
             # Traces output
             bar.terminate(f"terraform output :\n{terraform.output()}")
+        except ExitCommand as e:
+            bar.terminate(e.msg)
+            raise
         except Exception:
             bar.terminate()
             raise

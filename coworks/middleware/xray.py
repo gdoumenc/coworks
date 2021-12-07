@@ -1,9 +1,9 @@
 import traceback
-import typing as t
-from functools import partial, update_wrapper
 
+import typing as t
 from aws_xray_sdk import global_sdk_config
 from aws_xray_sdk.core import patch_all
+from functools import partial, update_wrapper
 
 from coworks.globals import aws_context
 from coworks.globals import aws_event

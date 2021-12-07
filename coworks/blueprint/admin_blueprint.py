@@ -1,17 +1,17 @@
 import inspect
 import os
 import sys
-from inspect import Parameter
-
 from flask import current_app
 from flask import json
+from inspect import Parameter
 from jinja2 import Environment
 from jinja2 import PackageLoader
 from jinja2 import select_autoescape
 
 from coworks import Blueprint
 from coworks import entry
-from coworks.globals import aws_event, aws_context
+from coworks.globals import aws_context
+from coworks.globals import aws_event
 
 
 class Admin(Blueprint):

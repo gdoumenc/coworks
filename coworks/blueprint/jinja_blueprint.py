@@ -16,7 +16,7 @@ class Jinja(Blueprint):
 
     @entry
     def post_render(self, template="", **context):
-        """Returns the list of entrypoints with signature."""
+        """Returns the templating result."""
         if type(template) == FileStorage:
             template = t.cast(FileStorage, template).stream.read().decode()
         template = Template(template, autoescape=self.autoescape)

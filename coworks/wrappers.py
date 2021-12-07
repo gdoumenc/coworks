@@ -1,5 +1,4 @@
 import typing as t
-
 from flask import Request as FlaskRequest
 from flask import Response as FlaskResponse
 

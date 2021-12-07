@@ -16,10 +16,10 @@ class OktaClient(Client):
 
     @xray_recorder.capture()
     async def next(self, next):
-        request, error = await self._request_executor.create_request("GET", next, {}, {})
+        req, error = await self._request_executor.create_request("GET", next, {}, {})
         if error:
             return None, error
-        response, error = await self._request_executor.execute(request)
+        response, error = await self._request_executor.execute(req)
         try:
             result = []
             for item in response.get_body():

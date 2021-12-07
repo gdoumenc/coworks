@@ -1,15 +1,15 @@
+import sysconfig
+
 import base64
+import click
 import functools
 import hashlib
 import importlib
 import os
-import sysconfig
 import tempfile
+from flask.cli import pass_script_info
 from pathlib import Path
 from shutil import copyfile, copytree, ignore_patterns, make_archive
-
-import click
-from flask.cli import pass_script_info
 
 from .utils import progressbar
 from .. import aws
@@ -61,8 +61,10 @@ def zip_command(info, ctx, bucket, dry, hash, ignore, module_name, key, profile_
                     raise click.exceptions.UsageError(msg)
             except (Exception,):
                 pass
+
             copytree(project_dir, str(tmp_path / 'filtered_dir'),
                      ignore=full_ignore_patterns('*cws.yml', 'env_variables*'))
+
             for name in module_name:
                 if name.endswith(".py"):
                     file_path = Path(sysconfig.get_path('purelib')) / name
@@ -72,42 +74,34 @@ def zip_command(info, ctx, bucket, dry, hash, ignore, module_name, key, profile_
                     module_path = Path(mod.__file__).resolve().parent
                     copytree(module_path, str(tmp_path / f'filtered_dir/{name}'), ignore=full_ignore_patterns())
             module_archive = make_archive(str(tmp_path / 'sources'), 'zip', str(tmp_path / 'filtered_dir'))
-            bar.update()
+            bar.update(msg=f"Sources is {int(os.path.getsize(module_archive) / 1000)} Kb" if debug else "")
 
             # Uploads archive on S3
-            with open(module_archive, 'rb') as archive:
-                b64sha256 = base64.b64encode(hashlib.sha256(archive.read()).digest())
-                archive.seek(0)
-                try:
-                    if not dry:
-                        if debug:
-                            bar.echo("Upload sources...")
+            if not dry:
+                with open(module_archive, 'rb') as archive:
+                    b64sha256 = base64.b64encode(hashlib.sha256(archive.read()).digest())
+                    archive.seek(0)
+                    try:
                         aws_s3_session.client.upload_fileobj(archive, bucket, key)
-                        if debug:
-                            bar.echo(f"Successfully uploaded sources at s3://{bucket}/{key}")
-                    if debug:
-                        bar.echo(f"Sources is {int(os.path.getsize(module_archive) / 1000)} Kb")
-                except Exception as e:
-                    bar.echo(f"Failed to upload module sources on S3 : {e}")
-                    raise e
-            bar.update()
+                    except Exception as e:
+                        bar.echo(f"Failed to upload module sources on S3 : {e}")
+                        raise e
+                bar.update(msg=f"Successfully uploaded sources at s3://{bucket}/{key}" if debug else "")
 
             # Creates hash value
-            if hash:
-                with tmp_path.with_name('b64sha256_file').open('wb') as b64sha256_file:
-                    b64sha256_file.write(b64sha256)
+            if not dry:
+                if hash:
+                    with tmp_path.with_name('b64sha256_file').open('wb') as b64sha256_file:
+                        b64sha256_file.write(b64sha256)
 
-                # Uploads archive hash value to bucket
-                with tmp_path.with_name('b64sha256_file').open('rb') as b64sha256_file:
-                    try:
-                        if not dry:
-                            if debug:
-                                bar.echo(f"Upload sources hash...")
+                    # Uploads archive hash value to bucket
+                    with tmp_path.with_name('b64sha256_file').open('rb') as b64sha256_file:
+                        try:
                             aws_s3_session.client.upload_fileobj(b64sha256_file, bucket, f"{key}.b64sha256",
                                                                  ExtraArgs={'ContentType': 'text/plain'})
-                            if debug:
-                                bar.echo(f"Successfully uploaded sources hash at s3://{bucket}/{key}.b64sha256")
-                    except Exception as e:
-                        click.echo(f"Failed to upload archive hash on S3 : {e}")
-                        raise e
-            bar.terminate()
+                        except Exception as e:
+                            bar.echo(f"Failed to upload archive hash on S3 : {e}")
+                            raise e
+
+                msg = f"Successfully uploaded sources hash at s3://{bucket}/{key}.b64sha256"
+                bar.update(msg=msg if debug and not dry else "")

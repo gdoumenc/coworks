@@ -1,11 +1,12 @@
-import os
-import typing as t
 from logging import WARNING, getLogger
-from pathlib import Path
 
 import anyconfig
 import click
+import os
+import typing as t
 from flask.cli import FlaskGroup
+from flask.cli import ScriptInfo
+from pathlib import Path
 
 from coworks import __version__
 from .deploy import deploy_command
@@ -57,6 +58,16 @@ class CoWorksGroup(FlaskGroup):
                     self.add_command(cmd, name)
 
         return ctx
+
+    def get_command(self, ctx, name):
+        """Wrapper to help debug import error."""
+        try:
+            info = ctx.ensure_object(ScriptInfo)
+            info.load_app()
+        except Exception as e:
+            if getattr(e, '__cause__'):
+                print(e.__cause__)
+        return super().get_command(ctx, name)
 
 
 @click.group(cls=CoWorksGroup)

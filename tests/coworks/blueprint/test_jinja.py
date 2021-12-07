@@ -2,14 +2,14 @@ from io import BytesIO
 
 from coworks import TechMicroService
 from coworks.blueprint.jinja_blueprint import Jinja
+from coworks.config import LocalConfig
 
 
 class JinjaMS(TechMicroService):
 
     def __init__(self):
-        super().__init__('jinja')
+        super().__init__('jinja', configs=LocalConfig())
         self.register_blueprint(Jinja())
-        self.any_token_authorized = True
 
 
 class TestClass:

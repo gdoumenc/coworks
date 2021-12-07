@@ -1,11 +1,10 @@
+from dataclasses import dataclass
+
 import base64
+import click
 import logging
 import os
 import typing as t
-from dataclasses import dataclass
-from functools import partial
-from inspect import isfunction
-
 from flask import Blueprint as FlaskBlueprint
 from flask import Flask
 from flask import abort
@@ -13,12 +12,15 @@ from flask import current_app
 from flask.blueprints import BlueprintSetupState
 from flask.ctx import RequestContext
 from flask.testing import FlaskClient
+from functools import partial
+from inspect import isfunction
 from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import InternalServerError
 from werkzeug.routing import Rule
 
 from .config import Config
 from .config import DEFAULT_DEV_WORKSPACE
+from .config import DEFAULT_LOCAL_WORKSPACE
 from .config import DevConfig
 from .config import LocalConfig
 from .config import ProdConfig
@@ -43,20 +45,28 @@ def entry(fun: t.Callable = None, binary: bool = False, content_type: str = None
             content_type = 'application/octet-stream'
         return partial(entry, binary=binary, content_type=content_type)
 
+    def get_path(start):
+        name_ = fun.__name__[start:]
+        name_ = trim_underscores(name_)  # to allow several functions with different args
+        return name_.replace('_', '/')
+
     name = fun.__name__.upper()
     for method in HTTP_METHODS:
-        fun.__CWS_METHOD = method
-        fun.__CWS_BINARY = binary
-        fun.__CWS_CONTENT_TYPE = content_type
         if name == method:
-            fun.__CWS_PATH = ''
-            return fun
+            path = ''
+            break
         if name.startswith(f'{method}_'):
-            name = fun.__name__[len(method) + 1:]
-            name = trim_underscores(name)  # to allow several functions with different args
-            fun.__CWS_PATH = name.replace('_', '/')
-            return fun
-    raise AttributeError(f"The function name {fun.__name__} doesn't start with a HTTP method name.")
+            path = get_path(len(f'{method}_'))
+            break
+    else:
+        method = 'POST'
+        path = get_path(0)
+
+    fun.__CWS_METHOD = method
+    fun.__CWS_PATH = path
+    fun.__CWS_BINARY = binary
+    fun.__CWS_CONTENT_TYPE = content_type
+    return fun
 
 
 def hide(fun: t.Callable) -> t.Callable:
@@ -160,13 +170,7 @@ class TechMicroService(Flask):
 
         @self.before_request
         def check_token():
-            if not request.in_lambda_context:
-                token = request.headers.get('Authorization', self.config.get('DEFAULT_TOKEN'))
-                if token is None:
-                    abort(401)
-                valid = self.token_authorizer(token)
-                if not valid:
-                    abort(403)
+            self._check_token()
 
     def app_context(self):
         """Override to initialize coworks microservice."""
@@ -194,6 +198,8 @@ class TechMicroService(Flask):
     def test_client(self, *args, **kwargs):
         """This client must be used only for testing."""
         self.testing = True
+        self._update_config(load_env=True, workspace=DEFAULT_LOCAL_WORKSPACE)
+
         return super().test_client(*args, **kwargs)
 
     @property
@@ -222,7 +228,10 @@ class TechMicroService(Flask):
         By default no entry are accepted for security reason.
         """
 
-        return self.any_token_authorized
+        workspace = self.config['WORKSPACE']
+        if workspace == DEFAULT_LOCAL_WORKSPACE:
+            return True
+        return token == os.getenv('TOKEN')
 
     def base64decode(self, data):
         """Base64 decode function used for lambda interaction."""
@@ -317,15 +326,25 @@ class TechMicroService(Flask):
         self._update_config(load_env=True)
         return self.wsgi_app(environ, start_response)
 
-    def _update_config(self, load_env: bool):
+    def _update_config(self, *, load_env: bool, workspace: str = None):
         if not self._cws_conf_updated:
-            workspace = os.environ.get('WORKSPACE', DEFAULT_DEV_WORKSPACE)
+            workspace = workspace or os.environ.get('WORKSPACE', DEFAULT_DEV_WORKSPACE)
+            if workspace == DEFAULT_LOCAL_WORKSPACE:
+                click.echo(f" * Workspace: {workspace}")
             config = self.get_config(workspace)
             self.config['WORKSPACE'] = config.workspace
-            self.config['DEFAULT_TOKEN'] = config.default_token
             if load_env:
                 config.load_environment_variables(self.root_path)
             self._cws_conf_updated = True
+
+    def _check_token(self):
+        if not request.in_lambda_context:
+            token = request.headers.get('Authorization', self.config.get('DEFAULT_TOKEN'))
+            if token is None:
+                abort(401)
+            valid = self.token_authorizer(token)
+            if not valid:
+                abort(403)
 
     def _get_kwargs(self, event):
         def is_json(mt):

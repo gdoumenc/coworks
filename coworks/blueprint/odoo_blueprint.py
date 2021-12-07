@@ -1,17 +1,14 @@
 import json
 import os
-from typing import List, Tuple, Union, Any
-
 import requests
+import typing as t
+import xmlrpc.client
 from aws_xray_sdk.core import xray_recorder
+from flask import Response
+from flask import abort
 
-from .. import Blueprint
-from ..error import NotFoundError, InternalServerError, BadRequestError
-
-Response = Tuple[dict, int]
-GetResponse = Tuple[Union[dict, List[dict]], int]
-Ids = List[int]
-Filters = List[Tuple[str, str, Any]]
+from coworks import Blueprint
+from coworks import entry
 
 
 class AccessDenied(Exception):
@@ -33,7 +30,7 @@ class Odoo(Blueprint):
                  env_passwd_var_name: str = '', env_var_prefix: str = '', **kwargs):
         super().__init__(name=name, **kwargs)
         self.url = self.dbname = self.user = self.passwd = None
-        self.session_id = None
+        self.uid = None
         if env_var_prefix:
             self.env_url_var_name = f"{env_var_prefix}_URL"
             self.env_dbname_var_name = f"{env_var_prefix}_DBNAME"
@@ -46,7 +43,7 @@ class Odoo(Blueprint):
             self.env_passwd_var_name = env_passwd_var_name
 
         @self.before_app_first_request
-        def check_env_vars(event, context):
+        def check_env_vars():
             self.url = os.getenv(self.env_url_var_name)
             if not self.url:
                 raise EnvironmentError(f'{self.env_url_var_name} not defined in environment.')
@@ -60,167 +57,146 @@ class Odoo(Blueprint):
             if not self.passwd:
                 raise EnvironmentError(f'{self.env_passwd_var_name} not defined in environment.')
 
+            common = xmlrpc.client.ServerProxy(f'{self.url}/xmlrpc/2/common')
+            self.uid = common.authenticate(self.dbname, self.user, self.passwd, {})
+
         @self.before_app_request
-        def set_session(event, context):
-            self.session_id, status_code = self._get_session_id()
+        def set_session():
+            if not self.uid:
+                abort(403)
 
-        @self.after_app_request
-        def destroy_session(response):
-            self.session_id = self._destroy_session()
+            # TO BE REMOVED
+            self.session_id, status_code = self.get_session_id_old()
 
-    def get(self, model: str, query: str = "{*}", order: str = None, filters: Filters = None,
-            limit: int = 300, page_size=None, page=0, ensure_one=False) -> GetResponse:
-        """Searches for records based on the args.
+    @entry
+    def kw(self, model: str, method: str = "search_read", id: t.Union[int, str] = None, fields: t.List[str] = None,
+           order: str = None, domain: t.List[t.Tuple[str, str, t.Any]] = None, limit: int = 300, page_size=None, page=0,
+           ensure_one=False):
+        """Searches with API for records based on the args.
         See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.search
         @param model: python as a dot separated class name.
-        @param query: graphQL notation for result.
+        @param method : API method name
+        @param id : id for one element
+        @param fields: record fields for result.
         @param order: oder of result.
-        @param filters: filter for records.
+        @param domain: domain for records.
         @param limit: maximum number of records to return from odoo (default: all).
         @param page_size: pagination done by the microservice.
         @param page: current page searched.
         @param ensure_one: raise error if result is not one (404) and only one (400) object.
         """
-        params = {'query': query, 'limit': limit}
-        if order:
-            params.update({'order': order})
-        if filters:
-            params.update({'filters': json.dumps(filters)})
-        if page_size:
-            params.update({'page_size': page_size})
-        if page:
-            params.update({'page': page})
-        res, status_code = self.odoo_get(f'{self.url}/api/{model}', params)
-        if status_code == 200:
-            if ensure_one:
-                if len(res['result']) == 0:
-                    raise NotFoundError(f"Nothing found for {model} with {filters} [Odoo blueprint {self.name}]")
-                if len(res['result']) > 1:
-                    raise BadRequestError("More than one result")
-                else:
-                    return res['result'][0], 200
-            return res['result'], 200
-        if status_code == 500:
-            raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
-        return res, status_code
+        if id and domain:
+            abort(Response("Domain and Id parameters cannot be defined tin same time", status=400))
 
-    def get_(self, model: str, rec_id: int, query="{*}") -> Response:
-        """Searches for one record based on its id.
-        @param model: python as a dot separated class name.
-        @param rec_id: id of the record.
-        @param query: graphQL notation for result.
+        if id:
+            domain = [[('id', '=', id)]]
+            params = {}
+        else:
+            domain = domain if domain else [[]]
+            params = {'limit': limit}
+            if order:
+                params.update({'order': order})
+            if page:
+                page_size = page_size or limit
+                params.update({'offset': page * page_size})
+        if fields:
+            params.update({'fields': fields})
+        res, status_code = self.odoo_execute_kw(model, method, domain, params)
+        if status_code != 200:
+            abort(status_code)
+        if len(res) == 0:
+            return "Not found", 404
+        if ensure_one:
+            if len(res) > 1:
+                return "More than one element found and ensure_one parameters was set", 404
+            return res[0], 200
+        return {"ids": [rec['id'] for rec in res], "values": res}, 200
+
+    @entry
+    def gql(self, query: str = None):
+        """Searches with GraphQL query for records based on the query.
+        @param query: graphQL query.
         """
-        params = {'query': query}
-        res, status_code = self.odoo_get(f'{self.url}/api/{model}/{rec_id}', params)
-        if status_code == 500:
-            raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
-        return res, status_code
+        if not query:
+            abort(400)
+        res, status_code = self.odoo_execute_gql({'query': query})
+        if status_code != 200:
+            abort(status_code)
+        return res, 200
 
-    def get_call(self, model: str):
-        return "Not done", 500
-
-    def get_call_(self, model: str, rec_id: int, function, *args, **kwargs) -> Response:
-        """Call a class function on a record.
-        @param model: python as a dot separated class name.
-        @param rec_id: id of the record.
-        @param function: name of the function.
-        @param args: args for the function call.
-        @param kwargs: kwargs for the function call.
-        """
-        params = {'params': {'args': json.dumps(args) if args else '[]',
-                             'kwargs': json.dumps(kwargs) if kwargs else '{}'}}
-        res, status_code = self.odoo_post(f"{self.url}/object/{model}/{rec_id}/{function}", params=params)
-        if status_code == 200:
-            return res['result'], 200
-        if status_code == 500:
-            raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
-        return res, status_code
-
-    def get_pdf(self, report_id: int, rec_ids: Ids) -> Response:
-        """Returns the PDF document attached to a report.
-        @param report_id: id of the record.
-        @param rec_ids: records needed to generate the report.
-        """
-        params = {'params': {'res_ids': json.dumps(rec_ids)}}
-        res, status_code = self.odoo_post(f"{self.url}/report/{report_id}", params=params)
-        if status_code == 200:
-            return res['result'], 200
-        if status_code == 500:
-            raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
-        return res, status_code
-
-    def post(self, model: str, data=None, context=None) -> Response:
+    @entry
+    def create(self, model: str, data: t.List[dict] = None):
         """Creates new records for the model..
         See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.create
         @param model: python as a dot separated class name.
-        @param data: fields to initialize and the value to set on them.
-        @param context: fields to initialize and the value to set on them.
+        @param data: fields, as a list of dictionaries, to initialize and the value to set on them.
         See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.with_context
         """
-        params = {'params': {'data': data or {}}}
-        if context:
-            params.update({'context': context})
-        res, status_code = self.odoo_post(f"{self.url}/api/{model}", params=params)
-        if status_code == 200:
-            return res['result'], 200
-        if status_code == 500:
-            raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
-        return res, status_code
+        return self.odoo_execute_kw(model, "create", data)
 
-    def put(self, model: str, rec_id: int, data=None) -> Response:
+    @entry
+    def write(self, model: str, data: t.Tuple[t.List[int], dict] = None) -> Response:
         """Updates one record with the provided values.
         See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.write
         @param model: python as a dot separated class name.
         @param rec_id: id of the record.
         @param data: fields to update and the value to set on them.
         """
-        params = {'params': {'data': data or {}}}
-        res, status_code = self.odoo_put(f'{self.url}/api/{model}/{rec_id}', params)
-        if status_code == 500:
-            raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
-        return res, status_code
+        return self.odoo_execute_kw(model, "write", data)
 
-    def put_(self, model: str, filters: Filters = None, data=None) -> Response:
-        """Updates all records in the current set with the provided values (bulk update).
-        See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.write
-        @param model: python as a dot separated class name.
-        @param filters: filter for records.
-        @param data: fields to update and the value to set on them.
-        """
-        params = {'params': {'data': data or {}}}
-        if filters:
-            params.update({'filter': filters})
-        res, status_code = self.odoo_put(f'{self.url}/api/{model}', params)
-        if status_code == 500:
-            raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
-        return res, status_code
-
-    def delete(self, model: str, rec_id: int) -> Response:
+    @entry
+    def delete_(self, model: str, rec_id: int) -> Response:
         """delete the record.
         See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.unlink
         @param model: python as a dot separated class name.
         @param rec_id: id of the record.
         """
         res, status_code = self.odoo_delete(f'{self.url}/api/{model}/{rec_id}')
-        if status_code == 500:
-            raise InternalServerError(f"{res}  [Odoo blueprint {self.name}]")
-        return res, status_code
+        if status_code == 200:
+            return res['result'], 200
+        abort(status_code)
+
+    @entry
+    def get_pdf(self, report_id: int, rec_ids: t.List[str]):
+        """Returns the PDF document attached to a report.
+        @param report_id: id of the record.
+        @param rec_ids: records needed to generate the report.
+        """
+        params = {'params': {'res_ids': json.dumps(rec_ids)}}
+        res, status_code = self.odoo_post_old(f"{self.url}/report/{report_id}", params=params)
+        if status_code == 200:
+            return res['result'], 200
+        abort(status_code)
 
     @xray_recorder.capture()
-    def odoo_get(self, path, params, headers=None):
-        params.update({'jsonrpc': "2.0", 'session_id': self.session_id})
-        headers = headers or {}
-        res = requests.get(path, params=params, headers=headers)
+    def odoo_execute_kw(self, model, method, *args, **kwargs):
+        """Standard externalm API entries.
+        See also: https://www.odoo.com/documentation/15.0/developer/misc/api/odoo.html
+        """
+        models = xmlrpc.client.ServerProxy(f'{self.url}/xmlrpc/2/object')
+        res = models.execute_kw(self.dbname, self.uid, self.passwd, model, method, *args, **kwargs)
+        return res, 200
+
+    @xray_recorder.capture()
+    def odoo_execute_gql(self, query, **kwargs):
+        """GraphQL entry defined.
+        See also: https://apps.odoo.com/apps/modules/12.0/graphql_base/
+        """
+        headers = {"Authorization": self.passwd, "Content-Type": "application/json"}
+        res = requests.post(f'{self.url}/graphql', json=query, headers=headers)
+        return res.json(), 200
+
+    def _get_uid(self):
+        """Open or checks the connection."""
         try:
-            result = res.json()
-            if 'error' in result:
-                return f"{result['message']}: {result['data']}", 404
-            return result, res.status_code
-        except (json.decoder.JSONDecodeError, Exception):
-            return res.text, 500
+            common = xmlrpc.client.ServerProxy(f'{self.url}/xmlrpc/2/common')
+            uid = common.authenticate(self.dbname, self.user, self.passwd, {})
+            return uid, 200
+        except Exception as e:
+            return str(e), 401
 
-    @xray_recorder.capture()
-    def odoo_post(self, path, params, headers=None) -> Tuple[Union[str, dict], int]:
+    # TO BE REMOVED
+    def odoo_post_old(self, path, params, headers=None) -> t.Tuple[t.Union[str, dict], int]:
         _params = {'jsonrpc': "2.0", 'session_id': self.session_id}
         headers = headers or {}
         res = requests.post(path, params=_params, json=params, headers=headers)
@@ -232,33 +208,8 @@ class Odoo(Blueprint):
         except (json.decoder.JSONDecodeError, Exception):
             return res.text, 500
 
-    @xray_recorder.capture()
-    def odoo_put(self, path, params, headers=None) -> Tuple[Union[str, dict], int]:
-        _params = {'jsonrpc': "2.0", 'session_id': self.session_id}
-        headers = headers or {}
-        res = requests.put(path, params=_params, json=params, headers=headers)
-        try:
-            result = res.json()
-            if 'error' in result:
-                return f"{result['error']['message']}:{result['error']['data']}", 404
-            return result, res.status_code
-        except (json.decoder.JSONDecodeError, Exception):
-            return res.text, 500
-
-    @xray_recorder.capture()
-    def odoo_delete(self, path, headers=None) -> Tuple[Union[str, dict], int]:
-        _params = {'jsonrpc': "2.0", 'session_id': self.session_id}
-        headers = headers or {}
-        res = requests.delete(path, params=_params, headers=headers)
-        try:
-            result = res.json()
-            if 'error' in result:
-                return f"{result['error']['message']}:{result['error']['data']}", 404
-            return result, res.status_code
-        except (json.decoder.JSONDecodeError, Exception):
-            return res.text, 500
-
-    def _get_session_id(self):
+    # TO BE REMOVED
+    def get_session_id_old(self):
         """Open or checks the connection."""
         try:
             data = {
@@ -279,25 +230,4 @@ class Odoo(Blueprint):
             if data['result']['session_id']:
                 return res.cookies["session_id"], 200
         except Exception as e:
-            return str(e), 401
-
-    def _destroy_session(self):
-        """Closes the connection."""
-        try:
-            data = {
-                'jsonrpc': "2.0",
-                'params': {
-                    'db': self.dbname,
-                    'login': self.user,
-                    'password': self.passwd,
-                }
-            }
-            res = requests.post(
-                f'{self.url}/web/session/destroy/',
-                data=json.dumps(data),
-                headers={'Content-type': 'application/json'}
-            )
-
-            return "", 200
-        except Exception as e:
-            return str(e), 401
+            raise AccessDenied()

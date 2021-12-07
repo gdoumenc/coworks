@@ -1,7 +1,6 @@
-from pathlib import Path
-from shutil import copyfile
-
 import click
+from distutils.dir_util import copy_tree
+from pathlib import Path
 
 from .utils import progressbar
 
@@ -24,21 +23,14 @@ def new_command(ctx, force) -> None:
         bar.update()
 
         # Copy project configuration file
-        src = project_templates / 'project.cws.yml'
-        dest = project_dir / 'project.cws.yml'
+        src = project_templates
+        dest = project_dir
 
         if dest.exists() and not force:
             bar.terminate("Project already created. Set 'force' option for recreation.")
             return
 
-        copyfile(src, dest)
-        bar.update()
-
-        # Copy main app service
-        src = project_templates / 'app.py'
-        dest = project_dir / 'app.py'
-
-        copyfile(src, dest)
+        copy_tree(src.as_posix(), dest.as_posix())
         bar.update()
 
         if debug:
