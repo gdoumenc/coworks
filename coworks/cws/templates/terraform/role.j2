@@ -1,5 +1,5 @@
 locals {
-  {{ resource_name }}_role_arn = join("", aws_iam_role.{{ resource_name }}_microservice.*.arn, data.aws_iam_role.{{ resource_name }}_microservice.*.arn)
+  {{ resource_name }}_role_arn = join("", aws_iam_role.{{ resource_name }}_cws.*.arn, data.aws_iam_role.{{ resource_name }}_cws.*.arn)
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
