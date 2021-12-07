@@ -1,18 +1,20 @@
+import traceback
+
 import importlib
 import inspect
 import os
 import platform
 import sys
-import traceback
-from functools import partial
-from functools import update_wrapper
-
 from flask import make_response
 from flask.blueprints import BlueprintSetupState
+from functools import partial
+from functools import update_wrapper
+from werkzeug.datastructures import Headers
 from werkzeug.exceptions import BadRequest
 from werkzeug.exceptions import BadRequestKeyError
 
 from .globals import request
+from .wrappers import ApiResponse
 
 HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
 
@@ -48,7 +50,7 @@ def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
                 entry_path = path_join(entry_path, f"/<{arg}>")
             kwarg_keys = {}
 
-        proxy = _create_rest_proxy(scaffold, fun, kwarg_keys, args, varkw)
+        proxy = create_rest_proxy(scaffold, fun, kwarg_keys, args, varkw)
         proxy.__CWS_BINARY = getattr(fun, '__CWS_BINARY', False)
         proxy.__CWS_CONTENT_TYPE = getattr(fun, '__CWS_CONTENT_TYPE')
 
@@ -62,7 +64,7 @@ def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
         app.add_url_rule(rule=rule, view_func=proxy, methods=[method], endpoint=endpoint)
 
 
-def _create_rest_proxy(scaffold, func, kwarg_keys, args, varkw):
+def create_rest_proxy(scaffold, func, kwarg_keys, args, varkw):
     def proxy(**kwargs):
         try:
             # Adds kwargs parameters
@@ -96,7 +98,7 @@ def _create_rest_proxy(scaffold, func, kwarg_keys, args, varkw):
                     try:
                         if request.is_json:
                             data = request.get_data()
-                            if not data :
+                            if not data:
                                 kwargs[kwarg_keys[0]] = {}
                             else:
                                 data = request.json
@@ -229,6 +231,36 @@ def get_system_info():
     platform_release = platform.release()
     platform_info = f"{platform_system} {platform_release}"
     return f"{flask_info}, {python_info}, {platform_info}"
+
+
+def check_success(resp):
+    def is_success(code):
+        return 200 <= code < 300
+
+    # the body must not be None
+    if resp is None:
+        return False
+
+    # unpack tuple returns
+    if isinstance(resp, tuple):
+        len_rv = len(resp)
+
+        # a 3-tuple is unpacked directly
+        if len_rv == 3:
+            return is_success(resp[1])
+        # decide if a 2-tuple has status or headers
+        if len_rv == 2:
+            if not isinstance(resp[1], (Headers, dict, tuple, list)):
+                return is_success(resp[1])
+            return True
+        # other sized tuples are not allowed
+        return False
+
+    # make sure the body is an instance of the response class
+    if isinstance(resp, ApiResponse):
+        return is_success(resp.status_code)
+
+    return True
 
 
 class FileParam:
