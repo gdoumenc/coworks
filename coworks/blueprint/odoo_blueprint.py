@@ -1,14 +1,14 @@
 import json
 import os
-import requests
 import typing as t
 import xmlrpc.client
-from aws_xray_sdk.core import xray_recorder
-from flask import Response
-from flask import abort
 
+import requests
+from aws_xray_sdk.core import xray_recorder
 from coworks import Blueprint
 from coworks import entry
+from flask import Response
+from flask import abort
 
 
 class AccessDenied(Exception):
@@ -135,14 +135,14 @@ class Odoo(Blueprint):
         return self.odoo_execute_kw(model, "create", data)
 
     @entry
-    def write(self, model: str, data: t.Tuple[t.List[int], dict] = None) -> Response:
+    def write(self, model: str, id: t.Union[int, str], data: dict = None) -> Response:
         """Updates one record with the provided values.
         See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.write
         @param model: python as a dot separated class name.
-        @param rec_id: id of the record.
+        @param id: id of the record.
         @param data: fields to update and the value to set on them.
         """
-        return self.odoo_execute_kw(model, "write", data)
+        return self.odoo_execute_kw(model, "write", [[id], data])
 
     @entry
     def delete_(self, model: str, rec_id: int) -> Response:

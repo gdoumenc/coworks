@@ -98,7 +98,7 @@ class ProjectConfig:
 
     @property
     def all_commands(self):
-        """ Returns the list of microservices on which the command will be executed."""
+        """ Returns the list of commands defined for this microservice."""
         return self.params.get('commands', {})
 
     @staticmethod
