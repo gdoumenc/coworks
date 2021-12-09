@@ -261,15 +261,3 @@ def check_success(resp):
         return is_success(resp.status_code)
 
     return True
-
-
-class FileParam:
-
-    def __init__(self, file, mime_type):
-        self.file = file
-        self.mime_type = mime_type
-
-    def __repr__(self):
-        if self.mime_type:
-            return f'FileParam({self.file.name}, {self.mime_type})'
-        return f'FileParam({self.file.name})'

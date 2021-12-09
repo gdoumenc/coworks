@@ -65,7 +65,6 @@ class TerraformLocal:
     def __init__(self, info, bar, **options):
         self.info = info
         self.bar = bar
-        self.app = self.info.load_app()
         self.working_dir = Path(options['terraform_dir'])
         self.working_dir.mkdir(exist_ok=True)
 
@@ -100,6 +99,10 @@ class TerraformLocal:
             self._execute(["workspace", "select", workspace])
         except CalledProcessError:
             self._execute(["workspace", "new", workspace])
+
+    @cached_property
+    def app(self):
+        return self.info.load_app()
 
     @property
     def api_resources(self):
@@ -327,6 +330,7 @@ class TerraformCloud:
 @click.option('--output', '-o', is_flag=True, help="Print terraform output values.")
 @click.option('--python', '-p', type=click.Choice(['3.7', '3.8']), default='3.8',
               help="Python version for the lambda.")
+@click.option('--source', help="Header identification token source.")
 @click.option('--timeout', default=60)
 @click.option('--terraform-dir', default="terraform")
 @click.pass_context
@@ -396,6 +400,21 @@ def deploy_command(info, ctx, output, terraform_class=TerraformLocal, **options)
         except ExitCommand as e:
             bar.terminate(e.msg)
             raise
+        except Exception:
+            bar.terminate()
+            raise
+
+
+@click.command("deployed", short_help="Retrive the CoWorks microservice on AWS Lambda deployed for this project.")
+@click.option('--terraform-dir', default="terraform")
+@click.pass_context
+@pass_script_info
+def deployed_command(info, ctx, terraform_class=TerraformLocal, **options) -> None:
+    root_command_params = ctx.find_root().params
+    with progressbar(label='Getting information', threaded=True) as bar:
+        try:
+            terraform = terraform_class(info, bar, **root_command_params, **options)
+            bar.terminate(f"terraform output : {terraform.output()}")
         except Exception:
             bar.terminate()
             raise
