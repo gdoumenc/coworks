@@ -405,13 +405,13 @@ def deploy_command(info, ctx, output, terraform_class=TerraformLocal, **options)
             raise
 
 
-@click.command("deployed", short_help="Retrive the CoWorks microservice on AWS Lambda deployed for this project.")
+@click.command("deployed", short_help="Retrieve the microservices deployed for this project.")
 @click.option('--terraform-dir', default="terraform")
 @click.pass_context
 @pass_script_info
 def deployed_command(info, ctx, terraform_class=TerraformLocal, **options) -> None:
     root_command_params = ctx.find_root().params
-    with progressbar(label='Getting information', threaded=True) as bar:
+    with progressbar(label='Retrieving information', threaded=True) as bar:
         try:
             terraform = terraform_class(info, bar, **root_command_params, **options)
             bar.terminate(f"terraform output : {terraform.output()}")
