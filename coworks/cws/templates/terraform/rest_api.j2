@@ -66,8 +66,13 @@ resource "aws_api_gateway_method" "{{ resource_name }}_{{ uid }}_{{ method }}" {
   resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
   {%- endif %}
   http_method = "{{ method }}"
+  {%- if resource.no_auth %}
+  authorization = "NONE"
+  {%- else %}
   authorization = "CUSTOM"
   authorizer_id = aws_api_gateway_authorizer.{{ resource_name }}[0].id
+  {%- endif %}
+
   request_parameters = {
     "method.request.header.InvocationType" = false
     "method.request.header.Accept" = false
@@ -128,6 +133,12 @@ resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_{
       #set($context.responseOverride.status=$inputRoot.statusCode)
       #set($context.responseOverride.header=$inputRoot.headers)
       $input.json('$.body')
+    EOF
+    "text/html" = <<-EOF
+      #set($inputRoot = $input.path('$'))
+      #set($context.responseOverride.status=$inputRoot.statusCode)
+      #set($context.responseOverride.header=$inputRoot.headers)
+      $inputRoot.body
     EOF
   }
   {%- endif %}

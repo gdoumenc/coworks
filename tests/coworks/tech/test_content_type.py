@@ -34,6 +34,10 @@ class ContentMS(TechMicroService):
     def get_content_type(self):
         return b"test"
 
+    @entry(binary=True, no_auth=True)
+    def get_no_auth(self):
+        return b"test"
+
 
 class TestClass:
     def test_default_content_type(self):

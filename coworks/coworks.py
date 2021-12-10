@@ -38,12 +38,17 @@ from .wrappers import TokenResponse
 #
 
 
-def entry(fun: t.Callable = None, binary: bool = False, content_type: str = None) -> t.Callable:
-    """Decorator to create a microservice entry point from function name."""
+def entry(fun: t.Callable = None, binary: bool = False, content_type: str = None, no_auth: bool = False) -> t.Callable:
+    """Decorator to create a microservice entry point from function name.
+    :param fun: the entry function.
+    :param binary: allow payload without transformation.
+    :param content_type: force default content-type.
+    :param no_auth: set authorizer.
+    """
     if fun is None:
         if binary and not content_type:
             content_type = 'application/octet-stream'
-        return partial(entry, binary=binary, content_type=content_type)
+        return partial(entry, binary=binary, content_type=content_type, no_auth=no_auth)
 
     def get_path(start):
         name_ = fun.__name__[start:]
@@ -66,6 +71,8 @@ def entry(fun: t.Callable = None, binary: bool = False, content_type: str = None
     fun.__CWS_PATH = path
     fun.__CWS_BINARY = binary
     fun.__CWS_CONTENT_TYPE = content_type
+    fun.__CWS_NO_AUTH = no_auth
+
     return fun
 
 

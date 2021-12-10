@@ -115,6 +115,7 @@ class TerraformLocal:
             if rule_:
                 view_function = self.app.view_functions.get(rule_.endpoint)
                 resource.binary = getattr(view_function, '__CWS_BINARY', False)
+                resource.no_auth = getattr(view_function, '__CWS_NO_AUTH', False)
 
             # Creates the terraform ressource if doesn't exist.
             uid = resource.uid
