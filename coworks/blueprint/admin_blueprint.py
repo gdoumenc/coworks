@@ -1,3 +1,5 @@
+from distutils.util import strtobool
+
 import inspect
 import os
 import sys
@@ -20,14 +22,23 @@ class Admin(Blueprint):
         super().__init__(name=name, **kwargs)
 
     @entry
-    def get_route(self, pretty=False):
-        """Returns the list of entrypoints with signature."""
+    def get_route(self, pretty=False, blueprint=False):
+        """Returns the list of entrypoints with signature.
+        :param pretty: Pretty print result if defiend.
+        :param blueprint: Show blueprint routes if defined.
+        """
+        pretty = strtobool(pretty or 'no')
+        blueprint = strtobool(blueprint or 'no')
         routes = {}
         for rule in current_app.url_map.iter_rules():
             route = {}
+
+            function_called = current_app.view_functions[rule.endpoint]
+            if not blueprint and getattr(function_called, '__CWS_FROM_BLUEPRINT', False):
+                continue
+
             for http_method in rule.methods:
                 if http_method not in ['HEAD', 'OPTIONS']:
-                    function_called = current_app.view_functions[rule.endpoint]
                     doc = inspect.getdoc(function_called)
                     route[http_method] = {
                         'doc': doc.replace('\n', ' ') if doc else '',

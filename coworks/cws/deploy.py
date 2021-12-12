@@ -397,7 +397,8 @@ def deploy_command(info, ctx, output, terraform_class=TerraformLocal, **options)
                 terraform.create_stage(**root_command_params, **options)
 
             # Traces output
-            bar.terminate(f"terraform output :\n{terraform.output()}")
+            bar.update(msg=f"terraform output\n{terraform.output()}")
+            bar.terminate()
         except ExitCommand as e:
             bar.terminate(e.msg)
             raise
