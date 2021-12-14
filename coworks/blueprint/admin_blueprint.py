@@ -22,18 +22,25 @@ class Admin(Blueprint):
         super().__init__(name=name, **kwargs)
 
     @entry
-    def get_route(self, pretty=False, blueprint=False):
+    def get_route(self, prefix=None, pretty=None, blueprint=None):
         """Returns the list of entrypoints with signature.
-        :param pretty: Pretty print result if defiend.
-        :param blueprint: Show blueprint routes if defined.
+        :param prefix: Prefix path to limit the number of returned routes.
+        :param pretty: Pretty print result if defined (default 'no').
+        :param blueprint: Show blueprint routes if defined (default 'no').
         """
         pretty = strtobool(pretty or 'no')
         blueprint = strtobool(blueprint or 'no')
         routes = {}
         for rule in current_app.url_map.iter_rules():
-            route = {}
 
+            # if returns only prefixed routes
+            if prefix and not rule.rule.startswith(prefix):
+                continue
+
+            route = {}
             function_called = current_app.view_functions[rule.endpoint]
+
+            # Keeps only non blueprint entries
             if not blueprint and getattr(function_called, '__CWS_FROM_BLUEPRINT', False):
                 continue
 

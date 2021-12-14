@@ -70,12 +70,12 @@ class Odoo(Blueprint):
 
     @entry
     def kw(self, model: str, method: str = "search_read", id: t.Union[int, str] = None, fields: t.List[str] = None,
-           order: str = None, domain: t.List[t.Tuple[str, str, t.Any]] = None, limit: int = 300, page_size=None, page=0,
+           order: str = None, domain: t.List[t.Tuple[str, str, t.Any]] = None, limit: int = None, page_size=None, page=0,
            ensure_one=False):
         """Searches with API for records based on the args.
         See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.search
         @param model: python as a dot separated class name.
-        @param method : API method name
+        @param method : API method name maybe search_read, search_count
         @param id : id for one element
         @param fields: record fields for result.
         @param order: oder of result.
@@ -88,12 +88,13 @@ class Odoo(Blueprint):
         if id and domain:
             abort(Response("Domain and Id parameters cannot be defined tin same time", status=400))
 
+        params = {}
         if id:
             domain = [[('id', '=', id)]]
-            params = {}
         else:
             domain = domain if domain else [[]]
-            params = {'limit': limit}
+            if limit:
+                params.update({'limit': limit})
             if order:
                 params.update({'order': order})
             if page:
@@ -104,6 +105,10 @@ class Odoo(Blueprint):
         res, status_code = self.odoo_execute_kw(model, method, domain, params)
         if status_code != 200:
             abort(status_code)
+
+        if method == 'search_count':
+            return res
+
         if len(res) == 0:
             return "Not found", 404
         if ensure_one:
