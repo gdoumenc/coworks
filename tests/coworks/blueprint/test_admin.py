@@ -35,7 +35,7 @@ class TestClass:
                 "doc": "Add content.",
                 "signature": "(value:<class 'int'>, other:<class 'str'>=none)"
             }
-            assert routes["/admin/route"]['GET']['signature'] == "(pretty=False, blueprint=False)"
+            assert routes["/admin/route"]['GET']['signature'] == "(prefix=None, pretty=None, blueprint=None)"
             assert routes["/list/<values>"]['GET'] == {
                 "doc": 'Tests list param.',
                 "signature": "(values:[<class 'int'>])"
