@@ -46,4 +46,4 @@ local.environment_variables = {
     'LOCAL': 'my_value',
 }
 prod = ProdConfig()
-app = MyMicroService(congigs=[local, prod])
+app = MyMicroService(configs=[local, prod])
