@@ -1,11 +1,11 @@
-from distutils.util import strtobool
-
 import inspect
 import os
 import sys
+from distutils.util import strtobool
+from inspect import Parameter
+
 from flask import current_app
 from flask import json
-from inspect import Parameter
 from jinja2 import Environment
 from jinja2 import PackageLoader
 from jinja2 import select_autoescape
@@ -48,9 +48,12 @@ class Admin(Blueprint):
                 if http_method not in ['HEAD', 'OPTIONS']:
                     doc = inspect.getdoc(function_called)
                     route[http_method] = {
-                        'doc': doc.replace('\n', ' ') if doc else '',
-                        'signature': get_signature(function_called)
+                        'signature': get_signature(function_called),
                     }
+                    if doc:
+                        route[http_method]['doc'] = doc.replace('\n', ' ')
+                    if getattr(function_called, '__CWS_NO_AUTH', False):
+                        route[http_method]['auth'] = False
             routes[rule.rule] = route
 
         kwargs = {'indent': 4, 'separators': (",", ": ")} if pretty else {}
