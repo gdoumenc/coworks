@@ -70,8 +70,8 @@ class Odoo(Blueprint):
 
     @entry
     def kw(self, model: str, method: str = "search_read", id: t.Union[int, str] = None, fields: t.List[str] = None,
-           order: str = None, domain: t.List[t.Tuple[str, str, t.Any]] = None, limit: int = None, page_size=None, page=0,
-           ensure_one=False):
+           order: str = None, domain: t.List[t.Tuple[str, str, t.Any]] = None, limit: int = None, page_size=None,
+           page=0, ensure_one=False):
         """Searches with API for records based on the args.
         See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.search
         @param model: python as a dot separated class name.
@@ -104,18 +104,18 @@ class Odoo(Blueprint):
             params.update({'fields': fields})
         res, status_code = self.odoo_execute_kw(model, method, domain, params)
         if status_code != 200:
-            abort(status_code)
+            abort(Response(res.text, status=status_code))
 
         if method == 'search_count':
             return res
 
         if len(res) == 0:
-            return "Not found", 404
+            return abort(Response("Not found", status=404))
         if ensure_one:
             if len(res) > 1:
-                return "More than one element found and ensure_one parameters was set", 404
-            return res[0], 200
-        return {"ids": [rec['id'] for rec in res], "values": res}, 200
+                return abort(Response("More than one element found and ensure_one parameters was set", 404))
+            return res[0]
+        return {"ids": [rec['id'] for rec in res], "values": res}
 
     @entry
     def gql(self, query: str = None):
@@ -127,7 +127,7 @@ class Odoo(Blueprint):
         res, status_code = self.odoo_execute_gql({'query': query})
         if status_code != 200:
             abort(status_code)
-        return res, 200
+        return res
 
     @entry
     def create(self, model: str, data: t.List[dict] = None):
@@ -169,9 +169,9 @@ class Odoo(Blueprint):
         """
         params = {'params': {'res_ids': json.dumps(rec_ids)}}
         res, status_code = self.odoo_post_old(f"{self.url}/report/{report_id}", params=params)
-        if status_code == 200:
-            return res['result'], 200
-        abort(status_code)
+        if status_code != 200:
+            abort(make_response(res, status_code))
+        return res['result']
 
     @xray_recorder.capture()
     def odoo_execute_kw(self, model, method, *args, **kwargs):
