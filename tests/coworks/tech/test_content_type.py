@@ -6,10 +6,6 @@ from ..event import get_event
 
 class ContentMS(TechMicroService):
 
-    def __init__(self):
-        super().__init__()
-        self.any_token_authorized = True
-
     @entry
     def get(self):
         return "test"

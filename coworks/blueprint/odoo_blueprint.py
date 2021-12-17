@@ -158,7 +158,7 @@ class Odoo(Blueprint):
         """
         res, status_code = self.odoo_delete(f'{self.url}/api/{model}/{rec_id}')
         if status_code == 200:
-            return res['result'], 200
+            return res['result']
         abort(status_code)
 
     @entry

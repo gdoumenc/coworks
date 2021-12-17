@@ -43,10 +43,6 @@ class HiddenBlueprint(Blueprint):
         return "ok"
 
 
-import pytest
-
-
-@pytest.mark.wip
 class TestClass:
 
     def test_routes(self):

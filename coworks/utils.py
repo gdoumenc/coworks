@@ -1,14 +1,14 @@
-import traceback
-
 import importlib
 import inspect
 import os
 import platform
 import sys
-from flask import make_response
-from flask.blueprints import BlueprintSetupState
+import traceback
 from functools import partial
 from functools import update_wrapper
+
+from flask import make_response
+from flask.blueprints import BlueprintSetupState
 from werkzeug.datastructures import Headers
 from werkzeug.exceptions import BadRequest
 from werkzeug.exceptions import BadRequestKeyError
@@ -201,11 +201,12 @@ def path_join(*args):
 
 
 def make_absolute(route, url_prefix):
-    if not route.startswith('/'):
-        route = '/' + route
+    """Creates an absolute route without trailing slash.
+    """
+    route = route.lstrip('/').rstrip('/')
     if url_prefix:
-        route = '/' + url_prefix.lstrip('/').rstrip('/') + route
-    return route
+        return '/' + url_prefix.lstrip('/').rstrip('/') + '/' + route
+    return '/' + route
 
 
 def trim_underscores(name):

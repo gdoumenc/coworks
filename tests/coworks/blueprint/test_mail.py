@@ -8,6 +8,7 @@ import pytest
 
 from coworks import TechMicroService
 from coworks.blueprint.mail_blueprint import Mail
+from coworks.config import LocalConfig
 
 smtp_mock = mock.MagicMock()
 smtp_mock.return_value.__enter__.return_value.login = login_mock = mock.Mock()
@@ -20,13 +21,14 @@ email_mock.return_value.add_attachment = add_mock = mock.Mock()
 class MailMS(TechMicroService):
 
     def __init__(self, **mail_names):
-        super().__init__('mail')
+        super().__init__('mail', configs=LocalConfig())
         self.register_blueprint(Mail(**mail_names))
-        self.any_token_authorized = True
+
+    def _check_token(self):
+        return True
 
 
 class TestClass:
-
     def test_wrong_init(self):
         with pytest.raises(OSError) as pytest_wrapped_e:
             app = MailMS()

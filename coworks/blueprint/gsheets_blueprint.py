@@ -23,7 +23,7 @@ class GoogleSheets(Blueprint):
         self.google_client = None
 
         @self.before_app_first_request
-        def load_crendentials(event, context):
+        def load_crendentials():
             client_id = os.getenv(self.client_id_var_name)
             if not client_id:
                 raise EnvironmentError(f'{self.client_id_var_name} not defined in environment.')

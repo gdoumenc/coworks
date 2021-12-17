@@ -69,7 +69,6 @@ class TestClass:
         config_dev = Config(environment_variables_file=Path("config") / "vars.dev.json")
         config_prod = ProdConfig(environment_variables_file=Path("config") / "vars.prod.json")
         app = EnvTechMS(configs=[config_dev, config_prod], root_path=example_dir)
-        app.any_token_authorized = True
         server = multiprocessing.Process(target=run_server_with_workspace,
                                          args=(example_dir, app, unused_tcp_port, "v1"),
                                          daemon=True)
@@ -87,7 +86,6 @@ class TestClass:
         config_dev = Config(environment_variables_file=Path("config") / "vars.dev.json")
         config_prod = ProdConfig(environment_variables_file=Path("config") / "vars.prod.json")
         app = EnvTechMS(configs=[config_dev, config_prod], root_path=example_dir)
-        app.any_token_authorized = True
         server = multiprocessing.Process(target=run_server_with_workspace,
                                          args=(example_dir, app, unused_tcp_port, "V1"),
                                          daemon=True)
@@ -104,7 +102,6 @@ class TestClass:
     def test_env_var(self, example_dir, unused_tcp_port):
         config = Config(environment_variables={'test': 'test value environment variable'})
         app = EnvTechMS(configs=config, root_path=example_dir)
-        app.any_token_authorized = True
         server = multiprocessing.Process(target=run_server, args=(example_dir, app, unused_tcp_port), daemon=True)
         server.start()
         counter = 1

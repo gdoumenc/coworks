@@ -1,19 +1,20 @@
-from dataclasses import dataclass
-
 import base64
-import click
 import logging
 import os
 import typing as t
+from dataclasses import dataclass
+from functools import partial
+from inspect import isfunction
+
+import click
 from flask import Blueprint as FlaskBlueprint
 from flask import Flask
+from flask import Response
 from flask import abort
 from flask import current_app
 from flask.blueprints import BlueprintSetupState
 from flask.ctx import RequestContext
 from flask.testing import FlaskClient
-from functools import partial
-from inspect import isfunction
 from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import InternalServerError
 from werkzeug.routing import Rule
@@ -170,14 +171,16 @@ class TechMicroService(Flask):
         self.request_class = Request
         self.response_class = ApiResponse
 
-        self.any_token_authorized = False
         self.deferred_init_routes_functions: t.List[t.Callable] = []
         self._cws_app_initialized = False
         self._cws_conf_updated = False
 
         @self.before_request
-        def check_token():
+        def before():
             self._check_token()
+            rp = request.path
+            if rp != '/' and rp.endswith('/'):
+                abort(Response("Trailing slash avalaible only on deployed version"))
 
     def app_context(self):
         """Override to initialize coworks microservice."""
