@@ -14,6 +14,9 @@ deploy: clean dist
 deploy-test: clean dist
 	pipenv run twine upload --repository testpypi dist/*
 
+plugins.zip: coworks/operators.py
+	zip -r build/plugins.zip coworks/operators.py
+
 clean:
 	rm -rf dist build coworks.egg-info .pytest_cache
 	find . -type f -name \*.pyc -delete
