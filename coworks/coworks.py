@@ -349,12 +349,22 @@ class TechMicroService(Flask):
 
     def _check_token(self):
         if not request.in_lambda_context:
-            token = request.headers.get('Authorization', self.config.get('DEFAULT_TOKEN'))
-            if token is None:
-                abort(401)
-            valid = self.token_authorizer(token)
-            if not valid:
-                abort(403)
+
+            # Get no_auth option for this entry
+            no_auth = False
+            if request.url_rule:
+                view_function = self.view_functions.get(request.url_rule.endpoint, None)
+                if view_function:
+                    no_auth = getattr(view_function, '__CWS_NO_AUTH', False)
+
+            # Checks token if authorization needed
+            if not no_auth:
+                token = request.headers.get('Authorization', self.config.get('DEFAULT_TOKEN'))
+                if token is None:
+                    abort(401)
+                valid = self.token_authorizer(token)
+                if not valid:
+                    abort(403)
 
     def _get_kwargs(self, event):
         def is_json(mt):
