@@ -16,7 +16,8 @@ from flask.blueprints import BlueprintSetupState
 from flask.ctx import RequestContext
 from flask.testing import FlaskClient
 from werkzeug.datastructures import WWWAuthenticate
-from werkzeug.exceptions import HTTPException, Unauthorized
+from werkzeug.exceptions import HTTPException
+from werkzeug.exceptions import Unauthorized
 from werkzeug.exceptions import InternalServerError
 from werkzeug.routing import Rule
 
@@ -325,6 +326,7 @@ class TechMicroService(Flask):
                 resp = getattr(c, method.lower())(full_path(), **kwargs)
                 return self._convert_to_lambda_response(resp)
         except Exception as e:
+            self.logger.debug(f"Error in api handler for {self.name} : {e}")
             error = e if isinstance(e, HTTPException) else InternalServerError(original_exception=e)
             return self._structured_error(error)
 

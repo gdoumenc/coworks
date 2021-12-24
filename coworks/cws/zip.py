@@ -1,15 +1,18 @@
-import sysconfig
-
 import base64
-import click
 import functools
 import hashlib
 import importlib
 import os
+import sysconfig
 import tempfile
-from flask.cli import pass_script_info
 from pathlib import Path
-from shutil import copyfile, copytree, ignore_patterns, make_archive
+from shutil import copyfile
+from shutil import copytree
+from shutil import ignore_patterns
+from shutil import make_archive
+
+import click
+from flask.cli import pass_script_info
 
 from .utils import progressbar
 from .. import aws

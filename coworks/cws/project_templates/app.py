@@ -23,7 +23,7 @@ class MyMicroService(TechMicroService):
 
         @self.before_first_request
         def first():
-            var = int(os.getenv('VAR'))
+            var = int(os.getenv('VAR', 0))
 
         @self.before_request
         def before():
