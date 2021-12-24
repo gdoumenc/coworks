@@ -31,7 +31,6 @@ class TerraformResource:
     parent_uid: str
     path: str
     rules: t.List[Rule] = None
-    binary: bool = False
 
     @cached_property
     def uid(self) -> str:
@@ -114,8 +113,8 @@ class TerraformLocal:
             resource = TerraformResource(previous, path)
             if rule_:
                 view_function = self.app.view_functions.get(rule_.endpoint)
-                resource.binary = getattr(view_function, '__CWS_BINARY', False)
-                resource.no_auth = getattr(view_function, '__CWS_NO_AUTH', False)
+                rule_.cws_binary = getattr(view_function, '__CWS_BINARY', False)
+                rule_.cws_no_auth = getattr(view_function, '__CWS_NO_AUTH', False)
 
             # Creates the terraform ressource if doesn't exist.
             uid = resource.uid

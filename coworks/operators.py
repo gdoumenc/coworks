@@ -50,6 +50,7 @@ class TechMicroServiceOperator(BaseOperator):
         if self.log_response:
             logging.info(res.status_code)
             logging.info(res.text)
+        self.xcom_push(context, 'name', self.name)
         self.xcom_push(context, 'status_code', res.status_code)
         self.xcom_push(context, 'text', res.text)
 
@@ -67,8 +68,9 @@ class BranchTechMicroServiceOperator(BranchPythonOperator):
         return super().execute(context)
 
     def branch(self, context, on_success, on_failure):
+        service_name = context['ti'].xcom_pull(task_ids=self.service, key='name')
         status_code = context['ti'].xcom_pull(task_ids=self.service, key='status_code')
-        logging.info(status_code)
+        logging.info(f"TechMS {service_name} returned code : {status_code}")
         if status_code != 200:
             return on_failure
         return on_success

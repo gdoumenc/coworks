@@ -34,12 +34,13 @@ class TechMS(TechMicroService):
     def get(self):
         return "simple get"
 
-    @entry(binary=True)
+    @entry(binary=True, no_auth=True)
     def get_img(self):
         return b"image content"
 
 
 class TestClass:
+
     def test_api_resources(self, example_dir, progressbar):
         app = TechMS()
         with app.test_request_context() as ctx:
@@ -49,7 +50,11 @@ class TestClass:
         assert len(ressources) == 7
         assert ressources[''].rules is not None
         assert len(ressources[''].rules) == 1
-        assert ressources['img'].binary
+        assert not ressources[''].rules[0].cws_binary
+        assert not ressources[''].rules[0].cws_no_auth
+        assert len(ressources['img'].rules) == 1
+        assert ressources['img'].rules[0].cws_binary
+        assert ressources['img'].rules[0].cws_no_auth
         assert ressources['test'].rules is None
         assert ressources['test_index'].rules is not None
         assert len(ressources['test_index'].rules) == 1

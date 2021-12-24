@@ -5,6 +5,7 @@ dist/
 **/.terraform
 **/*.tfstate*
 Pipfile.lock
+.env
 
 # Samples
 **/*.secret.json

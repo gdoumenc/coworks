@@ -1,11 +1,14 @@
 .PHONY: deploy fury dist clean
 
+include .env
+export
+
 dist:
 	pipenv run python setup.py bdist_wheel
 
 fury: clean dist
 	(export VERSION=`python -c "import coworks;print(coworks.__version__)"`;\
-	curl -F package=@dist/coworks-$$VERSION-py2.py3-none-any.whl https://1PqF0I-J1eMroTnd6GFKWBV1Xxs0x5Xx8@push.fury.io/gdoumenc;\
+	curl -F package=@dist/coworks-$$VERSION-py2.py3-none-any.whl https://$$FURY_TOKEN@push.fury.io/gdoumenc;\
 	unset VERSION)
 
 deploy: clean dist
