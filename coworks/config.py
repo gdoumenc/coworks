@@ -111,7 +111,7 @@ class DevConfig(Config):
 class ProdConfig(DevConfig):
     """ Production configuration have workspace's name corresponding to version's index."""
 
-    def __init__(self, pattern=r"v[1-9]+", **kwargs):
+    def __init__(self, pattern=r"[vV][1-9]+", **kwargs):
         super().__init__(**kwargs)
         self.pattern = pattern
 

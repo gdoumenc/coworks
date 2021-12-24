@@ -6,10 +6,6 @@ from ..event import get_event
 
 class ContentMS(TechMicroService):
 
-    def __init__(self):
-        super().__init__()
-        self.any_token_authorized = True
-
     @entry
     def get(self):
         return "test"
@@ -32,6 +28,10 @@ class ContentMS(TechMicroService):
 
     @entry(binary=True, content_type='application/pdf')
     def get_content_type(self):
+        return b"test"
+
+    @entry(binary=True, no_auth=True)
+    def get_no_auth(self):
         return b"test"
 
 

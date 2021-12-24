@@ -10,6 +10,7 @@ from pathlib import Path
 
 from coworks import __version__
 from .deploy import deploy_command
+from .deploy import deployed_command
 from .new import new_command
 from .zip import zip_command
 from ..config import DEFAULT_DEV_WORKSPACE
@@ -27,6 +28,7 @@ class CoWorksGroup(FlaskGroup):
         if add_default_commands:
             self.add_command(t.cast("Command", new_command))
             self.add_command(t.cast("Command", deploy_command))
+            self.add_command(t.cast("Command", deployed_command))
             self.add_command(t.cast("Command", zip_command))
 
     def make_context(self, info_name, args, parent=None, **kwargs):
@@ -96,7 +98,7 @@ class ProjectConfig:
 
     @property
     def all_commands(self):
-        """ Returns the list of microservices on which the command will be executed."""
+        """ Returns the list of commands defined for this microservice."""
         return self.params.get('commands', {})
 
     @staticmethod

@@ -1,7 +1,6 @@
 from coworks import TechMicroService
 
 app = TechMicroService(__name__)
-app.any_token_authorized = True
 
 
 @app.route("/")

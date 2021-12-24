@@ -1,20 +1,22 @@
-from dataclasses import dataclass
-
 import base64
-import click
 import logging
 import os
 import typing as t
+from dataclasses import dataclass
+from functools import partial
+from inspect import isfunction
+
+import click
 from flask import Blueprint as FlaskBlueprint
 from flask import Flask
+from flask import Response
 from flask import abort
 from flask import current_app
 from flask.blueprints import BlueprintSetupState
 from flask.ctx import RequestContext
 from flask.testing import FlaskClient
-from functools import partial
-from inspect import isfunction
-from werkzeug.exceptions import HTTPException
+from werkzeug.datastructures import WWWAuthenticate
+from werkzeug.exceptions import HTTPException, Unauthorized
 from werkzeug.exceptions import InternalServerError
 from werkzeug.routing import Rule
 
@@ -38,12 +40,17 @@ from .wrappers import TokenResponse
 #
 
 
-def entry(fun: t.Callable = None, binary: bool = False, content_type: str = None) -> t.Callable:
-    """Decorator to create a microservice entry point from function name."""
+def entry(fun: t.Callable = None, binary: bool = False, content_type: str = None, no_auth: bool = False) -> t.Callable:
+    """Decorator to create a microservice entry point from function name.
+    :param fun: the entry function.
+    :param binary: allow payload without transformation.
+    :param content_type: force default content-type.
+    :param no_auth: set authorizer.
+    """
     if fun is None:
         if binary and not content_type:
             content_type = 'application/octet-stream'
-        return partial(entry, binary=binary, content_type=content_type)
+        return partial(entry, binary=binary, content_type=content_type, no_auth=no_auth)
 
     def get_path(start):
         name_ = fun.__name__[start:]
@@ -66,6 +73,8 @@ def entry(fun: t.Callable = None, binary: bool = False, content_type: str = None
     fun.__CWS_PATH = path
     fun.__CWS_BINARY = binary
     fun.__CWS_CONTENT_TYPE = content_type
+    fun.__CWS_NO_AUTH = no_auth
+
     return fun
 
 
@@ -163,14 +172,16 @@ class TechMicroService(Flask):
         self.request_class = Request
         self.response_class = ApiResponse
 
-        self.any_token_authorized = False
         self.deferred_init_routes_functions: t.List[t.Callable] = []
         self._cws_app_initialized = False
         self._cws_conf_updated = False
 
         @self.before_request
-        def check_token():
+        def before():
             self._check_token()
+            rp = request.path
+            if rp != '/' and rp.endswith('/'):
+                abort(Response("Trailing slash avalaible only on deployed version"))
 
     def app_context(self):
         """Override to initialize coworks microservice."""
@@ -339,12 +350,22 @@ class TechMicroService(Flask):
 
     def _check_token(self):
         if not request.in_lambda_context:
-            token = request.headers.get('Authorization', self.config.get('DEFAULT_TOKEN'))
-            if token is None:
-                abort(401)
-            valid = self.token_authorizer(token)
-            if not valid:
-                abort(403)
+
+            # Get no_auth option for this entry
+            no_auth = False
+            if request.url_rule:
+                view_function = self.view_functions.get(request.url_rule.endpoint, None)
+                if view_function:
+                    no_auth = getattr(view_function, '__CWS_NO_AUTH', False)
+
+            # Checks token if authorization needed
+            if not no_auth:
+                token = request.headers.get('Authorization', self.config.get('DEFAULT_TOKEN'))
+                if token is None:
+                    raise Unauthorized(www_authenticate=WWWAuthenticate(auth_type="basic"))
+                valid = self.token_authorizer(token)
+                if not valid:
+                    abort(403)
 
     def _get_kwargs(self, event):
         def is_json(mt):

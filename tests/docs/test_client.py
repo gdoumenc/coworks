@@ -1,4 +1,5 @@
 import os
+import re
 from unittest import mock
 from unittest.mock import Mock
 
@@ -22,6 +23,9 @@ class TestClass:
         monkeypatch.setattr(click, "echo", mclick)
         client.main(['--project-dir', samples_docs_dir, 'routes'], 'cws', standalone_mode=False)
         del os.environ["FLASK_RUN_FROM_CLI"]
-        mclick.assert_any_call('admin_get_route    GET      /admin/route')
-        mclick.assert_any_call('get                GET      /')
-        mclick.assert_any_call('post               POST     /')
+        mclick.assert_called()
+        assert len(mclick.mock_calls) == 7
+        assert 'Endpoint' in str(mclick.mock_calls[0])
+        assert '/admin/route' in str(mclick.mock_calls[3])
+        assert re.match(r"call[(]'get.*GET.*/",  str(mclick.mock_calls[4]))
+        assert re.match(r"call[(]'post.*POST.*/",  str(mclick.mock_calls[6]))

@@ -10,5 +10,4 @@ class SimpleMicroService(TechMicroService):
 
 
 app = SimpleMicroService()
-app.any_token_authorized = True
 

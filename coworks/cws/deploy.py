@@ -31,7 +31,6 @@ class TerraformResource:
     parent_uid: str
     path: str
     rules: t.List[Rule] = None
-    binary: bool = False
 
     @cached_property
     def uid(self) -> str:
@@ -65,7 +64,6 @@ class TerraformLocal:
     def __init__(self, info, bar, **options):
         self.info = info
         self.bar = bar
-        self.app = self.info.load_app()
         self.working_dir = Path(options['terraform_dir'])
         self.working_dir.mkdir(exist_ok=True)
 
@@ -101,6 +99,10 @@ class TerraformLocal:
         except CalledProcessError:
             self._execute(["workspace", "new", workspace])
 
+    @cached_property
+    def app(self):
+        return self.info.load_app()
+
     @property
     def api_resources(self):
         """Returns the list of flatten path (prev_uid, last, rule)."""
@@ -111,7 +113,8 @@ class TerraformLocal:
             resource = TerraformResource(previous, path)
             if rule_:
                 view_function = self.app.view_functions.get(rule_.endpoint)
-                resource.binary = getattr(view_function, '__CWS_BINARY', False)
+                rule_.cws_binary = getattr(view_function, '__CWS_BINARY', False)
+                rule_.cws_no_auth = getattr(view_function, '__CWS_NO_AUTH', False)
 
             # Creates the terraform ressource if doesn't exist.
             uid = resource.uid
@@ -327,6 +330,7 @@ class TerraformCloud:
 @click.option('--output', '-o', is_flag=True, help="Print terraform output values.")
 @click.option('--python', '-p', type=click.Choice(['3.7', '3.8']), default='3.8',
               help="Python version for the lambda.")
+@click.option('--source', help="Header identification token source.")
 @click.option('--timeout', default=60)
 @click.option('--terraform-dir', default="terraform")
 @click.pass_context
@@ -392,10 +396,26 @@ def deploy_command(info, ctx, output, terraform_class=TerraformLocal, **options)
                 terraform.create_stage(**root_command_params, **options)
 
             # Traces output
-            bar.terminate(f"terraform output :\n{terraform.output()}")
+            bar.update(msg=f"terraform output\n{terraform.output()}")
+            bar.terminate()
         except ExitCommand as e:
             bar.terminate(e.msg)
             raise
+        except Exception:
+            bar.terminate()
+            raise
+
+
+@click.command("deployed", short_help="Retrieve the microservices deployed for this project.")
+@click.option('--terraform-dir', default="terraform")
+@click.pass_context
+@pass_script_info
+def deployed_command(info, ctx, terraform_class=TerraformLocal, **options) -> None:
+    root_command_params = ctx.find_root().params
+    with progressbar(label='Retrieving information', threaded=True) as bar:
+        try:
+            terraform = terraform_class(info, bar, **root_command_params, **options)
+            bar.terminate(f"terraform output : {terraform.output()}")
         except Exception:
             bar.terminate()
             raise

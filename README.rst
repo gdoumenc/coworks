@@ -1,6 +1,6 @@
 .. image:: https://github.com/gdoumenc/coworks/raw/dev/docs/img/coworks.png
     :height: 80px
-    :alt: Coworks Logo
+    :alt: CoWorks Logo
 
 |Maintenance| |Build Status| |Documentation Status| |Coverage| |Python versions| |Licence|
 
@@ -17,20 +17,20 @@
 .. |Licence| image:: https://img.shields.io/github/license/gdoumenc/coworks?style=plastic
     :alt: Licence
 
-Coworks is a unified serverless microservices framework based on AWS technologies
+CoWorks is a unified serverless microservices framework based on AWS technologies
 (`API Gateway <https://aws.amazon.com/api-gateway/>`_, `AWS Lambda <https://aws.amazon.com/lambda/>`_),
 the `Flask <https://github.com/pallets/flask>`_ framework and the `Airflow <https://github.com/apache/airflow>`_
 plateform.
 
 The aim of this project, is to offer a very simplified experience of microservices. For such purpose, we divided the
-framework in two levels.
+CoWorks framework in two levels.
 
-The first one is made of atomic microservices (``TechMicroservice``) each composed of simple python class deployed as
-Flask application and deployed as serverless Lambda. Those technical microservice may be can be called synchronously
-or asynchronously.
+The first one is made of atomic microservices (``TechMicroservice``) each composed of simple python
+`Flask <https://github.com/pallets/flask>`_ application and deployed as serverless Lambda.
+Those technical microservice may be can be called synchronously or asynchronously.
 
-The second level is made of composed business microservices (``BizMicroservice``) which are Air flow tasks
-providing orchestration of technical microservices.
+The second level is made of composed business microservices (``BizMicroservice``) which are
+`Airflow <https://github.com/apache/airflow>`_ dags providing orchestration of technical microservices.
 
 You can get a quickstart on `TechMicroService <https://coworks.readthedocs.io/en/latest/tech_quickstart.html>`_ then
 continue with `BizMicroService <https://coworks.readthedocs.io/en/latest/biz_quickstart.html>`_
@@ -58,6 +58,7 @@ Related Projects
 
 * `Flask <https://github.com/pallets/flask>`_ - Lightweight WSGI web application framework (`Donate to Pallets <https://palletsprojects.com/donate>`_).
 * `Click <https://github.com/pallets/click>`_ -  A package for creating beautiful command line interfaces.
+* `Airflow <https://github.com/apache/airflow>`_ A platform to programmatically author, schedule, and monitor workflows.
 * `Terraform <https://github.com/hashicorp/terraform>`_ - Infrastructure configuration management tool.
 
 

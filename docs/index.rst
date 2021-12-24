@@ -179,8 +179,7 @@ Documentation
   tech
   command
   configuration
-  context_manager
-  proxy
+  middleware
   biz_quickstart
   biz
   samples

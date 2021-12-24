@@ -1,14 +1,14 @@
 import json
 import os
-import requests
 import typing as t
 import xmlrpc.client
-from aws_xray_sdk.core import xray_recorder
-from flask import Response
-from flask import abort
 
+import requests
+from aws_xray_sdk.core import xray_recorder
 from coworks import Blueprint
 from coworks import entry
+from flask import Response
+from flask import abort
 
 
 class AccessDenied(Exception):
@@ -70,12 +70,12 @@ class Odoo(Blueprint):
 
     @entry
     def kw(self, model: str, method: str = "search_read", id: t.Union[int, str] = None, fields: t.List[str] = None,
-           order: str = None, domain: t.List[t.Tuple[str, str, t.Any]] = None, limit: int = 300, page_size=None, page=0,
-           ensure_one=False):
+           order: str = None, domain: t.List[t.Tuple[str, str, t.Any]] = None, limit: int = None, page_size=None,
+           page=0, ensure_one=False):
         """Searches with API for records based on the args.
         See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.search
         @param model: python as a dot separated class name.
-        @param method : API method name
+        @param method : API method name maybe search_read, search_count
         @param id : id for one element
         @param fields: record fields for result.
         @param order: oder of result.
@@ -88,12 +88,13 @@ class Odoo(Blueprint):
         if id and domain:
             abort(Response("Domain and Id parameters cannot be defined tin same time", status=400))
 
+        params = {}
         if id:
             domain = [[('id', '=', id)]]
-            params = {}
         else:
             domain = domain if domain else [[]]
-            params = {'limit': limit}
+            if limit:
+                params.update({'limit': limit})
             if order:
                 params.update({'order': order})
             if page:
@@ -103,14 +104,18 @@ class Odoo(Blueprint):
             params.update({'fields': fields})
         res, status_code = self.odoo_execute_kw(model, method, domain, params)
         if status_code != 200:
-            abort(status_code)
+            abort(Response(res.text, status=status_code))
+
+        if method == 'search_count':
+            return res
+
         if len(res) == 0:
-            return "Not found", 404
+            return abort(Response("Not found", status=404))
         if ensure_one:
             if len(res) > 1:
-                return "More than one element found and ensure_one parameters was set", 404
-            return res[0], 200
-        return {"ids": [rec['id'] for rec in res], "values": res}, 200
+                return abort(Response("More than one element found and ensure_one parameters was set", 404))
+            return res[0]
+        return {"ids": [rec['id'] for rec in res], "values": res}
 
     @entry
     def gql(self, query: str = None):
@@ -122,7 +127,7 @@ class Odoo(Blueprint):
         res, status_code = self.odoo_execute_gql({'query': query})
         if status_code != 200:
             abort(status_code)
-        return res, 200
+        return res
 
     @entry
     def create(self, model: str, data: t.List[dict] = None):
@@ -135,14 +140,14 @@ class Odoo(Blueprint):
         return self.odoo_execute_kw(model, "create", data)
 
     @entry
-    def write(self, model: str, data: t.Tuple[t.List[int], dict] = None) -> Response:
+    def write(self, model: str, id: t.Union[int, str], data: dict = None) -> Response:
         """Updates one record with the provided values.
         See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.write
         @param model: python as a dot separated class name.
-        @param rec_id: id of the record.
+        @param id: id of the record.
         @param data: fields to update and the value to set on them.
         """
-        return self.odoo_execute_kw(model, "write", data)
+        return self.odoo_execute_kw(model, "write", [[id], data])
 
     @entry
     def delete_(self, model: str, rec_id: int) -> Response:
@@ -153,7 +158,7 @@ class Odoo(Blueprint):
         """
         res, status_code = self.odoo_delete(f'{self.url}/api/{model}/{rec_id}')
         if status_code == 200:
-            return res['result'], 200
+            return res['result']
         abort(status_code)
 
     @entry
@@ -164,9 +169,9 @@ class Odoo(Blueprint):
         """
         params = {'params': {'res_ids': json.dumps(rec_ids)}}
         res, status_code = self.odoo_post_old(f"{self.url}/report/{report_id}", params=params)
-        if status_code == 200:
-            return res['result'], 200
-        abort(status_code)
+        if status_code != 200:
+            abort(make_response(res, status_code))
+        return res['result']
 
     @xray_recorder.capture()
     def odoo_execute_kw(self, model, method, *args, **kwargs):
