@@ -268,8 +268,6 @@ class TechMicroService(Flask):
         else:
             res = self._lambda_handler(arg1, arg2)
 
-        # res['headers']['x-cws-workspace'] = os.getenv('WORKSPACE')
-
         return res
 
     def _lambda_handler(self, event: t.Dict[str, t.Any], context: t.Dict[str, t.Any]):

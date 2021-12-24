@@ -15,13 +15,6 @@ def new_command(ctx, force) -> None:
 
     with progressbar(3, label='Creating new project') as bar:
 
-        # Creates folder
-        if not project_dir.exists():
-            if debug:
-                bar.echo(f"Create project directory {project_dir}.")
-            project_dir.mkdir()
-        bar.update()
-
         # Copy project configuration file
         src = project_templates
         dest = project_dir
@@ -29,6 +22,13 @@ def new_command(ctx, force) -> None:
         if dest.exists() and not force:
             bar.terminate("Project already created. Set 'force' option for recreation.")
             return
+
+        # Creates folder
+        if not project_dir.exists():
+            if debug:
+                bar.echo(f"Create project directory {project_dir}.")
+            project_dir.mkdir()
+        bar.update()
 
         copy_tree(src.as_posix(), dest.as_posix())
         bar.update()
