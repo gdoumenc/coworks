@@ -15,7 +15,8 @@ from flask import current_app
 from flask.blueprints import BlueprintSetupState
 from flask.ctx import RequestContext
 from flask.testing import FlaskClient
-from werkzeug.exceptions import HTTPException
+from werkzeug.datastructures import WWWAuthenticate
+from werkzeug.exceptions import HTTPException, Unauthorized
 from werkzeug.exceptions import InternalServerError
 from werkzeug.routing import Rule
 
@@ -361,7 +362,7 @@ class TechMicroService(Flask):
             if not no_auth:
                 token = request.headers.get('Authorization', self.config.get('DEFAULT_TOKEN'))
                 if token is None:
-                    abort(401)
+                    raise Unauthorized(www_authenticate=WWWAuthenticate(auth_type="basic"))
                 valid = self.token_authorizer(token)
                 if not valid:
                     abort(403)
