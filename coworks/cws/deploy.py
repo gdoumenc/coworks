@@ -197,7 +197,7 @@ class TerraformLocal:
         with output.open("w") as f:
             f.write(template.render(**data))
 
-    def create_stage(self, info, **options) -> None:
+    def create_stage(self, **options) -> None:
         """In the default terraform workspace, we have the API.
         In the specific workspace, we have the corresponding stagging lambda.
         """
