@@ -1,6 +1,6 @@
 import os
 
-from aws_xray_sdk.core import xray_recorder
+# from aws_xray_sdk.core import xray_recorder
 
 from coworks import TechMicroService
 from coworks import entry
