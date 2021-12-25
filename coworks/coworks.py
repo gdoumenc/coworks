@@ -1,4 +1,5 @@
 import base64
+import io
 import logging
 import os
 import typing as t
@@ -6,19 +7,21 @@ from dataclasses import dataclass
 from functools import partial
 from inspect import isfunction
 
+import boto3
 import click
 from flask import Blueprint as FlaskBlueprint
 from flask import Flask
 from flask import Response
 from flask import abort
 from flask import current_app
+from flask import json
 from flask.blueprints import BlueprintSetupState
 from flask.ctx import RequestContext
 from flask.testing import FlaskClient
 from werkzeug.datastructures import WWWAuthenticate
 from werkzeug.exceptions import HTTPException
-from werkzeug.exceptions import Unauthorized
 from werkzeug.exceptions import InternalServerError
+from werkzeug.exceptions import Unauthorized
 from werkzeug.routing import Rule
 
 from .config import Config
@@ -318,13 +321,21 @@ class TechMicroService(Flask):
                         url += f"{k}={vl}"
             return url
 
-        # Transform as simple client call and manage exception if needed
+        # Transforms as simple client call and manage exception if needed
         try:
             with self.cws_client(event, context) as c:
                 method = event['httpMethod']
                 kwargs = self._get_kwargs(event)
                 resp = getattr(c, method.lower())(full_path(), **kwargs)
-                return self._convert_to_lambda_response(resp)
+                resp = self._convert_to_lambda_response(resp)
+
+                # Strores response in S3 if asynchronous call
+                invocation_type = event['headers'].get('invocationtype')
+                if invocation_type == 'Event':
+                    bizz_task_id = event['headers'].get('x-cws-taskid')
+                    if bizz_task_id:
+                        self.store_response(resp, bizz_task_id)
+                return resp
         except Exception as e:
             self.logger.debug(f"Error in api handler for {self.name} : {e}")
             error = e if isinstance(e, HTTPException) else InternalServerError(original_exception=e)
@@ -429,8 +440,19 @@ class TechMicroService(Flask):
         headers = {'content_type': "application/json"}
         return self._structured_payload(e.description, e.code, headers)
 
-    def schedule(self, *args, **kwargs):
-        raise Exception("Schedule decorator is defined on BizMicroService, not on TechMicroService")
+    def store_response(self, resp, bizz_task_id):
+        """Store microservice response in S3 for biz task sequence."""
+        try:
+            aws_s3_session = boto3.session.Session()
+            content = json.dumps(resp) if type(resp) is dict else resp
+            buffer = io.BytesIO(content.encode())
+            buffer.seek(0)
+            bucket = 'coworks-microservice'
+            key = f'biz/task/dag_name/{bizz_task_id}'
+            self.logger.debug(f"Store response in {bucket}/{key}")
+            aws_s3_session.client('s3').upload_fileobj(buffer, bucket, key)
+        except Exception as e:
+            self.logger.debug(f"Exception when storing response for {bizz_task_id} : {str(e)}")
 
 
 class BizMicroService(TechMicroService):
