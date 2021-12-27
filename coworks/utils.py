@@ -161,7 +161,6 @@ def import_attr(module, attr: str, cwd='.'):
         sys.path.insert(0, cwd)
     app_module = importlib.import_module(module)
     if "PYTEST_CURRENT_TEST" in os.environ:
-        # needed as Chalice local server change class
         app_module = importlib.reload(app_module)
     return getattr(app_module, attr)
 
