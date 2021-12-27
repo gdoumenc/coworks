@@ -3,15 +3,14 @@ import sys
 from distutils.util import strtobool
 from inspect import Parameter
 
+from coworks import Blueprint
+from coworks import entry
+from coworks.globals import aws_event
 from flask import current_app
 from flask import json
 from jinja2 import Environment
 from jinja2 import PackageLoader
 from jinja2 import select_autoescape
-
-from coworks import Blueprint
-from coworks import entry
-from coworks.globals import aws_event
 
 
 class Admin(Blueprint):
@@ -24,10 +23,9 @@ class Admin(Blueprint):
         """Returns the list of entrypoints with signature.
         :param prefix: Prefix path to limit the number of returned routes.
         :param pretty: Pretty print result if defined (default 'no').
-        :param blueprint: Show blueprint routes if defined (default 'no').
+        :param blueprint: Show named blueprint routes if defined ('__all__' or blueprint name).
         """
         pretty = strtobool(pretty or 'no')
-        blueprint = strtobool(blueprint or 'no')
         routes = {}
         for rule in current_app.url_map.iter_rules():
 
@@ -38,21 +36,25 @@ class Admin(Blueprint):
             route = {}
             function_called = current_app.view_functions[rule.endpoint]
 
-            # Keeps only non blueprint entries
-            if not blueprint and getattr(function_called, '__CWS_FROM_BLUEPRINT', False):
-                continue
-
-            for http_method in rule.methods:
-                if http_method not in ['HEAD', 'OPTIONS']:
-                    doc = inspect.getdoc(function_called)
-                    route[http_method] = {
-                        'signature': get_signature(function_called),
-                    }
-                    if doc:
-                        route[http_method]['doc'] = doc.replace('\n', ' ')
-                    if getattr(function_called, '__CWS_NO_AUTH', False):
-                        route[http_method]['auth'] = False
-            routes[rule.rule] = route
+            # Keeps app entries and  blueprint entries
+            from_blueprint = getattr(function_called, '__CWS_FROM_BLUEPRINT')
+            if from_blueprint is None or blueprint == '__all__' or from_blueprint == blueprint:
+                for http_method in rule.methods:
+                    if http_method not in ['HEAD', 'OPTIONS']:
+                        doc = inspect.getdoc(function_called)
+                        route[http_method] = {
+                            'signature': get_signature(function_called),
+                        }
+                        if doc:
+                            docstring = doc.replace('\n', ' ').split(':param ')
+                            route[http_method]['doc'] = docstring[0]
+                            if len(docstring) > 1:
+                                route[http_method]['params'] = docstring[1:]
+                        if getattr(function_called, '__CWS_NO_AUTH', False):
+                            route[http_method]['auth'] = False
+                        if from_blueprint:
+                            route[http_method]['blueprint'] = from_blueprint
+                routes[rule.rule] = route
 
         kwargs = {'indent': 4, 'separators': (",", ": ")} if pretty else {}
         return json.dumps({k: routes[k] for k in sorted(routes.keys())}, **kwargs)
