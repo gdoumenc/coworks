@@ -24,6 +24,7 @@ from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import Unauthorized
 from werkzeug.routing import Rule
 
+from .biz_storage import BizStorage
 from .config import Config
 from .config import DEFAULT_DEV_WORKSPACE
 from .config import DEFAULT_LOCAL_WORKSPACE
@@ -158,10 +159,12 @@ class TechMicroService(Flask):
     See :ref:`tech` for more information.
     """
 
-    def __init__(self, name: str = None, *, configs: t.Union[Config, t.List[Config]] = None, **kwargs) -> None:
+    def __init__(self, name: str = None, *, configs: t.Union[Config, t.List[Config]] = None,
+                 biz_storage_class: BizStorage = BizStorage, **kwargs) -> None:
         """ Initialize a technical microservice.
         :param name: Name used to identify the microservice.
         :param configs: Deployment configurations.
+        :param biz_storage_class: The biz storage class used to store result on asynchronous invocation.
         :param kwargs: Other Chalice parameters.
         """
         name = name or self.__class__.__name__.lower()
@@ -171,6 +174,7 @@ class TechMicroService(Flask):
             self.configs = [configs]
 
         super().__init__(import_name=name, static_folder=None, **kwargs)
+        self.biz_storage_class = biz_storage_class
 
         self.test_client_class = CoworksClient
         self.request_class = Request
@@ -332,9 +336,7 @@ class TechMicroService(Flask):
                 # Strores response in S3 if asynchronous call
                 invocation_type = event['headers'].get('invocationtype')
                 if invocation_type == 'Event':
-                    bizz_task_id = event['headers'].get('x-cws-taskid')
-                    if bizz_task_id:
-                        self.store_response(resp, bizz_task_id)
+                    self.store_response(resp, event['headers'])
                 return resp
         except Exception as e:
             self.logger.debug(f"Error in api handler for {self.name} : {e}")
@@ -440,19 +442,19 @@ class TechMicroService(Flask):
         headers = {'content_type': "application/json"}
         return self._structured_payload(e.description, e.code, headers)
 
-    def store_response(self, resp, bizz_task_id):
+    def store_response(self, resp, headers):
         """Store microservice response in S3 for biz task sequence."""
+        bucket, key = self.biz_storage_class.get_store_bucket_key(headers)
         try:
-            aws_s3_session = boto3.session.Session()
-            content = json.dumps(resp) if type(resp) is dict else resp
-            buffer = io.BytesIO(content.encode())
-            buffer.seek(0)
-            bucket = 'coworks-microservice'
-            key = f'biz/task/dag_name/{bizz_task_id}'
-            self.logger.debug(f"Store response in {bucket}/{key}")
-            aws_s3_session.client('s3').upload_fileobj(buffer, bucket, key)
+            if bucket and key:
+                aws_s3_session = boto3.session.Session()
+                content = json.dumps(resp) if type(resp) is dict else resp
+                buffer = io.BytesIO(content.encode())
+                buffer.seek(0)
+                self.logger.debug(f"Store response in {bucket}/{key}")
+                aws_s3_session.client('s3').upload_fileobj(buffer, bucket, key)
         except Exception as e:
-            self.logger.debug(f"Exception when storing response for {bizz_task_id} : {str(e)}")
+            self.logger.debug(f"Exception when storing response for {bucket}/{key} : {str(e)}")
 
 
 class BizMicroService(TechMicroService):
