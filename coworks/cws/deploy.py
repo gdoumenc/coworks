@@ -1,22 +1,22 @@
-from dataclasses import dataclass
-
-import boto3
-import click
 import inspect
 import subprocess
 import sys
 import typing as t
-from flask.cli import pass_script_info
-from flask.cli import with_appcontext
+from dataclasses import dataclass
 from functools import cached_property
-from jinja2 import BaseLoader
-from jinja2 import Environment
-from jinja2 import PackageLoader
-from jinja2 import select_autoescape
 from pathlib import Path
 from shutil import copy
 from subprocess import CalledProcessError
 from subprocess import CompletedProcess
+
+import boto3
+import click
+from flask.cli import pass_script_info
+from flask.cli import with_appcontext
+from jinja2 import BaseLoader
+from jinja2 import Environment
+from jinja2 import PackageLoader
+from jinja2 import select_autoescape
 from werkzeug.routing import Rule
 
 from .exception import ExitCommand
@@ -162,6 +162,7 @@ class TerraformLocal:
         project_dir = options['project_dir']
         workspace = options['workspace']
         config = self.app.get_config(workspace)
+        environment_variable_files = config.existing_environment_variables_files(self.app)
 
         data = {
             'api_resources': self.api_resources,
@@ -170,7 +171,7 @@ class TerraformLocal:
             'aws_region': boto3.Session(profile_name=options['profile_name']).region_name,
             'description': inspect.getdoc(self.app) or "",
             'environment_variables': config.environment_variables,
-            'environment_variable_files': config.existing_environment_variables_files(self.app),
+            'environment_variable_files': [Path(f).name for f in environment_variable_files],
             'ms_name': self.app.name,
             **options
         }
@@ -378,7 +379,7 @@ def deploy_command(info, ctx, output, terraform_class=TerraformLocal, **options)
             zip_options = {zip_param.name: options[zip_param.name] for zip_param in zip_command.params}
             ctx.invoke(zip_command, **zip_options)
 
-            # Copy environment files
+            # Copy environment files in terraform folder
             config = app.get_config(workspace)
             environment_variable_files = config.existing_environment_variables_files(app)
             for file in environment_variable_files:
