@@ -380,7 +380,7 @@ def deploy_command(info, ctx, output, terraform_class=TerraformLocal, **options)
 
             # Copy environment files
             config = app.get_config(workspace)
-            environment_variable_files = config.existing_environment_variables_files(project_dir)
+            environment_variable_files = config.existing_environment_variables_files(app)
             for file in environment_variable_files:
                 terraform.copy_file(file)
 
