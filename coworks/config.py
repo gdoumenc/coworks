@@ -97,7 +97,8 @@ class LocalConfig(Config):
     def __init__(self, workspace=DEFAULT_LOCAL_WORKSPACE, **kwargs):
         super().__init__(workspace=workspace, **kwargs)
         self.environment_variables = {
-            'AWS_XRAY_SDK_ENABLED': False
+            'AWS_XRAY_SDK_ENABLED': False,
+            'EXPLAIN_TEMPLATE_LOADING': True,
         }
 
 
