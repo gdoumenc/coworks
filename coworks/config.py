@@ -32,7 +32,7 @@ class Config:
     def is_valid_for(self, workspace: str) -> bool:
         return self.workspace == workspace
 
-    def existing_environment_variables_files(self, project_dir):
+    def existing_environment_variables_files(self, app):
         """Returns a list containing the paths to environment variables files that actually exist """
 
         # store in a dict to allow specific environment variable files to be overloaded
@@ -50,16 +50,16 @@ class Config:
         environment_variables_file = as_list(self.environment_variables_file)
 
         # get default then specific
-        add_file('.')
-        add_file(project_dir)
+        add_file(app.root_path)
+        add_file(app.instance_path)
         return [f.as_posix() for f in files.values()]
 
-    def load_environment_variables(self, project_dir):
+    def load_environment_variables(self, app):
         """Uploads environment variables from the environment variables files and variables."""
         environment_variables = {}
 
         # Environment variables from files and from config
-        for file in self.existing_environment_variables_files(project_dir):
+        for file in self.existing_environment_variables_files(app):
             try:
                 with Path(file).open() as f:
                     environment_variables.update(json.loads(f.read()))

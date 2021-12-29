@@ -170,7 +170,7 @@ class TerraformLocal:
             'aws_region': boto3.Session(profile_name=options['profile_name']).region_name,
             'description': inspect.getdoc(self.app) or "",
             'environment_variables': config.environment_variables,
-            'environment_variable_files': config.existing_environment_variables_files(project_dir),
+            'environment_variable_files': config.existing_environment_variables_files(self.app),
             'ms_name': self.app.name,
             **options
         }

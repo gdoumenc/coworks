@@ -6,6 +6,7 @@ import typing as t
 from dataclasses import dataclass
 from functools import partial
 from inspect import isfunction
+from pathlib import Path
 
 import boto3
 import click
@@ -267,6 +268,26 @@ class TechMicroService(Flask):
         data = base64.b64encode(data).decode('ascii')
         return data
 
+    def auto_find_instance_path(self):
+        """Instance path may be redefined by an environment variable."""
+        instance_relative_path = os.getenv('INSTANCE_RELATIVE_PATH', '')
+        path = Path(self.root_path) / instance_relative_path
+        return path.as_posix()
+
+    def store_response(self, resp, headers):
+        """Store microservice response in S3 for biz task sequence."""
+        bucket, key = self.biz_storage_class.get_store_bucket_key(headers)
+        try:
+            if bucket and key:
+                aws_s3_session = boto3.session.Session()
+                content = json.dumps(resp) if type(resp) is dict else resp
+                buffer = io.BytesIO(content.encode())
+                buffer.seek(0)
+                self.logger.debug(f"Store response in {bucket}/{key}")
+                aws_s3_session.client('s3').upload_fileobj(buffer, bucket, key)
+        except Exception as e:
+            self.logger.debug(f"Exception when storing response for {bucket}/{key} : {str(e)}")
+
     def __call__(self, arg1, arg2) -> dict:
         """Main microservice entry point."""
 
@@ -358,7 +379,7 @@ class TechMicroService(Flask):
             config = self.get_config(workspace)
             self.config['WORKSPACE'] = config.workspace
             if load_env:
-                config.load_environment_variables(self.root_path)
+                config.load_environment_variables(self)
             self._cws_conf_updated = True
 
     def _check_token(self):
@@ -441,20 +462,6 @@ class TechMicroService(Flask):
     def _structured_error(self, e: HTTPException):
         headers = {'content_type': "application/json"}
         return self._structured_payload(e.description, e.code, headers)
-
-    def store_response(self, resp, headers):
-        """Store microservice response in S3 for biz task sequence."""
-        bucket, key = self.biz_storage_class.get_store_bucket_key(headers)
-        try:
-            if bucket and key:
-                aws_s3_session = boto3.session.Session()
-                content = json.dumps(resp) if type(resp) is dict else resp
-                buffer = io.BytesIO(content.encode())
-                buffer.seek(0)
-                self.logger.debug(f"Store response in {bucket}/{key}")
-                aws_s3_session.client('s3').upload_fileobj(buffer, bucket, key)
-        except Exception as e:
-            self.logger.debug(f"Exception when storing response for {bucket}/{key} : {str(e)}")
 
 
 class BizMicroService(TechMicroService):
