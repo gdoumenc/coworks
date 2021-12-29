@@ -54,7 +54,7 @@ def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
         proxy.__CWS_BINARY = getattr(fun, '__CWS_BINARY', False)
         proxy.__CWS_CONTENT_TYPE = getattr(fun, '__CWS_CONTENT_TYPE')
         proxy.__CWS_NO_AUTH = getattr(fun, '__CWS_NO_AUTH')
-        proxy.__CWS_FROM_BLUEPRINT = bool(bp_state)
+        proxy.__CWS_FROM_BLUEPRINT = bp_state.blueprint.name if bp_state else None
 
         # Creates the entry
         url_prefix = bp_state.url_prefix if bp_state else ''
@@ -161,7 +161,6 @@ def import_attr(module, attr: str, cwd='.'):
         sys.path.insert(0, cwd)
     app_module = importlib.import_module(module)
     if "PYTEST_CURRENT_TEST" in os.environ:
-        # needed as Chalice local server change class
         app_module = importlib.reload(app_module)
     return getattr(app_module, attr)
 

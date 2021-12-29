@@ -1,4 +1,5 @@
 import base64
+import io
 import logging
 import os
 import typing as t
@@ -6,20 +7,24 @@ from dataclasses import dataclass
 from functools import partial
 from inspect import isfunction
 
+import boto3
 import click
 from flask import Blueprint as FlaskBlueprint
 from flask import Flask
 from flask import Response
 from flask import abort
 from flask import current_app
+from flask import json
 from flask.blueprints import BlueprintSetupState
 from flask.ctx import RequestContext
 from flask.testing import FlaskClient
 from werkzeug.datastructures import WWWAuthenticate
-from werkzeug.exceptions import HTTPException, Unauthorized
+from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import InternalServerError
+from werkzeug.exceptions import Unauthorized
 from werkzeug.routing import Rule
 
+from .biz_storage import BizStorage
 from .config import Config
 from .config import DEFAULT_DEV_WORKSPACE
 from .config import DEFAULT_LOCAL_WORKSPACE
@@ -154,10 +159,12 @@ class TechMicroService(Flask):
     See :ref:`tech` for more information.
     """
 
-    def __init__(self, name: str = None, *, configs: t.Union[Config, t.List[Config]] = None, **kwargs) -> None:
+    def __init__(self, name: str = None, *, configs: t.Union[Config, t.List[Config]] = None,
+                 biz_storage_class: BizStorage = BizStorage, **kwargs) -> None:
         """ Initialize a technical microservice.
         :param name: Name used to identify the microservice.
         :param configs: Deployment configurations.
+        :param biz_storage_class: The biz storage class used to store result on asynchronous invocation.
         :param kwargs: Other Chalice parameters.
         """
         name = name or self.__class__.__name__.lower()
@@ -167,6 +174,7 @@ class TechMicroService(Flask):
             self.configs = [configs]
 
         super().__init__(import_name=name, static_folder=None, **kwargs)
+        self.biz_storage_class = biz_storage_class
 
         self.test_client_class = CoworksClient
         self.request_class = Request
@@ -268,8 +276,6 @@ class TechMicroService(Flask):
         else:
             res = self._lambda_handler(arg1, arg2)
 
-        # res['headers']['x-cws-workspace'] = os.getenv('WORKSPACE')
-
         return res
 
     def _lambda_handler(self, event: t.Dict[str, t.Any], context: t.Dict[str, t.Any]):
@@ -319,14 +325,21 @@ class TechMicroService(Flask):
                         url += f"{k}={vl}"
             return url
 
-        # Transform as simple client call and manage exception if needed
+        # Transforms as simple client call and manage exception if needed
         try:
             with self.cws_client(event, context) as c:
                 method = event['httpMethod']
                 kwargs = self._get_kwargs(event)
                 resp = getattr(c, method.lower())(full_path(), **kwargs)
-                return self._convert_to_lambda_response(resp)
+                resp = self._convert_to_lambda_response(resp)
+
+                # Strores response in S3 if asynchronous call
+                invocation_type = event['headers'].get('invocationtype')
+                if invocation_type == 'Event':
+                    self.store_response(resp, event['headers'])
+                return resp
         except Exception as e:
+            self.logger.debug(f"Error in api handler for {self.name} : {e}")
             error = e if isinstance(e, HTTPException) else InternalServerError(original_exception=e)
             return self._structured_error(error)
 
@@ -429,8 +442,19 @@ class TechMicroService(Flask):
         headers = {'content_type': "application/json"}
         return self._structured_payload(e.description, e.code, headers)
 
-    def schedule(self, *args, **kwargs):
-        raise Exception("Schedule decorator is defined on BizMicroService, not on TechMicroService")
+    def store_response(self, resp, headers):
+        """Store microservice response in S3 for biz task sequence."""
+        bucket, key = self.biz_storage_class.get_store_bucket_key(headers)
+        try:
+            if bucket and key:
+                aws_s3_session = boto3.session.Session()
+                content = json.dumps(resp) if type(resp) is dict else resp
+                buffer = io.BytesIO(content.encode())
+                buffer.seek(0)
+                self.logger.debug(f"Store response in {bucket}/{key}")
+                aws_s3_session.client('s3').upload_fileobj(buffer, bucket, key)
+        except Exception as e:
+            self.logger.debug(f"Exception when storing response for {bucket}/{key} : {str(e)}")
 
 
 class BizMicroService(TechMicroService):

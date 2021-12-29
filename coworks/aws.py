@@ -1,5 +1,6 @@
-import boto3
 import os
+
+import boto3
 
 
 class Boto3Mixin:
@@ -70,15 +71,3 @@ class AwsS3Session(Boto3Mixin):
 
     def __init__(self, **kwargs):
         super().__init__('s3', **kwargs)
-
-
-class ApiGatewaySession(Boto3Mixin):
-
-    def __init__(self, **kwargs):
-        super().__init__('apigateway', **kwargs)
-
-
-class AwsSFNSession(Boto3Mixin):
-
-    def __init__(self, **kwargs):
-        super().__init__('stepfunctions', **kwargs)

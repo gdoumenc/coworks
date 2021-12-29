@@ -56,7 +56,7 @@ class TestClass:
     def test_documentation(self):
         app = DocumentedMS()
         with app.test_client() as c:
-            response = c.get('/admin/route?blueprint=true', headers={'Authorization': 'token'})
+            response = c.get('/admin/route?blueprint=__all__', headers={'Authorization': 'token'})
             assert response.status_code == 200
             routes = json.loads(response.get_data(as_text=True))
             assert routes["/"]['GET'] == {

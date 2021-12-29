@@ -1,6 +1,6 @@
 import os
 
-from aws_xray_sdk.core import xray_recorder
+# from aws_xray_sdk.core import xray_recorder
 
 from coworks import TechMicroService
 from coworks import entry
@@ -23,7 +23,7 @@ class MyMicroService(TechMicroService):
 
         @self.before_first_request
         def first():
-            var = int(os.getenv('VAR'))
+            var = int(os.getenv('VAR', 0))
 
         @self.before_request
         def before():
