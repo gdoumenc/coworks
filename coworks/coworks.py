@@ -358,7 +358,8 @@ class TechMicroService(Flask):
                 invocation_type = event['headers'].get('invocationtype')
                 if invocation_type == 'Event':
                     self.store_response(resp, event['headers'])
-                return resp
+                else:
+                    return resp
         except Exception as e:
             self.logger.debug(f"Error in api handler for {self.name} : {e}")
             error = e if isinstance(e, HTTPException) else InternalServerError(original_exception=e)

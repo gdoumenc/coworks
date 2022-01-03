@@ -1,12 +1,12 @@
 import logging
-from functools import partial
+import typing as t
 from json import loads
 
 import requests
-from airflow.models.baseoperator import BaseOperator
-from airflow.operators.python import BranchPythonOperator
-from airflow.providers.http.hooks.http import HttpHook
 
+from airflow.models.baseoperator import BaseOperator
+from airflow.operators.branch import BaseBranchOperator
+from airflow.providers.http.hooks.http import HttpHook
 from coworks.biz_storage import BizStorage
 
 
@@ -42,9 +42,10 @@ class TechMicroServiceOperator(BaseOperator):
             stage = stage or "dev"
             self._url = f'https://{api_id}.execute-api.eu-west-1.amazonaws.com/{stage}/{self.entry}'
 
-        # CReates header
+        # Creates header
         self.headers = {
             "Content-Type": 'application/json',
+            "Accept": 'text/html, application/json',
         }
         if not no_auth:
             self.headers['Authorization'] = token
@@ -73,22 +74,29 @@ class TechMicroServiceOperator(BaseOperator):
             self.xcom_push(context, 'key', key)
 
 
-class BranchTechMicroServiceOperator(BranchPythonOperator):
+class BranchTechMicroServiceOperator(BaseBranchOperator):
 
-    def __init__(self, *, service=None, on_success: str = None, on_failure: str = None, **kwargs) -> None:
-        super().__init__(python_callable=lambda _: _, **kwargs)
+    def __init__(self, *, service=None, on_success: str = None, on_failure: str = None, on_empty: str = None,
+                 response_check: t.Optional[t.Callable[..., bool]] = None, on_check: str = None,
+                 **kwargs) -> None:
+        super().__init__(**kwargs)
         self.service = service
         self.on_success = on_success
         self.on_failure = on_failure
+        self.on_empty = on_empty
+        self.response_check = response_check
+        self.on_check = on_check
 
-    def execute(self, context):
-        self.python_callable = partial(self.branch, context, self.on_success, self.on_failure)
-        return super().execute(context)
-
-    def branch(self, context, on_success, on_failure):
+    def choose_branch(self, context):
         service_name = context['ti'].xcom_pull(task_ids=self.service, key='name')
-        status_code = context['ti'].xcom_pull(task_ids=self.service, key='status_code')
+        status_code = int(context['ti'].xcom_pull(task_ids=self.service, key='status_code'))
         logging.info(f"TechMS {service_name} returned code : {status_code}")
-        if status_code != 200:
-            return on_failure
-        return on_success
+        if self.on_failure and status_code >= 400:
+            return self.on_failure
+        if self.on_empty and status_code == 204:
+            return self.on_empty
+        if self.on_check and self.response_check:
+            text = int(context['ti'].xcom_pull(task_ids=self.service, key='text'))
+            if self.response_check(text):
+                return self.on_check
+        return self.on_success
