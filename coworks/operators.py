@@ -3,14 +3,17 @@ import typing as t
 from json import loads
 
 import requests
+from coworks.biz_storage import BizStorage
 
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.branch import BaseBranchOperator
 from airflow.providers.http.hooks.http import HttpHook
-from coworks.biz_storage import BizStorage
 
 
 class TechMicroServiceOperator(BaseOperator):
+    """Microservice operator.
+    The microservice may be called from its name or api_id, stage and token.
+    """
     template_fields = ["name", "entry", "data", "json", "asynchronous"]
 
     def __init__(self, *, name: str = None, entry: str = None, method: str = None,
@@ -75,7 +78,9 @@ class TechMicroServiceOperator(BaseOperator):
 
 
 class BranchTechMicroServiceOperator(BaseBranchOperator):
+    """ Branch operator based on TechMicroservice return.
 
+    """
     def __init__(self, *, service=None, on_success: str = None, on_failure: str = None, on_empty: str = None,
                  response_check: t.Optional[t.Callable[..., bool]] = None, on_check: str = None,
                  **kwargs) -> None:
