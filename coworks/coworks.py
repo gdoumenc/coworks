@@ -279,7 +279,7 @@ class TechMicroService(Flask):
                 content = json.dumps(resp) if type(resp) is dict else resp
                 buffer = io.BytesIO(content.encode())
                 buffer.seek(0)
-                self.logger.debug(f"Store response in {bucket}/{key}")
+                self.logger.debug(f"Store response in s3://{bucket}/{key}")
                 aws_s3_session.client('s3').upload_fileobj(buffer, bucket, key)
         except Exception as e:
             self.logger.debug(f"Exception when storing response for {bucket}/{key} : {str(e)}")

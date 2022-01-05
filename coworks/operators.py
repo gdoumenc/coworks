@@ -79,6 +79,7 @@ class TechMicroServiceOperator(BaseOperator):
             headers[self.biz_storage_class.TASK_ID_HEADER_KEY] = context['ti'].task_id
             headers[self.biz_storage_class.JOB_ID_HEADER_KEY] = context['ti'].job_id
         logging.info(f"Sending '{self.method.upper()}' to url: {self._url}")
+        logging.info(f"Result stored in '{self.biz_storage_class.get_store_bucket_key(headers)}'")
         res = requests.request(self.method.upper(), self._url, headers=headers, data=self.data, json=self.json)
         if self.log_response:
             logging.info(res.status_code)

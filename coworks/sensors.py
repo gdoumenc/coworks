@@ -17,8 +17,9 @@ class AsyncTechMicroServiceSensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
 
     def poke(self, context):
-        bucket_name = f"{{{{ ti.xcom_pull(task_ids='{self.cws_task_id}', key='bucket') }}}}"
-        bucket_key = f"{{{{ ti.xcom_pull(task_ids='{self.cws_task_id}', key='key') }}}}"
+        ti = context['ti']
+        bucket_name = ti.xcom_pull(task_ids=self.cws_task_id, key='bucket')
+        bucket_key = ti.xcom_pull(task_ids=self.cws_task_id, key='key')
         self.log.info('Poking for key : s3://%s/%s', bucket_name, bucket_key)
-        hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+        hook = S3Hook(aws_conn_id=self.aws_conn_id)
         return hook.check_for_key(bucket_key, bucket_name)
