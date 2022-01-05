@@ -216,14 +216,6 @@ def trim_underscores(name):
     return name
 
 
-def as_list(var):
-    if var is None:
-        return []
-    if type(var) is list:
-        return var
-    return [var]
-
-
 def get_system_info():
     from flask import __version__ as flask_version
 

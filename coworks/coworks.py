@@ -25,7 +25,6 @@ from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import Unauthorized
 from werkzeug.routing import Rule
 
-from .biz_storage import BizStorage
 from .config import Config
 from .config import DEFAULT_DEV_WORKSPACE
 from .config import DEFAULT_LOCAL_WORKSPACE
@@ -160,12 +159,10 @@ class TechMicroService(Flask):
     See :ref:`tech` for more information.
     """
 
-    def __init__(self, name: str = None, *, configs: t.Union[Config, t.List[Config]] = None,
-                 biz_storage_class: BizStorage = BizStorage, **kwargs) -> None:
+    def __init__(self, name: str = None, *, configs: t.Union[Config, t.List[Config]] = None, **kwargs) -> None:
         """ Initialize a technical microservice.
         :param name: Name used to identify the microservice.
         :param configs: Deployment configurations.
-        :param biz_storage_class: The biz storage class used to store result on asynchronous invocation.
         :param kwargs: Other Chalice parameters.
         """
         name = name or self.__class__.__name__.lower()
@@ -175,7 +172,6 @@ class TechMicroService(Flask):
             self.configs = [configs]
 
         super().__init__(import_name=name, static_folder=None, **kwargs)
-        self.biz_storage_class = biz_storage_class
 
         self.test_client_class = CoworksClient
         self.request_class = Request
@@ -276,7 +272,7 @@ class TechMicroService(Flask):
 
     def store_response(self, resp, headers):
         """Store microservice response in S3 for biz task sequence."""
-        bucket, key = self.biz_storage_class.get_store_bucket_key(headers)
+        bucket, key = self.config.biz_storage_class.get_store_bucket_key(headers)
         try:
             if bucket and key:
                 aws_s3_session = boto3.session.Session()
