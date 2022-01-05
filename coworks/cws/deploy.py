@@ -59,7 +59,7 @@ class TerraformResource:
 
 class TerraformLocal:
     """Terraform class to manage local terraform deployements."""
-    TIMEOUT = 300
+    TIMEOUT = 600
 
     def __init__(self, info, bar, **options):
         self.info = info
