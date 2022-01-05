@@ -77,7 +77,7 @@ resource "aws_lambda_permission" "{{ resource_name }}_allow_apigateway" {
   action = "lambda:InvokeFunction"
   function_name = local.{{ resource_name }}_lambda_name
   principal = "apigateway.amazonaws.com"
-  source_arn = "${join("", data.aws_api_gateway_rest_api.{{ resource_name }}.*.execution_arn)}/*/*/*"
+  source_arn = "${join("", data.aws_api_gateway_rest_api.{{ resource_name }}.*.execution_arn)}/*/*"
   depends_on = [aws_lambda_function.{{ resource_name }}]
 }
 
