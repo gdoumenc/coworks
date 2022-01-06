@@ -32,9 +32,6 @@ def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
     method_members = inspect.getmembers(scaffold.__class__, lambda x: inspect.isfunction(x))
     methods = [fun for _, fun in method_members if hasattr(fun, '__CWS_METHOD')]
     for fun in methods:
-        if getattr(fun, '__CWS_HIDDEN', False):
-            continue
-
         method = getattr(fun, '__CWS_METHOD')
         entry_path = path_join(getattr(fun, '__CWS_PATH'))
 

@@ -1,13 +1,10 @@
 import os
-import re
 from unittest import mock
 from unittest.mock import Mock
 
 import click
-from flask.cli import ScriptInfo
 
 from coworks.cws.client import client
-from coworks.utils import import_attr
 
 
 class TestClass:
@@ -25,7 +22,8 @@ class TestClass:
         del os.environ["FLASK_RUN_FROM_CLI"]
         mclick.assert_called()
         assert len(mclick.mock_calls) == 7
+        out = [call.args[0].split(' ')[0] for call in mclick.mock_calls]
         assert 'Endpoint' in str(mclick.mock_calls[0])
-        assert '/admin/route' in str(mclick.mock_calls[3])
-        assert re.match(r"call[(]'get.*GET.*/",  str(mclick.mock_calls[4]))
-        assert re.match(r"call[(]'post.*POST.*/",  str(mclick.mock_calls[6]))
+        assert '/admin/route_GET' in out
+        assert '/_GET' in out
+        assert '/_POST' in out

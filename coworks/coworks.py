@@ -83,18 +83,6 @@ def entry(fun: t.Callable = None, binary: bool = False, content_type: str = None
     return fun
 
 
-def hide(fun: t.Callable) -> t.Callable:
-    """Hide a route of the microservice.
-
-     May be used as a decorator.
-
-     Usefull when creating inherited microservice.
-     """
-
-    setattr(fun, '__cws_hidden', True)
-    return fun
-
-
 #
 # Classes
 #
