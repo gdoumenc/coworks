@@ -114,7 +114,7 @@ class Config:
 class LocalConfig(Config):
     """ Production configuration have workspace's name corresponding to version's index."""
 
-    def __init__(self, workspace=DEFAULT_LOCAL_WORKSPACE, **kwargs):
+    def __init__(self, workspace: str = DEFAULT_LOCAL_WORKSPACE, **kwargs):
         super().__init__(workspace=workspace, **kwargs)
         self.environment_variables = {
             'AWS_XRAY_SDK_ENABLED': False,
@@ -125,18 +125,18 @@ class LocalConfig(Config):
 class DevConfig(Config):
     """ Production configuration have workspace's name corresponding to version's index."""
 
-    def __init__(self, workspace=DEFAULT_DEV_WORKSPACE, **kwargs):
+    def __init__(self, workspace: str = DEFAULT_DEV_WORKSPACE, **kwargs):
         super().__init__(workspace=workspace, **kwargs)
 
 
 class ProdConfig(DevConfig):
     """ Production configuration have workspace's name corresponding to version's index."""
 
-    def __init__(self, pattern=r"[vV][1-9]+", **kwargs):
+    def __init__(self, pattern: str = r"[vV][1-9]+", **kwargs):
         super().__init__(**kwargs)
         self.pattern = pattern
 
-    def is_valid_for(self, workspace):
+    def is_valid_for(self, workspace: str):
         return re.match(self.pattern, workspace) is not None
 
 
