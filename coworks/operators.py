@@ -41,36 +41,48 @@ class TechMicroServiceOperator(BaseOperator):
         self.cws_name = cws_name
         self.entry = entry.lstrip('/')
         self.method = method.lower() if method else 'get'
+        self.no_auth = no_auth
+        self.log_response = log_response
         self.data = data
         self.json = json
-        self.log_response = log_response
+        self.stage = stage or "dev"
+        self.api_id = api_id
+        self.token = token
+        self.directory_conn_id = directory_conn_id
         self.asynchronous = asynchronous
         self.biz_storage_class = biz_storage_class
-
-        # Gets url and token from name or parameters
-        stage = stage or "dev"
-        if cws_name:
-            http = HttpHook('get', http_conn_id=directory_conn_id)
-            self.log.info("Calling CoWorks directory")
-            response = http.run(cws_name)
-            if self.log_response:
-                self.log.info(response.text)
-            coworks_data = loads(response.text)
-            token = coworks_data['token']
-            self._url = f"{coworks_data['url']}/{self.entry}"
-        else:
-            self._url = f'https://{api_id}.execute-api.eu-west-1.amazonaws.com/{stage}/{self.entry}'
+        self._url = None
 
         # Creates header
         self.headers = {
-            "Content-Type": 'application/json',
-            "Accept": 'text/html, application/json',
+            'Content-Type': "application/json",
+            'Accept': "text/html, application/json",
         }
         if not no_auth:
             self.headers['Authorization'] = token
 
+    def pre_execute(self, context):
+        """Gets url and token from name or parameters.
+        Done only before execution not on DAG loading.
+        """
+        if self.cws_name:
+            http = HttpHook('get', http_conn_id=self.directory_conn_id)
+            self.log.info("Calling CoWorks directory")
+            response = http.run(self.cws_name)
+            if self.log_response:
+                self.log.info(response.text)
+            coworks_data = loads(response.text)
+            self.token = coworks_data['token']
+            self._url = f"{coworks_data['url']}/{self.entry}"
+        else:
+            self._url = f'https://{self.api_id}.execute-api.eu-west-1.amazonaws.com/{self.stage}/{self.entry}'
+
     def execute(self, context):
+        """Call TechMicroService.
+        """
         headers = self.headers
+        if not self.no_auth:
+            self.headers['Authorization'] = self.token
         if self.asynchronous:
             headers['InvocationType'] = 'Event'
             headers[self.biz_storage_class.S3_BUCKET] = 'coworks-airflow'
@@ -78,26 +90,27 @@ class TechMicroServiceOperator(BaseOperator):
             headers[self.biz_storage_class.DAG_ID_HEADER_KEY] = context['ti'].dag_id
             headers[self.biz_storage_class.TASK_ID_HEADER_KEY] = context['ti'].task_id
             headers[self.biz_storage_class.JOB_ID_HEADER_KEY] = context['ti'].job_id
+            logging.info(f"Result stored in '{self.biz_storage_class.get_store_bucket_key(headers)}'")
+
         logging.info(f"Sending '{self.method.upper()}' to url: {self._url}")
-        logging.info(f"Result stored in '{self.biz_storage_class.get_store_bucket_key(headers)}'")
         res = requests.request(self.method.upper(), self._url, headers=headers, data=self.data, json=self.json)
         if self.log_response:
             logging.info(res.status_code)
             logging.info(res.text)
-        self.xcom_push(context, 'name', self.cws_name)
 
         # Returns values or storing file
+        self.xcom_push(context, 'cws_name', self.cws_name)
         if not self.asynchronous:
             self.xcom_push(context, 'status_code', res.status_code)
             self.xcom_push(context, 'text', res.text)
         else:
-            bucket, key = self.biz_storage_class.get_store_bucket_key({k.lower(): v for k, v in headers.items()})
+            bucket, key = self.biz_storage_class.get_store_bucket_key(headers)
             self.xcom_push(context, 'bucket', bucket)
             self.xcom_push(context, 'key', key)
 
 
 class BranchTechMicroServiceOperator(BaseBranchOperator):
-    """ Branch operator based on TechMicroservice call.
+    """Branch operator based on TechMicroservice call.
 
     :param cws_task_id: the tech microservice task_id result tested to determine the branch.
     :param on_failure: the task_ids in case of status code returned >= 400.
