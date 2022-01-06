@@ -27,7 +27,6 @@ def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
     :param app the app microservice
     :param bp_state the blueprint state
     """
-
     # Adds entrypoints
     scaffold = bp_state.blueprint if bp_state else app
     method_members = inspect.getmembers(scaffold.__class__, lambda x: inspect.isfunction(x))
@@ -64,9 +63,12 @@ def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
         rule = make_absolute(entry_path, url_prefix)
 
         name_prefix = f"{bp_state.blueprint.name}_" if bp_state else ''
-        endpoint = f"{name_prefix}{proxy.__name__}"
+        endpoint = f"{rule}_{method}"
 
-        app.add_url_rule(rule=rule, view_func=proxy, methods=[method], endpoint=endpoint)
+        try:
+            app.add_url_rule(rule=rule, view_func=proxy, methods=[method], endpoint=endpoint)
+        except AssertionError:
+            raise
 
 
 def create_rest_proxy(scaffold: Scaffold, func, kwarg_keys, args, varkw):
@@ -267,7 +269,10 @@ def as_typed_kwargs(func, kwargs):
         hints = t.get_type_hints(func)
         for name, value in kwargs.items():
             hints_type = hints.get(name)
-            typed_kwargs[name] = hints_type(value) if hints_type else value
+            try:
+                typed_kwargs[name] = hints_type(value)
+            except TypeError:
+                pass
     except TypeError:
         pass
     return typed_kwargs
