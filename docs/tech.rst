@@ -117,12 +117,27 @@ This is usefull for offering a CRUD microservice:
 		return f"the instance with id {id}"
 
 	@entry
-	def put(self, data):
+	def post(self, data):
 		return f"creates a new instance with {data}"
 
 	@entry
-	def put_(self, id, data):
+	def put(self, id, data):
 		return f"modifies an instance identified by {id} with {data}"
+
+Typed parameters
+^^^^^^^^^^^^^^^^
+
+You can type your URI parameters or data query to get them typed as native build-in type and not only string.
+
+.. code-block:: python
+
+	@entry
+	def get(self, id:int):
+		return f"the type of id is {type(id)}"
+
+	@entry
+	def get_(self, id:int = None):
+		return f"the type of id is {type(id)}"
 
 
 Query or body parameters

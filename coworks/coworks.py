@@ -6,6 +6,7 @@ import typing as t
 from dataclasses import dataclass
 from functools import partial
 from inspect import isfunction
+from pathlib import Path
 
 import boto3
 import click
@@ -24,7 +25,6 @@ from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import Unauthorized
 from werkzeug.routing import Rule
 
-from .biz_storage import BizStorage
 from .config import Config
 from .config import DEFAULT_DEV_WORKSPACE
 from .config import DEFAULT_LOCAL_WORKSPACE
@@ -80,18 +80,6 @@ def entry(fun: t.Callable = None, binary: bool = False, content_type: str = None
     fun.__CWS_CONTENT_TYPE = content_type
     fun.__CWS_NO_AUTH = no_auth
 
-    return fun
-
-
-def hide(fun: t.Callable) -> t.Callable:
-    """Hide a route of the microservice.
-
-     May be used as a decorator.
-
-     Usefull when creating inherited microservice.
-     """
-
-    setattr(fun, '__cws_hidden', True)
     return fun
 
 
@@ -159,12 +147,10 @@ class TechMicroService(Flask):
     See :ref:`tech` for more information.
     """
 
-    def __init__(self, name: str = None, *, configs: t.Union[Config, t.List[Config]] = None,
-                 biz_storage_class: BizStorage = BizStorage, **kwargs) -> None:
+    def __init__(self, name: str = None, *, configs: t.Union[Config, t.List[Config]] = None, **kwargs) -> None:
         """ Initialize a technical microservice.
         :param name: Name used to identify the microservice.
         :param configs: Deployment configurations.
-        :param biz_storage_class: The biz storage class used to store result on asynchronous invocation.
         :param kwargs: Other Chalice parameters.
         """
         name = name or self.__class__.__name__.lower()
@@ -174,7 +160,6 @@ class TechMicroService(Flask):
             self.configs = [configs]
 
         super().__init__(import_name=name, static_folder=None, **kwargs)
-        self.biz_storage_class = biz_storage_class
 
         self.test_client_class = CoworksClient
         self.request_class = Request
@@ -267,6 +252,26 @@ class TechMicroService(Flask):
         data = base64.b64encode(data).decode('ascii')
         return data
 
+    def auto_find_instance_path(self):
+        """Instance path may be redefined by an environment variable."""
+        instance_relative_path = os.getenv('INSTANCE_RELATIVE_PATH', '')
+        path = Path(self.root_path) / instance_relative_path
+        return path.as_posix()
+
+    def store_response(self, resp, headers):
+        """Store microservice response in S3 for biz task sequence."""
+        bucket, key = self.config.biz_storage_class.get_store_bucket_key(headers)
+        try:
+            if bucket and key:
+                aws_s3_session = boto3.session.Session()
+                content = json.dumps(resp) if type(resp) is dict else resp
+                buffer = io.BytesIO(content.encode())
+                buffer.seek(0)
+                self.logger.debug(f"Store response in s3://{bucket}/{key}")
+                aws_s3_session.client('s3').upload_fileobj(buffer, bucket, key)
+        except Exception as e:
+            self.logger.debug(f"Exception when storing response for {bucket}/{key} : {str(e)}")
+
     def __call__(self, arg1, arg2) -> dict:
         """Main microservice entry point."""
 
@@ -337,7 +342,8 @@ class TechMicroService(Flask):
                 invocation_type = event['headers'].get('invocationtype')
                 if invocation_type == 'Event':
                     self.store_response(resp, event['headers'])
-                return resp
+                else:
+                    return resp
         except Exception as e:
             self.logger.debug(f"Error in api handler for {self.name} : {e}")
             error = e if isinstance(e, HTTPException) else InternalServerError(original_exception=e)
@@ -358,7 +364,7 @@ class TechMicroService(Flask):
             config = self.get_config(workspace)
             self.config['WORKSPACE'] = config.workspace
             if load_env:
-                config.load_environment_variables(self.root_path)
+                config.load_environment_variables(self)
             self._cws_conf_updated = True
 
     def _check_token(self):
@@ -441,20 +447,6 @@ class TechMicroService(Flask):
     def _structured_error(self, e: HTTPException):
         headers = {'content_type': "application/json"}
         return self._structured_payload(e.description, e.code, headers)
-
-    def store_response(self, resp, headers):
-        """Store microservice response in S3 for biz task sequence."""
-        bucket, key = self.biz_storage_class.get_store_bucket_key(headers)
-        try:
-            if bucket and key:
-                aws_s3_session = boto3.session.Session()
-                content = json.dumps(resp) if type(resp) is dict else resp
-                buffer = io.BytesIO(content.encode())
-                buffer.seek(0)
-                self.logger.debug(f"Store response in {bucket}/{key}")
-                aws_s3_session.client('s3').upload_fileobj(buffer, bucket, key)
-        except Exception as e:
-            self.logger.debug(f"Exception when storing response for {bucket}/{key} : {str(e)}")
 
 
 class BizMicroService(TechMicroService):

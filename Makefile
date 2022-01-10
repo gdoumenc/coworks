@@ -17,9 +17,9 @@ deploy: clean dist
 deploy-test: clean dist
 	pipenv run twine upload --repository testpypi dist/*
 
-plugins.zip: coworks/operators.py coworks/biz_storage.py
+plugins.zip: coworks/operators.py coworks/sensors.py coworks/config.py
 	mkdir -p build
-	zip -r build/plugins.zip coworks/operators.py coworks/biz_storage.py
+	zip -r build/plugins.zip $^
 
 clean:
 	rm -rf dist build coworks.egg-info .pytest_cache

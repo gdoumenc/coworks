@@ -7,14 +7,33 @@ from dataclasses import dataclass
 from json import JSONDecodeError
 from pathlib import Path
 
-from .utils import as_list
-
 DEFAULT_PROJECT_DIR = '.'
 DEFAULT_LOCAL_WORKSPACE = 'local'
 DEFAULT_DEV_WORKSPACE = 'dev'
 
 ENV_FILE_SUFFIX = '.json'
 SECRET_ENV_FILE_SUFFIX = '.secret.json'
+
+
+class BizStorage:
+    S3_BUCKET = 'X-CWS-S3Bucket'
+    S3_PREFIX = 'X-CWS-S3Prefix'
+    DAG_ID_HEADER_KEY = 'X-CWS-DagId'
+    TASK_ID_HEADER_KEY = 'X-CWS-TaskId'
+    JOB_ID_HEADER_KEY = 'X-CWS-JobId'
+
+    @staticmethod
+    def get_store_bucket_key(headers) -> t.Tuple[t.Optional[str], t.Optional[str]]:
+        """Returns bucket and key for asynchronous invocation."""
+        s3_bucket = headers.get(BizStorage.S3_BUCKET.lower())
+        s3_prefix = headers.get(BizStorage.S3_PREFIX.lower())
+        biz_dag_id = headers.get(BizStorage.DAG_ID_HEADER_KEY.lower())
+        biz_task_id = headers.get(BizStorage.TASK_ID_HEADER_KEY.lower())
+        biz_job_id = headers.get(BizStorage.JOB_ID_HEADER_KEY.lower())
+        if s3_bucket and s3_prefix and biz_dag_id and biz_task_id and biz_job_id:
+            key = f'{s3_prefix}/{biz_dag_id}/{biz_task_id}/{biz_job_id}'
+            return s3_bucket, key
+        return None, None
 
 
 @dataclass
@@ -24,6 +43,7 @@ class Config:
     workspace: str = DEFAULT_DEV_WORKSPACE
     environment_variables_file: t.Union[str, t.List[str], Path, t.List[Path]] = 'vars.json'
     environment_variables: t.Union[dict, t.List[dict]] = None
+    biz_storage_class: BizStorage = BizStorage
 
     @property
     def ENV(self):
@@ -32,7 +52,7 @@ class Config:
     def is_valid_for(self, workspace: str) -> bool:
         return self.workspace == workspace
 
-    def existing_environment_variables_files(self, project_dir):
+    def existing_environment_variables_files(self, app):
         """Returns a list containing the paths to environment variables files that actually exist """
 
         # store in a dict to allow specific environment variable files to be overloaded
@@ -50,16 +70,16 @@ class Config:
         environment_variables_file = as_list(self.environment_variables_file)
 
         # get default then specific
-        add_file('.')
-        add_file(project_dir)
+        add_file(app.root_path)
+        add_file(app.instance_path)
         return [f.as_posix() for f in files.values()]
 
-    def load_environment_variables(self, project_dir):
+    def load_environment_variables(self, app):
         """Uploads environment variables from the environment variables files and variables."""
         environment_variables = {}
 
         # Environment variables from files and from config
-        for file in self.existing_environment_variables_files(project_dir):
+        for file in self.existing_environment_variables_files(app):
             try:
                 with Path(file).open() as f:
                     environment_variables.update(json.loads(f.read()))
@@ -94,26 +114,35 @@ class Config:
 class LocalConfig(Config):
     """ Production configuration have workspace's name corresponding to version's index."""
 
-    def __init__(self, workspace=DEFAULT_LOCAL_WORKSPACE, **kwargs):
+    def __init__(self, workspace: str = DEFAULT_LOCAL_WORKSPACE, **kwargs):
         super().__init__(workspace=workspace, **kwargs)
         self.environment_variables = {
-            'AWS_XRAY_SDK_ENABLED': False
+            'AWS_XRAY_SDK_ENABLED': False,
+            'EXPLAIN_TEMPLATE_LOADING': True,
         }
 
 
 class DevConfig(Config):
     """ Production configuration have workspace's name corresponding to version's index."""
 
-    def __init__(self, workspace=DEFAULT_DEV_WORKSPACE, **kwargs):
+    def __init__(self, workspace: str = DEFAULT_DEV_WORKSPACE, **kwargs):
         super().__init__(workspace=workspace, **kwargs)
 
 
 class ProdConfig(DevConfig):
     """ Production configuration have workspace's name corresponding to version's index."""
 
-    def __init__(self, pattern=r"[vV][1-9]+", **kwargs):
+    def __init__(self, pattern: str = r"[vV][1-9]+", **kwargs):
         super().__init__(**kwargs)
         self.pattern = pattern
 
-    def is_valid_for(self, workspace):
+    def is_valid_for(self, workspace: str):
         return re.match(self.pattern, workspace) is not None
+
+
+def as_list(var):
+    if var is None:
+        return []
+    if type(var) is list:
+        return var
+    return [var]

@@ -4,11 +4,14 @@ import os
 import platform
 import sys
 import traceback
+import typing as t
 from functools import partial
 from functools import update_wrapper
 
+from flask import current_app
 from flask import make_response
 from flask.blueprints import BlueprintSetupState
+from flask.scaffold import Scaffold
 from werkzeug.datastructures import Headers
 from werkzeug.exceptions import BadRequest
 from werkzeug.exceptions import BadRequestKeyError
@@ -24,15 +27,11 @@ def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
     :param app the app microservice
     :param bp_state the blueprint state
     """
-
     # Adds entrypoints
     scaffold = bp_state.blueprint if bp_state else app
     method_members = inspect.getmembers(scaffold.__class__, lambda x: inspect.isfunction(x))
     methods = [fun for _, fun in method_members if hasattr(fun, '__CWS_METHOD')]
     for fun in methods:
-        if getattr(fun, '__CWS_HIDDEN', False):
-            continue
-
         method = getattr(fun, '__CWS_METHOD')
         entry_path = path_join(getattr(fun, '__CWS_PATH'))
 
@@ -61,12 +60,15 @@ def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
         rule = make_absolute(entry_path, url_prefix)
 
         name_prefix = f"{bp_state.blueprint.name}_" if bp_state else ''
-        endpoint = f"{name_prefix}{proxy.__name__}"
+        endpoint = f"{rule}_{method}"
 
-        app.add_url_rule(rule=rule, view_func=proxy, methods=[method], endpoint=endpoint)
+        try:
+            app.add_url_rule(rule=rule, view_func=proxy, methods=[method], endpoint=endpoint)
+        except AssertionError:
+            raise
 
 
-def create_rest_proxy(scaffold, func, kwarg_keys, args, varkw):
+def create_rest_proxy(scaffold: Scaffold, func, kwarg_keys, args, varkw):
     def proxy(**kwargs):
         try:
             # Adds kwargs parameters
@@ -74,6 +76,7 @@ def create_rest_proxy(scaffold, func, kwarg_keys, args, varkw):
                 """Alerts when more parameters than expected are defined in request."""
                 if param_name not in kwarg_keys and varkw is None:
                     _err_msg = f"TypeError: got an unexpected keyword argument '{param_name}'"
+                    current_app.logger.info(_err_msg)
                     raise BadRequestKeyError(_err_msg)
 
             def as_fun_params(values: dict, flat=True):
@@ -93,7 +96,7 @@ def create_rest_proxy(scaffold, func, kwarg_keys, args, varkw):
                 # adds parameters from query parameters
                 if request.method == 'GET':
                     data = request.values.to_dict(False)
-                    kwargs = dict(**kwargs, **as_fun_params(data))
+                    kwargs = as_typed_kwargs(func, dict(**kwargs, **as_fun_params(data)))
 
                 # adds parameters from body parameter
                 elif request.method in ['POST', 'PUT']:
@@ -119,8 +122,8 @@ def create_rest_proxy(scaffold, func, kwarg_keys, args, varkw):
                             data = request.values.to_dict(False)
                             kwargs = dict(**kwargs, **as_fun_params(data))
                     except Exception as e:
-                        scaffold.logger.error(traceback.print_exc())
-                        scaffold.logger.debug(e)
+                        current_app.logger.error(traceback.print_exc())
+                        current_app.logger.debug(e)
                         raise BadRequest(str(e))
 
                 else:
@@ -135,6 +138,7 @@ def create_rest_proxy(scaffold, func, kwarg_keys, args, varkw):
                     if request.query_string:
                         err_msg = f"TypeError: got an unexpected arguments (query: {request.query_string})"
                         raise BadRequestKeyError(err_msg)
+                kwargs = as_typed_kwargs(func, kwargs)
 
             resp = func(scaffold, **kwargs)
             if resp is None:
@@ -145,10 +149,10 @@ def create_rest_proxy(scaffold, func, kwarg_keys, args, varkw):
 
             return make_response(resp)
         except TypeError as e:
-            scaffold.logger.error(f"Bad request error: {str(e)}")
+            current_app.logger.error(f"Bad request error: {str(e)}")
             raise BadRequest(str(e))
         except (Exception,) as e:
-            scaffold.logger.error(e)
+            current_app.logger.error(e)
             raise
 
     return update_wrapper(proxy, func)
@@ -216,14 +220,6 @@ def trim_underscores(name):
     return name
 
 
-def as_list(var):
-    if var is None:
-        return []
-    if type(var) is list:
-        return var
-    return [var]
-
-
 def get_system_info():
     from flask import __version__ as flask_version
 
@@ -263,3 +259,18 @@ def check_success(resp):
         return is_success(resp.status_code)
 
     return True
+
+
+def as_typed_kwargs(func, kwargs):
+    typed_kwargs = {**kwargs}
+    try:
+        hints = t.get_type_hints(func)
+        for name, value in kwargs.items():
+            hints_type = hints.get(name)
+            try:
+                typed_kwargs[name] = hints_type(value)
+            except TypeError:
+                pass
+    except TypeError:
+        pass
+    return typed_kwargs

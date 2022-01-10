@@ -48,6 +48,10 @@ This is because the command are added to service and then depends on your code.
 
 The options ``-p (project_dir)`` is mandatory if the ``cws`` command is not issued in the source folder.
 
+**Note**: As the ``project_dir`` is not defined when you run the microservice without the ``run`` command,
+for example in your IDE, you can define the environment variable ``INSTANCE_RELATIVE_PATH`` to be able to retrieve
+the environment variable file. The value is a relative path from ``project_dir``.
+
 The options ``-m (module)`` and ``-s (service)`` are mandatory for launching
 any command from the ``cws`` if a configuration project is not defined in the source folder.
 
