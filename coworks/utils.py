@@ -76,6 +76,7 @@ def create_rest_proxy(scaffold: Scaffold, func, kwarg_keys, args, varkw):
                 """Alerts when more parameters than expected are defined in request."""
                 if param_name not in kwarg_keys and varkw is None:
                     _err_msg = f"TypeError: got an unexpected keyword argument '{param_name}'"
+                    current_app.logger.info(_err_msg)
                     raise BadRequestKeyError(_err_msg)
 
             def as_fun_params(values: dict, flat=True):
