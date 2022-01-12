@@ -50,9 +50,10 @@ def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
             kwarg_keys = {}
 
         proxy = create_rest_proxy(scaffold, fun, kwarg_keys, args, varkw)
-        proxy.__CWS_BINARY = getattr(fun, '__CWS_BINARY', False)
+        proxy.__CWS_BINARY = getattr(fun, '__CWS_BINARY')
         proxy.__CWS_CONTENT_TYPE = getattr(fun, '__CWS_CONTENT_TYPE')
         proxy.__CWS_NO_AUTH = getattr(fun, '__CWS_NO_AUTH')
+        proxy.__CWS_NO_CORS = getattr(fun, '__CWS_NO_CORS')
         proxy.__CWS_FROM_BLUEPRINT = bp_state.blueprint.name if bp_state else None
 
         # Creates the entry

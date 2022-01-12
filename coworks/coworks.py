@@ -45,21 +45,23 @@ from .wrappers import TokenResponse
 #
 
 
-def entry(fun: t.Callable = None, binary: bool = False, content_type: str = None, no_auth: bool = False) -> t.Callable:
+def entry(fun: t.Callable = None, binary: bool = False, content_type: str = None,
+          no_auth: bool = False, no_cors: bool = False) -> t.Callable:
     """Decorator to create a microservice entry point from function name.
     :param fun: the entry function.
     :param binary: allow payload without transformation.
     :param content_type: force default content-type.
-    :param no_auth: set authorizer.
+    :param no_auth: set authorizer by default.
+    :param no_cors: set CORS by default.
     """
     if fun is None:
         if binary and not content_type:
             content_type = 'application/octet-stream'
-        return partial(entry, binary=binary, content_type=content_type, no_auth=no_auth)
+        return partial(entry, binary=binary, content_type=content_type, no_auth=no_auth, no_cors=no_cors)
 
     def get_path(start):
         name_ = fun.__name__[start:]
-        name_ = trim_underscores(name_)  # to allow several functions with different args
+        name_ = trim_underscores(name_)  # to allow several functions with d, Falseifferent args
         return name_.replace('_', '/')
 
     name = fun.__name__.upper()
@@ -79,6 +81,7 @@ def entry(fun: t.Callable = None, binary: bool = False, content_type: str = None
     fun.__CWS_BINARY = binary
     fun.__CWS_CONTENT_TYPE = content_type
     fun.__CWS_NO_AUTH = no_auth
+    fun.__CWS_NO_CORS = no_cors
 
     return fun
 

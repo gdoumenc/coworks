@@ -53,6 +53,11 @@ class TerraformResource:
     def parent_is_root(self) -> bool:
         return self.parent_uid == ''
 
+    # noinspection PyUnresolvedReferences
+    @cached_property
+    def no_cors_methods(self) -> t.List[t.Optional[str]]:
+        return [rule.methods for rule in self.rules if rule.cws_no_cors]
+
     def __repr__(self):
         return f"{self.uid}:{self.rules}"
 
@@ -109,12 +114,14 @@ class TerraformLocal:
         resources: t.Dict[str, TerraformResource] = {}
 
         def add_rule(previous: t.Optional[str], path: t.Optional[str], rule_: t.Optional[Rule]):
+            """Add a method rule in a resource."""
             path = None if path is None else path.replace('<', '{').replace('>', '}')
             resource = TerraformResource(previous, path)
             if rule_:
                 view_function = self.app.view_functions.get(rule_.endpoint)
-                rule_.cws_binary = getattr(view_function, '__CWS_BINARY', False)
-                rule_.cws_no_auth = getattr(view_function, '__CWS_NO_AUTH', False)
+                rule_.cws_binary = getattr(view_function, '__CWS_BINARY')
+                rule_.cws_no_auth = getattr(view_function, '__CWS_NO_AUTH')
+                rule_.cws_no_cors = getattr(view_function, '__CWS_NO_CORS')
 
             # Creates the terraform ressource if doesn't exist.
             uid = resource.uid

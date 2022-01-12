@@ -199,6 +199,9 @@ object for you.
   form (response, status), or (response, status, headers). The status value will override the status code and headers
   can be a list or dictionary of additional header values.
 
+Nevertheless we strongly recommand to use only JSON structure (``str`` or ``dict``) and use werkzeug ``HttpException``
+for return status code. Then you can easily call your entry from another entry.
+
 Binary response
 ---------------
 
@@ -210,8 +213,8 @@ You can return a binary response on a specifiy entry::
 
 For such entry the returned value must be a list of bytes.
 
-Unfortunatly it is not possible with the Lambda to set dynamicaly the returned type. So the content-type value may be
-set by the accept header parameter or by fixing it for the route.
+Unfortunatly it is not possible with the Lambda to set dynamicaly the returned content-type.
+So the content-type value may be set by the ``Accept`` header parameter or by fixing it for the route.
 
 
 .. _blueprint:
@@ -259,9 +262,10 @@ Admin
 
 The admin blueprint adds the following routes :
 
-``/routes``
+``/route``
 
-	List all the routes of the microservice with the signature extracted from its associated function.
+	List all the routes of the microservice with the signature extracted from its associated function
+    (similar to the coworks ``route`` command).
 
 ``/context``
 

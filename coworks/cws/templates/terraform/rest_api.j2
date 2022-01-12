@@ -145,8 +145,10 @@ resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_{
 }
 {%- endfor %}
 {%- endfor %}
-{#     Preflighted requests in CORS #}
 
+{# Preflighted requests in CORS #}
+
+{%- if resource.no_cors_methods -%}
 resource "aws_api_gateway_method" "{{ resource_name }}_{{ uid }}_OPTIONS" {
   provider = aws.{{ resource_name }}
   count = {{ "local.{}_when_default".format(resource_name) }}
@@ -159,7 +161,6 @@ resource "aws_api_gateway_method" "{{ resource_name }}_{{ uid }}_OPTIONS" {
   http_method = "OPTIONS"
   authorization = "NONE"
 }
-
 resource "aws_api_gateway_integration" "{{ resource_name }}_{{ uid }}_OPTIONS" {
   provider = aws.{{ resource_name }}
   count = {{ "local.{}_when_default".format(resource_name) }}
@@ -175,7 +176,6 @@ resource "aws_api_gateway_integration" "{{ resource_name }}_{{ uid }}_OPTIONS" {
     "application/json" = "{ \"statusCode\": 200 }"
   }
 }
-
 resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_OPTIONS" {
   provider = aws.{{ resource_name }}
   count = {{ "local.{}_when_default".format(resource_name) }}
@@ -186,21 +186,21 @@ resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_O
   resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
   {%- endif %}
   http_method =  join("", aws_api_gateway_method.{{ resource_name }}_{{ uid }}_OPTIONS.*.http_method)
-  response_parameters = {
-{#  {%- for k,v in resource.cors.get_access_control_headers().items() %}#}
-{#    "method.response.header.{{ k }}" = "'{{ v }}'",#}
-{#  {%- endfor %}#}
-  }
   status_code = 200
   response_templates = {
-    "application/json": "{}"
+    "application/json": <<-EOF
+      #set($context.responseOverride.header={
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token',
+        'Access-Control-Allow-Methods': '{%- for method in resource.no_cors_methods -%}{{ method }}{%- endfor -%}'
+      })
+    EOF
   }
   depends_on = [
     aws_api_gateway_integration.{{ resource_name }}_{{ uid }}_OPTIONS,
     aws_api_gateway_method_response.{{ resource_name }}_{{ uid }}_OPTIONS,
   ]
 }
-
 resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_OPTIONS" {
   provider = aws.{{ resource_name }}
   count = {{ "local.{}_when_default".format(resource_name) }}
@@ -219,15 +219,13 @@ resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_OPTION
     "method.response.header.Access-Control-Allow-Headers" = true,
     "method.response.header.Access-Control-Allow-Methods" = true,
     "method.response.header.Access-Control-Allow-Origin" = true,
-{#    {%- if 'Access-Control-Max-Age' in resource.cors.get_access_control_headers() %}#}
-{#    "method.response.header.Access-Control-Max-Age" = true,#}
-{#    {%- endif %}#}
   }
   depends_on = [
     aws_api_gateway_method.{{ resource_name }}_{{ uid }}_OPTIONS,
   ]
 }
-  {% endif -%}
+{%- endif %}
+{%- endif %}
 {%- endfor %}
 
 {# API Deployments #}
