@@ -47,7 +47,7 @@ class Admin(Blueprint):
                         }
                         if doc:
                             docstring = doc.replace('\n', ' ').split(':param ')
-                            route[http_method]['doc'] = docstring[0]
+                            route[http_method]['doc'] = docstring[0].strip()
                             if len(docstring) > 1:
                                 route[http_method]['params'] = docstring[1:]
                         if getattr(function_called, '__CWS_NO_AUTH', False):
