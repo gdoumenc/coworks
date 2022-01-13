@@ -64,7 +64,7 @@ def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
         endpoint = f"{rule}_{method}"
 
         try:
-            app.add_url_rule(rule=rule, view_func=proxy, methods=[method], endpoint=endpoint)
+            app.add_url_rule(rule=rule, view_func=proxy, methods=[method], endpoint=endpoint, strict_slashes=False)
         except AssertionError:
             raise
 
