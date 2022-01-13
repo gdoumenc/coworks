@@ -309,6 +309,7 @@ class TechMicroService(Flask):
 
         try:
             res = self.token_authorizer(event['authorizationToken'])
+            self.logger.debug(f"Token authorizer return is : {res}")
             return TokenResponse(res, event['methodArn']).json
         except Exception as e:
             self.logger.debug(f"Error in token handler for {self.name} : {e}")
