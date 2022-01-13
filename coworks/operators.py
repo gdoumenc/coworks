@@ -133,6 +133,8 @@ class BranchTechMicroServiceOperator(BaseBranchOperator):
 
     def choose_branch(self, context):
         service_name = context['ti'].xcom_pull(task_ids=self.cws_task_id, key='name')
+        if not service_name:
+            raise AirflowFailException(f"The TechMicroService {self.cws_task_id} doesn't exist")
         status_code = int(context['ti'].xcom_pull(task_ids=self.cws_task_id, key='status_code'))
         logging.info(f"TechMS {service_name} returned code : {status_code}")
         if self.on_failure and status_code >= 400:
