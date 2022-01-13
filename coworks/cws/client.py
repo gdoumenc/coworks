@@ -38,6 +38,8 @@ class CoWorksGroup(FlaskGroup):
         config_file = ctx.params.get('config_file')
         config_file_suffix = ctx.params.get('config_file_suffix')
         project_dir = ctx.params.get('project_dir')
+        if project_dir:
+            os.environ['INSTANCE_RELATIVE_PATH'] = os.getcwd()
         workspace = ctx.params.get('workspace')
         if workspace:
             os.environ['WORKSPACE'] = workspace
