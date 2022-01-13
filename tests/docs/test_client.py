@@ -21,7 +21,7 @@ class TestClass:
         client.main(['--project-dir', samples_docs_dir, 'routes'], 'cws', standalone_mode=False)
         del os.environ["FLASK_RUN_FROM_CLI"]
         mclick.assert_called()
-        assert len(mclick.mock_calls) == 7
+        assert len(mclick.mock_calls) == 8
         out = [call.args[0].split(' ')[0] for call in mclick.mock_calls]
         assert 'Endpoint' in str(mclick.mock_calls[0])
         assert '/admin/route_GET' in out

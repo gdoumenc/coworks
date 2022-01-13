@@ -8,7 +8,6 @@ from functools import partial
 from inspect import isfunction
 from pathlib import Path
 
-import boto3
 import click
 from flask import Blueprint as FlaskBlueprint
 from flask import Flask
@@ -268,6 +267,8 @@ class TechMicroService(Flask):
 
     def store_response(self, resp, headers):
         """Store microservice response in S3 for biz task sequence."""
+        import boto3
+
         bucket, key = self.config.biz_storage_class.get_store_bucket_key(headers)
         try:
             if bucket and key:

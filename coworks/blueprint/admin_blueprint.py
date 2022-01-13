@@ -2,20 +2,34 @@ import inspect
 import sys
 from inspect import Parameter
 
+import markdown
+from coworks import Blueprint
+from coworks import entry
+from coworks.globals import aws_event
 from flask import current_app
 from jinja2 import Environment
 from jinja2 import PackageLoader
 from jinja2 import select_autoescape
 
-from coworks import Blueprint
-from coworks import entry
-from coworks.globals import aws_event
-
 
 class Admin(Blueprint):
+    """Administration blueprint to get details on the microservice containing it.
+    """
 
     def __init__(self, name: str = 'admin', **kwargs):
         super().__init__(name=name, **kwargs)
+
+    @entry(no_auth=True, no_cors=True)
+    def get(self):
+        """Returns the list of entrypoints with signature.
+        :param prefix: Prefix path to limit the number of returned routes.
+        :param blueprint: Show named blueprint routes if defined ('__all__' or blueprint name).
+        """
+        md = getattr(current_app, 'doc_md', None)
+        if not md:
+            md = getattr(current_app.__class__, 'DOC_MD', None)
+        if md:
+            return markdown.markdown(md), 200, {'Content-Type': 'text/html'}
 
     @entry
     def get_route(self, prefix=None, blueprint=None):

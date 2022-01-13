@@ -9,6 +9,13 @@ from coworks.middleware.xray import XRayMiddleware
 
 
 class SimpleMicroService(TechMicroService):
+    DOC_MD = """
+    #### Microservice Documentation
+    You can document your CoWorks MicrService using the class attributes `DOC_MD` (markdown) or
+    the instance attributes `doc_md` (markdown) which gets rendered from the '/' entry of the admin blueprint.
+    
+    ![img](https://coworks.readthedocs.io/en/master/_images/coworks.png)
+    """
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
