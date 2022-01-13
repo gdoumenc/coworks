@@ -19,6 +19,7 @@ from flask import json
 from flask.blueprints import BlueprintSetupState
 from flask.ctx import RequestContext
 from flask.testing import FlaskClient
+from werkzeug.datastructures import ImmutableDict
 from werkzeug.datastructures import WWWAuthenticate
 from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import InternalServerError
@@ -156,12 +157,16 @@ class TechMicroService(Flask):
         :param configs: Deployment configurations.
         :param kwargs: Other Chalice parameters.
         """
-        name = name or self.__class__.__name__.lower()
+        self.default_config = ImmutableDict({
+            **self.default_config,
+            "JSON_SORT_KEYS": False,
+        })
 
         self.configs = configs or [LocalConfig(), DevConfig(), ProdConfig()]
         if type(self.configs) is not list:
             self.configs = [configs]
 
+        name = name or self.__class__.__name__.lower()
         super().__init__(import_name=name, static_folder=None, **kwargs)
 
         self.test_client_class = CoworksClient

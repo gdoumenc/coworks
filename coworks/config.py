@@ -101,6 +101,7 @@ class Config:
         if environment_variables:
             for key, value in environment_variables.items():
                 os.environ[key] = str(value)
+                app.config[key] = value
 
     def setdefault(self, key, value):
         """Same as for dict."""
