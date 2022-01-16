@@ -241,7 +241,7 @@ class RemoteTerraform(TerraformLocal):
                 self.init()
             except CalledProcessError:
                 raise ExitCommand("Cannot init terraform: perhaps variables are not defined on terraform cloud.")
-        self._execute(['apply', '-auto-approve'])
+        self._execute(['apply', '-auto-approve', '-refresh=false'])
 
 
 class TerraformCloud:
@@ -404,8 +404,8 @@ def deploy_command(info, ctx, output, terraform_class=TerraformLocal, **options)
                 terraform.create_stage(**root_command_params, **options)
 
             # Traces output
-            bar.update(msg=f"terraform output\n{terraform.output()}")
             bar.terminate()
+            click.echo(f"\nterraform output\n{terraform.output()}")
         except ExitCommand as e:
             bar.terminate(e.msg)
             raise
