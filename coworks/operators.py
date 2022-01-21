@@ -97,6 +97,8 @@ class TechMicroServiceOperator(BaseOperator):
         if self.log_response:
             logging.info(res.status_code)
             logging.info(res.text)
+        if res.status_code >= 500:
+            raise AirflowFailException(f"The TechMicroService {self.cws_name} had an internal error!")
 
         # Returns values or storing file
         self.xcom_push(context, 'cws_name', self.cws_name)
