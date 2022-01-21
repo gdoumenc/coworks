@@ -70,7 +70,9 @@ class Config:
         environment_variables_file = as_list(self.environment_variables_file)
 
         # get default then specific
+        app.logger.debug(f"Searching environment variable in {app.root_path}")
         add_file(app.root_path)
+        app.logger.debug(f"Searching environment variable in {app.instance_path}")
         add_file(app.instance_path)
         return [f.as_posix() for f in files.values()]
 
