@@ -21,15 +21,13 @@ class Admin(Blueprint):
 
     @entry(no_auth=True, no_cors=True)
     def get(self):
-        """Returns the list of entrypoints with signature.
-        :param prefix: Prefix path to limit the number of returned routes.
-        :param blueprint: Show named blueprint routes if defined ('__all__' or blueprint name).
+        """Returns the markdown documentation associated to this microservice.
         """
         md = getattr(current_app, 'doc_md', None)
         if not md:
             md = getattr(current_app.__class__, 'DOC_MD', None)
         if md:
-            return markdown.markdown(md), 200, {'Content-Type': 'text/html'}
+            return markdown.markdown(md), 200, {'Content-Type': 'text/html; charset'}
 
     @entry
     def get_route(self, prefix=None, blueprint=None):
