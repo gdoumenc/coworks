@@ -13,7 +13,7 @@ from flask import make_response
 from flask.blueprints import BlueprintSetupState
 from flask.scaffold import Scaffold
 from werkzeug.datastructures import Headers
-from werkzeug.exceptions import BadRequest
+from werkzeug.exceptions import BadRequest, HTTPException
 from werkzeug.exceptions import BadRequestKeyError
 
 from .globals import request
@@ -152,7 +152,9 @@ def create_rest_proxy(scaffold: Scaffold, func, kwarg_keys, args, varkw):
         except TypeError as e:
             current_app.logger.error(f"Bad request error: {str(e)}")
             raise BadRequest(str(e))
-        except (Exception,) as e:
+        except HTTPException as e:
+            return e.description, e.code
+        except Exception as e:
             current_app.logger.error(e)
             raise
 
