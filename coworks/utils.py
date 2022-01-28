@@ -11,13 +11,15 @@ from functools import update_wrapper
 from flask import current_app
 from flask import make_response
 from flask.blueprints import BlueprintSetupState
-from flask.scaffold import Scaffold
 from werkzeug.datastructures import Headers
 from werkzeug.exceptions import BadRequest, HTTPException
 from werkzeug.exceptions import BadRequestKeyError
 
 from .globals import request
 from .wrappers import ApiResponse
+
+if t.TYPE_CHECKING:
+    from flask.scaffold import Scaffold
 
 HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
 
@@ -69,7 +71,7 @@ def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
             raise
 
 
-def create_rest_proxy(scaffold: Scaffold, func, kwarg_keys, args, varkw):
+def create_rest_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
     def proxy(**kwargs):
         try:
             # Adds kwargs parameters
