@@ -3,4 +3,4 @@ sphinx >=3.4.3
 flask >=1.1.0
 boto3 >=1.19
 apache-airflow >=2.2
-airflow.providers.amazon>=1.4.0
+apache-airflow-providers-amazon >=1.4.0
