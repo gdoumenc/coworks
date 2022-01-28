@@ -19,7 +19,7 @@ class Admin(Blueprint):
     def __init__(self, name: str = 'admin', **kwargs):
         super().__init__(name=name, **kwargs)
 
-    @entry(no_auth=True, no_cors=True)
+    @entry(no_auth=True, no_cors=True, content_type='text/html; charset=utf-8')
     def get(self):
         """Returns the markdown documentation associated to this microservice.
         """
@@ -27,7 +27,7 @@ class Admin(Blueprint):
         if not md:
             md = getattr(current_app.__class__, 'DOC_MD', None)
         if md:
-            return markdown.markdown(md, extensions=['fenced_code']), 200, {'Content-Type': 'text/html; charset=utf-8'}
+            return markdown.markdown(md, extensions=['fenced_code'])
 
         if current_app.__class__.__doc__:
             return current_app.__class__.__doc__.replace('\n', ' ').strip(),

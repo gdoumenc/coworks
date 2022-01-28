@@ -120,6 +120,7 @@ class TerraformLocal:
             if rule_:
                 view_function = self.app.view_functions.get(rule_.endpoint)
                 rule_.cws_binary = getattr(view_function, '__CWS_BINARY')
+                rule_.cws_content_type = getattr(view_function, '__CWS_CONTENT_TYPE')
                 rule_.cws_no_auth = getattr(view_function, '__CWS_NO_AUTH')
                 rule_.cws_no_cors = getattr(view_function, '__CWS_NO_CORS')
 

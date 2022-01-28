@@ -2,4 +2,4 @@ docutils >=0.17
 sphinx >=3.4.3
 flask >=2.0
 boto3 >=1.19
-airflow >=2.1.2
+airflow >=2.0
