@@ -27,7 +27,10 @@ class Admin(Blueprint):
         if not md:
             md = getattr(current_app.__class__, 'DOC_MD', None)
         if md:
-            return markdown.markdown(md), 200, {'Content-Type': 'text/html; charset'}
+            return markdown.markdown(md, extensions=['fenced_code']), 200, {'Content-Type': 'text/html; charset=utf-8'}
+
+        if current_app.__class__.__doc__:
+            return current_app.__class__.__doc__.replace('\n', ' ').strip(),
 
     @entry
     def get_route(self, prefix=None, blueprint=None):
@@ -36,8 +39,6 @@ class Admin(Blueprint):
         :param blueprint: Show named blueprint routes if defined ('__all__' or blueprint name).
         """
         routes = {}
-        if current_app.__class__.__doc__:
-            routes["[DOC]"] = current_app.__class__.__doc__.replace('\n', ' ').strip(),
 
         for rule in current_app.url_map.iter_rules():
 
