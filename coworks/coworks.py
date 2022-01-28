@@ -8,6 +8,7 @@ from functools import partial
 from inspect import isfunction
 from pathlib import Path
 
+import boto3
 import click
 from flask import Blueprint as FlaskBlueprint
 from flask import Flask
@@ -266,10 +267,13 @@ class TechMicroService(Flask):
         return path.as_posix()
 
     def store_response(self, resp, headers):
-        """Store microservice response in S3 for biz task sequence."""
-        import boto3
+        """Store microservice response in S3 for biz task sequence.
 
-        bucket, key = self.config.biz_storage_class.get_store_bucket_key(headers)
+        May be redefined for another storage in asynchronous call.
+        """
+
+        bucket = headers.get(self.config['X-CWS-S3Bucket'].lower())
+        key = headers.get(self.config['X-CWS-S3Key'].lower())
         try:
             if bucket and key:
                 aws_s3_session = boto3.session.Session()
@@ -278,8 +282,9 @@ class TechMicroService(Flask):
                 buffer.seek(0)
                 self.logger.debug(f"Store response in s3://{bucket}/{key}")
                 aws_s3_session.client('s3').upload_fileobj(buffer, bucket, key)
+                self.logger.debug(f"Storing response in {bucket}/{key}")
         except Exception as e:
-            self.logger.debug(f"Exception when storing response for {bucket}/{key} : {str(e)}")
+            self.logger.debug(f"Exception when storing response in {bucket}/{key} : {str(e)}")
 
     def __call__(self, arg1, arg2) -> dict:
         """Main microservice entry point."""
@@ -373,6 +378,8 @@ class TechMicroService(Flask):
                 click.echo(f" * Workspace: {workspace}")
             config = self.get_config(workspace)
             self.config['WORKSPACE'] = config.workspace
+            self.config['X-CWS-S3Bucket'] = config.bizz_bucket_header_key
+            self.config['X-CWS-S3Key'] = config.bizz_key_header_key
             if load_env:
                 config.load_environment_variables(self)
             self._cws_conf_updated = True

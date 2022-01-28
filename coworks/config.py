@@ -15,27 +15,6 @@ ENV_FILE_SUFFIX = '.json'
 SECRET_ENV_FILE_SUFFIX = '.secret.json'
 
 
-class BizStorage:
-    S3_BUCKET = 'X-CWS-S3Bucket'
-    S3_PREFIX = 'X-CWS-S3Prefix'
-    DAG_ID_HEADER_KEY = 'X-CWS-DagId'
-    TASK_ID_HEADER_KEY = 'X-CWS-TaskId'
-    JOB_ID_HEADER_KEY = 'X-CWS-JobId'
-
-    @staticmethod
-    def get_store_bucket_key(headers) -> t.Tuple[t.Optional[str], t.Optional[str]]:
-        """Returns bucket and key for asynchronous invocation."""
-        s3_bucket = headers.get(BizStorage.S3_BUCKET.lower())
-        s3_prefix = headers.get(BizStorage.S3_PREFIX.lower())
-        biz_dag_id = headers.get(BizStorage.DAG_ID_HEADER_KEY.lower())
-        biz_task_id = headers.get(BizStorage.TASK_ID_HEADER_KEY.lower())
-        biz_job_id = headers.get(BizStorage.JOB_ID_HEADER_KEY.lower())
-        if s3_bucket and s3_prefix and biz_dag_id and biz_task_id and biz_job_id:
-            key = f'{s3_prefix}/{biz_dag_id}/{biz_task_id}/{biz_job_id}'
-            return s3_bucket, key
-        return None, None
-
-
 @dataclass
 class Config:
     """ Configuration class for deployment."""
@@ -43,7 +22,9 @@ class Config:
     workspace: str = DEFAULT_DEV_WORKSPACE
     environment_variables_file: t.Union[str, t.List[str], Path, t.List[Path]] = 'vars.json'
     environment_variables: t.Union[dict, t.List[dict]] = None
-    biz_storage_class: BizStorage = BizStorage
+
+    bizz_bucket_header_key: str = 'X-CWS-S3Bucket'
+    bizz_key_header_key: str = 'X-CWS-S3Key'
 
     @property
     def ENV(self):

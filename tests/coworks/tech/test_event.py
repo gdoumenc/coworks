@@ -2,8 +2,8 @@ from unittest.mock import Mock
 
 from coworks import TechMicroService
 from coworks import entry
-from tests.coworks.ms import GlobalMS
-from tests.coworks.ms import SimpleMS
+from ..ms import GlobalMS
+from ..ms import SimpleMS
 from ..event import get_event
 
 
@@ -16,9 +16,6 @@ class ErrorMS(TechMicroService):
         @self.errorhandler(500)
         def handle(e):
             self.err(e)
-
-    def token_authorizer(self, token):
-        return True
 
     @entry
     def get(self):

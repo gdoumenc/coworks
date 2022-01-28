@@ -1,12 +1,13 @@
+import io
+
+from coworks import TechMicroService
+from coworks import entry
 from coworks.coworks import ApiResponse
-from tests.coworks.ms import *
+from ..ms import SimpleMS
 
 
 class ParamMS(TechMicroService):
     value = "123"
-
-    def token_authorizer(self, token):
-        return True
 
     @entry
     def get(self, str):
@@ -36,7 +37,7 @@ class ParamMS(TechMicroService):
         }
 
 
-class TupleReturnedMS(TechMS):
+class TupleReturnedMS(TechMicroService):
 
     @entry
     def get(self):
@@ -59,13 +60,13 @@ class TupleReturnedMS(TechMS):
         return str, 200, {'x-test': 'true'}
 
 
-class AmbiguousMS(TechMS):
+class AmbiguousMS(TechMicroService):
     @entry
     def get(self, uid):
         return uid, 200
 
     @entry
-    def post_test(self):
+    def get_test(self):
         return {'value': 'ok'}, 200
 
 
@@ -230,6 +231,6 @@ class TestClass:
             response = c.get('/123', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == '123'
-            response = c.post('/test', headers={'Authorization': 'token'})
+            response = c.get('/test', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.json == {'value': "ok"}

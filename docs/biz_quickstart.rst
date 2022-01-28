@@ -9,7 +9,7 @@ You must have understand first how to deploy technical microservice :doc:`tech`.
 Aiflow
 ------
 
-The `Airflow <https://github.com/apache/airflow>`_ plateform is the core tool to implement the businness model.
+The `Airflow <https://github.com/apache/airflow>`_ plateform is the core tool to implement the business model.
 Few concepts are needed to understand how ``BizMicroService`` works.
 
 A ``BizMicroService`` is defined from an airflow DAG. It allows to trigger it manually or get running information from

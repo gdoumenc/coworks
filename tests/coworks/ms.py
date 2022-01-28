@@ -25,9 +25,6 @@ class S3MockTechMS(TechMicroService):
 
 class SimpleMS(TechMicroService):
 
-    def token_authorizer(self, token):
-        return True
-
     @entry
     def get(self):
         """Root access."""

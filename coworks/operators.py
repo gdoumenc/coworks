@@ -10,7 +10,6 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.operators.branch import BaseBranchOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.http.hooks.http import HttpHook
-from .config import BizStorage
 
 
 class TechMicroServiceOperator(BaseOperator):
@@ -21,22 +20,22 @@ class TechMicroServiceOperator(BaseOperator):
     :param entry: the route entry.
     :param method: the route method ('GET', 'POST').
     :param no_auth: set to 'True' if no authorization is needded (default 'False').
-    :param log_response:.
-    :param data:.
-    :param json:.
-    :param stage:.
-    :param api_id:.
-    :param token:.
-    :param directory_conn_id:.
-    :param asynchronous:.
-    :param biz_storage_class:.
+    :param data: data for GET method.
+    :param json: data for POST method.
+    :param stage: the microservice stage (default 'dev' if 'cws_name' not defined).
+    :param api_id: APIGateway id (must be defined if no 'cws_name').
+    :param token: Authorization token (must be defined if auth and no 'cws_name').
+    :param asynchronous: Asynchronous call (default False).
+    :param raise_400_errors: raise error on client 400 errors (default True).
+    :param directory_conn_id: Connection defined for the directory service (default 'neorezo_directory').
+    :param log_response: Trace result content (default False).
     """
     template_fields = ["cws_name", "entry", "data", "json", "asynchronous"]
 
     def __init__(self, *, cws_name: str = None, entry: str = None, method: str = None, no_auth: bool = False,
                  log_response: bool = False, data: dict = None, json: dict = None, stage: str = None,
                  api_id: str = None, token: str = None, directory_conn_id: str = 'neorezo_directory',
-                 asynchronous: bool = False, biz_storage_class: BizStorage = BizStorage, **kwargs) -> None:
+                 asynchronous: bool = False, raise_400_errors: bool = True, **kwargs) -> None:
         super().__init__(**kwargs)
         self.cws_name = cws_name
         self.entry = entry.lstrip('/')
@@ -50,8 +49,13 @@ class TechMicroServiceOperator(BaseOperator):
         self.token = token
         self.directory_conn_id = directory_conn_id
         self.asynchronous = asynchronous
-        self.biz_storage_class = biz_storage_class
+        self.raise_400_errors = raise_400_errors
         self._url = None
+
+        if not self.cws_name and not self.api_id:
+            raise AirflowFailException(f"The APIGateway id must be defined! (param 'api_id')")
+        if not no_auth and not self.cws_name and not self.token:
+            raise AirflowFailException(f"The authorization token id must be defined! (param 'token')")
 
         # Creates header
         self.headers = {
@@ -80,25 +84,26 @@ class TechMicroServiceOperator(BaseOperator):
     def execute(self, context):
         """Call TechMicroService.
         """
+        bucket = 'coworks-airflow'
+        key = f"s3/{context['ti'].dag_id}/{context['ti'].task_id}/{context['ti'].job_id}"
         headers = self.headers
         if not self.no_auth:
             self.headers['Authorization'] = self.token
         if self.asynchronous:
             headers['InvocationType'] = 'Event'
-            headers[self.biz_storage_class.S3_BUCKET] = 'coworks-airflow'
-            headers[self.biz_storage_class.S3_PREFIX] = 's3'
-            headers[self.biz_storage_class.DAG_ID_HEADER_KEY] = context['ti'].dag_id
-            headers[self.biz_storage_class.TASK_ID_HEADER_KEY] = context['ti'].task_id
-            headers[self.biz_storage_class.JOB_ID_HEADER_KEY] = context['ti'].job_id
-            logging.info(f"Result stored in '{self.biz_storage_class.get_store_bucket_key(headers)}'")
+            headers['X-CWS-S3Bucket'] = bucket
+            headers['X-CWS-S3Key'] = key
+            logging.info(f"Result stored in 's3://{bucket}/{key}'")
 
-        logging.info(f"Sending '{self.method.upper()}' to url: {self._url}")
+        logging.info(f"{self.method.upper()} method to {self._url}")
         res = requests.request(self.method.upper(), self._url, headers=headers, data=self.data, json=self.json)
+        logging.info(f"Resulting status code : {res.status_code}")
         if self.log_response:
-            logging.info(res.status_code)
             logging.info(res.text)
+        if self.raise_400_errors and res.status_code >= 400:
+            raise AirflowFailException(f"The TechMicroService {self.cws_name} had a client error {res.status_code}!")
         if res.status_code >= 500:
-            raise AirflowFailException(f"The TechMicroService {self.cws_name} had an internal error!")
+            raise AirflowFailException(f"The TechMicroService {self.cws_name} had an internal error {res.status_code}!")
 
         # Returns values or storing file
         self.xcom_push(context, 'cws_name', self.cws_name)
@@ -106,7 +111,6 @@ class TechMicroServiceOperator(BaseOperator):
             self.xcom_push(context, 'status_code', res.status_code)
             self.xcom_push(context, 'text', res.text)
         else:
-            bucket, key = self.biz_storage_class.get_store_bucket_key(headers)
             self.xcom_push(context, 'bucket', bucket)
             self.xcom_push(context, 'key', key)
 
