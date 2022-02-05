@@ -4,6 +4,7 @@ import typing as t
 from json import loads
 
 import requests
+from requests.exceptions import RequestException
 
 from airflow.exceptions import AirflowFailException
 from airflow.models.baseoperator import BaseOperator
@@ -25,17 +26,21 @@ class TechMicroServiceOperator(BaseOperator):
     :param stage: the microservice stage (default 'dev' if 'cws_name' not defined).
     :param api_id: APIGateway id (must be defined if no 'cws_name').
     :param token: Authorization token (must be defined if auth and no 'cws_name').
+    :param directory_conn_id: Connection defined for the directory service (default 'neorezo_directory').
     :param asynchronous: Asynchronous call (default False).
     :param raise_400_errors: raise error on client 400 errors (default True).
-    :param directory_conn_id: Connection defined for the directory service (default 'neorezo_directory').
+    :param accept: accept header value (default 'application/json').
+    :param headers: specific header values forced (default {}).
     :param log_response: Trace result content (default False).
     """
     template_fields = ["cws_name", "entry", "data", "json", "asynchronous"]
 
     def __init__(self, *, cws_name: str = None, entry: str = None, method: str = None, no_auth: bool = False,
-                 log_response: bool = False, data: dict = None, json: dict = None, stage: str = None,
-                 api_id: str = None, token: str = None, directory_conn_id: str = 'neorezo_directory',
-                 asynchronous: bool = False, raise_400_errors: bool = True, **kwargs) -> None:
+                 data: dict = None, json: dict = None, stage: str = None, api_id: str = None, token: str = None,
+                 directory_conn_id: str = 'neorezo_directory', asynchronous: bool = False,
+                 raise_400_errors: bool = True, accept='application/json', headers=None,
+                 log_response: bool = False,
+                 **kwargs) -> None:
         super().__init__(**kwargs)
         self.cws_name = cws_name
         self.entry = entry.lstrip('/')
@@ -60,10 +65,12 @@ class TechMicroServiceOperator(BaseOperator):
         # Creates header
         self.headers = {
             'Content-Type': "application/json",
-            'Accept': "text/html, application/json",
+            'Accept': accept,
         }
         if not no_auth:
             self.headers['Authorization'] = token
+        if headers:
+            self.headers.update(headers)
 
     def pre_execute(self, context):
         """Gets url and token from name or parameters.
