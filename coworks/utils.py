@@ -147,11 +147,14 @@ def create_rest_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
             if resp is None:
                 return "", 204
 
+            resp = make_response(resp)
+
+            # Forces content type
             cws_content_type = getattr(func, '__CWS_CONTENT_TYPE')
             if cws_content_type:
-                return make_response(resp, 200, {'content-type': cws_content_type})
+                resp.headers['Content-Type'] = cws_content_type
 
-            return make_response(resp)
+            return resp
         except TypeError as e:
             current_app.logger.error(f"Bad request error: {str(e)}")
             raise BadRequest(str(e))
