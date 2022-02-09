@@ -358,8 +358,8 @@ def deploy_command(info, ctx, output, terraform_class=TerraformLocal, **options)
     with progressbar(label='Deploy microservice', threaded=True) as bar:
         try:
             if info.app_import_path and '/' in info.app_import_path:
-                msg = f"""Cannot deploy a project with handler not on project folder : {info.app_import_path}
-                Set -p option to resolve this.""".replace('    ', '')
+                msg = f"Cannot deploy a project with handler not on project folder : {info.app_import_path}.\n"
+                msg += f"Add option -p {'/'. join(info.app_import_path.split('/')[:-1])} to resolve this."""
                 bar.terminate(msg)
                 return
 
