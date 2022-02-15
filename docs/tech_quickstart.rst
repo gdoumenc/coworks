@@ -6,6 +6,8 @@ TechMS Quickstart
 This page gives a quick and partial introduction to Coworks Technical Microservices.
 Follow :doc:`installation` to install Coworks and set up a new project.
 
+Coworks Technical Microservices are ``atomic microservices``, meaning that they are single ``atomic`` components (i.e: singular blobs of code with a few inputs and outputs).
+
 A tech microservice is simply defined by a single python class which looks like this:
 
 .. code-block:: python
@@ -170,4 +172,3 @@ Now we can try our first deployed microservice::
 
 	(project) $ curl -H "Authorization:test" https://xxxxxxxx.execute-api.eu-west-1.amazonaws.com/dev
 	Stored value 0.
-
