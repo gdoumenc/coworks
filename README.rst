@@ -29,7 +29,7 @@ CoWorks framework in two levels:
 
 * ``BizMicroservice`` are `composite business microservices <http://resources.fiorano.com/blog/microservices/>`_, which are `Airflow <https://github.com/apache/airflow>`_ dags providing orchestration of atomic microservices or components (i.e: ``TechMicroService``).
 
-To get started with Coworks, first follow the `Installation Guide <https://coworks.readthedocs.io/en/master/installation.html/>`_.Then you can get a quickstart on `TechMicroService <https://coworks.readthedocs.io/en/latest/tech_quickstart.html/>`_.
+To get started with Coworks, first follow the `Installation Guide <https://coworks.readthedocs.io/en/master/installation.html/>`_. Then you can get a quickstart on `TechMicroService <https://coworks.readthedocs.io/en/latest/tech_quickstart.html/>`_.
 Once familiar with ``TechMicroService``, you can continue with `BizMicroService <https://coworks.readthedocs.io/en/latest/biz_quickstart.html/>`_.
 
 

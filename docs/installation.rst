@@ -6,7 +6,7 @@ Installation
 Python Version
 --------------
 
-Coworks supports only AWS Lambda python version >= 3.7 versions.
+Coworks supports only AWS Lambda python version >= 3.7.
 
 Install Coworks
 ---------------
@@ -18,16 +18,22 @@ Use a virtual environment to install Coworks. We recommend using ``pipenv``::
 	$ pipenv install coworks
 	$ pipenv shell
 
-Check Coworks is installed. Check it with::
+You can then verify the installation by running::
 
 	(project) $ cws --version
 
-If you cannot find ``cws`` in your execution path, verify you activated the virtualenv for the project.
+If you cannot find ``cws`` in your execution path, verify you activated the virtualenv for the project (this is achieved by running ``$ pipenv shell``).
 
-Coworks is now ready for you.
+Prior to use, please ensure that you also have the AWS CLI installed. You can check by running::
 
-*Beware*: As ``awscli`` (even ``boto3``) often evolves, make sure you have a compatible version of it in
+	$ aws --version
+
+Coworks is now ready for use.
+
+*Beware*: As ``awscli`` (and ``boto3``) often evolve, make sure you have a compatible versions in
 your python virtual environment or dependencies conflicts may occur.
+
+.. note:: Please see below sections on AWS and Terraform setup prior to deployment.
 
 Create a project
 ----------------
@@ -57,7 +63,7 @@ Terraform
 
 *If you have previously installed terraform then you can skip this section.*
 
-For deployment, for the deployment command (``deploy``) we are using ``terraform``. We can use it locally or on
+For deployment, for the command ``deploy`` we are using ``terraform``. We can use it locally or on
 online cloud plateform ``terraform.io``.
 
 Follow these `instructions <https://www.terraform.io/downloads.html>`_ to install terraform. Check installation with::
@@ -66,6 +72,4 @@ Follow these `instructions <https://www.terraform.io/downloads.html>`_ to instal
 
 Terraform can also be used `online <https://www.terraform.io>`_.
 
-You now have everything you need to create your first micro-service :ref:`tech_quickstart`
-
-
+You now have everything you need to create your first micro-service by following :ref:`tech_quickstart`
