@@ -27,7 +27,7 @@ To create your first complete technical microservice, create a file ``simple.py`
 This first example defines a very simple microservice ``app`` with a simple ``GET`` entry ``/``
 (see :ref:`routing` for more details on entry)
 
-We set the attribute ``any_token_authorized`` to allow any token as valid.
+We set the attribute ``no_auth`` to ``True`` to allow any token as valid. This effectively disables the token authorizer.
 For security reason the default value is ``False`` (see :ref:`auth` for more details on authorizer).
 
 We now can launch the ``run`` command defined by the ``Flask`` framework. So to test this microservice locally
@@ -47,7 +47,7 @@ On another terminal enter::
 	(project) $ curl -H "Authorization:any" http://127.0.0.1:5000/
 	Hello world.
 
-Looks good...
+If you remove the argument ``no_auth=True`` from our ``@entry`` decorator, you should instead receive a 403 response.
 
 More
 ----
