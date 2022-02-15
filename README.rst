@@ -20,28 +20,29 @@
 CoWorks is a unified serverless microservices framework based on AWS technologies
 (`API Gateway <https://aws.amazon.com/api-gateway/>`_, `AWS Lambda <https://aws.amazon.com/lambda/>`_),
 the `Flask <https://github.com/pallets/flask>`_ framework and the `Airflow <https://github.com/apache/airflow>`_
-plateform.
+platform.
 
-The aim of this project, is to offer a very simplified experience of microservices. For such purpose, we divided the
-CoWorks framework in two levels.
+The aim of this project is to offer a very simplified experience of microservices. For such purpose, we divided the
+CoWorks framework in two levels:
 
-The first one is made of atomic microservices (``TechMicroservice``) each composed of simple python
+#. (``TechMicroservice``) are each composed of simple python
 `Flask <https://github.com/pallets/flask>`_ application and deployed as serverless Lambda.
-Those technical microservice may be can be called synchronously or asynchronously.
+Each (``TechMicroService``) is an (``atomic component``) or `atomic microservice <http://resources.fiorano.com/blog/microservices/>`_.
+These microservices may be called synchronously or asynchronously.
 
-The second level is made of composed business microservices (``BizMicroservice``) which are
-`Airflow <https://github.com/apache/airflow>`_ dags providing orchestration of technical microservices.
+#. (``BizMicroservice``) are `composite business microservices <http://resources.fiorano.com/blog/microservices/>`_, which are
+`Airflow <https://github.com/apache/airflow>`_ dags providing orchestration of atomic microservices or components (i.e: ``TechMicroService``).
 
-You can get a quickstart on `TechMicroService <https://coworks.readthedocs.io/en/latest/tech_quickstart.html>`_ then
-continue with `BizMicroService <https://coworks.readthedocs.io/en/latest/biz_quickstart.html>`_
+To get started with Coworks, first follow the `Installation Guide <https://coworks.readthedocs.io/en/master/installation.html/>`_.Then you can get a quickstart on `TechMicroService <https://coworks.readthedocs.io/en/latest/tech_quickstart.html/>`_.
+Once familiar with (``TechMicroService``), you can continue with `BizMicroService <https://coworks.readthedocs.io/en/latest/biz_quickstart.html/>`_.
 
 
 Documentation
 -------------
 
-* Get started: `Installation <https://coworks.readthedocs.io/en/latest/installation.html/>`_
+* Setup and installation: `Installation <https://coworks.readthedocs.io/en/master/installation.html/>`_
 * Complete reference guide: `Documentation <https://coworks.readthedocs.io/>`_.
-* Read `FAQ <https://coworks.readthedocs.io/en/latest/faq.html/>`_ for other informations.
+* Read `FAQ <https://coworks.readthedocs.io/en/latest/faq.html/>`_ for other information.
 
 
 Contributing
@@ -60,5 +61,3 @@ Related Projects
 * `Click <https://github.com/pallets/click>`_ -  A package for creating beautiful command line interfaces.
 * `Airflow <https://github.com/apache/airflow>`_ A platform to programmatically author, schedule, and monitor workflows.
 * `Terraform <https://github.com/hashicorp/terraform>`_ - Infrastructure configuration management tool.
-
-
