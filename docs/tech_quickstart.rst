@@ -42,7 +42,7 @@ We now can launch the ``run`` command defined by the ``Flask`` framework. So to 
 	* Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
 
 
-On another terminal enter::
+To test this example, open another terminal window and enter::
 
 	(project) $ curl -H "Authorization:any" http://127.0.0.1:5000/
 	Hello world.
@@ -58,12 +58,13 @@ To add more elements, complete the try with the following content:
 
 We have added a dedicated function ``token_authorizer`` to define an authorizer
 (see :ref:`auth` for more details on authorizer).
-For this simple try, the authorizer validates the request only if a token is defined on header withe ``token``
+For this simple try, the authorizer validates the request only if a token is defined on header with the ``token``
 as value.
 
-Then have defined two entries on same path : ``GET`` and ``POST`` on root path.
+Then we have defined two entries on same path : ``GET`` and ``POST`` on root path.
+These enable reading and writing of our attribute ``value``.
 
-On the another terminal enter::
+To test this example, open another terminal window and enter::
 
 	(project) $ curl -I http://127.0.0.1:5000/
 	HTTP/1.0 401 UNAUTHORIZED
@@ -82,61 +83,31 @@ On the another terminal enter::
 	(project) $ curl -H "Authorization:token" http://127.0.0.1:5000/
 	Stored value 20.
 
-*Beware* : the value is stored in memory just for this example, if the lambda is redeployed or another lambda instance
-is used the value is lost.
+*Beware* : the ``value`` is stored in memory just for this example, if the lambda is redeployed or another lambda instance
+is used the value stored is lost.
 
 Complete
 --------
 
-At last to have a complete case, enter the following content:
+We can create and test a more complete case by leveraging blueprints and adding middlewares.
+We will also use `StringIO <https://docs.python.org/3/library/io.html#text-i-o>`_ to write our output to a string buffer.
+
+For more information on how Coworks uses blueprints, see `TechMS Blueprints <https://coworks.readthedocs.io/en/master/tech.html#blueprints>`_.
+For more information on how Coworks uses WSGI middlewares, see `Middlewares <https://coworks.readthedocs.io/en/master/middleware.html>`_.
+
+First, ensure that `aws_xray_sdk` is installed in your python environment::
+
+	$ pip install aws-xray-sdk
+
+Then, enter the following content:
 
 .. literalinclude:: ../samples/docs/complete.py
 
-*Note* : `aws_xray_sdk` must be installed in your python environment or you will get an ``ImportError``.
+*Note* : `aws_xray_sdk` must be installed in your python environment or you will get an ``ImportError``. If you receive this error, follow the step above to install.
 
-We have added some blueprints and middlewares to add routes and functionalities.
+The ``Admin`` blueprint `adds several routes <https://coworks.readthedocs.io/en/master/tech.html#admin>`_ but for the purposes of this example we're interested in the the ``admin/route`` one:
 
-The ``Admin`` blueprint adds several routes but mainly the ``route`` one::
-
-	(project) $ curl -H "Authorization:token" http://127.0.0.1:5000/admin/route?pretty=1
-	{
-        "/": {
-            "POST": {
-                "doc": "",
-                "signature": "(value=None)"
-            }
-        },
-        "/admin/context": {
-            "GET": {
-                "doc": "Returns the calling context.",
-                "signature": "()"
-            }
-        },
-        "/admin/env": {
-            "GET": {
-                "doc": "Returns the stage environment.",
-                "signature": "()"
-            }
-        },
-        "/admin/event": {
-            "GET": {
-                "doc": "Returns the calling context.",
-                "signature": "()"
-            }
-        },
-        "/admin/route": {
-            "GET": {
-                "doc": "Returns the list of entrypoints with signature.",
-                "signature": "(pretty=False)"
-            }
-        },
-        "/profile": {
-            "GET": {
-                "doc": "",
-                "signature": "()"
-            }
-        }
-    }
+		This endpoint lists all the routes of the microservice with the signature extracted from its associated function.
 
 We have also a WSGI middleware ``ProfilerMiddleware`` to profile the last request::
 
@@ -153,7 +124,7 @@ We have also a WSGI middleware ``ProfilerMiddleware`` to profile the last reques
 			14    0.001    0.000    0.006    0.000 /home/gdo/.local/share/virtualenvs/coworks-otSHAmdg/lib/python3.8/site-packages/werkzeug/routing.py:968(_compile_builder)
 	...
 
-And at last we have a Coworks middleware to add XRay traces (available only in case of deployed microservice).
+And at last we have a Coworks middleware to add `XRay traces <https://docs.aws.amazon.com/xray/latest/devguide/aws-xray.html>`_ (available only for deployed microservices).
 
 Deploy
 ------
