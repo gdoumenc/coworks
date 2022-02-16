@@ -139,7 +139,7 @@ in project file to avoid given then on command line see :ref:`configuration` )::
 	classical_id = "xxxxxxxx"
 	(project) $
 
-Now we can try our first deployed microservice::
+Now we can test our first deployed microservice::
 
 	(project) $ curl -H "Authorization:test" https://xxxxxxxx.execute-api.eu-west-1.amazonaws.com/dev
 	Stored value 0.
