@@ -16,6 +16,7 @@ def get_event(path, method, params=None, body=None, headers=None):
             'CloudFront-Is-SmartTV-Viewer': 'false',
             'CloudFront-Is-Tablet-Viewer': 'false',
             'CloudFront-Viewer-Country': 'FR',
+            'Cookie': 'session=36cfa6e9-52a8-4e71-b989-1a6cb39eae31; wp-settings-time-1=1619072724',
             'Host': 'htzd2rneg1.execute-api.eu-west-1.amazonaws.com',
             'User-Agent': 'insomnia/2021.4.1',
             'Via': '2.0 4dd111c814b0b5cf8bf82e59008da625.cloudfront.net (CloudFront)',

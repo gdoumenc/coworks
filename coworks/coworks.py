@@ -113,6 +113,10 @@ class CoworksClient(FlaskClient):
             "aws_event": aws_event,
             "aws_context": aws_context,
         })
+        if aws_event:
+            self.environ_base.update({
+                "HTTP_COOKIE": aws_event['headers']['Cookie']
+            })
 
 
 class Blueprint(FlaskBlueprint):
