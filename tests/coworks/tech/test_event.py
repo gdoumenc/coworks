@@ -1,10 +1,19 @@
 from unittest.mock import Mock
 
+from flask import request
+
 from coworks import TechMicroService
 from coworks import entry
+from ..event import get_event
 from ..ms import GlobalMS
 from ..ms import SimpleMS
-from ..event import get_event
+
+
+class CookiesMS(TechMicroService):
+
+    @entry
+    def get_cookies(self):
+        return request.cookies.to_dict()
 
 
 class ErrorMS(TechMicroService):
@@ -100,6 +109,13 @@ class TestClass:
             response = app(get_event('/event/method', 'get'), empty_context)
             assert response['statusCode'] == 200
             assert response['body'] == "GET"
+
+    def test_request_cookies(self, empty_context):
+        app = CookiesMS()
+        with app.app_context() as c:
+            response = app(get_event('/cookies', 'get'), empty_context)
+            assert response['statusCode'] == 200
+            assert response['body'] == {'session': '70b58773-af3e-4153-a5ab-5356481ea87e'}
 
     def test_request_no_content_type(self, empty_context):
         app = SimpleMS()

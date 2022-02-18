@@ -5,6 +5,7 @@ import os
 import typing as t
 from dataclasses import dataclass
 from functools import partial
+from http.cookiejar import CookieJar
 from inspect import isfunction
 from pathlib import Path
 
@@ -12,8 +13,6 @@ import boto3
 import click
 from flask import Blueprint as FlaskBlueprint
 from flask import Flask
-from flask import Response
-from flask import abort
 from flask import current_app
 from flask import json
 from flask.blueprints import BlueprintSetupState
@@ -21,6 +20,7 @@ from flask.ctx import RequestContext
 from flask.testing import FlaskClient
 from werkzeug.datastructures import ImmutableDict
 from werkzeug.datastructures import WWWAuthenticate
+from werkzeug.exceptions import Forbidden
 from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import Unauthorized
@@ -103,6 +103,24 @@ class ScheduleEntry:
     fun: t.Callable
 
 
+class CoworksCookieJar(CookieJar):
+    """A cookielib.CookieJar modified to inject cookie headers from event.
+    """
+
+    def __init__(self, cookies):
+        super().__init__()
+        self.cookies = cookies
+
+    def inject_wsgi(self, environ):
+        """Inject the cookies as client headers into the server's wsgi
+        environment.
+        """
+        environ["HTTP_COOKIE"] = self.cookies
+
+    def extract_wsgi(self, environ, headers):
+        pass
+
+
 class CoworksClient(FlaskClient):
     """Redefined to force mimetype to be 'text/plain' in case of string return.
     """
@@ -113,10 +131,8 @@ class CoworksClient(FlaskClient):
             "aws_event": aws_event,
             "aws_context": aws_context,
         })
-        if aws_event:
-            self.environ_base.update({
-                "HTTP_COOKIE": aws_event['headers']['Cookie']
-            })
+        if aws_event and 'headers' in aws_event:
+            self.cookie_jar = CoworksCookieJar(aws_event['headers'].get('cookie'))
 
 
 class Blueprint(FlaskBlueprint):
@@ -186,7 +202,9 @@ class TechMicroService(Flask):
             self._check_token()
             rp = request.path
             if rp != '/' and rp.endswith('/'):
-                abort(Response("Trailing slash avalaible only on deployed version"))
+                msg = "Trailing slash avalaible only on deployed version"
+                self.logger.error(msg)
+                raise HTTPException(msg)
 
     def app_context(self):
         """Override to initialize coworks microservice."""
@@ -288,7 +306,7 @@ class TechMicroService(Flask):
                 aws_s3_session.client('s3').upload_fileobj(buffer, bucket, key)
                 self.logger.debug(f"Storing response in {bucket}/{key}")
         except Exception as e:
-            self.logger.debug(f"Exception when storing response in {bucket}/{key} : {str(e)}")
+            self.logger.error(f"Exception when storing response in {bucket}/{key} : {str(e)}")
 
     def __call__(self, arg1, arg2) -> dict:
         """Main microservice entry point."""
@@ -322,7 +340,7 @@ class TechMicroService(Flask):
             self.logger.debug(f"Token authorizer return is : {res}")
             return TokenResponse(res, event['methodArn']).json
         except Exception as e:
-            self.logger.debug(f"Error in token handler for {self.name} : {e}")
+            self.logger.error(f"Error in token handler for {self.name} : {e}")
             return TokenResponse(False, event['methodArn']).json
 
     def _api_handler(self, event: t.Dict[str, t.Any], context: t.Dict[str, t.Any]) -> dict:
@@ -364,7 +382,7 @@ class TechMicroService(Flask):
                 else:
                     return resp
         except Exception as e:
-            self.logger.debug(f"Error in api handler for {self.name} : {e}")
+            self.logger.error(f"Error in api handler for {self.name} : {e}")
             error = e if isinstance(e, HTTPException) else InternalServerError(original_exception=e)
             return self._structured_error(error)
 
@@ -405,7 +423,7 @@ class TechMicroService(Flask):
                     raise Unauthorized(www_authenticate=WWWAuthenticate(auth_type="basic"))
                 valid = self.token_authorizer(token)
                 if not valid:
-                    abort(403)
+                    raise Forbidden()
 
     def _get_kwargs(self, event):
         def is_json(mt):
