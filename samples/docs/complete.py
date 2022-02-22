@@ -13,7 +13,7 @@ class SimpleMicroService(TechMicroService):
     #### Microservice Documentation
     You can document your CoWorks MicroService using the class attributes `DOC_MD` (markdown) or
     the instance attributes `doc_md` (markdown) which gets rendered from the '/' entry of the admin blueprint.
-    
+
     ![img](https://coworks.readthedocs.io/en/master/_images/coworks.png)
     """
 

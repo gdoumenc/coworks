@@ -4,7 +4,17 @@ TechMS
 ======
 
 TechMicroservices are the 'atoms' of the Coworks microservices framework. They represent the building blocks
-for other more complex microservices.
+for other more complex 'compound' microservices.
+
+Defining Tech Microservices
+---------------------------
+
+The microservice class can be defined as a class inheriting from ``TechMicroService``:
+
+.. code-block:: python
+
+  class SimpleMicroService(TechMicroService):
+    pass
 
 .. _routing:
 
@@ -23,6 +33,9 @@ The function names must follow the syntax below::
 
 The request method is then defined for the associated route.
 Composed routes are defined with the ``_`` separator.
+
+For example, ``get_content`` would define the request method ``GET`` for route ``/content``.
+Please see more examples in below section:
 
 Examples
 ^^^^^^^^
@@ -104,7 +117,7 @@ This defines the respective following routes::
 	/content/{value}
 	/content/{value}/{other}
 
-This is usefull for offering a CRUD microservice:
+This is useful for offering a CRUD microservice:
 
 .. code-block:: python
 
@@ -127,15 +140,17 @@ This is usefull for offering a CRUD microservice:
 Typed parameters
 ^^^^^^^^^^^^^^^^
 
-You can type your URI parameters or data query to get them typed as native build-in type and not only string.
+You can specify the type of your URI parameters or data query in order to use native built-in types (other than the default of string).
 
 .. code-block:: python
 
 	@entry
+  # id of type int
 	def get(self, id:int):
 		return f"the type of id is {type(id)}"
 
 	@entry
+  # id of type int with default value None
 	def get_(self, id:int = None):
 		return f"the type of id is {type(id)}"
 
@@ -143,8 +158,8 @@ You can type your URI parameters or data query to get them typed as native build
 Query or body parameters
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-You can define default parameters to your entrypoint function.
-In that case the value of those default parameters are defined by query parameters or JSON body content.
+You can define default parameters to your entry point function.
+In that case the value of those default parameters are defined by query parameters or JSON content.
 
 .. code-block:: python
 
@@ -172,8 +187,8 @@ Which is equivalent to the JSON call::
 
 	request.get("/content", json={"id": 32, "name": ["test", "other"]})
 
-*Beware*: With `API gateway` you can only use query parameters for a GET method, and body
-parameters with a GET method will raise an error in execution.
+*Beware*: With `API gateway` you can only use query parameters for a ``GET`` method. Attempting
+to send data in the request body for a ``GET`` request will raise an error in execution.
 
 You can also use the ``**`` notation to get any values::
 
@@ -181,14 +196,16 @@ You can also use the ``**`` notation to get any values::
 	def get_content(self, **kwargs):
 		return f"here are all the parameters: {kwargs}"
 
-**Note**: The current implementation doesn't take into account the typing of the entrypoint function parameters
+For more information on how to use keyword arguments in Python, see `this useful article <https://www.programiz.com/python-programming/args-and-kwargs>`_
+
+**Note**: The current implementation doesn't take into account the typing of the entry point function parameters
 (forcasted in a future release).
 So all query parameters are from type ``string``. If you want to pass typed or structured values, use the JSON mode.
 
 Microservice Response
 ---------------------
 
-As for ``Flask``, the return value from a class microservice is automatically converted into a response
+``Flask`` automatically converts return values from a class microservice into a response
 object for you.
 
 * If the return value is a ``string`` or ``bytes``, it’s converted into a response object with the string or bytes
@@ -199,13 +216,13 @@ object for you.
   form (response, status), or (response, status, headers). The status value will override the status code and headers
   can be a list or dictionary of additional header values.
 
-Nevertheless we strongly recommand to use only JSON structure (``str`` or ``dict``) and use werkzeug ``HttpException``
-for return status code. Then you can easily call your entry from another entry.
+Nevertheless we strongly recommend to use only JSON structure (``str`` or ``dict``) and use werkzeug ``HttpException``
+for return status code. This allows you to easily call your entry from another entry.
 
 Binary response
 ---------------
 
-You can return a binary response on a specifiy entry::
+You can return a binary response on a specific entry::
 
 	@entry(binary=True)
 	def get(self):
@@ -213,7 +230,7 @@ You can return a binary response on a specifiy entry::
 
 For such entry the returned value must be a list of bytes.
 
-Unfortunatly it is not possible with the Lambda to set dynamicaly the returned content-type.
+Unfortunately it is not possible with AWS Lambda to dynamically set the returned content-type.
 So the content-type value may be set by the ``Accept`` header parameter or by fixing it for the route.
 
 
@@ -228,10 +245,16 @@ Blueprints
 Coworks blueprints are used to add to your application more routes deriving from logical components.
 Blueprints allow you to complete your microservices with transversal functionalities.
 
+Blueprints are a part of Flask. To learn more about how Blueprints are implemented and used in Flask,
+check out `Flask Blueprints <https://flask.palletsprojects.com/en/2.0.x/blueprints/>`_.
+
 Blueprint Registration
 **********************
 
-Blueprints are defined in the same way as microservice classes.
+Blueprints are defined similarly to microservice classes. However, they will instead
+inherit from the coworks implementation of the ``Blueprint`` object.
+
+Methods within the class should still be decorated with ``@entry``.
 
 .. code-block:: python
 
@@ -239,12 +262,12 @@ Blueprints are defined in the same way as microservice classes.
 
 	class Admin(Blueprint):
 
-	    @entry
+	  @entry
 		def get_context(self):
 			return self.current_request.to_dict()
 
 This blueprint defines a new route ``context``. To add this route to your microservice, just register the
-blueprint to the microservice.
+microservice, you'll need to register the blueprint:
 
 .. code-block:: python
 
@@ -260,7 +283,7 @@ Predefined Blueprints
 Admin
 :::::
 
-The admin blueprint adds the following routes :
+The admin blueprint adds the following routes:
 
 ``/route``
 
@@ -271,3 +294,43 @@ The admin blueprint adds the following routes :
 
 	Return the deployment context of the microservice.
 
+Other routes added by the admin blueprint are as follows::
+
+  {
+        "/": {
+            "POST": {
+                "doc": "",
+                "signature": "(value=None)"
+            }
+        },
+        "/admin/context": {
+            "GET": {
+                "doc": "Returns the calling context.",
+                "signature": "()"
+            }
+        },
+        "/admin/env": {
+            "GET": {
+                "doc": "Returns the stage environment.",
+                "signature": "()"
+            }
+        },
+        "/admin/event": {
+            "GET": {
+                "doc": "Returns the calling context.",
+                "signature": "()"
+            }
+        },
+        "/admin/route": {
+            "GET": {
+                "doc": "Returns the list of entrypoints with signature.",
+                "signature": "(pretty=False)"
+            }
+        },
+        "/profile": {
+            "GET": {
+                "doc": "",
+                "signature": "()"
+            }
+        }
+    }
