@@ -202,6 +202,19 @@ For more information on how to use keyword arguments in Python, see `this useful
 (forcasted in a future release).
 So all query parameters are from type ``string``. If you want to pass typed or structured values, use the JSON mode.
 
+Entrypoints
+^^^^^^^^^^^
+
+The entries define routes with the following format :
+
+* For an app entry : {method}:{rule}
+* For an blueprint entry : {method}:{blueprint_name}:{rule}
+
+For example ::
+
+    url_for('GET:/') # app root
+    url_for('GET:manager:/dashboard') # dashborad entry for the manaegr blueprint
+
 Microservice Response
 ---------------------
 

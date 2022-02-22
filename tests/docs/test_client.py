@@ -23,6 +23,6 @@ class TestClass:
         assert len(mclick.mock_calls) == 8
         out = [call.args[0].split(' ')[0] for call in mclick.mock_calls]
         assert 'Endpoint' in str(mclick.mock_calls[0])
-        assert 'GET:/admin/route' in out
+        assert 'GET:admin:/route' in out
         assert 'GET:/' in out
         assert 'POST:/' in out

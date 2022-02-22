@@ -4,6 +4,15 @@ Changelogs
 ==========
 
 
+Version 0.6
+^^^^^^^^^^^
+
+First released 2021-11-02
+
+* Moved on Flask framework.
+* Middlewares defined.
+* Remote terraform.
+
 Version 0.5
 ^^^^^^^^^^^
 
