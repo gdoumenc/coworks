@@ -16,7 +16,7 @@ from werkzeug.exceptions import BadRequest, HTTPException
 from werkzeug.exceptions import BadRequestKeyError
 
 from .globals import request
-from .wrappers import ApiResponse
+from .wrappers import CoworksResponse
 
 if t.TYPE_CHECKING:
     from flask.scaffold import Scaffold
@@ -267,7 +267,7 @@ def check_success(resp):
         return False
 
     # make sure the body is an instance of the response class
-    if isinstance(resp, ApiResponse):
+    if isinstance(resp, CoworksResponse):
         return is_success(resp.status_code)
 
     return True

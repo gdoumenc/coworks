@@ -36,8 +36,8 @@ from .globals import request
 from .utils import HTTP_METHODS
 from .utils import add_coworks_routes
 from .utils import trim_underscores
-from .wrappers import ApiResponse
-from .wrappers import Request
+from .wrappers import CoworksResponse
+from .wrappers import CoworksRequest
 from .wrappers import TokenResponse
 
 
@@ -122,7 +122,7 @@ class CoworksCookieJar(CookieJar):
 
 
 class CoworksClient(FlaskClient):
-    """Redefined to force mimetype to be 'text/plain' in case of string return.
+    """Creates environment and complete request.
     """
 
     def __init__(self, *args: t.Any, aws_event=None, aws_context=None, **kwargs: t.Any) -> None:
@@ -131,8 +131,11 @@ class CoworksClient(FlaskClient):
             "aws_event": aws_event,
             "aws_context": aws_context,
         })
+
+        # Complete request content from lambda event
         if aws_event and 'headers' in aws_event:
-            self.cookie_jar = CoworksCookieJar(aws_event['headers'].get('cookie'))
+            headers = aws_event['headers']
+            self.cookie_jar = CoworksCookieJar(headers.get('cookie'))
 
 
 class Blueprint(FlaskBlueprint):
@@ -190,8 +193,8 @@ class TechMicroService(Flask):
         super().__init__(import_name=name, static_folder=None, **kwargs)
 
         self.test_client_class = CoworksClient
-        self.request_class = Request
-        self.response_class = ApiResponse
+        self.request_class = CoworksRequest
+        self.response_class = CoworksResponse
 
         self.deferred_init_routes_functions: t.List[t.Callable] = []
         self._cws_app_initialized = False

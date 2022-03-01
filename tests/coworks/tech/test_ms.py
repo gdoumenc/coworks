@@ -2,7 +2,7 @@ import io
 
 from coworks import TechMicroService
 from coworks import entry
-from coworks.coworks import ApiResponse
+from coworks.coworks import CoworksResponse
 from ..ms import SimpleMS
 
 
@@ -49,7 +49,7 @@ class TupleReturnedMS(TechMicroService):
 
     @entry
     def get_resp(self, str):
-        return ApiResponse(str, 200)
+        return CoworksResponse(str, 200)
 
     @entry
     def get_error(self, str):

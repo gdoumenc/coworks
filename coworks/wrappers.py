@@ -28,16 +28,20 @@ class TokenResponse:
         }
 
 
-class ApiResponse(FlaskResponse):
+class CoworksResponse(FlaskResponse):
     """Default mimetype is redefined."""
     default_mimetype = "application/json"
 
 
-class Request(FlaskRequest):
+class CoworksRequest(FlaskRequest):
 
     def __init__(self, environ, **kwargs):
         super().__init__(environ, **kwargs)
-        self._in_lambda_context: bool = bool(environ.get('aws_event'))
+        aws_event = environ.get('aws_event')
+        self._in_lambda_context: bool = bool(aws_event)
+        if self._in_lambda_context:
+            environ['wsgi.url_scheme'] = aws_event['headers'].get('x-forwarded-proto')
+            environ['HTTP_HOST'] = aws_event['headers'].get('x-forwarded-host')
 
     @property
     def in_lambda_context(self):

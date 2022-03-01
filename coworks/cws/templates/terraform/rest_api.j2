@@ -74,8 +74,9 @@ resource "aws_api_gateway_method" "{{ resource_name }}_{{ uid }}_{{ method }}" {
   {%- endif %}
 
   request_parameters = {
-    "method.request.header.InvocationType" = false
     "method.request.header.Accept" = false
+    "method.request.header.InvocationType" = false
+    "method.request.header.X-Forwarded-Host" = false
   }
 }
 resource "aws_api_gateway_integration" "{{ resource_name }}_{{ uid }}_{{ method }}" {
@@ -87,19 +88,21 @@ resource "aws_api_gateway_integration" "{{ resource_name }}_{{ uid }}_{{ method 
   {%- else %}
   resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
   {%- endif %}
-  http_method = join("", aws_api_gateway_method.{{ resource_name }}_{{ uid }}_{{ method }}.*.http_method)
+  http_method = "{{ method }}"
   integration_http_method = "POST"
   type = "AWS"
   uri = "arn:aws:apigateway:eu-west-1:lambda:path/2015-03-31/functions/arn:aws:lambda:eu-west-1:935392763270:function:{{ resource_name }}-$${stageVariables.stage}/invocations"
   passthrough_behavior = "NEVER"
   content_handling = "CONVERT_TO_TEXT"
   request_parameters = {
-    "integration.request.header.X-Amz-Invocation-Type" = "method.request.header.InvocationType",
     "integration.request.header.Accept" = "method.request.header.Accept",
+    "integration.request.header.X-Amz-Invocation-Type" = "method.request.header.InvocationType",
+    "integration.request.header.X-Forwarded-Host" = "method.request.header.X-Forwarded-Host",
   }
   request_templates  = {
     {% include "terraform/request_templates.j2" %}
   }
+  depends_on = [aws_api_gateway_method.{{ resource_name }}_{{ uid }}_{{ method }}]
 }
 resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_{{ method }}_response_200" {
   provider = aws.{{ resource_name }}
@@ -110,8 +113,9 @@ resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_{{ met
   {%- else %}
   resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
   {%- endif %}
-  http_method = join("", aws_api_gateway_method.{{ resource_name }}_{{ uid }}_{{ method }}.*.http_method)
+  http_method = "{{ method }}"
   status_code = "200"
+  depends_on = [aws_api_gateway_method.{{ resource_name }}_{{ uid }}_{{ method }}]
 }
 resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_{{ method }}_response_200" {
   provider = aws.{{ resource_name }}
@@ -123,7 +127,7 @@ resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_{
   resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
   {%- endif %}
   http_method = join("", aws_api_gateway_method.{{ resource_name }}_{{ uid }}_{{ method }}.*.http_method)
-  status_code = join("", aws_api_gateway_method_response.{{ resource_name }}_{{ uid }}_{{ method }}_response_200.*.status_code)
+  status_code = "200"
   {%- if not rule.cws_binary %}
 
   # Transforms the backend JSON response
@@ -142,6 +146,7 @@ resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_{
     EOF
   }
   {%- endif %}
+  depends_on = [aws_api_gateway_method_response.{{ resource_name }}_{{ uid }}_{{ method }}_response_200]
 }
 {%- endfor %}
 {%- endfor %}
@@ -170,11 +175,12 @@ resource "aws_api_gateway_integration" "{{ resource_name }}_{{ uid }}_OPTIONS" {
   {% else %}
   resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
   {% endif -%}
-  http_method = join("", aws_api_gateway_method.{{ resource_name }}_{{ uid }}_OPTIONS.*.http_method)
+  http_method = "OPTIONS"
   type = "MOCK"
   request_templates = {
     "application/json" = "{ \"statusCode\": 200 }"
   }
+  depends_on = [aws_api_gateway_method.{{ resource_name }}_{{ uid }}_OPTIONS]
 }
 resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_OPTIONS" {
   provider = aws.{{ resource_name }}
@@ -185,7 +191,7 @@ resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_O
   {%- else %}
   resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
   {%- endif %}
-  http_method =  join("", aws_api_gateway_method.{{ resource_name }}_{{ uid }}_OPTIONS.*.http_method)
+  http_method = "OPTIONS"
   status_code = 200
   response_templates = {
     "application/json": <<-EOF
@@ -196,10 +202,7 @@ resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_O
       })
     EOF
   }
-  depends_on = [
-    aws_api_gateway_integration.{{ resource_name }}_{{ uid }}_OPTIONS,
-    aws_api_gateway_method_response.{{ resource_name }}_{{ uid }}_OPTIONS,
-  ]
+  depends_on = [aws_api_gateway_integration.{{ resource_name }}_{{ uid }}_OPTIONS]
 }
 resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_OPTIONS" {
   provider = aws.{{ resource_name }}
@@ -210,7 +213,7 @@ resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_OPTION
   {%- else %}
   resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
   {%- endif %}
-  http_method = join("", aws_api_gateway_method.{{ resource_name }}_{{ uid }}_OPTIONS.*.http_method)
+  http_method = "OPTIONS"
   status_code = 200
   response_models = {
     "application/json" = "Empty"
@@ -220,9 +223,7 @@ resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_OPTION
     "method.response.header.Access-Control-Allow-Methods" = true,
     "method.response.header.Access-Control-Allow-Origin" = true,
   }
-  depends_on = [
-    aws_api_gateway_method.{{ resource_name }}_{{ uid }}_OPTIONS,
-  ]
+  depends_on = [aws_api_gateway_method.{{ resource_name }}_{{ uid }}_OPTIONS]
 }
 {%- endif %}
 {%- endif %}
@@ -236,11 +237,9 @@ resource "aws_api_gateway_deployment" "{{ resource_name }}" {
   count = local.{{ resource_name }}_when_stage
   rest_api_id = local.{{ resource_name }}_api_id
   description = "{{ workspace }}: at ${timestamp()}"
-
   triggers = {
     timestamp = timestamp() {# force redeployment #}
   }
-
   lifecycle {
     create_before_destroy = true
   }
@@ -248,15 +247,13 @@ resource "aws_api_gateway_deployment" "{{ resource_name }}" {
 }
 
 resource "aws_api_gateway_stage" "{{ resource_name }}" {
-  depends_on = [aws_cloudwatch_log_group.api_{{ resource_name }}]
-
   provider = aws.{{ resource_name }}
   count = local.{{ resource_name }}_when_stage
   stage_name = "{{ workspace }}"
   rest_api_id = local.{{ resource_name }}_api_id
   deployment_id = aws_api_gateway_deployment.{{ resource_name }}[0].id
   xray_tracing_enabled = true
-
+  depends_on = [aws_cloudwatch_log_group.api_{{ resource_name }}]
   variables = {
     stage = "{{ workspace }}"
   }
