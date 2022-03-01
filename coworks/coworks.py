@@ -36,8 +36,8 @@ from .globals import request
 from .utils import HTTP_METHODS
 from .utils import add_coworks_routes
 from .utils import trim_underscores
-from .wrappers import CoworksResponse
 from .wrappers import CoworksRequest
+from .wrappers import CoworksResponse
 from .wrappers import TokenResponse
 
 

@@ -65,8 +65,8 @@ def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
             if r.rule == rule and method in r.methods:
                 raise AssertionError(f"Duplicate route {rule}")
 
-        name_prefix = f"{bp_state.blueprint.name}:" if bp_state else ''
-        endpoint = f"{method}:{name_prefix}/{entry_path}"
+        prefix = f"{bp_state.blueprint.name}." if bp_state else ''
+        endpoint = f"{prefix}{fun.__name__}"
 
         try:
             app.add_url_rule(rule=rule, view_func=proxy, methods=[method], endpoint=endpoint, strict_slashes=False)
