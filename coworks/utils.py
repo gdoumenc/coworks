@@ -96,7 +96,7 @@ def create_rest_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
                     params[k] = v[0] if flat and len(v) == 1 else v
                 return params
 
-            # get keyword arguments from request
+            # Get keyword arguments from request
             if kwarg_keys or varkw:
 
                 # adds parameters from query parameters
@@ -104,7 +104,7 @@ def create_rest_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
                     data = request.values.to_dict(False)
                     kwargs = as_typed_kwargs(func, dict(**kwargs, **as_fun_params(data)))
 
-                # adds parameters from body parameter
+                # Adds parameters from body parameter
                 elif request.method in ['POST', 'PUT']:
                     try:
                         if request.is_json:
@@ -150,12 +150,19 @@ def create_rest_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
             if resp is None:
                 return "", 204
 
+            # Set a specific content type if response is not a tuple and entry has a default content type
+            content_type = None
+            if resp is not tuple:
+                cws_content_type = getattr(func, '__CWS_CONTENT_TYPE')
+                if cws_content_type:
+                    content_type = cws_content_type
+
+            # Creates response class object
             resp = make_response(resp)
 
-            # Forces content type
-            cws_content_type = getattr(func, '__CWS_CONTENT_TYPE')
-            if cws_content_type:
-                resp.headers['Content-Type'] = cws_content_type
+            # Forces default entry content type
+            if content_type:
+                resp.headers['Content-Type'] = content_type
 
             return resp
         except TypeError as e:

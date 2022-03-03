@@ -207,14 +207,68 @@ Entrypoints
 
 The entries define routes with the following format :
 
-* For an app entry : {method}:{rule}
-* For an blueprint entry : {method}:{blueprint_name}:{rule}
+* For an app entry : {function_name}
+* For an blueprint entry : {blueprint_name}.{function_name}
 
 For example ::
 
-    url_for('GET:/') # app root
-    url_for('GET:manager:/dashboard') # dashborad entry for the manaegr blueprint
+    url_for('get') # app root entry
+    url_for('manager.get_dashboard') # get_dashborad entry for the manager blueprint
 
+Disable authorizer for an entry
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If needed you can disable the token authorizer on an entry:
+
+.. code-block:: python
+
+	from coworks import TechMicroService
+	from coworks import entry
+
+	class SimpleExampleMicroservice(TechMicroService):
+
+		@entry(no_auth=True)
+		def get(self):
+			return "Entry without authorizer."
+
+
+Content type
+^^^^^^^^^^^^
+
+By default all entries are defined as ``application/json`` content-type. You can change this default value for an entry,
+so all simple returned responses will have this content type value, thus avoiding to add the specific header value.
+
+.. code-block:: python
+
+	from coworks import TechMicroService
+	from coworks import entry
+
+	class SimpleExampleMicroservice(TechMicroService):
+
+        @entry(content_type='text/html')
+        def get_hi(self, lang='fr'):
+            if lang=='fr':
+                return "<p>bonjour</p>"
+            return "<p>hello</p>"
+
+If you return a tuple this default value is not set.
+
+Binary type
+^^^^^^^^^^^
+
+.. code-block:: python
+
+	from coworks import TechMicroService
+	from coworks import entry
+
+	class SimpleExampleMicroservice(TechMicroService):
+
+        @entry(binary=True)
+        def get_content_type(self):
+            return b"test"
+
+Nevertheless the current AWS ApiGateway integration with Lambda doesn't allow to defined the content type in response
+header so the caller must know in advance the returned content type ot the entry.
 Microservice Response
 ---------------------
 
