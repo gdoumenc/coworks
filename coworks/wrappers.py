@@ -1,4 +1,5 @@
 import typing as t
+
 from flask import Request as FlaskRequest
 from flask import Response as FlaskResponse
 
@@ -41,6 +42,7 @@ class CoworksRequest(FlaskRequest):
         self._in_lambda_context: bool = bool(aws_event)
         if self._in_lambda_context:
             environ['wsgi.url_scheme'] = aws_event['headers'].get('x-forwarded-proto')
+            environ['HTTP_REFERER'] = aws_event['headers'].get('referer')
             environ['HTTP_HOST'] = aws_event['headers'].get('x-forwarded-host')
 
     @property
