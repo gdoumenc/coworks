@@ -1,6 +1,25 @@
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.sensors.base import BaseSensorOperator
+from airflow.sensors.base import poke_mode_only
 from airflow.utils.decorators import apply_defaults
+from coworks.operators import TechMicroServiceOperator
+
+
+@apply_defaults
+@poke_mode_only
+class TechMicroServiceSensor(BaseSensorOperator, TechMicroServiceOperator):
+    """ Sensor to wait until an asynchronous TechMicroservice call is ended.
+
+        :param cws_task_id: the tech microservice task_id awaited.
+        :param aws_conn_id: AWS S3 connection.
+        """
+
+    def __init__(self, **kwargs):
+        super().__init__(asynchronous=False, raise_400_errors=False, **kwargs)
+
+    def poke(self, context):
+        res = self._call_cws(self.headers)
+        return res.ok
 
 
 @apply_defaults

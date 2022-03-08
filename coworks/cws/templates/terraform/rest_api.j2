@@ -153,7 +153,7 @@ resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_{
 
 {# Preflighted requests in CORS #}
 
-{%- if resource.no_cors_methods -%}
+{%- if not resource.no_cors_methods -%}
 resource "aws_api_gateway_method" "{{ resource_name }}_{{ uid }}_OPTIONS" {
   provider = aws.{{ resource_name }}
   count = {{ "local.{}_when_default".format(resource_name) }}

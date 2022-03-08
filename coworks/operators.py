@@ -4,7 +4,6 @@ import typing as t
 from json import loads
 
 import requests
-from requests.exceptions import RequestException
 
 from airflow.exceptions import AirflowFailException
 from airflow.models.baseoperator import BaseOperator
@@ -91,26 +90,19 @@ class TechMicroServiceOperator(BaseOperator):
     def execute(self, context):
         """Call TechMicroService.
         """
+        headers = self.headers
         bucket = 'coworks-airflow'
         key = f"s3/{context['ti'].dag_id}/{context['ti'].task_id}/{context['ti'].job_id}"
-        headers = self.headers
-        if not self.no_auth:
-            self.headers['Authorization'] = self.token
+
+        # Updates headers if needed
         if self.asynchronous:
             headers['InvocationType'] = 'Event'
             headers['X-CWS-S3Bucket'] = bucket
             headers['X-CWS-S3Key'] = key
             logging.info(f"Result stored in 's3://{bucket}/{key}'")
 
-        logging.info(f"{self.method.upper()} method to {self._url}")
-        res = requests.request(self.method.upper(), self._url, headers=headers, data=self.data, json=self.json)
-        logging.info(f"Resulting status code : {res.status_code}")
-        if self.log_response:
-            logging.info(res.text)
-        if self.raise_400_errors and res.status_code >= 400:
-            raise AirflowFailException(f"The TechMicroService {self.cws_name} had a client error {res.status_code}!")
-        if res.status_code >= 500:
-            raise AirflowFailException(f"The TechMicroService {self.cws_name} had an internal error {res.status_code}!")
+        # Call microservice
+        res = self._call_cws(headers)
 
         # Returns values or storing file
         self.xcom_push(context, 'cws_name', self.cws_name)
@@ -120,6 +112,19 @@ class TechMicroServiceOperator(BaseOperator):
         else:
             self.xcom_push(context, 'bucket', bucket)
             self.xcom_push(context, 'key', key)
+
+    def _call_cws(self, headers):
+        """Calls CWS microservice."""
+        logging.info(f"{self.method.upper()} method to {self._url}")
+        res = requests.request(self.method.upper(), self._url, headers=headers, data=self.data, json=self.json)
+        logging.info(f"Resulting status code : {res.status_code}")
+        if self.log_response:
+            logging.info(res.text)
+        if self.raise_400_errors and res.status_code >= 400:
+            raise AirflowFailException(f"The TechMicroService {self.cws_name} had a client error {res.status_code}!")
+        if res.status_code >= 500:
+            raise AirflowFailException(f"The TechMicroService {self.cws_name} had an internal error {res.status_code}!")
+        return res
 
 
 class BranchTechMicroServiceOperator(BaseBranchOperator):

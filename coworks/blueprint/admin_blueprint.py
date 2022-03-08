@@ -60,13 +60,19 @@ class Admin(Blueprint):
                         }
                         if doc:
                             docstring = doc.replace('\n', ' ').split(':param ')
-                            route[http_method]['doc'] = docstring[0].strip()
+                            self.strip = docstring[0].strip()
+                            route[http_method]['doc'] = self.strip
                             if len(docstring) > 1:
                                 route[http_method]['params'] = docstring[1:]
-                        if getattr(function_called, '__CWS_NO_AUTH', False):
-                            route[http_method]['auth'] = False
                         if from_blueprint:
                             route[http_method]['blueprint'] = from_blueprint
+
+                        route[http_method]['binary'] = getattr(function_called, '__CWS_BINARY')
+                        route[http_method]['no_auth'] = getattr(function_called, '__CWS_NO_AUTH')
+                        route[http_method]['no_cors'] = getattr(function_called, '__CWS_NO_CORS')
+                        content_type = getattr(function_called, '__CWS_CONTENT_TYPE')
+                        if content_type:
+                            route[http_method]['content_type'] = content_type
                 routes[rule.rule] = route
 
         return routes

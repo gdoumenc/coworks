@@ -47,7 +47,7 @@ from .wrappers import TokenResponse
 
 
 def entry(fun: t.Callable = None, binary: bool = False, content_type: str = None,
-          no_auth: bool = False, no_cors: bool = False) -> t.Callable:
+          no_auth: bool = False, no_cors: bool = True) -> t.Callable:
     """Decorator to create a microservice entry point from function name.
     :param fun: the entry function.
     :param binary: allow payload without transformation.
