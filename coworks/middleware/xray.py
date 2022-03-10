@@ -109,7 +109,6 @@ class XRayMiddleware:
 
                 wrapped_fun = update_wrapper(partial(captured, view_function), view_function)
                 self._app.view_functions[rule.endpoint] = self._recorder.capture(name=wrapped_fun.__name__)(wrapped_fun)
-                self._app.logger.debug(f"XRay capture {wrapped_fun.__name__}")
 
         except Exception:
             self._app.logger.error("Cannot set xray context manager : are you using xray_recorder?")

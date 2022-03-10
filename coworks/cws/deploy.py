@@ -430,6 +430,17 @@ def deployed_command(info, ctx, terraform_class=TerraformLocal, **options) -> No
             raise
 
 # class CwsTerraformDestroyer(CwsTerraformCommand):
+
+
+# set all to 0 :
+# locals {
+#   neorezo-cws_supplier-supplier_order_when_default = var.TFC_WORKSPACE_NAME == "neorezo_cws_supplier" ? 0 : 0
+#   neorezo-cws_supplier-supplier_order_when_stage = var.TFC_WORKSPACE_NAME != "neorezo_cws_supplier" ? 0 : 0
+# }
+# terraform -chdir=terraform_dev apply
+# terraform -chdir=terraform apply
+# then remove files
+
 #
 #     @property
 #     def options(self):

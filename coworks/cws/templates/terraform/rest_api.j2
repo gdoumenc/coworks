@@ -76,6 +76,7 @@ resource "aws_api_gateway_method" "{{ resource_name }}_{{ uid }}_{{ method }}" {
   request_parameters = {
     "method.request.header.Accept" = false
     "method.request.header.InvocationType" = false
+    "method.request.header.Referer" = false
     "method.request.header.X-Forwarded-Host" = false
   }
 }
@@ -96,6 +97,7 @@ resource "aws_api_gateway_integration" "{{ resource_name }}_{{ uid }}_{{ method 
   content_handling = "CONVERT_TO_TEXT"
   request_parameters = {
     "integration.request.header.Accept" = "method.request.header.Accept",
+    "integration.request.header.Referer" = "method.request.header.Referer",
     "integration.request.header.X-Amz-Invocation-Type" = "method.request.header.InvocationType",
     "integration.request.header.X-Forwarded-Host" = "method.request.header.X-Forwarded-Host",
   }

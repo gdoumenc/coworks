@@ -27,6 +27,8 @@ class TechMicroServiceOperator(BaseOperator):
     :param token: Authorization token (must be defined if auth and no 'cws_name').
     :param directory_conn_id: Connection defined for the directory service (default 'neorezo_directory').
     :param asynchronous: Asynchronous call (default False).
+    :param xcom_push: Pushes result in XCom (default True).
+    :param json_result: Returns a JSON value in 'json' key instead of 'text' (default False).
     :param raise_400_errors: raise error on client 400 errors (default True).
     :param accept: accept header value (default 'application/json').
     :param headers: specific header values forced (default {}).
@@ -37,6 +39,7 @@ class TechMicroServiceOperator(BaseOperator):
     def __init__(self, *, cws_name: str = None, entry: str = None, method: str = None, no_auth: bool = False,
                  data: dict = None, json: dict = None, stage: str = None, api_id: str = None, token: str = None,
                  directory_conn_id: str = 'neorezo_directory', asynchronous: bool = False,
+                 xcom_push=True, json_result=False,
                  raise_400_errors: bool = True, accept='application/json', headers=None,
                  log_response: bool = False,
                  **kwargs) -> None:
@@ -53,8 +56,10 @@ class TechMicroServiceOperator(BaseOperator):
         self.token = token
         self.directory_conn_id = directory_conn_id
         self.asynchronous = asynchronous
+        self.xcom_push_flag = xcom_push
+        self.json_result = json_result
         self.raise_400_errors = raise_400_errors
-        self._url = None
+        self._url = self._bucket = self._key = None
 
         if not self.cws_name and not self.api_id:
             raise AirflowFailException(f"The APIGateway id must be defined! (param 'api_id')")
@@ -66,8 +71,6 @@ class TechMicroServiceOperator(BaseOperator):
             'Content-Type': "application/json",
             'Accept': accept,
         }
-        if not no_auth:
-            self.headers['Authorization'] = token
         if headers:
             self.headers.update(headers)
 
@@ -87,43 +90,49 @@ class TechMicroServiceOperator(BaseOperator):
         else:
             self._url = f'https://{self.api_id}.execute-api.eu-west-1.amazonaws.com/{self.stage}/{self.entry}'
 
+        if self.asynchronous:
+            self._bucket = 'coworks-airflow'
+            self._key = f"s3/{context['ti'].dag_id}/{context['ti'].task_id}/{context['ti'].job_id}"
+
+            self.headers['InvocationType'] = 'Event'
+            self.headers['X-CWS-S3Bucket'] = self._bucket
+            self.headers['X-CWS-S3Key'] = self._key
+            logging.info(f"Result stored in 's3://{self._bucket}/{self._key}'")
+
+        if not self.no_auth:
+            self.headers['Authorization'] = self.token
+
     def execute(self, context):
         """Call TechMicroService.
         """
-        headers = self.headers
-        bucket = 'coworks-airflow'
-        key = f"s3/{context['ti'].dag_id}/{context['ti'].task_id}/{context['ti'].job_id}"
+        self._call_cws(context)
 
-        # Updates headers if needed
-        if self.asynchronous:
-            headers['InvocationType'] = 'Event'
-            headers['X-CWS-S3Bucket'] = bucket
-            headers['X-CWS-S3Key'] = key
-            logging.info(f"Result stored in 's3://{bucket}/{key}'")
-
-        # Call microservice
-        res = self._call_cws(headers)
-
-        # Returns values or storing file
-        self.xcom_push(context, 'cws_name', self.cws_name)
-        if not self.asynchronous:
-            self.xcom_push(context, 'status_code', res.status_code)
-            self.xcom_push(context, 'text', res.text)
-        else:
-            self.xcom_push(context, 'bucket', bucket)
-            self.xcom_push(context, 'key', key)
-
-    def _call_cws(self, headers):
-        """Calls CWS microservice."""
-        logging.info(f"{self.method.upper()} method to {self._url}")
-        res = requests.request(self.method.upper(), self._url, headers=headers, data=self.data, json=self.json)
+    def _call_cws(self, context):
+        logging.info(f"Calling {self.method.upper()} method to {self._url}")
+        res = requests.request(self.method.upper(), self._url, headers=self.headers, data=self.data, json=self.json)
         logging.info(f"Resulting status code : {res.status_code}")
         if self.log_response:
             logging.info(res.text)
+
+        # Manages status
         if self.raise_400_errors and res.status_code >= 400:
             raise AirflowFailException(f"The TechMicroService {self.cws_name} had a client error {res.status_code}!")
         if res.status_code >= 500:
             raise AirflowFailException(f"The TechMicroService {self.cws_name} had an internal error {res.status_code}!")
+
+        # Returns values or storing file informations
+        if self.xcom_push_flag:
+            self.xcom_push(context, 'cws_name', self.cws_name)
+            if not self.asynchronous:
+                self.xcom_push(context, 'status_code', res.status_code)
+                if self.json_result:
+                    self.xcom_push(context, 'json', res.json())
+                else:
+                    self.xcom_push(context, 'text', res.text)
+            else:
+                self.xcom_push(context, 'bucket', self._bucket)
+                self.xcom_push(context, 'key', self._key)
+
         return res
 
 
@@ -166,6 +175,9 @@ class BranchTechMicroServiceOperator(BaseBranchOperator):
         return self.on_success
 
 
+#
+# DEPRECATED
+#
 class AsyncTechServicePullOperator(BaseOperator):
     """Pull in XCom a microservice result when its was called asynchronously.
 
