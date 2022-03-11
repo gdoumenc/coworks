@@ -1,9 +1,7 @@
 import os
 
-from flask import current_app
-from flask_sqlalchemy import SQLAlchemy as FlaskSQLAlchemy
-
 from coworks import Blueprint
+from flask_sqlalchemy import SQLAlchemy as FlaskSQLAlchemy
 
 
 class SqlAlchemy(Blueprint):
@@ -26,25 +24,24 @@ class SqlAlchemy(Blueprint):
             self.env_user_var_name = env_user_var_name
             self.env_passwd_var_name = env_passwd_var_name
 
-        @self.before_app_first_request
-        def init_sql_alchemy():
-            db_engine = os.getenv(self.env_engine_var_name)
-            if not db_engine:
-                raise EnvironmentError(f'{self.env_engine_var_name} not defined in environment.')
-            db_url = os.getenv(self.env_url_var_name)
-            if not db_url:
-                raise EnvironmentError(f'{self.env_url_var_name} not defined in environment.')
-            db_name = os.getenv(self.env_dbname_var_name)
-            if not db_name:
-                raise EnvironmentError(f'{self.env_dbname_var_name} not defined in environment.')
-            db_user = os.getenv(self.env_user_var_name)
-            if not db_user:
-                raise EnvironmentError(f'{self.env_user_var_name} not defined in environment.')
-            db_pasword = os.getenv(self.env_passwd_var_name)
-            if not db_pasword:
-                raise EnvironmentError(f'{self.env_passwd_var_name} not defined in environment.')
+    def init_app(self, app):
+        db_engine = os.getenv(self.env_engine_var_name)
+        if not db_engine:
+            raise EnvironmentError(f'{self.env_engine_var_name} not defined in environment.')
+        db_url = os.getenv(self.env_url_var_name)
+        if not db_url:
+            raise EnvironmentError(f'{self.env_url_var_name} not defined in environment.')
+        db_name = os.getenv(self.env_dbname_var_name)
+        if not db_name:
+            raise EnvironmentError(f'{self.env_dbname_var_name} not defined in environment.')
+        db_user = os.getenv(self.env_user_var_name)
+        if not db_user:
+            raise EnvironmentError(f'{self.env_user_var_name} not defined in environment.')
+        db_pasword = os.getenv(self.env_passwd_var_name)
+        if not db_pasword:
+            raise EnvironmentError(f'{self.env_passwd_var_name} not defined in environment.')
 
-            current_app.config['SQLALCHEMY_DATABASE_URI'] = f"{db_engine}://{db_user}:{db_pasword}@{db_url}/{db_name}"
-            current_app.config['SQLALCHEMY_BINDS'] = {
-            }
-            self.db = FlaskSQLAlchemy(current_app)
+        app.config['SQLALCHEMY_DATABASE_URI'] = f"{db_engine}://{db_user}:{db_pasword}@{db_url}/{db_name}"
+        app.config['SQLALCHEMY_BINDS'] = {}
+
+        self.db = FlaskSQLAlchemy(app)

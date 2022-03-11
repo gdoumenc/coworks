@@ -3,7 +3,6 @@ import io
 import logging
 import os
 import typing as t
-from dataclasses import dataclass
 from functools import partial
 from http.cookiejar import CookieJar
 from inspect import isfunction
@@ -92,17 +91,6 @@ def entry(fun: t.Callable = None, binary: bool = False, content_type: str = None
 #
 
 
-@dataclass
-class ScheduleEntry:
-    """An schedule entry is an EventBridge entry defined on a microservice, with the schedule expression,
-    its description and its response function."""
-
-    name: str
-    exp: str
-    desc: str
-    fun: t.Callable
-
-
 class CoworksCookieJar(CookieJar):
     """A cookielib.CookieJar modified to inject cookie headers from event.
     """
@@ -152,6 +140,9 @@ class Blueprint(FlaskBlueprint):
         """
         import_name = self.__class__.__name__.lower()
         super().__init__(name or import_name, import_name, **kwargs)
+
+    def init_app(self, app):
+        ...
 
     @property
     def logger(self) -> logging.Logger:
@@ -209,6 +200,9 @@ class TechMicroService(Flask):
                 self.logger.error(msg)
                 raise HTTPException(msg)
 
+    def init_app(self):
+        ...
+
     def app_context(self):
         """Override to initialize coworks microservice."""
         if not self._cws_app_initialized:
@@ -262,7 +256,7 @@ class TechMicroService(Flask):
         If the returned value is True, all routes for all stages are accepted.
         If the returned value is a string, then it must be a stage name and all routes are accepted for this stage.
 
-        By default no entry are accepted for security reason.
+        By default, no entry are accepted for security reason.
         """
 
         workspace = self.config['WORKSPACE']
@@ -311,8 +305,22 @@ class TechMicroService(Flask):
         except Exception as e:
             self.logger.error(f"Exception when storing response in {bucket}/{key} : {str(e)}")
 
+    def _init_app(self):
+        add_coworks_routes(self)
+        for fun in self.deferred_init_routes_functions:
+            fun()
+
     def __call__(self, arg1, arg2) -> dict:
         """Main microservice entry point."""
+
+        # Finalize the intialization
+        if not self._cws_app_initialized:
+            self._init_app()
+            self.init_app()
+            for bp in self.blueprints.values():
+                if isinstance(bp, Blueprint):
+                    t.cast(Blueprint, bp).init_app(self)
+            self._cws_app_initialized = True
 
         # Lambda event call or Flask call
         if isfunction(arg2):
