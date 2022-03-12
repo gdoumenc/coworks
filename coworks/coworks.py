@@ -312,9 +312,11 @@ class TechMicroService(Flask):
 
     def __call__(self, arg1, arg2) -> dict:
         """Main microservice entry point."""
+        in_flask = isfunction(arg2)
 
         # Finalize the intialization
         if not self._cws_app_initialized:
+            self._update_config(load_env=in_flask)
             self._init_app()
             self.init_app()
             for bp in self.blueprints.values():
@@ -323,7 +325,7 @@ class TechMicroService(Flask):
             self._cws_app_initialized = True
 
         # Lambda event call or Flask call
-        if isfunction(arg2):
+        if in_flask:
             res = self._flask_handler(arg1, arg2)
         else:
             res = self._lambda_handler(arg1, arg2)
@@ -336,7 +338,6 @@ class TechMicroService(Flask):
         self.logger.debug(f"Event: {event}")
         self.logger.debug(f"Context: {context}")
 
-        self._update_config(load_env=False)
         if event.get('type') == 'TOKEN':
             return self._token_handler(event, context)
         return self._api_handler(event, context)
@@ -401,7 +402,6 @@ class TechMicroService(Flask):
         """Flask handler.
         """
 
-        self._update_config(load_env=True)
         return self.wsgi_app(environ, start_response)
 
     def _update_config(self, *, load_env: bool, workspace: str = None):
