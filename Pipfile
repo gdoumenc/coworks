@@ -11,7 +11,9 @@ markdown = ">=3.3.6"
 pyyaml = ">=6.0"
 
 [dev-packages]
+#  Uninstall flask-appbuilder after
 apache-airflow = "*"
+apache-airflow-providers-amazon = "*"
 aws_xray_sdk = "*"
 boto3-stubs = "*"
 codecov = "*"
