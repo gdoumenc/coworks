@@ -1,10 +1,12 @@
 import os
 
-from coworks import Blueprint
 from flask_sqlalchemy import SQLAlchemy as FlaskSQLAlchemy
+
+from coworks import Blueprint
 
 
 class SqlAlchemy(Blueprint):
+    SQLALCHEMY_KWARGS = {}
 
     def __init__(self, name='sqlalchemy', env_engine_var_name: str = '',
                  env_url_var_name: str = '', env_dbname_var_name: str = '', env_user_var_name: str = '',
@@ -44,4 +46,8 @@ class SqlAlchemy(Blueprint):
         app.config['SQLALCHEMY_DATABASE_URI'] = f"{db_engine}://{db_user}:{db_pasword}@{db_url}/{db_name}"
         app.config['SQLALCHEMY_BINDS'] = {}
 
-        self.db = FlaskSQLAlchemy(app)
+        self.db = FlaskSQLAlchemy(app, **self.SQLALCHEMY_KWARGS)
+
+    @property
+    def session(self):
+        return self.db.session
