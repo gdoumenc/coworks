@@ -45,6 +45,7 @@ class SqlAlchemy(Blueprint):
 
         app.config['SQLALCHEMY_DATABASE_URI'] = f"{db_engine}://{db_user}:{db_pasword}@{db_url}/{db_name}"
         app.config['SQLALCHEMY_BINDS'] = {}
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
         self.db = FlaskSQLAlchemy(app, **self.SQLALCHEMY_KWARGS)
 
