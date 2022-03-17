@@ -145,6 +145,9 @@ class Blueprint(FlaskBlueprint):
     def init_app(self, app):
         ...
 
+    def init_cli(self, app):
+        ...
+
     @property
     def logger(self) -> logging.Logger:
         return current_app.logger
@@ -204,10 +207,22 @@ class TechMicroService(Flask):
     def init_app(self):
         ...
 
+    def init_cli(self):
+        """Called only on cli command.
+        Mainly externalized to allow specific import not needed on deployed implementation.
+        """
+        ...
+
     def app_context(self):
         """Override to initialize coworks microservice.
         """
         self._init_app(True)
+
+        self.init_cli()
+        for bp in self.blueprints.values():
+            if isinstance(bp, Blueprint):
+                t.cast(Blueprint, bp).init_cli(self)
+
         return super().app_context()
 
     def request_context(self, environ: dict) -> RequestContext:
