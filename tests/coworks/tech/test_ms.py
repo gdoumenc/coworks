@@ -120,6 +120,10 @@ class TestClass:
             response = c.get('/kwparam1', json={"other": 'other', "value": 5}, headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "get **param with only 0"
+
+            response = c.get('/kwparam2?other=other', headers={'Authorization': 'token'})
+            assert response.status_code == 200
+            assert response.get_data(as_text=True) == "get **param with 0 and ['other']"
             response = c.get('/kwparam2?other=other&value=5', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "get **param with 5 and ['other']"
@@ -130,6 +134,16 @@ class TestClass:
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "get **param with 5 and ['other']"
             response = c.put('/kwparam2?other=other&value=5', headers={'Authorization': 'token'})
+            assert response.status_code == 200
+            assert response.get_data(as_text=True) == "get **param with 5 and ['other']"
+
+            response = c.post('/kwparam2/5', headers={'Authorization': 'token'})
+            assert response.status_code == 200
+            assert response.get_data(as_text=True) == "get **param with 5 and []"
+            response = c.post('/kwparam2/5', json={"other": 'other'}, headers={'Authorization': 'token'})
+            assert response.status_code == 200
+            assert response.get_data(as_text=True) == "get **param with 5 and ['other']"
+            response = c.post('/kwparam2/5?other=other', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "get **param with 5 and ['other']"
 
@@ -226,7 +240,11 @@ class TestClass:
     def test_entry_not_unique(self):
         app = AmbiguousMS()
         with app.test_request_context():
+            assert '/<uid>' in app.routes
             assert '/test' in app.routes
+
+    def test_call_not_unique(self):
+        app = AmbiguousMS()
         with app.test_client() as c:
             response = c.get('/123', headers={'Authorization': 'token'})
             assert response.status_code == 200

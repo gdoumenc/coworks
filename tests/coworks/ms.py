@@ -67,6 +67,10 @@ class SimpleMS(TechMicroService):
     def put_kwparam2_(self, value=0, **kwargs):
         return f"get **param with {value} and {list(kwargs.keys())}"
 
+    @entry
+    def post_kwparam2(self, value, **kwargs):
+        return f"get **param with {value} and {list(kwargs.keys())}"
+
     # composed path
     @entry
     def get_extended_content(self):
