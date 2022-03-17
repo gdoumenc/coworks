@@ -205,12 +205,9 @@ class TechMicroService(Flask):
         ...
 
     def app_context(self):
-        """Override to initialize coworks microservice."""
-        if not self._cws_app_initialized:
-            add_coworks_routes(self)
-            for fun in self.deferred_init_routes_functions:
-                fun()
-            self._cws_app_initialized = True
+        """Override to initialize coworks microservice.
+        """
+        self._init_app(True)
         return super().app_context()
 
     def request_context(self, environ: dict) -> RequestContext:
@@ -224,13 +221,15 @@ class TechMicroService(Flask):
         return ctx
 
     def cws_client(self, event, context):
-        """CoWorks client with new globals."""
+        """CoWorks client with new globals.
+        """
         return super().test_client(aws_event=event, aws_context=context)
 
-    def test_client(self, *args, **kwargs):
-        """This client must be used only for testing."""
+    def test_client(self, *args, workspace=DEFAULT_LOCAL_WORKSPACE, **kwargs):
+        """This client must be used only for testing.
+        """
         self.testing = True
-        self._update_config(load_env=True, workspace=DEFAULT_LOCAL_WORKSPACE)
+        self._init_app(True, workspace=workspace)
 
         return super().test_client(*args, **kwargs)
 
@@ -240,11 +239,13 @@ class TechMicroService(Flask):
 
     @property
     def routes(self) -> t.List[Rule]:
-        """Returns the list of routes defined in the microservice."""
+        """Returns the list of routes defined in the microservice.
+        """
         return [r.rule for r in self.url_map.iter_rules()]
 
     def get_config(self, workspace) -> Config:
-        """Returns the configuration corresponding to the workspace."""
+        """Returns the configuration corresponding to the workspace.
+        """
         for conf in self.configs:
             if conf.is_valid_for(workspace):
                 return conf
@@ -266,14 +267,16 @@ class TechMicroService(Flask):
         return token == os.getenv('TOKEN')
 
     def base64decode(self, data):
-        """Base64 decode function used for lambda interaction."""
+        """Base64 decode function used for lambda interaction.
+        """
         if not isinstance(data, bytes):
             data = data.encode('ascii')
         output = base64.b64decode(data)
         return output
 
     def base64encode(self, data):
-        """Base64 encode function used for lambda interaction."""
+        """Base64 encode function used for lambda interaction.
+        """
         if not isinstance(data, bytes):
             msg = f'Expected bytes type for body with binary Content-Type. Got {type(data)} type body instead.'
             raise ValueError(msg)
@@ -281,7 +284,8 @@ class TechMicroService(Flask):
         return data
 
     def auto_find_instance_path(self):
-        """Instance path may be redefined by an environment variable."""
+        """Instance path may be redefined by an environment variable.
+        """
         instance_relative_path = os.getenv('INSTANCE_RELATIVE_PATH', '')
         path = Path(self.root_path) / instance_relative_path
         return path.as_posix()
@@ -306,24 +310,26 @@ class TechMicroService(Flask):
         except Exception as e:
             self.logger.error(f"Exception when storing response in {bucket}/{key} : {str(e)}")
 
-    def _init_app(self):
-        add_coworks_routes(self)
-        for fun in self.deferred_init_routes_functions:
-            fun()
-
-    def __call__(self, arg1, arg2) -> dict:
-        """Main microservice entry point."""
-        in_flask = isfunction(arg2)
-
-        # Finalize the intialization
+    def _init_app(self, load_env, workspace=None):
+        """Finalize the app initialization.
+        """
         if not self._cws_app_initialized:
-            self._update_config(load_env=in_flask)
-            self._init_app()
+            self._update_config(load_env=load_env, workspace=workspace)
+            add_coworks_routes(self)
+            for fun in self.deferred_init_routes_functions:
+                fun()
+
             self.init_app()
             for bp in self.blueprints.values():
                 if isinstance(bp, Blueprint):
                     t.cast(Blueprint, bp).init_app(self)
             self._cws_app_initialized = True
+
+    def __call__(self, arg1, arg2) -> dict:
+        """Main microservice entry point.
+        """
+        in_flask = isfunction(arg2)
+        self._init_app(in_flask)
 
         # Lambda event call or Flask call
         if in_flask:
@@ -405,7 +411,7 @@ class TechMicroService(Flask):
 
         return self.wsgi_app(environ, start_response)
 
-    def _update_config(self, *, load_env: bool, workspace: str = None):
+    def _update_config(self, *, load_env: bool, workspace: str):
         if not self._cws_conf_updated:
             workspace = workspace or os.environ.get('WORKSPACE', DEFAULT_DEV_WORKSPACE)
             if workspace == DEFAULT_LOCAL_WORKSPACE:
