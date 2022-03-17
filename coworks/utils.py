@@ -152,7 +152,7 @@ def create_rest_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
 
             # Set a specific content type if response is not a tuple and entry has a default content type
             content_type = None
-            if resp is not tuple:
+            if type(resp) is not tuple:
                 cws_content_type = getattr(func, '__CWS_CONTENT_TYPE')
                 if cws_content_type:
                     content_type = cws_content_type
@@ -293,3 +293,14 @@ def as_typed_kwargs(func, kwargs):
     except TypeError:
         pass
     return typed_kwargs
+
+
+def is_json(mt):
+    """Checks if a mime type is json.
+    """
+    return (
+            mt == "application/json"
+            or type(mt) is str
+            and mt.startswith("application/")
+            and mt.endswith("+json")
+    )

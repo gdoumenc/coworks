@@ -34,6 +34,7 @@ from .config import ProdConfig
 from .globals import request
 from .utils import HTTP_METHODS
 from .utils import add_coworks_routes
+from .utils import is_json
 from .utils import trim_underscores
 from .wrappers import CoworksRequest
 from .wrappers import CoworksResponse
@@ -437,14 +438,6 @@ class TechMicroService(Flask):
                     raise Forbidden()
 
     def _get_kwargs(self, event):
-        def is_json(mt):
-            return (
-                    mt == "application/json"
-                    or type(mt) is str
-                    and mt.startswith("application/")
-                    and mt.endswith("+json")
-            )
-
         kwargs = {}
         content_type = event['headers'].get('content-type')
         if content_type:
