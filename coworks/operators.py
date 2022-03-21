@@ -4,7 +4,6 @@ import typing as t
 from json import loads
 
 import requests
-
 from airflow.exceptions import AirflowFailException
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.branch import BaseBranchOperator
@@ -111,14 +110,16 @@ class TechMicroServiceOperator(BaseOperator):
         logging.info(f"Calling {self.method.upper()} method to {self._url}")
         res = requests.request(self.method.upper(), self._url, headers=self.headers, data=self.data, json=self.json)
         logging.info(f"Resulting status code : {res.status_code}")
-        if self.log_response:
-            logging.info(res.text)
 
         # Manages status
         if self.raise_400_errors and res.status_code >= 400:
             raise AirflowFailException(f"The TechMicroService {self.cws_name} had a client error {res.status_code}!")
         if res.status_code >= 500:
+            logging.error(f"Bad request: {res.text}'")
             raise AirflowFailException(f"The TechMicroService {self.cws_name} had an internal error {res.status_code}!")
+
+        if self.log_response:
+            logging.info(res.text)
 
         # Returns values or storing file informations
         if self.xcom_push_flag:

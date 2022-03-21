@@ -205,7 +205,9 @@ class TechMicroService(Flask):
                 raise HTTPException(msg)
 
     def init_app(self):
-        ...
+        """Called to finalize the application initialization.
+        Mainly to get external variables defined specifically for a workspace.
+        """
 
     def init_cli(self):
         """Called only on cli command.
@@ -218,10 +220,11 @@ class TechMicroService(Flask):
         """
         self._init_app(True)
 
-        self.init_cli()
-        for bp in self.blueprints.values():
-            if isinstance(bp, Blueprint):
-                t.cast(Blueprint, bp).init_cli(self)
+        if os.environ.get("FLASK_RUN_FROM_CLI") == "true":
+            self.init_cli()
+            for bp in self.blueprints.values():
+                if isinstance(bp, Blueprint):
+                    t.cast(Blueprint, bp).init_cli(self)
 
         return super().app_context()
 
