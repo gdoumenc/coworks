@@ -9,7 +9,8 @@ from coworks.utils import import_attr
 
 
 class TestClass:
-    @mock.patch.dict(os.environ, {"FLASK_RUN_FROM_CLI": "false", "AWS_XRAY_SDK_ENABLED": "false"})
+
+    @mock.patch.dict(os.environ, {"FLASK_RUN_FROM_CLI": "false"})
     def test_run_first_no_token(self, samples_docs_dir, unused_tcp_port):
         app = import_attr('first', 'app', cwd=samples_docs_dir)
         server = multiprocessing.Process(target=run_server, args=(app, unused_tcp_port), daemon=True)
@@ -23,7 +24,7 @@ class TestClass:
         assert response.status_code == 401
         server.terminate()
 
-    @mock.patch.dict(os.environ, {"FLASK_RUN_FROM_CLI": "false", "AWS_XRAY_SDK_ENABLED": "false"})
+    @mock.patch.dict(os.environ, {"FLASK_RUN_FROM_CLI": "false"})
     def test_run_first_wrong_token(self, samples_docs_dir, unused_tcp_port):
         app = import_attr('first', 'app', cwd=samples_docs_dir)
         server = multiprocessing.Process(target=run_server, args=(app, unused_tcp_port), daemon=True)
@@ -36,7 +37,7 @@ class TestClass:
         response = requests.get(f'http://localhost:{unused_tcp_port}/', headers={'Authorization': 'wrong'})
         assert response.status_code == 403
 
-    @mock.patch.dict(os.environ, {"FLASK_RUN_FROM_CLI": "false", "AWS_XRAY_SDK_ENABLED": "false"})
+    @mock.patch.dict(os.environ, {"FLASK_RUN_FROM_CLI": "false"})
     def test_run_first(self, samples_docs_dir, unused_tcp_port):
         app = import_attr('first', 'app', cwd=samples_docs_dir)
         server = multiprocessing.Process(target=run_server, args=(app, unused_tcp_port), daemon=True)

@@ -198,11 +198,11 @@ class TechMicroService(Flask):
         @self.before_request
         def before():
             self._check_token()
-            rp = request.path
-            if rp != '/' and rp.endswith('/'):
-                msg = "Trailing slash avalaible only on deployed version"
-                self.logger.error(msg)
-                raise HTTPException(msg)
+        #     rp = request.path
+        #     if rp != '/' and rp.endswith('/'):
+        #         msg = "Trailing slash avalaible only on deployed version"
+        #         self.logger.error(msg)
+        #         raise HTTPException(msg)
 
     def init_app(self):
         """Called to finalize the application initialization.

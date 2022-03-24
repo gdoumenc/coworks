@@ -53,7 +53,8 @@ def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
 
         proxy = create_rest_proxy(scaffold, fun, kwarg_keys, args, varkw)
         proxy.__CWS_BINARY = getattr(fun, '__CWS_BINARY')
-        proxy.__CWS_CONTENT_TYPE = getattr(fun, '__CWS_CONTENT_TYPE')
+        attr = getattr(fun, '__CWS_CONTENT_TYPE')
+        proxy.__CWS_CONTENT_TYPE = attr
         proxy.__CWS_NO_AUTH = getattr(fun, '__CWS_NO_AUTH')
         proxy.__CWS_NO_CORS = getattr(fun, '__CWS_NO_CORS')
         proxy.__CWS_FROM_BLUEPRINT = bp_state.blueprint.name if bp_state else None
@@ -227,7 +228,10 @@ def make_absolute(route, url_prefix):
     """
     route = route.lstrip('/').rstrip('/')
     if url_prefix:
-        return '/' + url_prefix.lstrip('/').rstrip('/') + '/' + route
+        prefix = url_prefix.lstrip('/').rstrip('/')
+        if route:
+            return '/' + prefix + '/' + route
+        return '/' + prefix
     return '/' + route
 
 
