@@ -15,6 +15,9 @@ samples/*/Pipfile.lock
 # Tests example
 tests/example/*.zip
 
+# Doc tools
+coworks/cattr.py
+
 # Dev tools
 .idea/
 **/__pycache__/

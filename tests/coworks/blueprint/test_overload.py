@@ -28,3 +28,4 @@ class TestClass:
             with app.test_client() as c:
                 response = c.get('/', headers={'Authorization': 'token'})
         assert pytest_wrapped_e.type == AssertionError
+        assert pytest_wrapped_e.value.args[0] == 'Duplicate route /bp/entry'

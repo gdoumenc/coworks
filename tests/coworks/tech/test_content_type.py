@@ -88,7 +88,7 @@ class TestClass:
             assert response.status_code == 200
             assert response.is_json
             assert response.headers['Content-Type'] == 'application/json'
-            assert response.get_data(as_text=True) == '{"int":1,"text":"value"}\n'
+            assert response.get_data(as_text=True) == '{"text":"value","int":1}\n'
 
     def test_binary_content_type(self, empty_context):
         app = ContentMS()

@@ -18,8 +18,9 @@ def new_command(ctx, force) -> None:
         # Copy project configuration file
         src = project_templates
         dest = project_dir
+        project_conf = project_dir / "project.cws.yml"
 
-        if dest.exists() and not force:
+        if project_conf.exists() and not force:
             bar.terminate("Project already created. Set 'force' option for recreation.")
             return
 

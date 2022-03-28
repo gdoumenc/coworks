@@ -1,12 +1,12 @@
-import smtplib
-from email import message
-
 import os
-import requests
+import smtplib
 import typing as t
+from email import message
 from email.utils import formataddr
 from email.utils import formatdate
 from email.utils import make_msgid
+
+import requests
 from flask import current_app
 from werkzeug.datastructures import FileStorage
 
@@ -44,18 +44,17 @@ class Mail(Blueprint):
             self.env_login_var_name = env_login_var_name
             self.env_passwd_var_name = env_passwd_var_name
 
-        @self.before_app_first_request
-        def check_env_vars():
-            self.smtp_server = os.getenv(self.env_server_var_name)
-            if not self.smtp_server:
-                raise EnvironmentError(f'{self.env_server_var_name} not defined in environment.')
-            self.smtp_port = int(os.getenv(self.env_port_var_name, 587))
-            self.smtp_login = os.getenv(self.env_login_var_name)
-            if not self.smtp_login:
-                raise EnvironmentError(f'{self.env_login_var_name} not defined in environment.')
-            self.smtp_passwd = os.getenv(self.env_passwd_var_name)
-            if not self.smtp_passwd:
-                raise EnvironmentError(f'{self.env_passwd_var_name} not defined in environment.')
+    def init_app(self, app):
+        self.smtp_server = os.getenv(self.env_server_var_name)
+        if not self.smtp_server:
+            raise EnvironmentError(f'{self.env_server_var_name} not defined in environment.')
+        self.smtp_port = int(os.getenv(self.env_port_var_name, 587))
+        self.smtp_login = os.getenv(self.env_login_var_name)
+        if not self.smtp_login:
+            raise EnvironmentError(f'{self.env_login_var_name} not defined in environment.')
+        self.smtp_passwd = os.getenv(self.env_passwd_var_name)
+        if not self.smtp_passwd:
+            raise EnvironmentError(f'{self.env_passwd_var_name} not defined in environment.')
 
     @entry
     def post_send(self, subject="", from_addr: str = None, from_name: str = '', reply_to: str = None,

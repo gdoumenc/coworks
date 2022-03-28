@@ -1,32 +1,45 @@
 import inspect
 import sys
-from distutils.util import strtobool
 from inspect import Parameter
 
+import markdown
 from coworks import Blueprint
 from coworks import entry
 from coworks.globals import aws_event
 from flask import current_app
-from flask import json
 from jinja2 import Environment
 from jinja2 import PackageLoader
 from jinja2 import select_autoescape
 
 
 class Admin(Blueprint):
+    """Administration blueprint to get details on the microservice containing it.
+    """
 
     def __init__(self, name: str = 'admin', **kwargs):
         super().__init__(name=name, **kwargs)
 
+    @entry(no_auth=True, no_cors=True, content_type='text/html; charset=utf-8')
+    def get(self):
+        """Returns the markdown documentation associated to this microservice.
+        """
+        md = getattr(current_app, 'doc_md', None)
+        if not md:
+            md = getattr(current_app.__class__, 'DOC_MD', None)
+        if md:
+            return markdown.markdown(md, extensions=['fenced_code'])
+
+        if current_app.__class__.__doc__:
+            return current_app.__class__.__doc__.replace('\n', ' ').strip(),
+
     @entry
-    def get_route(self, prefix=None, pretty=None, blueprint=None):
+    def get_route(self, prefix=None, blueprint=None):
         """Returns the list of entrypoints with signature.
         :param prefix: Prefix path to limit the number of returned routes.
-        :param pretty: Pretty print result if defined (default 'no').
         :param blueprint: Show named blueprint routes if defined ('__all__' or blueprint name).
         """
-        pretty = strtobool(pretty or 'no')
         routes = {}
+
         for rule in current_app.url_map.iter_rules():
 
             # if returns only prefixed routes
@@ -47,17 +60,22 @@ class Admin(Blueprint):
                         }
                         if doc:
                             docstring = doc.replace('\n', ' ').split(':param ')
-                            route[http_method]['doc'] = docstring[0]
+                            self.strip = docstring[0].strip()
+                            route[http_method]['doc'] = self.strip
                             if len(docstring) > 1:
                                 route[http_method]['params'] = docstring[1:]
-                        if getattr(function_called, '__CWS_NO_AUTH', False):
-                            route[http_method]['auth'] = False
                         if from_blueprint:
                             route[http_method]['blueprint'] = from_blueprint
+
+                        route[http_method]['binary'] = getattr(function_called, '__CWS_BINARY')
+                        route[http_method]['no_auth'] = getattr(function_called, '__CWS_NO_AUTH')
+                        route[http_method]['no_cors'] = getattr(function_called, '__CWS_NO_CORS')
+                        content_type = getattr(function_called, '__CWS_CONTENT_TYPE')
+                        if content_type:
+                            route[http_method]['content_type'] = content_type
                 routes[rule.rule] = route
 
-        kwargs = {'indent': 4, 'separators': (",", ": ")} if pretty else {}
-        return json.dumps({k: routes[k] for k in sorted(routes.keys())}, **kwargs)
+        return routes
 
     @entry
     def get_event(self):

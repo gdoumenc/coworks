@@ -12,8 +12,8 @@ master_doc = 'index'
 
 # -- Project information -----------------------------------------------------
 
-project = 'Coworks'
-copyright = '2021, gdoumenc - FPR'
+project = 'CoWorks'
+copyright = '2022, gdoumenc - FPR'
 author = 'gdoumenc'
 
 # The full version, including alpha/beta/rc tags

@@ -11,13 +11,15 @@ from functools import update_wrapper
 from flask import current_app
 from flask import make_response
 from flask.blueprints import BlueprintSetupState
-from flask.scaffold import Scaffold
 from werkzeug.datastructures import Headers
-from werkzeug.exceptions import BadRequest
+from werkzeug.exceptions import BadRequest, HTTPException
 from werkzeug.exceptions import BadRequestKeyError
 
 from .globals import request
-from .wrappers import ApiResponse
+from .wrappers import CoworksResponse
+
+if t.TYPE_CHECKING:
+    from flask.scaffold import Scaffold
 
 HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
 
@@ -50,25 +52,30 @@ def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
             kwarg_keys = {}
 
         proxy = create_rest_proxy(scaffold, fun, kwarg_keys, args, varkw)
-        proxy.__CWS_BINARY = getattr(fun, '__CWS_BINARY', False)
-        proxy.__CWS_CONTENT_TYPE = getattr(fun, '__CWS_CONTENT_TYPE')
+        proxy.__CWS_BINARY = getattr(fun, '__CWS_BINARY')
+        attr = getattr(fun, '__CWS_CONTENT_TYPE')
+        proxy.__CWS_CONTENT_TYPE = attr
         proxy.__CWS_NO_AUTH = getattr(fun, '__CWS_NO_AUTH')
+        proxy.__CWS_NO_CORS = getattr(fun, '__CWS_NO_CORS')
         proxy.__CWS_FROM_BLUEPRINT = bp_state.blueprint.name if bp_state else None
 
         # Creates the entry
         url_prefix = bp_state.url_prefix if bp_state else ''
         rule = make_absolute(entry_path, url_prefix)
+        for r in app.url_map.iter_rules():
+            if r.rule == rule and method in r.methods:
+                raise AssertionError(f"Duplicate route {rule}")
 
-        name_prefix = f"{bp_state.blueprint.name}_" if bp_state else ''
-        endpoint = f"{rule}_{method}"
+        prefix = f"{bp_state.blueprint.name}." if bp_state else ''
+        endpoint = f"{prefix}{fun.__name__}"
 
         try:
-            app.add_url_rule(rule=rule, view_func=proxy, methods=[method], endpoint=endpoint)
+            app.add_url_rule(rule=rule, view_func=proxy, methods=[method], endpoint=endpoint, strict_slashes=False)
         except AssertionError:
             raise
 
 
-def create_rest_proxy(scaffold: Scaffold, func, kwarg_keys, args, varkw):
+def create_rest_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
     def proxy(**kwargs):
         try:
             # Adds kwargs parameters
@@ -90,7 +97,7 @@ def create_rest_proxy(scaffold: Scaffold, func, kwarg_keys, args, varkw):
                     params[k] = v[0] if flat and len(v) == 1 else v
                 return params
 
-            # get keyword arguments from request
+            # Get keyword arguments from request
             if kwarg_keys or varkw:
 
                 # adds parameters from query parameters
@@ -98,13 +105,13 @@ def create_rest_proxy(scaffold: Scaffold, func, kwarg_keys, args, varkw):
                     data = request.values.to_dict(False)
                     kwargs = as_typed_kwargs(func, dict(**kwargs, **as_fun_params(data)))
 
-                # adds parameters from body parameter
+                # Adds parameters from body parameter
                 elif request.method in ['POST', 'PUT']:
                     try:
                         if request.is_json:
                             data = request.get_data()
                             if not data:
-                                kwargs[kwarg_keys[0]] = {}
+                                kwargs[varkw] = {}
                             else:
                                 data = request.json
                                 if type(data) is dict:
@@ -144,14 +151,27 @@ def create_rest_proxy(scaffold: Scaffold, func, kwarg_keys, args, varkw):
             if resp is None:
                 return "", 204
 
-            if getattr(func, '__CWS_CONTENT_TYPE'):
-                return resp, 200, {'content-type': getattr(func, '__CWS_CONTENT_TYPE')}
+            # Set a specific content type if response is not a tuple and entry has a default content type
+            content_type = None
+            if type(resp) is not tuple:
+                cws_content_type = getattr(func, '__CWS_CONTENT_TYPE')
+                if cws_content_type:
+                    content_type = cws_content_type
 
-            return make_response(resp)
+            # Creates response class object
+            resp = make_response(resp)
+
+            # Forces default entry content type
+            if content_type:
+                resp.headers['Content-Type'] = content_type
+
+            return resp
         except TypeError as e:
             current_app.logger.error(f"Bad request error: {str(e)}")
             raise BadRequest(str(e))
-        except (Exception,) as e:
+        except HTTPException as e:
+            return e.description, e.code
+        except Exception as e:
             current_app.logger.error(e)
             raise
 
@@ -208,7 +228,10 @@ def make_absolute(route, url_prefix):
     """
     route = route.lstrip('/').rstrip('/')
     if url_prefix:
-        return '/' + url_prefix.lstrip('/').rstrip('/') + '/' + route
+        prefix = url_prefix.lstrip('/').rstrip('/')
+        if route:
+            return '/' + prefix + '/' + route
+        return '/' + prefix
     return '/' + route
 
 
@@ -255,7 +278,7 @@ def check_success(resp):
         return False
 
     # make sure the body is an instance of the response class
-    if isinstance(resp, ApiResponse):
+    if isinstance(resp, CoworksResponse):
         return is_success(resp.status_code)
 
     return True
@@ -274,3 +297,14 @@ def as_typed_kwargs(func, kwargs):
     except TypeError:
         pass
     return typed_kwargs
+
+
+def is_json(mt):
+    """Checks if a mime type is json.
+    """
+    return (
+            mt == "application/json"
+            or type(mt) is str
+            and mt.startswith("application/")
+            and mt.endswith("+json")
+    )

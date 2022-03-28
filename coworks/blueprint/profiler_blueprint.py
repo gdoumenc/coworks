@@ -1,5 +1,5 @@
 import io
-from flask.globals import current_app
+
 from werkzeug.middleware.profiler import ProfilerMiddleware
 
 from coworks import Blueprint
@@ -12,9 +12,8 @@ class Profiler(Blueprint):
         super().__init__(**kwargs)
         self.output = io.StringIO()
 
-        @self.before_app_first_request
-        def first():
-            current_app.wsgi_app = ProfilerMiddleware(current_app.wsgi_app, stream=self.output)
+    def init_app(self, app):
+        app.wsgi_app = ProfilerMiddleware(app.wsgi_app, stream=self.output)
 
     @entry
     def get(self):

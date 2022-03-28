@@ -53,6 +53,11 @@ class TerraformResource:
     def parent_is_root(self) -> bool:
         return self.parent_uid == ''
 
+    # noinspection PyUnresolvedReferences
+    @cached_property
+    def no_cors_methods(self) -> t.List[t.Optional[str]]:
+        return [rule.methods for rule in self.rules if rule.cws_no_cors]
+
     def __repr__(self):
         return f"{self.uid}:{self.rules}"
 
@@ -109,12 +114,15 @@ class TerraformLocal:
         resources: t.Dict[str, TerraformResource] = {}
 
         def add_rule(previous: t.Optional[str], path: t.Optional[str], rule_: t.Optional[Rule]):
+            """Add a method rule in a resource."""
             path = None if path is None else path.replace('<', '{').replace('>', '}')
             resource = TerraformResource(previous, path)
             if rule_:
                 view_function = self.app.view_functions.get(rule_.endpoint)
-                rule_.cws_binary = getattr(view_function, '__CWS_BINARY', False)
-                rule_.cws_no_auth = getattr(view_function, '__CWS_NO_AUTH', False)
+                rule_.cws_binary = getattr(view_function, '__CWS_BINARY')
+                rule_.cws_content_type = getattr(view_function, '__CWS_CONTENT_TYPE')
+                rule_.cws_no_auth = getattr(view_function, '__CWS_NO_AUTH')
+                rule_.cws_no_cors = getattr(view_function, '__CWS_NO_CORS')
 
             # Creates the terraform ressource if doesn't exist.
             uid = resource.uid
@@ -234,7 +242,7 @@ class RemoteTerraform(TerraformLocal):
                 self.init()
             except CalledProcessError:
                 raise ExitCommand("Cannot init terraform: perhaps variables are not defined on terraform cloud.")
-        self._execute(['apply', '-auto-approve'])
+        self._execute(['apply', '-auto-approve', '-refresh=false'])
 
 
 class TerraformCloud:
@@ -350,8 +358,8 @@ def deploy_command(info, ctx, output, terraform_class=TerraformLocal, **options)
     with progressbar(label='Deploy microservice', threaded=True) as bar:
         try:
             if info.app_import_path and '/' in info.app_import_path:
-                msg = f"""Cannot deploy a project with handler not on project folder : {info.app_import_path}
-                Set -p option to resolve this.""".replace('    ', '')
+                msg = f"Cannot deploy a project with handler not on project folder : {info.app_import_path}.\n"
+                msg += f"Add option -p {'/'. join(info.app_import_path.split('/')[:-1])} to resolve this."""
                 bar.terminate(msg)
                 return
 
@@ -397,8 +405,8 @@ def deploy_command(info, ctx, output, terraform_class=TerraformLocal, **options)
                 terraform.create_stage(**root_command_params, **options)
 
             # Traces output
-            bar.update(msg=f"terraform output\n{terraform.output()}")
             bar.terminate()
+            click.echo(f"\nterraform output\n{terraform.output()}")
         except ExitCommand as e:
             bar.terminate(e.msg)
             raise
@@ -422,6 +430,17 @@ def deployed_command(info, ctx, terraform_class=TerraformLocal, **options) -> No
             raise
 
 # class CwsTerraformDestroyer(CwsTerraformCommand):
+
+
+# set all to 0 :
+# locals {
+#   neorezo-cws_supplier-supplier_order_when_default = var.TFC_WORKSPACE_NAME == "neorezo_cws_supplier" ? 0 : 0
+#   neorezo-cws_supplier-supplier_order_when_stage = var.TFC_WORKSPACE_NAME != "neorezo_cws_supplier" ? 0 : 0
+# }
+# terraform -chdir=terraform_dev apply
+# terraform -chdir=terraform apply
+# then remove files
+
 #
 #     @property
 #     def options(self):

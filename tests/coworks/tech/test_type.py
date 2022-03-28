@@ -6,19 +6,22 @@ from coworks import entry
 
 class TypedMS(TechMicroService):
 
-    @entry(no_auth=True)
+    def _check_token(self):
+        """No check."""
+
+    @entry
     def get(self, i: int):
         return ("ok", 200) if type(i) is int else ("not ok", 400)
 
-    @entry(no_auth=True)
+    @entry
     def get_(self, i: int = 0):
         return ("ok", 200) if type(i) is int else ("not ok", 400)
 
-    @entry(no_auth=True)
+    @entry
     def get_wrong(self, i: t.Union[int, str] = 0):
         return ("ok", 200) if type(i) is int else ("not ok", 400)
 
-    @entry(no_auth=True)
+    @entry
     def post(self, i: int = 0):
         return ("ok", 200) if type(i) is int else ("not ok", 400)
 

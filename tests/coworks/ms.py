@@ -25,9 +25,6 @@ class S3MockTechMS(TechMicroService):
 
 class SimpleMS(TechMicroService):
 
-    def token_authorizer(self, token):
-        return True
-
     @entry
     def get(self):
         """Root access."""
@@ -68,6 +65,10 @@ class SimpleMS(TechMicroService):
 
     @entry
     def put_kwparam2_(self, value=0, **kwargs):
+        return f"get **param with {value} and {list(kwargs.keys())}"
+
+    @entry
+    def post_kwparam2(self, value, **kwargs):
         return f"get **param with {value} and {list(kwargs.keys())}"
 
     # composed path

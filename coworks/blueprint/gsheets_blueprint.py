@@ -1,5 +1,6 @@
 import json
 import os
+
 from pygsheets import Worksheet
 from pygsheets import authorize
 
@@ -22,33 +23,32 @@ class GoogleSheets(Blueprint):
             self.private_key_id_var_name = env_private_key_id_var_name
         self.google_client = None
 
-        @self.before_app_first_request
-        def load_crendentials():
-            client_id = os.getenv(self.client_id_var_name)
-            if not client_id:
-                raise EnvironmentError(f'{self.client_id_var_name} not defined in environment.')
-            private_key = os.getenv(self.private_key_var_name)
-            if not private_key:
-                raise EnvironmentError(f'{self.private_key_var_name} not defined in environment.')
-            private_key_id = os.getenv(self.private_key_id_var_name)
-            if not private_key_id:
-                raise EnvironmentError(f'{self.private_key_id_var_name} not defined in environment.')
+    def init_app(self, app):
+        client_id = os.getenv(self.client_id_var_name)
+        if not client_id:
+            raise EnvironmentError(f'{self.client_id_var_name} not defined in environment.')
+        private_key = os.getenv(self.private_key_var_name)
+        if not private_key:
+            raise EnvironmentError(f'{self.private_key_var_name} not defined in environment.')
+        private_key_id = os.getenv(self.private_key_id_var_name)
+        if not private_key_id:
+            raise EnvironmentError(f'{self.private_key_id_var_name} not defined in environment.')
 
-            self.CREDENTIALS = {
-                "type": "service_account",
-                "project_id": "glassy-bonsai-277705",
-                "private_key_id": private_key_id,
-                "private_key": private_key,
-                "client_email": "google-sheet-micro-service@glassy-bonsai-277705.iam.gserviceaccount.com",
-                "client_id": client_id,
-                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                "token_uri": "https://oauth2.googleapis.com/token",
-                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-                "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/google-sheet-micro-service%40glassy-bonsai-277705.iam.gserviceaccount.com"
-            }
+        credentials = {
+            "type": "service_account",
+            "project_id": "glassy-bonsai-277705",
+            "private_key_id": private_key_id,
+            "private_key": private_key,
+            "client_email": "google-sheet-micro-service@glassy-bonsai-277705.iam.gserviceaccount.com",
+            "client_id": client_id,
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/google-sheet-micro-service%40glassy-bonsai-277705.iam.gserviceaccount.com"
+        }
 
-            os.environ['SERVICE_ACCOUNT_CREDENTIALS'] = json.dumps(self.CREDENTIALS)
-            self.google_client = authorize(service_account_env_var="SERVICE_ACCOUNT_CREDENTIALS")
+        os.environ['SERVICE_ACCOUNT_CREDENTIALS'] = json.dumps(credentials)
+        self.google_client = authorize(service_account_env_var="SERVICE_ACCOUNT_CREDENTIALS")
 
     def get_worksheets(self, key: str):
         """Get list of worksheet index and titles.

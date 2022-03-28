@@ -76,6 +76,9 @@ EOT
 "text/html" = <<-EOT
   {{ event("\"body\": $input.json('$')", "\"isBase64Encoded\": false") }}
 EOT
+"application/x-www-form-urlencoded" = <<-EOT
+  {{ event("\"body\": \"$input.body\"", "\"isBase64Encoded\": false") }}
+EOT
 "multipart/form-data" = <<-EOT
   {{ event("\"body\": \"$input.body\"", "\"isBase64Encoded\": true") }}
 EOT

@@ -126,15 +126,14 @@ class Okta(Blueprint):
             self.env_url_var_name = env_url_var_name
             self.env_token_var_name = env_token_var_name
 
-        @self.before_app_first_request
-        def client():
-            self.org_url = os.getenv(self.env_url_var_name)
-            assert self.org_url, f"Environment var {self.env_url_var_name} undefined."
-            config = {
-                'orgUrl': self.org_url,
-                'token': os.getenv(self.env_token_var_name)
-            }
-            self.okta_client = OktaClient(config)
+    def init_app(self, app):
+        self.org_url = os.getenv(self.env_url_var_name)
+        assert self.org_url, f"Environment var {self.env_url_var_name} undefined."
+        config = {
+            'orgUrl': self.org_url,
+            'token': os.getenv(self.env_token_var_name)
+        }
+        self.okta_client = OktaClient(config)
 
     @entry
     def get_event_verify(self):

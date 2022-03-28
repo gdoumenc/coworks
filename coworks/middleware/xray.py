@@ -5,6 +5,8 @@ from aws_xray_sdk import global_sdk_config
 from aws_xray_sdk.core import patch_all
 from functools import partial, update_wrapper
 
+from flask import make_response
+
 from coworks.globals import aws_context
 from coworks.globals import aws_event
 from coworks.globals import request
@@ -91,12 +93,13 @@ class XRayMiddleware:
 
                     # Traces response
                     if subsegment:
+                        flask_response = make_response(response)
                         try:
                             metadata = {
-                                'status': response.status,
-                                'headers': response.headers,
-                                'direct_passthrough': response.direct_passthrough,
-                                'is_json': response.is_json,
+                                'status': flask_response.status,
+                                'headers': flask_response.headers,
+                                'direct_passthrough': flask_response.direct_passthrough,
+                                'is_json': flask_response.is_json,
                             }
                             subsegment.put_metadata('response', metadata, COWORKS_NAMESPACE)
                         except (Exception,) as e:
@@ -106,7 +109,6 @@ class XRayMiddleware:
 
                 wrapped_fun = update_wrapper(partial(captured, view_function), view_function)
                 self._app.view_functions[rule.endpoint] = self._recorder.capture(name=wrapped_fun.__name__)(wrapped_fun)
-                self._app.logger.debug(f"XRay capture {wrapped_fun.__name__}")
 
         except Exception:
             self._app.logger.error("Cannot set xray context manager : are you using xray_recorder?")

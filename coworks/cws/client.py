@@ -1,12 +1,12 @@
+import os
+import typing as t
 from logging import WARNING, getLogger
+from pathlib import Path
 
 import anyconfig
 import click
-import os
-import typing as t
 from flask.cli import FlaskGroup
 from flask.cli import ScriptInfo
-from pathlib import Path
 
 from coworks import __version__
 from .deploy import deploy_command
@@ -38,14 +38,17 @@ class CoWorksGroup(FlaskGroup):
         config_file = ctx.params.get('config_file')
         config_file_suffix = ctx.params.get('config_file_suffix')
         project_dir = ctx.params.get('project_dir')
+        if project_dir:
+            os.environ['INSTANCE_RELATIVE_PATH'] = os.getcwd()
         workspace = ctx.params.get('workspace')
         if workspace:
             os.environ['WORKSPACE'] = workspace
 
         # Adds defined commands from project file
         project_config = ProjectConfig(project_dir, config_file, config_file_suffix)
-        if project_config.all_commands:
-            for name, options in project_config.all_commands.items():
+        commands = project_config.get_commands(workspace)
+        if commands:
+            for name, options in commands.items():
                 cmd_class_name = options.pop('class', None)
                 if cmd_class_name:
                     splitted = cmd_class_name.split('.')
@@ -96,10 +99,17 @@ class ProjectConfig:
         if self.params and self.params.get('version', PROJECT_CONFIG_VERSION) != PROJECT_CONFIG_VERSION:
             raise RuntimeError(f"Wrong project file version (should be {PROJECT_CONFIG_VERSION}).\n")
 
-    @property
-    def all_commands(self):
+    def get_commands(self, workspace):
         """ Returns the list of commands defined for this microservice."""
-        return self.params.get('commands', {})
+        commands = self.params.get('commands', {})
+
+        # Commands may be redefined in the specific workspace
+        workspaces = self.params.get('workspaces', {})
+        if workspace in workspaces:
+            specific_workspace_commands = workspaces[workspace].get('commands', {})
+            commands.update(specific_workspace_commands)
+
+        return commands
 
     @staticmethod
     def _load_config(project_dir, file_name, file_suffix):

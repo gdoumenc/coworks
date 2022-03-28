@@ -6,26 +6,27 @@ Configuration
 Configuration versus Environment variable
 -----------------------------------------
 
-We can consider three configuration levels:
+There are three configuration levels:
 
-    * project config,
-    * execution config,
-    * application config.
+    * Project config,
+    * Execution config,
+    * Application config.
 
-Project configuration
+**Project configuration**
     Project configuration is related to how the team works and how deployment should be done. This description
     is done by a project configuration file: ``project.cws.yml``. This project configuration file describes
     the commands and options associated on the project.
 
-Execution configuration
+**Execution configuration**
     As for the `Twelve-Factor App <https://12factor.net/>`_ : *"The twelve-factor app stores config in environment variables.
     Env vars are easy to change between deploys without changing any code;"*. Using environment variables is highly
     recommanded to enable easy code deployments to differents systems:
     Changing configuration is just updating variables in the configuration in the CI/CD process.
 
-Application configuration
-    At last : *"application config does not vary between deploys, and so is best done in the code."* That's why
-    entries are defined in the code.
+**Application configuration**
+    At last : *"application config does not vary between deploys, and so is best done in the code."*
+
+    That's why entries are defined in the code. The link from entry to function is always the same.
 
 Project configuration
 ---------------------
@@ -66,8 +67,39 @@ Project configuration file
 
 A project configuration file is a YAML file containg the command and options defined for the project.
 
-.. list-table:: Project Configuration File Structure
-   :widths: 25 50 50
+Example
+*******
+
+Example of a `project.cws.yml` file:
+
+.. code-block:: yaml
+
+    version: 3
+    commands:
+      run:
+        host: localhost
+        port: 5000
+      deploy:
+        class: fpr.cws.deploy.fpr_deploy
+        profile_name: fpr-customer
+        bucket: coworks-microservice
+        customer: neorezo
+        project: cws_utils_mail
+        layers:
+          - arn:aws:lambda:eu-west-1:935392763270:layer:coworks-0.6.8
+    workspaces:
+      dev:
+        run:
+          port: 8000
+        deploy:
+          layers:
+            - arn:aws:lambda:eu-west-1:935392763270:layer:coworks-dev
+
+Structure
+*********
+
+.. list-table:: **Project Configuration File Structure**
+   :widths: 10 20 20
    :header-rows: 1
 
    * - Field
@@ -79,9 +111,12 @@ A project configuration file is a YAML file containg the command and options def
    * - commands
      - Command Structure List (below)
      - List of commands
+   * - workspaces
+     - Workspace Structure List (below)
+     - List of workspaces where commands are redefined
 
-.. list-table:: Command Structure
-   :widths: 33 33 33
+.. list-table:: **Command Structure**
+   :widths: 10 10 10
    :header-rows: 1
 
    * - Command Name
@@ -96,9 +131,28 @@ A project configuration file is a YAML file containg the command and options def
    * -
      - port
      - 5000
-   * - name
-     - option
-     - value
+
+.. list-table:: **Workspace Structure**
+   :widths: 10 10 10 10
+   :header-rows: 1
+
+   * - Workspace Name
+     - Command Name
+     - Command Option
+     - Project Value
+   * - dev
+     -
+     -
+     -
+   * -
+     - run
+     -
+     -
+   * -
+     -
+     - port
+     - 8000
+
 
 .. _auth:
 
@@ -142,40 +196,3 @@ To call this microservice, we have to put the right token in headers::
 
 	curl https://zzzzzzzzz.execute-api.eu-west-1.amazonaws.com/my/route -H 'Authorization: thetokendefined'
 
-Disable authorizer for an entry
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-If needed you can disable the token authorizer on an entry:
-
-.. code-block:: python
-
-	from coworks import TechMicroService
-	from coworks import entry
-
-	class SimpleExampleMicroservice(TechMicroService):
-
-		@entry(no_auth=True)
-		def get(self):
-			return "Entry without authorizer."
-
-
-Content type
-^^^^^^^^^^^^
-
-By default all entries are defined as ``application/json`` content-type.
-
-You can respond as another content type with:
-
-.. code-block:: python
-
-	from coworks import TechMicroService
-	from coworks import entry
-
-	class SimpleExampleMicroservice(TechMicroService):
-
-        @entry(binary=True, content_type='application/pdf')
-        def get_content_type(self):
-            return b"test"
-
-Nevertheless the current AWS ApiGateway integration with Lambda doesn't allow to defined the content type in response
-header so the caller must know in advance the returned content type.

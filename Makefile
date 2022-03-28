@@ -17,11 +17,11 @@ deploy: clean dist
 deploy-test: clean dist
 	pipenv run twine upload --repository testpypi dist/*
 
-plugins.zip: coworks/operators.py coworks/sensors.py coworks/config.py
+plugins.zip: coworks/operators.py coworks/sensors.py
 	mkdir -p build
 	zip -r build/plugins.zip $^
 
 clean:
-	rm -rf dist build coworks.egg-info .pytest_cache
-	find . -type f -name \*.pyc -delete
-	find . -type d -name __pycache__ -exec rm -rf {} \; || true
+	rm -rf dist build coworks.egg-info terraform .pytest_cache
+	find . -type f -name \*.pyc -delete &2>/dev/null
+	find . -type d -name __pycache__ -exec rm -rf {} \; &2>/dev/null || true

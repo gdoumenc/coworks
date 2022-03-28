@@ -1,5 +1,5 @@
-from tests.coworks.blueprint.blueprint import BP, InitBP
-from tests.coworks.ms import SimpleMS
+from ..blueprint.blueprint import BP, InitBP
+from ..ms import SimpleMS
 
 
 class TestClass:

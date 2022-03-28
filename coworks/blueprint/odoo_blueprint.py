@@ -6,12 +6,13 @@ import xmlrpc.client
 
 import requests
 from aws_xray_sdk.core import xray_recorder
-from coworks import Blueprint
-from coworks import entry
 from flask import Response
 from werkzeug.exceptions import BadRequest
 from werkzeug.exceptions import Forbidden
 from werkzeug.exceptions import NotFound
+
+from coworks import Blueprint
+from coworks import entry
 
 
 class AccessDenied(Exception):
@@ -45,28 +46,27 @@ class Odoo(Blueprint):
             self.env_user_var_name = env_user_var_name
             self.env_passwd_var_name = env_passwd_var_name
 
-        @self.before_app_first_request
-        def check_env_vars():
-            self.url = os.getenv(self.env_url_var_name)
-            if not self.url:
-                raise EnvironmentError(f'{self.env_url_var_name} not defined in environment.')
-            self.dbname = os.getenv(self.env_dbname_var_name)
-            if not self.dbname:
-                raise EnvironmentError(f'{self.env_dbname_var_name} not defined in environment.')
-            self.user = os.getenv(self.env_user_var_name)
-            if not self.user:
-                raise EnvironmentError(f'{self.env_user_var_name} not defined in environment.')
-            self.passwd = os.getenv(self.env_passwd_var_name)
-            if not self.passwd:
-                raise EnvironmentError(f'{self.env_passwd_var_name} not defined in environment.')
-
-            common = xmlrpc.client.ServerProxy(f'{self.url}/xmlrpc/2/common')
-            self.uid = common.authenticate(self.dbname, self.user, self.passwd, {})
-
         @self.before_app_request
         def set_session():
             if not self.uid:
                 raise Forbidden()
+
+    def init_app(self, app):
+        self.url = os.getenv(self.env_url_var_name)
+        if not self.url:
+            raise EnvironmentError(f'{self.env_url_var_name} not defined in environment.')
+        self.dbname = os.getenv(self.env_dbname_var_name)
+        if not self.dbname:
+            raise EnvironmentError(f'{self.env_dbname_var_name} not defined in environment.')
+        self.user = os.getenv(self.env_user_var_name)
+        if not self.user:
+            raise EnvironmentError(f'{self.env_user_var_name} not defined in environment.')
+        self.passwd = os.getenv(self.env_passwd_var_name)
+        if not self.passwd:
+            raise EnvironmentError(f'{self.env_passwd_var_name} not defined in environment.')
+
+        common = xmlrpc.client.ServerProxy(f'{self.url}/xmlrpc/2/common')
+        self.uid = common.authenticate(self.dbname, self.user, self.passwd, {})
 
     @entry
     def kw(self, model: str, method: str = "search_read", id: int = None, fields: t.List[str] = None,

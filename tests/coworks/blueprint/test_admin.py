@@ -60,21 +60,21 @@ class TestClass:
             assert response.status_code == 200
             routes = json.loads(response.get_data(as_text=True))
             assert routes["/"]['GET'] == {
-                "doc": "Root access.",
-                "signature": "()"
+                "doc": "Root access.", "signature": "()",
+                'binary': False, 'no_auth': False, 'no_cors': True
             }
             assert routes["/content/<value>"]['POST'] == {
-                "doc": "Add content.",
-                "signature": "(value, other=none)"
+                "doc": "Add content.", "signature": "(value, other=none)",
+                'binary': False, 'no_auth': False, 'no_cors': True
             }
             assert routes["/contentannotated/<value>"]['POST'] == {
-                "doc": "Add content.",
-                "signature": "(value:<class 'int'>, other:<class 'str'>=none)"
+                "doc": "Add content.", "signature": "(value:<class 'int'>, other:<class 'str'>=none)",
+                'binary': False, 'no_auth': False, 'no_cors': True
             }
-            assert routes["/admin/route"]['GET']['signature'] == "(prefix=None, pretty=None, blueprint=None)"
+            assert routes["/admin/route"]['GET']['signature'] == "(prefix=None, blueprint=None)"
             assert routes["/list/<values>"]['GET'] == {
-                'auth': False,
-                "signature": "(values:[<class 'int'>])"
+                "signature": "(values:[<class 'int'>])",
+                'binary': False, 'no_auth': True, 'no_cors': True
             }
 
             response = c.get('/admin/route', headers={'Authorization': 'token'})
