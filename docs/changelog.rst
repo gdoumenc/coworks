@@ -4,6 +4,15 @@ Changelogs
 ==========
 
 
+Version 0.7
+^^^^^^^^^^^
+
+First released 2022-03-28
+
+* Apache Airflow operators and sensor defined.
+* Better client itegration.
+* DOc in progress.
+
 Version 0.6
 ^^^^^^^^^^^
 
