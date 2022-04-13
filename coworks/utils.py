@@ -12,8 +12,8 @@ from flask import current_app
 from flask import make_response
 from flask.blueprints import BlueprintSetupState
 from werkzeug.datastructures import Headers
-from werkzeug.exceptions import BadRequest, HTTPException
-from werkzeug.exceptions import BadRequestKeyError
+from werkzeug.exceptions import BadRequest
+from werkzeug.exceptions import HTTPException
 
 from .globals import request
 from .wrappers import CoworksResponse
@@ -83,8 +83,8 @@ def create_rest_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
                 """Alerts when more parameters than expected are defined in request."""
                 if param_name not in kwarg_keys and varkw is None:
                     _err_msg = f"TypeError: got an unexpected keyword argument '{param_name}'"
-                    current_app.logger.info(_err_msg)
-                    raise BadRequestKeyError(_err_msg)
+                    current_app.logger.error(_err_msg)
+                    raise BadRequest(_err_msg)
 
             def as_fun_params(values: dict, flat=True):
                 """Set parameters as simple value or list of values if multiple defined.
@@ -130,26 +130,29 @@ def create_rest_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
                             kwargs = dict(**kwargs, **as_fun_params(data))
                     except Exception as e:
                         current_app.logger.error(traceback.print_exc())
-                        current_app.logger.debug(e)
+                        current_app.logger.error(e)
                         raise BadRequest(str(e))
 
                 else:
                     err_msg = f"Keyword arguments are not permitted for {request.method} method."
-                    raise BadRequestKeyError(err_msg)
+                    current_app.logger.error(err_msg)
+                    raise BadRequest(err_msg)
 
             else:
                 if not args:
                     if request.content_length:
                         err_msg = f"TypeError: got an unexpected arguments (body: {request.json})"
-                        raise BadRequestKeyError(err_msg)
+                        current_app.logger.error(err_msg)
+                        raise BadRequest(err_msg)
                     if request.query_string:
                         err_msg = f"TypeError: got an unexpected arguments (query: {request.query_string})"
-                        raise BadRequestKeyError(err_msg)
+                        current_app.logger.error(err_msg)
+                        raise BadRequest(err_msg)
                 kwargs = as_typed_kwargs(func, kwargs)
 
             resp = func(scaffold, **kwargs)
             if resp is None:
-                return "", 204
+                return make_response("", 204)
 
             # Set a specific content type if response is not a tuple and entry has a default content type
             content_type = None
@@ -167,7 +170,7 @@ def create_rest_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
 
             return resp
         except TypeError as e:
-            current_app.logger.error(f"Bad request error: {str(e)}")
+            current_app.logger.error(f"TypeError: {str(e)}")
             raise BadRequest(str(e))
         except HTTPException as e:
             return e.description, e.code
