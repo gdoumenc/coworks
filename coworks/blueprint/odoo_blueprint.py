@@ -180,9 +180,13 @@ class Odoo(Blueprint):
                     if 'error' in result:
                         raise NotFound(f"{result['error']['message']}:{result['error']['data']}")
                     return base64.b64decode(result['result'])
-                except Exception as e:
+                except NotFound:
+                    raise
+                except Exception:
                     raise BadRequest(res.text)
-        except Exception as e:
+        except NotFound:
+            raise
+        except Exception:
             raise AccessDenied()
 
     @xray_recorder.capture()

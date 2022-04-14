@@ -88,7 +88,7 @@ class OktaResponse:
     def response(self):
         """Cast the Okta response as microservice response."""
         if self.error:
-            return self.error.message.decode('utf-8'), self.error.status
+            return self.error.message, self.error.status
         return {'value': self.value, 'next': self.next_url}
 
     def filter(self, fun: Callable[[dict], bool], map=lambda x: x):

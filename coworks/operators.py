@@ -176,9 +176,6 @@ class BranchTechMicroServiceOperator(BaseBranchOperator):
         return self.on_success
 
 
-#
-# DEPRECATED
-#
 class AsyncTechServicePullOperator(BaseOperator):
     """Pull in XCom a microservice result when its was called asynchronously.
 
