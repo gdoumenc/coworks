@@ -103,7 +103,7 @@ def create_rest_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
                 # adds parameters from query parameters
                 if request.method == 'GET':
                     data = request.values.to_dict(False)
-                    kwargs = as_typed_kwargs(func, dict(**kwargs, **as_fun_params(data)))
+                    kwargs = dict(**kwargs, **as_fun_params(data))
 
                 # Adds parameters from body parameter
                 elif request.method in ['POST', 'PUT']:
@@ -148,8 +148,8 @@ def create_rest_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
                         err_msg = f"TypeError: got an unexpected arguments (query: {request.query_string})"
                         current_app.logger.error(err_msg)
                         raise BadRequest(err_msg)
-                kwargs = as_typed_kwargs(func, kwargs)
 
+            kwargs = as_typed_kwargs(func, kwargs)
             resp = func(scaffold, **kwargs)
             if resp is None:
                 return make_response("", 204)
