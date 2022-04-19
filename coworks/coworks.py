@@ -435,9 +435,6 @@ class TechMicroService(Flask):
             if workspace == DEFAULT_LOCAL_WORKSPACE:
                 click.echo(f" * Workspace: {workspace}")
             config = self.get_config(workspace)
-            self.config['WORKSPACE'] = config.workspace
-            self.config['X-CWS-S3Bucket'] = config.bizz_bucket_header_key
-            self.config['X-CWS-S3Key'] = config.bizz_key_header_key
             if load_env:
                 config.load_environment_variables(self)
             self._cws_conf_updated = True

@@ -80,7 +80,12 @@ class Config:
             if not var_name_regexp.fullmatch(key):
                 raise KeyError(f'Wrong environment variable name: {key}')
 
-        # Set environment variables
+        # Set predefined environment variables
+        app.config['WORKSPACE'] = self.workspace
+        app.config['X-CWS-S3Bucket'] = self.bizz_bucket_header_key
+        app.config['X-CWS-S3Key'] = self.bizz_key_header_key
+
+        # Set defined environment variables
         if environment_variables:
             for key, value in environment_variables.items():
                 os.environ[key] = str(value)
