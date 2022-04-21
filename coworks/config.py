@@ -116,6 +116,9 @@ class DevConfig(Config):
 
     def __init__(self, workspace: str = DEFAULT_DEV_WORKSPACE, **kwargs):
         super().__init__(workspace=workspace, **kwargs)
+        self.environment_variables = {
+            'EXPLAIN_TEMPLATE_LOADING': True,
+        }
 
 
 class ProdConfig(DevConfig):

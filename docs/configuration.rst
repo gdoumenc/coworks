@@ -153,6 +153,55 @@ Structure
      - port
      - 8000
 
+Environment files
+-----------------
+
+You certainly may need to attach environment variables to your project. Of course thoses variables may depend on the
+stage status. How? You just need to create and specify custom environment files.
+
+We will describe below an example of structured environment files.
+
+Define the specific configuration cases::
+
+    from coworks import config
+
+
+    class LocalConfig(config.LocalConfig):
+
+        def __init__(self, **kwargs):
+            super().__init__(workspace='local', **kwargs)
+            self.environment_variables_file = ['env_variables/vars.json', 'env_variables/dev.json']
+
+
+    class DevConfig(config.DevConfig):
+
+        def __init__(self, **kwargs):
+            super().__init__(workspace='dev', **kwargs)
+            self.environment_variables_file = ['env_variables/vars.json', 'env_variables/dev.json']
+
+
+    class ProdConfig(config.ProdConfig):
+
+        def __init__(self, **kwargs):
+            super().__init__(workspace='prod', **kwargs)
+            self.environment_variables_file = ['env_variables/vars.json', 'env_variables/prod.json']
+
+So the ``vars.json`` and ``vars.secret.json`` will contain respectivily all shared variables and secret variables. Then
+the stage variables are splitted into specific files ``dev.json``,  ``dev.secret.json`` and
+``prod.json``,  ``prod.secret.json``.
+
+We then have the following structure for the files::
+
+    src/
+    ├── env_variables/
+       ├── dev.json
+       ├── dev.secret.json
+       ├── prod.json
+       ├── prod.secret.json
+       ├── vars.json
+       ├── vars.secret.json
+
+That's all folks!
 
 .. _auth:
 
