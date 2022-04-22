@@ -26,10 +26,6 @@ class Config:
     bizz_bucket_header_key: str = 'X-CWS-S3Bucket'
     bizz_key_header_key: str = 'X-CWS-S3Key'
 
-    @property
-    def ENV(self):
-        return self.workspace
-
     def is_valid_for(self, workspace: str) -> bool:
         return self.workspace == workspace
 

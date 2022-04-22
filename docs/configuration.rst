@@ -186,11 +186,12 @@ Define the specific configuration cases::
             super().__init__(workspace='prod', **kwargs)
             self.environment_variables_file = ['env_variables/vars.json', 'env_variables/prod.json']
 
-So the ``vars.json`` and ``vars.secret.json`` will contain respectivily all shared variables and secret variables. Then
-the stage variables are splitted into specific files ``dev.json``,  ``dev.secret.json`` and
+So the ``vars.json`` and ``vars.secret.json`` will contain respectivily all shared variables and shared secret
+variables.
+Then the stage variables are split into the specific files ``dev.json``,  ``dev.secret.json`` and
 ``prod.json``,  ``prod.secret.json``.
 
-We then have the following structure for the files::
+We have the following structure for those files::
 
     src/
     ├── env_variables/
