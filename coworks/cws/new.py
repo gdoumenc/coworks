@@ -1,15 +1,17 @@
-import click
 from distutils.dir_util import copy_tree
 from pathlib import Path
 
+import click
+
 from .utils import progressbar
+from ..utils import get_app_debug
 
 
 @click.command("new", short_help="Creates a new CoWorks project.")
 @click.option('--force', is_flag=True, help="Force creation even if already created.")
 @click.pass_context
 def new_command(ctx, force) -> None:
-    debug = ctx.parent.params['debug']
+    debug = get_app_debug()
     project_dir = Path(ctx.parent.params['project_dir'])
     project_templates = Path(__file__).parent / 'project_templates'
 

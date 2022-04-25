@@ -43,7 +43,7 @@ constructor::
 	config = Config(workspace='local', environment_variables_file=Path("config") / "vars_local.json")
 	app = SimpleMicroService(ms_name='test', configs=config)
 
-The ``workspace`` value will correspond to the ``--workspace`` argument for the commands ``run`` or ``deploy``.
+The ``workspace`` value will correspond to the ``FLASK_ENV`` variable value.
 
 In the exemple over, if you run the microservice in the workspace ``local``, then environment file will be found in
 ``config/vars_local.json``.
@@ -60,7 +60,13 @@ Three predefined workspace configurations are defined:
 
     * ``LocalConfig`` for local development run.
     * ``DevConfig`` for deployed development version with trace.
-    * ``ProdConfig``. This configuration class is defined for production workspace where their names are version names, i.e. defined as ``r"v[1-9]+"``.
+    * ``ProdConfig``. This configuration class is defined for production workspace where their names are version names,
+i.e. defined as ``r"v[1-9]+"``.
+
+As example you can deploy the specific stage ``dev`` of the microservice ``service`` defined in the ``ms`` python file
+in the folder ``src/tech``::
+
+    $ FLASK_ENV=dev FLASK_APP=ms:service cws -p src/tech deploy
 
 Project configuration file
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
