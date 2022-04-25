@@ -11,7 +11,8 @@ First released 2022-03-28
 
 * Apache Airflow operators and sensor defined.
 * Better client itegration.
-* DOc in progress.
+* Doc in progress.
+* Workspace command option replaced by FLASK_ENV
 
 Version 0.6
 ^^^^^^^^^^^
