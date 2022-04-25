@@ -77,7 +77,6 @@ class Config:
                 raise KeyError(f'Wrong environment variable name: {key}')
 
         # Set predefined environment variables
-        app.config['WORKSPACE'] = self.workspace
         app.config['X-CWS-S3Bucket'] = self.bizz_bucket_header_key
         app.config['X-CWS-S3Key'] = self.bizz_key_header_key
 

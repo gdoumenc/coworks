@@ -15,6 +15,7 @@ from werkzeug.datastructures import Headers
 from werkzeug.exceptions import BadRequest
 from werkzeug.exceptions import HTTPException
 
+from .config import DEFAULT_DEV_WORKSPACE
 from .globals import request
 from .wrappers import CoworksResponse
 
@@ -311,3 +312,11 @@ def is_json(mt):
             and mt.startswith("application/")
             and mt.endswith("+json")
     )
+
+
+def get_app_workspace():
+    return os.getenv('FLASK_ENV', DEFAULT_DEV_WORKSPACE)
+
+
+def get_app_debug():
+    return os.getenv('FLASK_DEBUG')

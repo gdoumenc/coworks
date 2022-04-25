@@ -9,7 +9,6 @@ from inspect import isfunction
 from pathlib import Path
 
 import boto3
-import click
 from flask import Blueprint as FlaskBlueprint
 from flask import Flask
 from flask import current_app
@@ -26,7 +25,6 @@ from werkzeug.exceptions import Unauthorized
 from werkzeug.routing import Rule
 
 from .config import Config
-from .config import DEFAULT_DEV_WORKSPACE
 from .config import DEFAULT_LOCAL_WORKSPACE
 from .config import DevConfig
 from .config import LocalConfig
@@ -34,6 +32,7 @@ from .config import ProdConfig
 from .globals import request
 from .utils import HTTP_METHODS
 from .utils import add_coworks_routes
+from .utils import get_app_workspace
 from .utils import is_json
 from .utils import trim_underscores
 from .wrappers import CoworksRequest
@@ -218,7 +217,7 @@ class TechMicroService(Flask):
     def app_context(self):
         """Override to initialize coworks microservice.
         """
-        self._init_app(True)
+        self._init_app(False)
 
         if os.environ.get("FLASK_RUN_FROM_CLI") == "true":
             self.init_cli()
@@ -243,11 +242,11 @@ class TechMicroService(Flask):
         """
         return super().test_client(aws_event=event, aws_context=context)
 
-    def test_client(self, *args, workspace=DEFAULT_LOCAL_WORKSPACE, **kwargs):
+    def test_client(self, *args, **kwargs):
         """This client must be used only for testing.
         """
         self.testing = True
-        self._init_app(True, workspace=workspace)
+        self._init_app(False)
 
         return super().test_client(*args, **kwargs)
 
@@ -279,8 +278,7 @@ class TechMicroService(Flask):
         By default, no entry are accepted for security reason.
         """
 
-        workspace = self.config['WORKSPACE']
-        if workspace == DEFAULT_LOCAL_WORKSPACE:
+        if get_app_workspace() == DEFAULT_LOCAL_WORKSPACE:
             return True
         return token == os.getenv('TOKEN')
 
@@ -328,11 +326,11 @@ class TechMicroService(Flask):
         except Exception as e:
             self.logger.error(f"Exception when storing response in {bucket}/{key} : {str(e)}")
 
-    def _init_app(self, load_env, workspace=None):
+    def _init_app(self, in_lambda):
         """Finalize the app initialization.
         """
         if not self._cws_app_initialized:
-            self._update_config(load_env=load_env, workspace=workspace)
+            self._update_config(in_lambda=in_lambda)
             add_coworks_routes(self)
             for fun in self.deferred_init_routes_functions:
                 fun()
@@ -347,7 +345,7 @@ class TechMicroService(Flask):
         """Main microservice entry point.
         """
         in_flask = isfunction(arg2)
-        self._init_app(in_flask)
+        self._init_app(not in_flask)
 
         # Lambda event call or Flask call
         if in_flask:
@@ -429,13 +427,15 @@ class TechMicroService(Flask):
 
         return self.wsgi_app(environ, start_response)
 
-    def _update_config(self, *, load_env: bool, workspace: str):
+    def _update_config(self, *, in_lambda: bool):
         if not self._cws_conf_updated:
-            workspace = workspace or os.environ.get('WORKSPACE', DEFAULT_DEV_WORKSPACE)
-            if workspace == DEFAULT_LOCAL_WORKSPACE:
+            if not in_lambda:
+                workspace = get_app_workspace()
+
+                import click
                 click.echo(f" * Workspace: {workspace}")
-            config = self.get_config(workspace)
-            if load_env:
+
+                config = self.get_config(workspace)
                 config.load_environment_variables(self)
             self._cws_conf_updated = True
 

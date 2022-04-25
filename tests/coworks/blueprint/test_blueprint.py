@@ -1,9 +1,12 @@
+import os
+from unittest import mock
+
 from ..blueprint.blueprint import BP, InitBP
 from ..ms import SimpleMS
 
 
+@mock.patch.dict(os.environ, {"FLASK_ENV": "local"})
 class TestClass:
-
     def test_request(self):
         app = SimpleMS()
         app.register_blueprint(BP())

@@ -1,6 +1,8 @@
+import os
+from unittest import mock
+
 from coworks import TechMicroService
 from coworks import entry
-
 from ..event import get_event
 
 
@@ -35,6 +37,7 @@ class ContentMS(TechMicroService):
         return b"test"
 
 
+@mock.patch.dict(os.environ, {"FLASK_ENV": "local"})
 class TestClass:
     def test_default_content_type(self):
         app = ContentMS()
@@ -105,4 +108,3 @@ class TestClass:
             response = app(get_event('/content/type', 'get', headers=headers), empty_context)
             assert type(response) == str
             assert app.base64decode(response) == b"test"
-

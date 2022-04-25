@@ -16,6 +16,7 @@ from flask.cli import pass_script_info
 
 from .utils import progressbar
 from .. import aws
+from ..utils import get_app_debug
 
 
 @click.command("zip", short_help="Zip all source files to create a Lambda file source.")
@@ -33,7 +34,7 @@ def zip_command(info, ctx, bucket, dry, hash, ignore, module_name, key, profile_
     This command uploads project source folder as a zip file on a S3 bucket.
     Uploads also the hash code of this file to be able to determined code changes (used by terraform as a trigger).
     """
-    debug = ctx.find_root().params['debug']
+    debug = get_app_debug()
     aws_s3_session = aws.AwsS3Session(profile_name=profile_name)
     module_name = module_name or []
 
