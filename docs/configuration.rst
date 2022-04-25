@@ -43,7 +43,7 @@ constructor::
 	config = Config(workspace='local', environment_variables_file=Path("config") / "vars_local.json")
 	app = SimpleMicroService(ms_name='test', configs=config)
 
-The ``workspace`` value will correspond to the ``--workspace`` argument for the commands ``run`` or ``deploy``.
+The ``workspace`` value will correspond to the ``FLASK_ENV`` variable value.
 
 In the exemple over, if you run the microservice in the workspace ``local``, then environment file will be found in
 ``config/vars_local.json``.
@@ -60,7 +60,13 @@ Three predefined workspace configurations are defined:
 
     * ``LocalConfig`` for local development run.
     * ``DevConfig`` for deployed development version with trace.
-    * ``ProdConfig``. This configuration class is defined for production workspace where their names are version names, i.e. defined as ``r"v[1-9]+"``.
+    * ``ProdConfig``. This configuration class is defined for production workspace where their names are version names,
+i.e. defined as ``r"v[1-9]+"``.
+
+As example you can deploy the specific stage ``dev`` of the microservice ``service`` defined in the ``ms`` python file
+in the folder ``src/tech``::
+
+    $ FLASK_ENV=dev FLASK_APP=ms:service cws -p src/tech deploy
 
 Project configuration file
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -153,6 +159,56 @@ Structure
      - port
      - 8000
 
+Environment files
+-----------------
+
+You certainly may need to attach environment variables to your project. Of course thoses variables may depend on the
+stage status. How? You just need to create and specify custom environment files.
+
+We will describe below an example of structured environment files.
+
+Define the specific configuration cases::
+
+    from coworks import config
+
+
+    class LocalConfig(config.LocalConfig):
+
+        def __init__(self, **kwargs):
+            super().__init__(workspace='local', **kwargs)
+            self.environment_variables_file = ['env_variables/vars.json', 'env_variables/dev.json']
+
+
+    class DevConfig(config.DevConfig):
+
+        def __init__(self, **kwargs):
+            super().__init__(workspace='dev', **kwargs)
+            self.environment_variables_file = ['env_variables/vars.json', 'env_variables/dev.json']
+
+
+    class ProdConfig(config.ProdConfig):
+
+        def __init__(self, **kwargs):
+            super().__init__(workspace='prod', **kwargs)
+            self.environment_variables_file = ['env_variables/vars.json', 'env_variables/prod.json']
+
+So the ``vars.json`` and ``vars.secret.json`` will contain respectivily all shared variables and shared secret
+variables.
+Then the stage variables are split into the specific files ``dev.json``,  ``dev.secret.json`` and
+``prod.json``,  ``prod.secret.json``.
+
+We have the following structure for those files::
+
+    src/
+    ├── env_variables/
+       ├── dev.json
+       ├── dev.secret.json
+       ├── prod.json
+       ├── prod.secret.json
+       ├── vars.json
+       ├── vars.secret.json
+
+That's all folks!
 
 .. _auth:
 

@@ -10,7 +10,7 @@ from coworks.utils import import_attr
 
 class TestClass:
 
-    @mock.patch.dict(os.environ, {"WORKSPACE": "local"})
+    @mock.patch.dict(os.environ, {"FLASK_ENV": "local"})
     @mock.patch.dict(os.environ, {"FLASK_RUN_FROM_CLI": "false"})
     def test_run_simple(self, samples_docs_dir, unused_tcp_port):
         app = import_attr('simple', 'app', cwd=samples_docs_dir)

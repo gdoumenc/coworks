@@ -22,11 +22,12 @@ class TypedMS(TechMicroService):
         return ("ok", 200) if type(i) is int else ("not ok", 400)
 
     @entry
-    def post(self, i: int = 0):
+    def post(self, i: t.Union[int, str] = 0):
         return ("ok", 200) if type(i) is int else ("not ok", 400)
 
 
 class TestClass:
+
     def test_int_type(self):
         app = TypedMS()
 

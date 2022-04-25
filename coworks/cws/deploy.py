@@ -22,6 +22,8 @@ from werkzeug.routing import Rule
 from .exception import ExitCommand
 from .utils import progressbar
 from .zip import zip_command
+from ..utils import get_app_debug
+from ..utils import get_app_workspace
 
 UID_SEP = '_'
 
@@ -168,7 +170,7 @@ class TerraformLocal:
 
     def get_context_data(self, **options) -> dict:
         project_dir = options['project_dir']
-        workspace = options['workspace']
+        workspace = get_app_workspace()
         config = self.app.get_config(workspace)
         environment_variable_files = config.existing_environment_variables_files(self.app)
 
@@ -181,6 +183,8 @@ class TerraformLocal:
             'environment_variables': config.environment_variables,
             'environment_variable_files': [Path(f).name for f in environment_variable_files],
             'ms_name': self.app.name,
+            'workspace': workspace,
+            'debug': get_app_debug(),
             **options
         }
         return data
@@ -190,8 +194,8 @@ class TerraformLocal:
 
     def generate_files(self, template_filename, output_filename, **options) -> None:
         project_dir = options['project_dir']
-        workspace = options['workspace']
-        debug = options['debug']
+        workspace = get_app_workspace()
+        debug = get_app_debug()
         profile_name = options['profile_name']
 
         config = self.app.get_config(workspace)
@@ -210,7 +214,7 @@ class TerraformLocal:
         """In the default terraform workspace, we have the API.
         In the specific workspace, we have the corresponding stagging lambda.
         """
-        workspace = options['workspace']
+        workspace = get_app_workspace()
         self.bar.update(msg=f"Terraform apply (Create API routes)")
         self.apply("default")
         if options['api']:
@@ -255,7 +259,7 @@ class TerraformCloud:
         self.info = info
         self.bar = bar
         self.working_dir = Path(options['terraform_dir'])
-        self.workspace = options['workspace']
+        self.workspace = get_app_workspace()
         self._api_terraform = self._workspace_terraform = None
 
     @property
@@ -290,26 +294,26 @@ class TerraformCloud:
         self.workspace_terraform.select_workspace(workspace)
 
     def generate_common_files(self, **options) -> None:
-        stage = ""
-        self._generate_common_file(self.api_terraform, stage=stage, **options)
-        stage = f"_{options['workspace']}"
-        self._generate_common_file(self.workspace_terraform, stage=stage, **options)
+        env_data = {'workspace': get_app_workspace(), 'debug': get_app_debug()}
+        options_for_api = {**options, **env_data, **{'stage': ''}}
+        self._generate_common_file(self.api_terraform, **options_for_api)
+        options_for_stage = {**options, **env_data, **{'stage': f"_{self.workspace}"}}
+        self._generate_common_file(self.workspace_terraform, **options_for_stage)
 
     def generate_files(self, template_filename, output_filename, **options) -> None:
-        options_for_api = {**options, **{'stage': ''}}
-
+        env_data = {'workspace': get_app_workspace(), 'debug': get_app_debug()}
+        options_for_api = {**options, **env_data, **{'stage': ''}}
         self.api_terraform.generate_files(template_filename, output_filename, **options_for_api)
-        options_for_stage = {**options, **{'stage': f"_{options['workspace']}", 'debug': False}}
+        options_for_stage = {**options, **env_data, **{'stage': f"_{self.workspace}"}}
         self.workspace_terraform.generate_files(template_filename, output_filename, **options_for_stage)
 
     def create_stage(self, **options) -> None:
         """In the default terraform workspace, we have the API.
         In the specific workspace, we have the corresponding stagging lambda.
         """
-        workspace = options['workspace']
         self.bar.update(msg=f"Terraform apply (Create API routes)")
         self.api_terraform.apply()
-        self.bar.update(msg=f"Terraform apply (Deploy API and Lambda for the {workspace} stage)")
+        self.bar.update(msg=f"Terraform apply (Deploy API and Lambda for the {self.workspace} stage)")
         self.workspace_terraform.apply()
 
     def copy_file(self, file):
@@ -352,14 +356,12 @@ def deploy_command(info, ctx, output, terraform_class=TerraformLocal, **options)
     """
     root_command_params = ctx.find_root().params
     project_dir = root_command_params['project_dir']
-    workspace = root_command_params['workspace']
-    debug = root_command_params['debug']
 
     with progressbar(label='Deploy microservice', threaded=True) as bar:
         try:
             if info.app_import_path and '/' in info.app_import_path:
                 msg = f"Cannot deploy a project with handler not on project folder : {info.app_import_path}.\n"
-                msg += f"Add option -p {'/'. join(info.app_import_path.split('/')[:-1])} to resolve this."""
+                msg += f"Add option -p {'/'.join(info.app_import_path.split('/')[:-1])} to resolve this."""
                 bar.terminate(msg)
                 return
 
@@ -388,7 +390,7 @@ def deploy_command(info, ctx, output, terraform_class=TerraformLocal, **options)
             ctx.invoke(zip_command, **zip_options)
 
             # Copy environment files in terraform folder
-            config = app.get_config(workspace)
+            config = app.get_config(get_app_workspace())
             environment_variable_files = config.existing_environment_variables_files(app)
             for file in environment_variable_files:
                 terraform.copy_file(file)
@@ -428,86 +430,3 @@ def deployed_command(info, ctx, terraform_class=TerraformLocal, **options) -> No
         except Exception:
             bar.terminate()
             raise
-
-# class CwsTerraformDestroyer(CwsTerraformCommand):
-
-
-# set all to 0 :
-# locals {
-#   neorezo-cws_supplier-supplier_order_when_default = var.TFC_WORKSPACE_NAME == "neorezo_cws_supplier" ? 0 : 0
-#   neorezo-cws_supplier-supplier_order_when_stage = var.TFC_WORKSPACE_NAME != "neorezo_cws_supplier" ? 0 : 0
-# }
-# terraform -chdir=terraform_dev apply
-# terraform -chdir=terraform apply
-# then remove files
-
-#
-#     @property
-#     def options(self):
-#         return [
-#             *super().options,
-#             click.option('--all', '-a', is_flag=True, help="Destroy on all workspaces."),
-#             click.option('--bucket', '-b', help="Bucket to remove sources zip file from.", required=True),
-#             click.option('--debug', is_flag=True, help="Print debug logs to stderr."),
-#             click.option('--dry', is_flag=True, help="Doesn't perform destroy."),
-#             click.option('--key', '-k', help="Sources zip file bucket's name."),
-#             click.option('--profile_name', '-p', required=True, help="AWS credential profile."),
-#         ]
-#
-#     @classmethod
-#     def multi_execute(cls, project_dir, workspace, execution_list):
-#         for command, options in execution_list:
-#             command.rm_zip(**options)
-#             command.terraform_destroy(**options)
-#
-#     def __init__(self, app=None, name='destroy'):
-#         super().__init__(app, name=name)
-#
-#     def rm_zip(self, *, module, bucket, key, profile_name, dry, debug, **options):
-#         aws_s3_session = AwsS3Session(profile_name=profile_name)
-#
-#         # Removes zip file from S3
-#         key = key if key else f"{module}-{self.app.name}"
-#         if debug:
-#             name = f"{module}-{options['service']}"
-#             where = f"{bucket}/{key}"
-#             print(f"Removing zip sources of {name} from s3: {where} {'(not done)' if dry else ''}")
-#
-#         if not dry:
-#             aws_s3_session.client.delete_object(Bucket=bucket, Key=key)
-#             aws_s3_session.client.delete_object(Bucket=bucket, Key=f"{key}.b64sha256")
-#             if debug:
-#                 print(f"Successfully removed sources at s3://{bucket}/{key}")
-#
-#     def terraform_destroy(self, *, project_dir, workspace, debug, dry, **options):
-#         all_workspaces = options['all']
-#         terraform_resources_filename = f"{self.app.name}.{self.app.ms_type}.txt"
-#         if not dry:
-#             # perform dry deployment to have updated terraform files
-#             cmds = ['cws', '-p', project_dir, '-w', workspace, 'deploy', '--dry']
-#             p = subprocess.run(cmds, capture_output=True, timeout=self.terraform.timeout)
-#
-#             # Destroy resources (except default)
-#             for w in self.terraform.workspace_list():
-#                 if w in [workspace] or (all_workspaces and w != 'default'):
-#                     print(f"Terraform destroy ({w})", flush=True)
-#                     self.terraform.destroy(w)
-#
-#             if all_workspaces:
-#
-#                 # Removes default workspace
-#                 self.terraform.destroy('default')
-#
-#                 # Removes terraform file
-#                 terraform_filename = f"{self.app.name}.{self.app.ms_type}.tf"
-#                 output = Path(self.terraform.working_dir) / terraform_filename
-#                 if debug:
-#                     print(f"Removing terraform file: {output} {'(not done)' if dry else ''}")
-#                 if not dry:
-#                     output.unlink(missing_ok=True)
-#                     terraform_filename = f"{self.app.name}.{self.app.ms_type}.tf"
-#                     msg = f"Generate minimal destroy file for {self.app.name}"
-#                     self.generate_terraform_files("destroy.j2", terraform_filename, msg, dry=dry, debug=debug,
-#                                                   **options)
-#
-#         self.terraform.select_workspace("default")

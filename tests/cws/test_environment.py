@@ -1,9 +1,12 @@
 import multiprocessing
+import os
+import time
+from pathlib import Path
+from unittest import mock
+
 import pytest
 import requests
-import time
 from flask.cli import ScriptInfo
-from pathlib import Path
 
 from coworks.config import Config
 from coworks.config import ProdConfig
@@ -120,5 +123,9 @@ def run_server(project_dir, app, port):
 
 
 def run_server_with_workspace(project_dir, app, port, workspace):
-    obj = ScriptInfo(create_app=lambda _: app, set_debug_flag=False)
-    client.main(['-p', project_dir, '-w', workspace, 'run', '--port', port], 'cws', obj=obj, standalone_mode=False)
+    @mock.patch.dict(os.environ, {"FLASK_ENV": workspace})
+    def run():
+        obj = ScriptInfo(create_app=lambda _: app, set_debug_flag=False)
+        client.main(['-p', project_dir, 'run', '--port', port], 'cws', obj=obj, standalone_mode=False)
+
+    run()

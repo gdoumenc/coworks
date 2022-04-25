@@ -21,6 +21,11 @@ class DocumentedMS(TechMicroService):
         return "get"
 
     @entry
+    def post(self):
+        """Root access."""
+        return "post"
+
+    @entry
     def post_content(self, value, other="none"):
         """Add content."""
         return f"post_content {value}{other}"
@@ -60,6 +65,10 @@ class TestClass:
             assert response.status_code == 200
             routes = json.loads(response.get_data(as_text=True))
             assert routes["/"]['GET'] == {
+                "doc": "Root access.", "signature": "()",
+                'binary': False, 'no_auth': False, 'no_cors': True
+            }
+            assert routes["/"]['POST'] == {
                 "doc": "Root access.", "signature": "()",
                 'binary': False, 'no_auth': False, 'no_cors': True
             }

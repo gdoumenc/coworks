@@ -1,4 +1,6 @@
 import io
+import os
+from unittest import mock
 
 from coworks import TechMicroService
 from coworks import entry
@@ -70,6 +72,7 @@ class AmbiguousMS(TechMicroService):
         return {'value': 'ok'}, 200
 
 
+@mock.patch.dict(os.environ, {"FLASK_ENV": "local"})
 class TestClass:
     def test_request_arg(self):
         app = SimpleMS()

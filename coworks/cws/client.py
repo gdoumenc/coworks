@@ -13,8 +13,8 @@ from .deploy import deploy_command
 from .deploy import deployed_command
 from .new import new_command
 from .zip import zip_command
-from ..config import DEFAULT_DEV_WORKSPACE
 from ..config import DEFAULT_PROJECT_DIR
+from ..utils import get_app_workspace
 from ..utils import get_system_info
 from ..utils import import_attr
 
@@ -34,19 +34,22 @@ class CoWorksGroup(FlaskGroup):
     def make_context(self, info_name, args, parent=None, **kwargs):
         ctx = super().make_context(info_name, args, **kwargs)
 
+        # Warning for deprecated options
+        if ctx.params.get('workspace'):
+            click.echo("Option workspace deprecated! Will not be used (set FLASK_ENV).")
+        if ctx.params.get('workspace'):
+            click.echo("Option debug deprecated! Will not be used (set FLASK_DEBUG).")
+
         # Get project infos
         config_file = ctx.params.get('config_file')
         config_file_suffix = ctx.params.get('config_file_suffix')
         project_dir = ctx.params.get('project_dir')
         if project_dir:
             os.environ['INSTANCE_RELATIVE_PATH'] = os.getcwd()
-        workspace = ctx.params.get('workspace')
-        if workspace:
-            os.environ['WORKSPACE'] = workspace
 
         # Adds defined commands from project file
         project_config = ProjectConfig(project_dir, config_file, config_file_suffix)
-        commands = project_config.get_commands(workspace)
+        commands = project_config.get_commands(get_app_workspace())
         if commands:
             for name, options in commands.items():
                 cmd_class_name = options.pop('class', None)
@@ -54,7 +57,7 @@ class CoWorksGroup(FlaskGroup):
                     splitted = cmd_class_name.split('.')
                     cmd = import_attr('.'.join(splitted[:-1]), splitted[-1], cwd=project_dir)
 
-                    # Sets options value as default command param
+                    # Sets option's value as default command param
                     # (may then be forced in command line or defined by default)
                     for param in cmd.params:
                         if param.name in options:
@@ -79,10 +82,7 @@ class CoWorksGroup(FlaskGroup):
 @click.version_option(version=__version__, message=f'%(prog)s %(version)s, {get_system_info()}')
 @click.option('-p', '--project-dir', default=DEFAULT_PROJECT_DIR,
               help=f"The project directory path (absolute or relative) [default to '{DEFAULT_PROJECT_DIR}'].")
-@click.option('-w', '--workspace', default=DEFAULT_DEV_WORKSPACE,
-              help=f"Application stage [default to '{DEFAULT_DEV_WORKSPACE}'].")
 @click.option('-c', '--config-file', default='project', help="Configuration file path [relative from project dir].")
-@click.option('-d', '--debug/--no-debug', default=False, is_flag=True, help="Print debug traces.")
 @click.option('--config-file-suffix', default='.cws.yml', help="Configuration file suffix.")
 @click.pass_context
 def client(*args, **kwargs):

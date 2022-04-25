@@ -36,10 +36,8 @@ To view a list of the available commands at any time, just run `cws` with no arg
       --version                  Show the version and exit.
       -p, --project-dir TEXT     The project directory path (absolute or relative)
                                  [default to '.'].
-      -w, --workspace TEXT       Application stage [default to 'dev'].
       -c, --config-file TEXT     Configuration file path [relative from project
                                  dir].
-      -d, --debug / --no-debug   Print debug traces.
       --config-file-suffix TEXT  Configuration file suffix.
       --help                     Show this message and exit.
 
@@ -62,7 +60,7 @@ The options ``-p (project_dir)`` is mandatory if the ``cws`` command is not issu
 for example in your IDE, you can define the environment variable ``INSTANCE_RELATIVE_PATH`` to be able to retrieve
 the environment variable file. The value is a relative path from ``project_dir``.
 
-At last the optional option ``-w (workspace)`` which default value is ``dev`` defines execution stage.
+At last the usefull variables ``FLASK_ENV`` and ``FLASK_DEBUG`` may be used same way as for Flask.
 
 Example of a simple command from the coworks directory::
 

@@ -1,4 +1,6 @@
+import os
 from io import BytesIO
+from unittest import mock
 
 from coworks import TechMicroService
 from coworks.blueprint.jinja_blueprint import Jinja
@@ -12,6 +14,7 @@ class JinjaMS(TechMicroService):
         self.register_blueprint(Jinja())
 
 
+@mock.patch.dict(os.environ, {"FLASK_ENV": "local"})
 class TestClass:
 
     def test_render_empty_template(self, auth_headers):

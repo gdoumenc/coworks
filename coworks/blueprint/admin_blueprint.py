@@ -1,5 +1,6 @@
 import inspect
 import sys
+from collections import defaultdict
 from inspect import Parameter
 
 import markdown
@@ -38,7 +39,7 @@ class Admin(Blueprint):
         :param prefix: Prefix path to limit the number of returned routes.
         :param blueprint: Show named blueprint routes if defined ('__all__' or blueprint name).
         """
-        routes = {}
+        routes = defaultdict(dict)
 
         for rule in current_app.url_map.iter_rules():
 
@@ -46,12 +47,11 @@ class Admin(Blueprint):
             if prefix and not rule.rule.startswith(prefix):
                 continue
 
-            route = {}
-            function_called = current_app.view_functions[rule.endpoint]
-
             # Keeps app entries and  blueprint entries
+            function_called = current_app.view_functions[rule.endpoint]
             from_blueprint = getattr(function_called, '__CWS_FROM_BLUEPRINT')
             if from_blueprint is None or blueprint == '__all__' or from_blueprint == blueprint:
+                route = {}
                 for http_method in rule.methods:
                     if http_method not in ['HEAD', 'OPTIONS']:
                         doc = inspect.getdoc(function_called)
@@ -73,7 +73,8 @@ class Admin(Blueprint):
                         content_type = getattr(function_called, '__CWS_CONTENT_TYPE')
                         if content_type:
                             route[http_method]['content_type'] = content_type
-                routes[rule.rule] = route
+
+                routes[rule.rule].update(route)
 
         return routes
 
