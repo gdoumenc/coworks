@@ -2,7 +2,7 @@ locals {
   {{ resource_name }}_api_arn = join("", aws_api_gateway_rest_api.{{ resource_name }}.*.arn, data.aws_api_gateway_rest_api.{{ resource_name }}.*.arn)
   {{ resource_name }}_api_id = join("", aws_api_gateway_rest_api.{{ resource_name }}.*.id, data.aws_api_gateway_rest_api.{{ resource_name }}.*.id)
   {{ resource_name }}_api_root_id = join("", aws_api_gateway_rest_api.{{ resource_name }}.*.root_resource_id, data.aws_api_gateway_rest_api.{{ resource_name }}.*.root_resource_id)
-  {{ resource_name }}_api_binary_media_types = ["multipart/form-data", "application/octet-stream", "image/*"]
+  {{ resource_name }}_api_binary_media_types = ["multipart/form-data", "application/octet-stream", "application/pdf", "image/*"]
 }
 
 # ---------------------------------------------------------------------------------------------------------------------

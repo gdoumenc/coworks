@@ -161,7 +161,7 @@ class Odoo(Blueprint):
         """Returns the PDF document attached to a report.
         Specif entry to allow PDF base64 encoding with JSON_RPC.
 
-        @param report_id: id of the record.
+        @param report_id: id of the report record (ir.actions.report).
         @param rec_ids: records needed to generate the report.
         """
 
