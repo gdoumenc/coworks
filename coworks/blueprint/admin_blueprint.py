@@ -4,13 +4,15 @@ from collections import defaultdict
 from inspect import Parameter
 
 import markdown
-from coworks import Blueprint
-from coworks import entry
-from coworks.globals import aws_event
 from flask import current_app
 from jinja2 import Environment
 from jinja2 import PackageLoader
 from jinja2 import select_autoescape
+from werkzeug.exceptions import NotFound
+
+from coworks import Blueprint
+from coworks import entry
+from coworks.globals import aws_event
 
 
 class Admin(Blueprint):
@@ -36,45 +38,34 @@ class Admin(Blueprint):
     @entry
     def get_route(self, prefix=None, blueprint=None):
         """Returns the list of entrypoints with signature.
+
         :param prefix: Prefix path to limit the number of returned routes.
         :param blueprint: Show named blueprint routes if defined ('__all__' or blueprint name).
         """
+        if blueprint and (blueprint != '__all__' and blueprint not in current_app.blueprints):
+            raise NotFound(f"Undefined blueprint {blueprint}")
+
         routes = defaultdict(dict)
 
         for rule in current_app.url_map.iter_rules():
 
-            # if returns only prefixed routes
+            # If must return only prefixed routes
             if prefix and not rule.rule.startswith(prefix):
                 continue
 
-            # Keeps app entries and  blueprint entries
             function_called = current_app.view_functions[rule.endpoint]
             from_blueprint = getattr(function_called, '__CWS_FROM_BLUEPRINT')
-            if from_blueprint is None or blueprint == '__all__' or from_blueprint == blueprint:
-                route = {}
-                for http_method in rule.methods:
-                    if http_method not in ['HEAD', 'OPTIONS']:
-                        doc = inspect.getdoc(function_called)
-                        route[http_method] = {
-                            'signature': get_signature(function_called),
-                        }
-                        if doc:
-                            docstring = doc.replace('\n', ' ').split(':param ')
-                            self.strip = docstring[0].strip()
-                            route[http_method]['doc'] = self.strip
-                            if len(docstring) > 1:
-                                route[http_method]['params'] = docstring[1:]
-                        if from_blueprint:
-                            route[http_method]['blueprint'] = from_blueprint
 
-                        route[http_method]['binary'] = getattr(function_called, '__CWS_BINARY')
-                        route[http_method]['no_auth'] = getattr(function_called, '__CWS_NO_AUTH')
-                        route[http_method]['no_cors'] = getattr(function_called, '__CWS_NO_CORS')
-                        content_type = getattr(function_called, '__CWS_CONTENT_TYPE')
-                        if content_type:
-                            route[http_method]['content_type'] = content_type
+            # If must return only blueprint routes
+            if blueprint:
+                if not (blueprint == '__all__' or from_blueprint == blueprint):
+                    continue
+            else:
+                if from_blueprint is not None:
+                    continue
 
-                routes[rule.rule].update(route)
+            # Adds the route
+            self.add_route_from_rule(routes, rule)
 
         return routes
 
@@ -99,6 +90,36 @@ class Admin(Blueprint):
         }
         template = env.get_template("proxy.j2")
         return template.render(**data)
+
+    def add_route_from_rule(self, routes, rule):
+        route = {}
+        for http_method in rule.methods:
+            if http_method not in ['HEAD', 'OPTIONS']:
+                function_called = current_app.view_functions[rule.endpoint]
+                route[http_method] = {
+                    'signature': get_signature(function_called),
+                    'binary': getattr(function_called, '__CWS_BINARY'),
+                    'no_auth': getattr(function_called, '__CWS_NO_AUTH'),
+                    'no_cors': getattr(function_called, '__CWS_NO_CORS'),
+                }
+
+                from_blueprint = getattr(function_called, '__CWS_FROM_BLUEPRINT')
+                if from_blueprint:
+                    route[http_method]['blueprint'] = from_blueprint
+
+                content_type = getattr(function_called, '__CWS_CONTENT_TYPE')
+                if content_type:
+                    route[http_method]['content_type'] = content_type
+
+                doc = inspect.getdoc(function_called)
+                if doc:
+                    docstring = doc.replace('\n', ' ').split(':param ')
+                    route[http_method]['doc'] = docstring[0].strip()
+                    if len(docstring) > 1:
+                        # noinspection PyTypeChecker
+                        route[http_method]['params'] = docstring[1:]
+
+        routes[rule.rule].update(route)
 
 
 def get_signature(func):
