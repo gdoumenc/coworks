@@ -50,22 +50,24 @@ class Admin(Blueprint):
         for rule in current_app.url_map.iter_rules():
 
             # If must return only prefixed routes
-            if prefix and not rule.rule.startswith(prefix):
-                continue
+            if prefix:
+                if rule.rule.startswith(prefix):
+                    self.add_route_from_rule(routes, rule)
+                else:
+                    continue
 
             function_called = current_app.view_functions[rule.endpoint]
             from_blueprint = getattr(function_called, '__CWS_FROM_BLUEPRINT')
 
             # If must return only blueprint routes
             if blueprint:
-                if not (blueprint == '__all__' or from_blueprint == blueprint):
-                    continue
-            else:
-                if from_blueprint is not None:
+                if blueprint == '__all__' or from_blueprint == blueprint:
+                    self.add_route_from_rule(routes, rule)
+                else:
                     continue
 
-            # Adds the route
-            self.add_route_from_rule(routes, rule)
+            if from_blueprint is None:
+                self.add_route_from_rule(routes, rule)
 
         return routes
 
