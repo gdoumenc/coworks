@@ -112,7 +112,7 @@ def create_rest_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
                         if request.is_json:
                             data = request.get_data()
                             if not data:
-                                kwargs[varkw] = {}
+                                kwargs = {}
                             else:
                                 data = request.json
                                 if type(data) is dict:
