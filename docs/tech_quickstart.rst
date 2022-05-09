@@ -132,7 +132,7 @@ Deploy
 And now we can upload the sources files to AWS S3 and apply predefined terraform planifications (options may be defined
 in project file to avoid given then on command line see :ref:`configuration` )::
 
-	(project) $ FLASK_APP=simple:app cws deploy
+	(project) $ FLASK_APP=simple:app cws deploy --bucket XXX --profile-name YYY --layers arn:aws:lambda:eu-west-1:935392763270:layer:coworks-ZZZ
 	Terraform apply (Create API routes)
 	Terraform apply (Deploy API and Lambda for the dev stage)
 	terraform output :

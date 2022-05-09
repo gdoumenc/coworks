@@ -1,6 +1,8 @@
 import contextlib
 import os
 import socket
+import sys
+from contextlib import contextmanager
 from unittest.mock import MagicMock
 
 import pytest
@@ -46,6 +48,15 @@ def auth_headers():
 @pytest.fixture
 def empty_context():
     return LambdaContextTest()
+
+
+@contextmanager
+def project_dir_context(project_dir):
+    sys.path.insert(0, project_dir)
+    try:
+        yield
+    finally:
+        sys.path.remove(project_dir)
 
 
 class LambdaContextTest:
