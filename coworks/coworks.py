@@ -11,6 +11,7 @@ from pathlib import Path
 import boto3
 from flask import Blueprint as FlaskBlueprint
 from flask import Flask
+from flask import Response
 from flask import current_app
 from flask import json
 from flask.blueprints import BlueprintSetupState
@@ -410,14 +411,16 @@ class TechMicroService(Flask):
                 invocation_type = event['headers'].get('invocationtype')
                 if invocation_type == 'Event':
                     self.store_response(resp, event['headers'])
-                else:
-                    return resp
         except Exception as e:
             if isinstance(e, HTTPException):
-                return self._structured_error(e)
+                resp = self._structured_error(e)
+            else:
+                self.logger.error(f"Error in api handler for {self.name} : {e}")
+                resp = self._structured_error(InternalServerError(original_exception=e))
 
-            self.logger.error(f"Error in api handler for {self.name} : {e}")
-            return self._structured_error(InternalServerError(original_exception=e))
+        if isinstance(resp, Response):
+            self.logger.debug(f"Status code returned by api : {resp.status_code}")
+        return resp
 
     def _flask_handler(self, environ: t.Dict[str, t.Any], start_response: t.Callable[[t.Any], None]):
         """Flask handler.
