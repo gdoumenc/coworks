@@ -19,11 +19,11 @@ from jinja2 import PackageLoader
 from jinja2 import select_autoescape
 from werkzeug.routing import Rule
 
+from coworks.utils import get_app_debug
+from coworks.utils import get_app_workspace
 from .exception import ExitCommand
 from .utils import progressbar
 from .zip import zip_command
-from ..utils import get_app_debug
-from ..utils import get_app_workspace
 
 UID_SEP = '_'
 
@@ -338,7 +338,8 @@ class TerraformCloud:
 # Deploy specific optionsElle est immédiatement opérationnelle et fonctionnell
 @click.option('--binary-media-types')
 @click.option('--cloud', is_flag=True, help="Use cloud workspaces.")
-@click.option('--layers', '-l', multiple=True, help="Add layer (full arn: aws:lambda:...)")
+@click.option('--layers', '-l', multiple=True, required=True,
+              help="Add layer (full arn: aws:lambda:...). Must contains CoWorks at least.")
 @click.option('--memory-size', default=128)
 @click.option('--output', '-o', is_flag=True, help="Print terraform output values.")
 @click.option('--python', '-p', type=click.Choice(['3.7', '3.8']), default='3.8',

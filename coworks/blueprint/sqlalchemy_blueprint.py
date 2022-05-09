@@ -1,4 +1,5 @@
 import os
+from contextlib import contextmanager
 
 from flask_sqlalchemy import SQLAlchemy as FlaskSQLAlchemy
 
@@ -6,7 +7,12 @@ from coworks import Blueprint
 
 
 class SqlAlchemy(Blueprint):
-    SQLALCHEMY_KWARGS = {}
+    """Flask SqlAlchemy blueprint.
+    This blueprint extends Flask-SQLAlchemy in the CowWorks microservice context.
+
+    .. versionchanged:: 0.7.3
+        ``set_schema`` context manager defined for multi-tenancy queries.
+    """
 
     def __init__(self, name='sqlalchemy', env_engine_var_name: str = '',
                  env_url_var_name: str = '', env_dbname_var_name: str = '', env_user_var_name: str = '',
@@ -47,8 +53,18 @@ class SqlAlchemy(Blueprint):
         app.config['SQLALCHEMY_BINDS'] = {}
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-        self.db = FlaskSQLAlchemy(app, **self.SQLALCHEMY_KWARGS)
+        self.db = FlaskSQLAlchemy(app, **self.sqlalchemy_kwargs)
+
+    @property
+    def sqlalchemy_kwargs(self):
+        return {}
 
     @property
     def session(self):
         return self.db.session
+
+    @contextmanager
+    def set_schema(self, schema):
+        """Set default schema for request (default schema is defiend by key None).
+        """
+        yield self.session.connection(execution_options={'schema_translate_map': {None: schema}})

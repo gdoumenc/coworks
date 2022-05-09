@@ -10,6 +10,11 @@ from airflow.operators.branch import BaseBranchOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.http.hooks.http import HttpHook
 
+XCOM_CWS_BUCKET = 'bucket'  # the AWS S3 bucket where the coworks techmicroservice result is stored
+XCOM_CWS_KEY = 'key'  # the AWS S3 key where the coworks techmicroservice result is stored
+XCOM_CWS_NAME = 'cws_name'
+XCOM_STATUS_CODE = 'status_code'
+
 
 class TechMicroServiceOperator(BaseOperator):
     """Microservice operator.
@@ -123,16 +128,16 @@ class TechMicroServiceOperator(BaseOperator):
 
         # Returns values or storing file informations
         if self.xcom_push_flag:
-            self.xcom_push(context, 'cws_name', self.cws_name)
+            self.xcom_push(context, XCOM_CWS_NAME, self.cws_name or self.api_id)
             if not self.asynchronous:
-                self.xcom_push(context, 'status_code', res.status_code)
+                self.xcom_push(context, XCOM_STATUS_CODE, res.status_code)
                 if self.json_result:
                     self.xcom_push(context, 'json', res.json())
                 else:
                     self.xcom_push(context, 'text', res.text)
             else:
-                self.xcom_push(context, 'bucket', self._bucket)
-                self.xcom_push(context, 'key', self._key)
+                self.xcom_push(context, XCOM_CWS_BUCKET, self._bucket)
+                self.xcom_push(context, XCOM_CWS_KEY, self._key)
 
         return res
 
@@ -160,10 +165,11 @@ class BranchTechMicroServiceOperator(BaseBranchOperator):
         self.on_check = on_check
 
     def choose_branch(self, context):
-        service_name = context['ti'].xcom_pull(task_ids=self.cws_task_id, key='name')
+        service_name = context['ti'].xcom_pull(task_ids=self.cws_task_id, key=XCOM_CWS_NAME)
         if not service_name:
-            raise AirflowFailException(f"The TechMicroService {self.cws_task_id} doesn't exist")
-        status_code = int(context['ti'].xcom_pull(task_ids=self.cws_task_id, key='status_code'))
+            msg = f"The TechMicroService {self.cws_task_id} doesn't exist (check the parameter 'cws_task_id')."
+            raise AirflowFailException(msg)
+        status_code = int(context['ti'].xcom_pull(task_ids=self.cws_task_id, key=XCOM_STATUS_CODE))
         logging.info(f"TechMS {service_name} returned code : {status_code}")
         if self.on_failure and status_code >= 400:
             return self.on_failure
@@ -190,8 +196,8 @@ class AsyncTechServicePullOperator(BaseOperator):
 
     def execute(self, context):
         ti = context["ti"]
-        bucket_name = ti.xcom_pull(task_ids=self.cws_task_id, key='bucket')
-        key = ti.xcom_pull(task_ids=self.cws_task_id, key='key')
+        bucket_name = ti.xcom_pull(task_ids=self.cws_task_id, key=XCOM_CWS_BUCKET)
+        key = ti.xcom_pull(task_ids=self.cws_task_id, key=XCOM_CWS_KEY)
         s3 = S3Hook(aws_conn_id=self.aws_conn_id)
         file = s3.download_file(key, bucket_name=bucket_name)
         with open(file, "r") as myfile:
