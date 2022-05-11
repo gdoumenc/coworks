@@ -11,6 +11,7 @@ from pathlib import Path
 import boto3
 from flask import Blueprint as FlaskBlueprint
 from flask import Flask
+from flask import Response
 from flask import current_app
 from flask import json
 from flask.blueprints import BlueprintSetupState
@@ -197,11 +198,6 @@ class TechMicroService(Flask):
         @self.before_request
         def before():
             self._check_token()
-        #     rp = request.path
-        #     if rp != '/' and rp.endswith('/'):
-        #         msg = "Trailing slash avalaible only on deployed version"
-        #         self.logger.error(msg)
-        #         raise HTTPException(msg)
 
     def init_app(self):
         """Called to finalize the application initialization.
@@ -312,9 +308,10 @@ class TechMicroService(Flask):
         May be redefined for another storage in asynchronous call.
         """
 
-        bucket = headers.get(self.config['X-CWS-S3Bucket'].lower())
-        key = headers.get(self.config['X-CWS-S3Key'].lower())
+        bucket = key = ''
         try:
+            bucket = headers.get(self.config['X-CWS-S3Bucket'].lower())
+            key = headers.get(self.config['X-CWS-S3Key'].lower())
             if bucket and key:
                 aws_s3_session = boto3.session.Session()
                 content = json.dumps(resp) if type(resp) is dict else resp
@@ -414,12 +411,16 @@ class TechMicroService(Flask):
                 invocation_type = event['headers'].get('invocationtype')
                 if invocation_type == 'Event':
                     self.store_response(resp, event['headers'])
-                else:
-                    return resp
         except Exception as e:
-            self.logger.error(f"Error in api handler for {self.name} : {e}")
-            error = e if isinstance(e, HTTPException) else InternalServerError(original_exception=e)
-            return self._structured_error(error)
+            if isinstance(e, HTTPException):
+                resp = self._structured_error(e)
+            else:
+                self.logger.error(f"Error in api handler for {self.name} : {e}")
+                resp = self._structured_error(InternalServerError(original_exception=e))
+
+        if isinstance(resp, Response):
+            self.logger.debug(f"Status code returned by api : {resp.status_code}")
+        return resp
 
     def _flask_handler(self, environ: t.Dict[str, t.Any], start_response: t.Callable[[t.Any], None]):
         """Flask handler.
@@ -429,14 +430,18 @@ class TechMicroService(Flask):
 
     def _update_config(self, *, in_lambda: bool):
         if not self._cws_conf_updated:
-            if not in_lambda:
-                workspace = get_app_workspace()
+            workspace = get_app_workspace()
+            config = self.get_config(workspace)
 
+            if not in_lambda:
                 import click
                 click.echo(f" * Workspace: {workspace}")
-
-                config = self.get_config(workspace)
                 config.load_environment_variables(self)
+
+            # Set predefined environment variables
+            self.config['X-CWS-S3Bucket'] = config.bizz_bucket_header_key
+            self.config['X-CWS-S3Key'] = config.bizz_key_header_key
+
             self._cws_conf_updated = True
 
     def _check_token(self):

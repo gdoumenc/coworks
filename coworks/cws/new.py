@@ -3,8 +3,8 @@ from pathlib import Path
 
 import click
 
+from coworks.utils import get_app_debug
 from .utils import progressbar
-from ..utils import get_app_debug
 
 
 @click.command("new", short_help="Creates a new CoWorks project.")

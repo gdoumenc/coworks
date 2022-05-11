@@ -1,4 +1,5 @@
 import os
+import sys
 import typing as t
 from logging import WARNING, getLogger
 from pathlib import Path
@@ -9,22 +10,46 @@ from flask.cli import FlaskGroup
 from flask.cli import ScriptInfo
 
 from coworks import __version__
+from coworks.config import DEFAULT_PROJECT_DIR
+from coworks.utils import get_app_workspace
+from coworks.utils import get_system_info
+from coworks.utils import import_attr
 from .deploy import deploy_command
 from .deploy import deployed_command
 from .new import new_command
 from .zip import zip_command
-from ..config import DEFAULT_PROJECT_DIR
-from ..utils import get_app_workspace
-from ..utils import get_system_info
-from ..utils import import_attr
 
 PROJECT_CONFIG_VERSION = 3
+
+
+class CwsContext(click.Context):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.__project_dir = None
+        self.__project_dir_added = False
+
+    def add_project_dir(self, project_dir):
+        self.__project_dir = project_dir
+
+    def __enter__(self):
+        if self.__project_dir not in sys.path:
+            sys.path.insert(0, self.__project_dir)
+            self.__project_dir_added = True
+        return super().__enter__()
+
+    def __exit__(self, *args):
+        if self.__project_dir_added:
+            sys.path.remove(self.__project_dir)
+            self.__project_dir_added = False
+        super().__exit__(*args)
 
 
 class CoWorksGroup(FlaskGroup):
 
     def __init__(self, add_default_commands=True, **kwargs):
         super().__init__(add_version_option=False, **kwargs)
+        self.context_class = CwsContext
         if add_default_commands:
             self.add_command(t.cast("Command", new_command))
             self.add_command(t.cast("Command", deploy_command))
@@ -32,7 +57,7 @@ class CoWorksGroup(FlaskGroup):
             self.add_command(t.cast("Command", zip_command))
 
     def make_context(self, info_name, args, parent=None, **kwargs):
-        ctx = super().make_context(info_name, args, **kwargs)
+        ctx: CwsContext = t.cast(CwsContext, super().make_context(info_name, args, **kwargs))
 
         # Warning for deprecated options
         if ctx.params.get('workspace'):
@@ -45,25 +70,27 @@ class CoWorksGroup(FlaskGroup):
         config_file_suffix = ctx.params.get('config_file_suffix')
         project_dir = ctx.params.get('project_dir')
         if project_dir:
+            ctx.add_project_dir(project_dir)
             os.environ['INSTANCE_RELATIVE_PATH'] = os.getcwd()
 
         # Adds defined commands from project file
-        project_config = ProjectConfig(project_dir, config_file, config_file_suffix)
-        commands = project_config.get_commands(get_app_workspace())
-        if commands:
-            for name, options in commands.items():
-                cmd_class_name = options.pop('class', None)
-                if cmd_class_name:
-                    splitted = cmd_class_name.split('.')
-                    cmd = import_attr('.'.join(splitted[:-1]), splitted[-1], cwd=project_dir)
+        with ctx:
+            project_config = ProjectConfig(project_dir, config_file, config_file_suffix)
+            commands = project_config.get_commands(get_app_workspace())
+            if commands:
+                for name, options in commands.items():
+                    cmd_class_name = options.pop('class', None)
+                    if cmd_class_name:
+                        splitted = cmd_class_name.split('.')
+                        cmd = import_attr('.'.join(splitted[:-1]), splitted[-1])
 
-                    # Sets option's value as default command param
-                    # (may then be forced in command line or defined by default)
-                    for param in cmd.params:
-                        if param.name in options:
-                            param.default = options.get(param.name)
+                        # Sets option's value as default command param
+                        # (may then be forced in command line or defined by default)
+                        for param in cmd.params:
+                            if param.name in options:
+                                param.default = options.get(param.name)
 
-                    self.add_command(cmd, name)
+                        self.add_command(cmd, name)
 
         return ctx
 

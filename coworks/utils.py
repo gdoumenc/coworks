@@ -112,7 +112,7 @@ def create_rest_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
                         if request.is_json:
                             data = request.get_data()
                             if not data:
-                                kwargs[varkw] = {}
+                                kwargs = {}
                             else:
                                 data = request.json
                                 if type(data) is dict:
@@ -182,11 +182,9 @@ def create_rest_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
     return update_wrapper(proxy, func)
 
 
-def import_attr(module, attr: str, cwd='.'):
+def import_attr(module, attr: str):
     if type(attr) is not str:
         raise AttributeError(f"{attr} is not a string.")
-    if cwd not in sys.path:
-        sys.path.insert(0, cwd)
     app_module = importlib.import_module(module)
     if "PYTEST_CURRENT_TEST" in os.environ:
         app_module = importlib.reload(app_module)

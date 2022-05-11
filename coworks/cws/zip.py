@@ -14,9 +14,9 @@ from shutil import make_archive
 import click
 from flask.cli import pass_script_info
 
+from coworks import aws
+from coworks.utils import get_app_debug
 from .utils import progressbar
-from .. import aws
-from ..utils import get_app_debug
 
 
 @click.command("zip", short_help="Zip all source files to create a Lambda file source.")
