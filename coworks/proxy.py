@@ -8,14 +8,18 @@ class CwsProxy(ABC):
 
     def __init__(self):
         self.__initialized = False
-        self.url = f"https://{self.id}.execute-api.{self.region}.amazonaws.com/{self.stage}"
-        self.headers = {
-            "Authorization": self.token,
-            "Content-Type": self.content_type,
-            "Accept": self.accept,
-        }
+        self.url = self.headers = None
 
     def call(self, method, path, **kwargs):
+        if not self.__initialized:
+            self.url = f"https://{self.id}.execute-api.{self.region}.amazonaws.com/{self.stage}"
+            self.headers = {
+                "Authorization": self.token,
+                "Content-Type": self.content_type,
+                "Accept": self.accept,
+            }
+            self.__initialized = True
+
         return requests.request(method, f"{self.url}{path}", headers=self.headers, **kwargs)
 
     @property
