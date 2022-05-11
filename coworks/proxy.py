@@ -5,6 +5,11 @@ import requests
 
 
 class CwsProxy(ABC):
+    """Abstract proxy class to call CoWorks TechnMicroService.
+    
+    .. versionchanged:: 0.7.3
+        Added in this version.
+    """
 
     def __init__(self):
         self.__initialized = False
