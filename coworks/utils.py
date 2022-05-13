@@ -13,6 +13,7 @@ from flask import make_response
 from flask.blueprints import BlueprintSetupState
 from werkzeug.datastructures import Headers
 from werkzeug.exceptions import BadRequest
+from werkzeug.exceptions import UnprocessableEntity
 from werkzeug.exceptions import HTTPException
 
 from .config import DEFAULT_DEV_WORKSPACE
@@ -85,7 +86,7 @@ def create_rest_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
                 if param_name not in kwarg_keys and varkw is None:
                     _err_msg = f"TypeError: got an unexpected keyword argument '{param_name}'"
                     current_app.logger.error(_err_msg)
-                    raise BadRequest(_err_msg)
+                    raise UnprocessableEntity(_err_msg)
 
             def as_fun_params(values: dict, flat=True):
                 """Set parameters as simple value or list of values if multiple defined.
@@ -132,23 +133,23 @@ def create_rest_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
                     except Exception as e:
                         current_app.logger.error(traceback.print_exc())
                         current_app.logger.error(e)
-                        raise BadRequest(str(e))
+                        raise UnprocessableEntity(str(e))
 
                 else:
                     err_msg = f"Keyword arguments are not permitted for {request.method} method."
                     current_app.logger.error(err_msg)
-                    raise BadRequest(err_msg)
+                    raise UnprocessableEntity(err_msg)
 
             else:
                 if not args:
                     if request.content_length:
                         err_msg = f"TypeError: got an unexpected arguments (body: {request.json})"
                         current_app.logger.error(err_msg)
-                        raise BadRequest(err_msg)
+                        raise UnprocessableEntity(err_msg)
                     if request.query_string:
                         err_msg = f"TypeError: got an unexpected arguments (query: {request.query_string})"
                         current_app.logger.error(err_msg)
-                        raise BadRequest(err_msg)
+                        raise UnprocessableEntity(err_msg)
 
             kwargs = as_typed_kwargs(func, kwargs)
             resp = func(scaffold, **kwargs)

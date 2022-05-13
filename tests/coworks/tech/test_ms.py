@@ -107,7 +107,7 @@ class TestClass:
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "post content with 3 and other"
             response = c.post('/content/3', json={"other": 'other', "value": 5}, headers={'Authorization': 'token'})
-            assert response.status_code == 400
+            assert response.status_code == 422
 
     def test_request_kwargs(self):
         app = SimpleMS()
@@ -116,7 +116,7 @@ class TestClass:
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "get **param with only 5"
             response = c.get('/kwparam1?other=other&value=5', headers={'Authorization': 'token'})
-            assert response.status_code == 400
+            assert response.status_code == 422
             response = c.get('/kwparam1?value=5', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "get **param with only 5"

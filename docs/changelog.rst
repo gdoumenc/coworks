@@ -13,6 +13,7 @@ First released 2022-03-28
 * Better client itegration.
 * Doc in progress.
 * Workspace command option replaced by FLASK_ENV
+* Proxy class defined
 
 Version 0.6
 ^^^^^^^^^^^

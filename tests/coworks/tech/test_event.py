@@ -71,7 +71,7 @@ class TestClass:
             assert response['statusCode'] == 200
             assert response['body'] == "post content with 3 and other"
             response = app(get_event('/content/3', 'post', body={"other": 'other', "value": 5}), empty_context)
-            assert response['statusCode'] == 400
+            assert response['statusCode'] == 422
 
     def test_request_kwargs(self, empty_context):
         app = SimpleMS()
@@ -80,7 +80,7 @@ class TestClass:
             assert response['statusCode'] == 200
             assert response['body'] == "get **param with only 5"
             response = app(get_event('/kwparam1', 'get', params={"other": ['other'], "value": [5]}), empty_context)
-            assert response['statusCode'] == 400
+            assert response['statusCode'] == 422
             response = app(get_event('/kwparam1', 'get', params={"value": [5]}), empty_context)
             assert response['statusCode'] == 200
             assert response['body'] == "get **param with only 5"
