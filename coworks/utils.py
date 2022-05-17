@@ -13,8 +13,8 @@ from flask import make_response
 from flask.blueprints import BlueprintSetupState
 from werkzeug.datastructures import Headers
 from werkzeug.exceptions import BadRequest
-from werkzeug.exceptions import UnprocessableEntity
 from werkzeug.exceptions import HTTPException
+from werkzeug.exceptions import UnprocessableEntity
 
 from .config import DEFAULT_DEV_WORKSPACE
 from .globals import request
@@ -142,14 +142,20 @@ def create_rest_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
 
             else:
                 if not args:
-                    if request.content_length:
-                        err_msg = f"TypeError: got an unexpected arguments (body: {request.json})"
-                        current_app.logger.error(err_msg)
-                        raise UnprocessableEntity(err_msg)
-                    if request.query_string:
-                        err_msg = f"TypeError: got an unexpected arguments (query: {request.query_string})"
-                        current_app.logger.error(err_msg)
-                        raise UnprocessableEntity(err_msg)
+                    try:
+                        if request.content_length:
+                            if request.is_json and request.json:
+                                err_msg = f"TypeError: got an unexpected arguments (body: {request.json})"
+                                current_app.logger.error(err_msg)
+                                raise UnprocessableEntity(err_msg)
+                        if request.query_string:
+                            err_msg = f"TypeError: got an unexpected arguments (query: {request.query_string})"
+                            current_app.logger.error(err_msg)
+                            raise UnprocessableEntity(err_msg)
+                    except (Exception,) as e:
+                        current_app.logger.error(f"Should not go here (1) : {str(e)}")
+                        current_app.logger.error(f"Should not go here (2) : {request.get_data()}")
+                        current_app.logger.error(f"Should not go here (3) : {kwargs}")
 
             kwargs = as_typed_kwargs(func, kwargs)
             resp = func(scaffold, **kwargs)
@@ -288,16 +294,34 @@ def check_success(resp):
 
 
 def as_typed_kwargs(func, kwargs):
+    def get_typed_value(tp, val):
+        origin = t.get_origin(tp)
+        if origin is None:
+            if tp is bool:
+                return val.lower() in ['true', '1', 'yes']
+            return tp(val)
+        if origin is list:
+            arg = t.get_args(tp)[0]
+            if type(val) is list:
+                return [arg(v) for v in val]
+            return [arg(val)]
+        if origin is t.Union:
+            for arg in t.get_args(tp):
+                try:
+                    return get_typed_value(arg, val)
+                except (TypeError, ValueError):
+                    pass
+            raise TypeError()
+
     typed_kwargs = {**kwargs}
     try:
         hints = t.get_type_hints(func)
         for name, value in kwargs.items():
-            hints_type = hints.get(name)
             try:
-                typed_kwargs[name] = hints_type(value)
-            except TypeError:
+                typed_kwargs[name] = get_typed_value(hints.get(name), value)
+            except (TypeError, ValueError):
                 pass
-    except TypeError:
+    except (Exception,):
         pass
     return typed_kwargs
 

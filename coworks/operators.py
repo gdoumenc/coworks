@@ -6,6 +6,7 @@ from json import loads
 import requests
 from airflow.exceptions import AirflowFailException
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.operators.branch import BaseBranchOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.http.hooks.http import HttpHook
@@ -32,7 +33,7 @@ class TechMicroServiceOperator(BaseOperator):
     :param directory_conn_id: Connection defined for the directory service (default 'coworks_directory').
     :param asynchronous: Asynchronous call (default False).
     :param xcom_push: Pushes result in XCom (default True).
-    :param json_result: Returns a JSON value in 'json' key instead of 'text' (default False).
+    :param json_result: Returns a JSON value in 'json' key instead of 'return_value' (default False).
     :param raise_400_errors: raise error on client 400 errors (default True).
     :param accept: accept header value (default 'application/json').
     :param headers: specific header values forced (default {}).
@@ -134,7 +135,7 @@ class TechMicroServiceOperator(BaseOperator):
                 if self.json_result:
                     self.xcom_push(context, 'json', res.json())
                 else:
-                    self.xcom_push(context, 'text', res.text)
+                    self.xcom_push(context, XCOM_RETURN_KEY, res.text)
             else:
                 self.xcom_push(context, XCOM_CWS_BUCKET, self._bucket)
                 self.xcom_push(context, XCOM_CWS_KEY, self._key)
@@ -176,7 +177,7 @@ class BranchTechMicroServiceOperator(BaseBranchOperator):
         if self.on_no_content and status_code == 204:
             return self.on_no_content
         if self.on_check and self.response_check:
-            text = int(context['ti'].xcom_pull(task_ids=self.cws_task_id, key='text'))
+            text = int(context['ti'].xcom_pull(task_ids=self.cws_task_id))
             if self.response_check(text):
                 return self.on_check
         return self.on_success
@@ -203,8 +204,8 @@ class AsyncTechServicePullOperator(BaseOperator):
         with open(file, "r") as myfile:
             data = myfile.read()
         payload = loads(data)
-        if payload['statusCode'] != 200:
-            raise AirflowFailException("TechMicroService doesn't complete successfully")
+        if payload['statusCode'] >= 300:
+            raise AirflowFailException(f"TechMicroService doesn't complete successfully: {payload['statusCode']}")
         if payload['isBase64Encoded']:
             return base64.b64decode(payload['body'])
         return payload['body']

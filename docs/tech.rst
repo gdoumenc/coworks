@@ -140,19 +140,27 @@ This is useful for offering a CRUD microservice:
 Typed parameters
 ^^^^^^^^^^^^^^^^
 
-You can specify the type of your URI parameters or data query in order to use native built-in types (other than the default of string).
+You can specify the type of your URI parameters or data query in order to get more control on your parameters.
+You can use basic types, List, or Union.
 
 .. code-block:: python
 
 	@entry
   # id of type int
 	def get(self, id:int):
-		return f"the type of id is {type(id)}"
+		return f"the type of id is int: {type(id)}"
 
 	@entry
-  # id of type int with default value None
-	def get_(self, id:int = None):
-		return f"the type of id is {type(id)}"
+  # flag of type bool with default value None
+	def get_(self, flag:bool = None):
+	    """Take care True for 'true', '1' or 'yes' values, not bool(str)."""
+		return f"the type of flag is bool : {type(id)}"
+
+	@entry
+  # ids of type list(int) with default value None
+	def get_(self, ids:List[int] = None):
+	    """Avoid o deal with one id or more ids."""
+		return f"the type of id is list of int : {type(id)}"
 
 
 Query or body parameters

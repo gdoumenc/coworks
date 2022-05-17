@@ -420,6 +420,7 @@ class TechMicroService(Flask):
 
         if isinstance(resp, Response):
             self.logger.debug(f"Status code returned by api : {resp.status_code}")
+        self.logger.debug("API returns")
         return resp
 
     def _flask_handler(self, environ: t.Dict[str, t.Any], start_response: t.Callable[[t.Any], None]):
@@ -477,7 +478,7 @@ class TechMicroService(Flask):
         body = event['body']
         if body and is_encoded:
             body = self.base64decode(body)
-        self.logger.debug(f"Body: {body}")
+        self.logger.debug(f"Body: {body} {type(body)}")
 
         if is_json(content_type):
             kwargs['json'] = body
