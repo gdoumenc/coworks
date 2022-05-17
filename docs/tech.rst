@@ -137,32 +137,6 @@ This is useful for offering a CRUD microservice:
 	def put(self, id, data):
 		return f"modifies an instance identified by {id} with {data}"
 
-Typed parameters
-^^^^^^^^^^^^^^^^
-
-You can specify the type of your URI parameters or data query in order to get more control on your parameters.
-You can use basic types, List, or Union.
-
-.. code-block:: python
-
-	@entry
-  # id of type int
-	def get(self, id:int):
-		return f"the type of id is int: {type(id)}"
-
-	@entry
-  # flag of type bool with default value None
-	def get_(self, flag:bool = None):
-	    """Take care True for 'true', '1' or 'yes' values, not bool(str)."""
-		return f"the type of flag is bool : {type(id)}"
-
-	@entry
-  # ids of type list(int) with default value None
-	def get_(self, ids:List[int] = None):
-	    """Avoid o deal with one id or more ids."""
-		return f"the type of id is list of int : {type(id)}"
-
-
 Query or body parameters
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -209,6 +183,32 @@ For more information on how to use keyword arguments in Python, see `this useful
 **Note**: The current implementation doesn't take into account the typing of the entry point function parameters
 (forcasted in a future release).
 So all query parameters are from type ``string``. If you want to pass typed or structured values, use the JSON mode.
+
+Typed parameters
+^^^^^^^^^^^^^^^^
+
+You can specify the type of your URI parameters or data query in order to get more control on your parameters.
+You can use basic types, List, or Union.
+
+.. code-block:: python
+
+	@entry
+  # id of type int
+	def get(self, id:int):
+		return f"the type of id is int: {type(id)}"
+
+	@entry
+  # flag of type bool with default value None
+	def get_(self, flag:bool = None):
+	    """Take care True for 'true', '1' or 'yes' values, not bool(str)."""
+		return f"the type of flag is bool : {type(flag)}"
+
+	@entry
+  # ids of type list(int) with default value None
+	def get_(self, ids:List[int] = None):
+	    """Avoid to deal with one id or more ids, always a list."""
+		return f"the type of ids is list of int : {type(ids)}"
+
 
 Entrypoints
 ^^^^^^^^^^^
