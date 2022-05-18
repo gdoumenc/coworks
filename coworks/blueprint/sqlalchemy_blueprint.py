@@ -67,4 +67,8 @@ class SqlAlchemy(Blueprint):
     def set_schema(self, schema):
         """Set default schema for request (default schema is defiend by key None).
         """
-        yield self.session.connection(execution_options={'schema_translate_map': {None: schema}})
+
+        try:
+            yield self.session.connection(execution_options={'schema_translate_map': {None: schema}})
+        finally:
+            self.session.close()
