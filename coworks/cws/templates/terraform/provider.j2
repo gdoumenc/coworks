@@ -1,7 +1,7 @@
 provider "aws" {
   alias = "{{ resource_name }}"
   profile = "{{ profile_name }}"
-  region = "{{ aws_region }}"
+  region = "{{ aws_region or "eu-west-1" }}"
 
   default_tags {
     tags = {
@@ -10,4 +10,11 @@ provider "aws" {
       Stage = "{{ workspace }}"
     }
   }
+}
+
+data "aws_caller_identity" "current" {}
+
+locals {
+  account_id = data.aws_caller_identity.current.account_id
+  region = "{{ aws_region or "eu-west-1" }}"
 }
