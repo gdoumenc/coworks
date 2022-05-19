@@ -26,7 +26,7 @@ from .utils import progressbar
 @click.option('--ignore', '-i', multiple=True, help="Ignore pattern.")
 @click.option('--key', '-k', help="Sources zip file bucket's name.")
 @click.option('--module_name', '-m', multiple=True, help="Python module added from current pyenv (module or file.py).")
-@click.option('--profile_name', '-p', required=True, help="AWS credential profile.")
+@click.option('--profile_name', '-pn', required=True, help="AWS credential profile.")
 @click.pass_context
 @pass_script_info
 def zip_command(info, ctx, bucket, dry, hash, ignore, module_name, key, profile_name) -> None:
