@@ -1,8 +1,9 @@
-import click
 import typing as t
 from contextlib import contextmanager
 from threading import Thread
 from time import sleep
+
+import click
 
 
 class ProgressBar:
@@ -19,10 +20,10 @@ class ProgressBar:
         click.echo()
         self.bar.format_progress_line = swap
 
-    def update(self, n_steps: int = 1, *, msg: str = None):
+    def update(self, msg: str = None):
         if msg:
             self.echo(msg)
-        self.bar.update(n_steps)
+        self.bar.update(1)
 
     def terminate(self, msg=None):
         self.stop = True
@@ -36,18 +37,22 @@ class ProgressBar:
 
 @contextmanager
 def progressbar(length=200, *, threaded=False, label: str = None) -> t.ContextManager[ProgressBar]:
-    with click.progressbar(range(length - 1), label=label, show_eta=False) as bar:
-        pg = ProgressBar(bar)
-        if threaded:
+    try:
+        with click.progressbar(range(length - 1), label=label, show_eta=False) as bar:
+            pb = ProgressBar(bar)
+            if threaded:
 
-            def display_spinning_cursor():
-                while not pg.stop:
-                    sleep(1)
-                    pg.update()
+                def display_spinning_cursor():
+                    while not pb.stop:
+                        sleep(1)
+                        if not pb.stop:
+                            pb.update()
 
-            spin_thread = Thread(target=display_spinning_cursor)
-            spin_thread.start()
-            pg.spin_thread = spin_thread
-        yield pg
-        if not pg.stop:
-            pg.terminate()
+                spin_thread = Thread(target=display_spinning_cursor)
+                spin_thread.start()
+                pb.spin_thread = spin_thread
+            yield pb
+            if not pb.stop:
+                pb.terminate()
+    except (Exception,):
+        pb.stop = True
