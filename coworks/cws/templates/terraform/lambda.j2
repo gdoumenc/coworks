@@ -17,6 +17,14 @@ data "aws_s3_object" "{{ resource_name }}-b64sha256" {
   key = "{{ key }}.b64sha256"
 }
 
+{% if layers -%}
+data "aws_lambda_layer_version" "{{ resource_name }}" {
+  provider = aws.{{ resource_name }}
+  for_each = {for layer_name in [{% for layer in layers %}"{{ layer }}",{% endfor %}]: layer_name => layer_name}
+  layer_name = each.value
+}
+{%- endif %}
+
 {% if environment_variable_files -%}
 data "local_file" "{{ resource_name }}_environment_variables_files" {
   for_each = local.{{ resource_name }}_when_stage == 1 ? {for envar_file in {{ environment_variable_files | tojson }}: envar_file => envar_file} : {}
@@ -35,7 +43,7 @@ resource "aws_lambda_function" "{{ resource_name }}" {
   handler = "{{ app_import_path }}"
   description = "{{ description | replace("\n", "\\n") }}"
   {%- if layers %}
-  layers = [{% for  layer in layers %}"{{ layer }}",{% endfor %}]
+  layers = [for layer in data.aws_lambda_layer_version.{{ resource_name }} : layer.arn]
   {%- endif %}
   runtime = "python{{ python }}"
   timeout = {{ timeout }}
