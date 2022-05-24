@@ -25,7 +25,7 @@ class TechMicroServiceOperator(BaseOperator):
     :param entry: the route entry.
     :param method: the route method ('GET', 'POST').
     :param no_auth: set to 'True' if no authorization is needded (default 'False').
-    :param data: data for GET method.
+    :param data: data for GET method (use data keyword as request 'params' keyword is used in Airflow)
     :param json: data for POST method.
     :param stage: the microservice stage (default 'dev' if 'cws_name' not defined).
     :param api_id: APIGateway id (must be defined if no 'cws_name').
@@ -33,7 +33,8 @@ class TechMicroServiceOperator(BaseOperator):
     :param directory_conn_id: Connection defined for the directory service (default 'coworks_directory').
     :param asynchronous: Asynchronous call (default False).
     :param xcom_push: Pushes result in XCom (default True).
-    :param json_result: Returns a JSON value in 'json' key instead of 'return_value' (default False).
+    :param json_result: Returns a JSON value in 'json' key instead of 'return_value' (used only is synchronous,
+                        default False).
     :param raise_400_errors: raise error on client 400 errors (default True).
     :param accept: accept header value (default 'application/json').
     :param headers: specific header values forced (default {}).
