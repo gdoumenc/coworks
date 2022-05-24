@@ -355,9 +355,6 @@ class TechMicroService(Flask):
     def _lambda_handler(self, event: t.Dict[str, t.Any], context: t.Dict[str, t.Any]):
         """Lambda handler.
         """
-        self.logger.debug(f"Event: {event}")
-        self.logger.debug(f"Context: {context}")
-
         if event.get('type') == 'TOKEN':
             return self._token_handler(event, context)
         return self._api_handler(event, context)
@@ -365,7 +362,7 @@ class TechMicroService(Flask):
     def _token_handler(self, event: t.Dict[str, t.Any], context: t.Dict[str, t.Any]) -> dict:
         """Authorization token handler.
         """
-        self.logger.debug(f"Calling {self.name} for authorization : {event}")
+        self.logger.info(f"Calling {self.name} for authorization : {event}")
 
         try:
             res = self.token_authorizer(event['authorizationToken'])
@@ -378,7 +375,7 @@ class TechMicroService(Flask):
     def _api_handler(self, event: t.Dict[str, t.Any], context: t.Dict[str, t.Any]) -> dict:
         """API handler.
         """
-        self.logger.debug(f"Calling {self.name} by api : {event}")
+        self.logger.info(f"Calling {self.name} by api : {event}")
 
         def full_path():
             url = event['path']
