@@ -218,7 +218,6 @@ class TerraformLocal:
         project_dir = options['project_dir']
         workspace = get_app_workspace()
         debug = get_app_debug()
-        profile_name = options['profile_name']
 
         if debug:
             app_name = self.app_context.app.name
