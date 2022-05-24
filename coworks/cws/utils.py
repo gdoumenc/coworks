@@ -37,6 +37,9 @@ class ProgressBar:
 
 @contextmanager
 def progressbar(length=200, *, threaded=False, label: str = None) -> t.ContextManager[ProgressBar]:
+    """Spinner progress bar.
+    Creates it with a task label and updates it with progress messages using the 'update' function.
+    """
     try:
         with click.progressbar(range(length - 1), label=label, show_eta=False) as bar:
             pb = ProgressBar(bar)
@@ -54,5 +57,7 @@ def progressbar(length=200, *, threaded=False, label: str = None) -> t.ContextMa
             yield pb
             if not pb.stop:
                 pb.terminate()
-    except (Exception,):
+    except (Exception,) as e:
+        print(f"{type(e).__name__}: {str(e)}")
+    finally:
         pb.stop = True

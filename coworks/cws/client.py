@@ -15,6 +15,7 @@ from coworks.utils import get_app_workspace
 from coworks.utils import get_system_info
 from coworks.utils import import_attr
 from .deploy import deploy_command
+from .deploy import destroy_command
 from .deploy import deployed_command
 from .new import new_command
 from .zip import zip_command
@@ -53,6 +54,7 @@ class CoWorksGroup(FlaskGroup):
         if add_default_commands:
             self.add_command(t.cast("Command", new_command))
             self.add_command(t.cast("Command", deploy_command))
+            self.add_command(t.cast("Command", destroy_command))
             self.add_command(t.cast("Command", deployed_command))
             self.add_command(t.cast("Command", zip_command))
 

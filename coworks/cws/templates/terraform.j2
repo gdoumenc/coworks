@@ -1,0 +1,63 @@
+{% if terraform_cloud %}
+# ---------------------------------------------------------------------------------------------------------------------
+# TERRAFORM ON CLOUD
+# ---------------------------------------------------------------------------------------------------------------------
+
+terraform {
+  backend "remote" {
+    organization = "FPR"
+
+    workspaces {
+      name = "{{ ms_name }}{{ stage }}"
+    }
+  }
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 4.12.0"
+    }
+  }
+}
+
+variable "AWS_ACCESS_KEY_ID" {}
+variable "AWS_SECRET_ACCESS_KEY" {}
+variable "AWS_REGION" {}
+variable "TFC_WORKSPACE_NAME" {}
+
+provider "aws" {
+  access_key = var.AWS_ACCESS_KEY_ID
+  secret_key = var.AWS_SECRET_ACCESS_KEY
+  region     = var.AWS_REGION
+
+  default_tags {
+    tags = {
+      Creator = "terraform"
+      Stage = "{{ stage }}"
+    }
+  }
+}
+
+data "aws_caller_identity" "current" {}
+
+locals {
+  account_id = data.aws_caller_identity.current.account_id
+{%- if profile_name %}
+  region = "{{ aws_region }}"
+{% else %}
+  region = var.AWS_REGION
+{%- endif %}
+}
+{%  else  %}
+# ---------------------------------------------------------------------------------------------------------------------
+# TERRAFORM ON LOCAL
+# ---------------------------------------------------------------------------------------------------------------------
+
+locals {
+  account_id = "{{ aws_account }}"
+{%- if profile_name %}
+  region = "{{ aws_region }}"
+{%- else %}
+  region = var.AWS_REGION
+{%- endif %}
+}
+{%- endif %}

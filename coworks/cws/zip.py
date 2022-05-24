@@ -38,11 +38,12 @@ def zip_command(info, ctx, bucket, dry, hash, ignore, module_name, key, profile_
     aws_s3_session = aws.AwsS3Session(profile_name=profile_name)
     module_name = module_name or []
 
-    with progressbar(3, label='Copy files to S3') as bar:
-        key = key if key else info.load_app().name
+    app = info.load_app()
+    with progressbar(3, label='Copy files to S3',  threaded=not app.debug) as bar:
+        key = key if key else app.name
         if debug:
             where = f"{bucket}/{key}"
-            bar.echo(f"Uploading zip sources of {info.load_app()} at s3:{where} {'(not done)' if dry else ''}")
+            bar.echo(f"Uploading zip sources of {app} at s3:{where} {'(not done)' if dry else ''}")
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
