@@ -139,7 +139,6 @@ class ProjectConfig:
             for cmd, options in specific_workspace_commands.items():
                 commands[cmd].update(options)
 
-        print(commands)
         return commands
 
     @staticmethod
