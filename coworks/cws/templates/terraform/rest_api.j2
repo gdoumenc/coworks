@@ -1,5 +1,5 @@
 locals {
-  authorizer_uri = "arn:aws:apigateway:${local.region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${local.region}:${local.account_id}:function:{{ resource_name }}-$${stageVariables.stage}/invocations"
+  {{ resource_name }}_authorizer_uri = "arn:aws:apigateway:${local.region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${local.region}:${local.account_id}:function:{{ resource_name }}-$${stageVariables.stage}/invocations"
   {{ resource_name }}_api_arn = join("", aws_api_gateway_rest_api.{{ resource_name }}.*.arn, data.aws_api_gateway_rest_api.{{ resource_name }}.*.arn)
   {{ resource_name }}_api_id = join("", aws_api_gateway_rest_api.{{ resource_name }}.*.id, data.aws_api_gateway_rest_api.{{ resource_name }}.*.id)
   {{ resource_name }}_api_root_id = join("", aws_api_gateway_rest_api.{{ resource_name }}.*.root_resource_id, data.aws_api_gateway_rest_api.{{ resource_name }}.*.root_resource_id)
@@ -36,7 +36,7 @@ resource "aws_api_gateway_authorizer" "{{ resource_name }}" {
   count = {{ "local.{}_when_default".format(resource_name) }}
   name = "{{ resource_name }}-auth"
   rest_api_id = local.{{ resource_name }}_api_id
-  authorizer_uri = local.authorizer_uri
+  authorizer_uri = local.{{ resource_name }}_authorizer_uri
   authorizer_result_ttl_in_seconds = 0
 }
 
@@ -93,7 +93,7 @@ resource "aws_api_gateway_integration" "{{ resource_name }}_{{ uid }}_{{ method 
   http_method = "{{ method }}"
   integration_http_method = "POST"
   type = "AWS"
-  uri = local.authorizer_uri
+  uri = local.{{ resource_name }}_authorizer_uri
   passthrough_behavior = "NEVER"
   content_handling = "CONVERT_TO_TEXT"
   request_parameters = {
