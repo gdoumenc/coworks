@@ -95,11 +95,12 @@ Example of a `project.cws.yml` file:
           - arn:aws:lambda:eu-west-1:935392763270:layer:coworks-0.6.8
     workspaces:
       dev:
-        run:
-          port: 8000
-        deploy:
-          layers:
-            - arn:aws:lambda:eu-west-1:935392763270:layer:coworks-dev
+        commands:
+          run:
+            port: 8000
+          deploy:
+            layers:
+              - arn:aws:lambda:eu-west-1:935392763270:layer:coworks-dev
 
 Structure
 *********

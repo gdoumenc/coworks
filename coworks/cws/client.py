@@ -136,8 +136,10 @@ class ProjectConfig:
         workspaces = self.params.get('workspaces', {})
         if workspace in workspaces:
             specific_workspace_commands = workspaces[workspace].get('commands', {})
-            commands.update(specific_workspace_commands)
+            for cmd, options in specific_workspace_commands.items():
+                commands[cmd].update(options)
 
+        print(commands)
         return commands
 
     @staticmethod
