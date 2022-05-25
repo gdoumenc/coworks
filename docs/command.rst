@@ -81,9 +81,9 @@ The "deploy" command
 
 The ``deploy`` command is defined to deploy the microservice on the AWS plateform.
 
-This is done by creating terraform files from templates. You can override those templates or add new files if
-needed to enhance the deployment process.
+This is done by creating terraform files from jinja template files. You can override those templates or add new files
+if you needed to enhance the deployment process.
 
-This command may be used to deal with complex deployments, mainly for staging or respecting infrastucture constraints.
+This command may be used to deal with complex deployments, mainly for staging or respecting infrastucture constraints
+or processes.
 
-A more complete usage of this command is explained in the :ref:`tech_deployment` chapter.
