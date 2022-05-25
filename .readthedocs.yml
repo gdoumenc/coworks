@@ -9,7 +9,7 @@ python:
   install:
     - requirements: docs/requirements.txt
     - method: pip
-      path: .readthedoc configuration python version
+      path: .
       
 
 sphinx:
