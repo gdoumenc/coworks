@@ -3,7 +3,7 @@
 Commands
 ========
 
-Coworks allows you to extend the ``cws`` application with commands. This powerfull extension is very usefull
+CoWorks allows you to extend the ``cws`` application with commands. This powerfull extension is very usefull
 for complex deployment, testing or documentation.
 
 As explained before, the microservice architecture needs to be completed by tools. The ``cws`` command line is

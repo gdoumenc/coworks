@@ -3,7 +3,7 @@
 TechMS
 ======
 
-TechMicroservices are the 'atoms' of the Coworks microservices framework. They represent the building blocks
+TechMicroservices are the 'atoms' of the CoWorks microservices framework. They represent the building blocks
 for other more complex 'compound' microservices.
 
 Defining Tech Microservices
@@ -317,7 +317,7 @@ Blueprints
 Blueprints
 ^^^^^^^^^^
 
-Coworks blueprints are used to add to your application more routes deriving from logical components.
+CoWorks blueprints are used to add to your application more routes deriving from logical components.
 Blueprints allow you to complete your microservices with transversal functionalities.
 
 Blueprints are a part of Flask. To learn more about how Blueprints are implemented and used in Flask,
@@ -327,7 +327,7 @@ Blueprint Registration
 **********************
 
 Blueprints are defined similarly to microservice classes. However, they will instead
-inherit from the coworks implementation of the ``Blueprint`` object.
+inherit from the CoWorks implementation of the ``Blueprint`` object.
 
 Methods within the class should still be decorated with ``@entry``.
 
@@ -363,7 +363,7 @@ The admin blueprint adds the following routes:
 ``/route``
 
 	List all the routes of the microservice with the signature extracted from its associated function
-    (similar to the coworks ``route`` command).
+    (similar to the CoWorks ``route`` command).
 
 ``/context``
 

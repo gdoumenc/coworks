@@ -3,7 +3,7 @@
 Samples
 ========
 
-Developers love sample applications. In this part, we will show you how to use the Coworks framework to :
+Developers love sample applications. In this part, we will show you how to use the CoWorks framework to :
 
  * Create a website with content defined in the CosmisJS headless tool
  * Create a simple dashboard with ODOO as data source.
@@ -14,7 +14,7 @@ CosmicJS is an awesome headless CMS. Easy to use, intuitive and efficient. This 
 template engine to construct dynamic pages from CosmicJS content. At least we will use Cloud Front the AWS CDN tool
 to provide a efficient plateform.
 
-Fist verify that Coworks is installed::
+Fist verify that CoWorks is installed::
 
     $ cws --version
 
