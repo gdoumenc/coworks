@@ -1,6 +1,7 @@
 import base64
 import logging
 import typing as t
+from json import JSONDecodeError
 from json import loads
 
 import requests
@@ -33,8 +34,7 @@ class TechMicroServiceOperator(BaseOperator):
     :param directory_conn_id: Connection defined for the directory service (default 'coworks_directory').
     :param asynchronous: Asynchronous call (default False).
     :param xcom_push: Pushes result in XCom (default True).
-    :param json_result: Returns a JSON value in 'json' key instead of 'return_value' (used only is synchronous,
-                        default False).
+    :param json_result: Returns a JSON value in 'return_value' (default True).
     :param raise_400_errors: raise error on client 400 errors (default True).
     :param accept: accept header value (default 'application/json').
     :param headers: specific header values forced (default {}).
@@ -43,11 +43,11 @@ class TechMicroServiceOperator(BaseOperator):
     template_fields = ["cws_name", "entry", "data", "json", "asynchronous"]
 
     def __init__(self, *, cws_name: str = None, entry: str = None, method: str = None, no_auth: bool = False,
-                 data: dict = None, json: dict = None, stage: str = None, api_id: str = None, token: str = None,
+                 data: t.Union[dict, str] = None, json: t.Union[dict, str] = None,
+                 stage: str = None, api_id: str = None, token: str = None,
                  directory_conn_id: str = 'coworks_directory', asynchronous: bool = False,
-                 xcom_push=True, json_result=False,
-                 raise_400_errors: bool = True, accept='application/json', headers=None,
-                 log_response: bool = False,
+                 xcom_push=True, json_result=True, raise_400_errors: bool = True, accept='application/json',
+                 headers=None, log_response: bool = False,
                  **kwargs) -> None:
         super().__init__(**kwargs)
         self.cws_name = cws_name
@@ -120,28 +120,66 @@ class TechMicroServiceOperator(BaseOperator):
 
         # Manages status
         if self.raise_400_errors and res.status_code >= 400:
+            logging.error(f"Bad request: {res.text}'")
             raise AirflowFailException(f"The TechMicroService {self.cws_name} had a client error {res.status_code}!")
         if res.status_code >= 500:
-            logging.error(f"Bad request: {res.text}'")
+            logging.error(f"Internal error: {res.text}'")
             raise AirflowFailException(f"The TechMicroService {self.cws_name} had an internal error {res.status_code}!")
 
         if self.log_response:
             logging.info(res.text)
 
-        # Returns values or storing file informations
+        # Return values or store file information
         if self.xcom_push_flag:
             self.xcom_push(context, XCOM_CWS_NAME, self.cws_name or self.api_id)
             if not self.asynchronous:
-                self.xcom_push(context, XCOM_STATUS_CODE, res.status_code)
                 if self.json_result:
-                    self.xcom_push(context, 'json', res.json())
+                    try:
+                        returned_value = res.json() if res.content else {}
+                    except JSONDecodeError:
+                        logging.error(f"Not a JSON value: {res.text}'")
+                        returned_value = res.text
                 else:
-                    self.xcom_push(context, XCOM_RETURN_KEY, res.text)
+                    returned_value = res.text
+                self.xcom_push(context, XCOM_STATUS_CODE, res.status_code)
+                self.xcom_push(context, XCOM_RETURN_KEY, returned_value)
             else:
                 self.xcom_push(context, XCOM_CWS_BUCKET, self._bucket)
                 self.xcom_push(context, XCOM_CWS_KEY, self._key)
 
         return res
+
+
+class AsyncTechServicePullOperator(BaseOperator):
+    """Pull in XCom a microservice result when its was called asynchronously.
+
+    :param cws_task_id: the tech microservice called asynchronously.
+    :param aws_conn_id: aws connection (default 'aws_s3').
+    """
+
+    def __init__(self, *, cws_task_id: str = None, aws_conn_id: str = 'aws_s3', **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.cws_task_id = cws_task_id
+        self.aws_conn_id = aws_conn_id
+
+    def execute(self, context):
+        ti = context["ti"]
+
+        # Reads bucket file content
+        bucket_name = ti.xcom_pull(task_ids=self.cws_task_id, key=XCOM_CWS_BUCKET)
+        key = ti.xcom_pull(task_ids=self.cws_task_id, key=XCOM_CWS_KEY)
+        s3 = S3Hook(aws_conn_id=self.aws_conn_id)
+        file = s3.download_file(key, bucket_name=bucket_name)
+        with open(file, "r") as myfile:
+            data = myfile.read()
+        payload = loads(data)
+
+        if payload['statusCode'] >= 300:
+            raise AirflowFailException(f"TechMicroService doesn't complete successfully: {payload['statusCode']}")
+
+        if payload['isBase64Encoded']:
+            return base64.b64decode(payload['body'])
+        return payload['body']
 
 
 class BranchTechMicroServiceOperator(BaseBranchOperator):
@@ -182,31 +220,3 @@ class BranchTechMicroServiceOperator(BaseBranchOperator):
             if self.response_check(text):
                 return self.on_check
         return self.on_success
-
-
-class AsyncTechServicePullOperator(BaseOperator):
-    """Pull in XCom a microservice result when its was called asynchronously.
-
-    :param cws_task_id: the tech microservice called asynchronously.
-    :param aws_conn_id: aws connection (default 'aws_s3').
-    """
-
-    def __init__(self, *, cws_task_id: str = None, aws_conn_id: str = 'aws_s3', **kwargs) -> None:
-        super().__init__(**kwargs)
-        self.cws_task_id = cws_task_id
-        self.aws_conn_id = aws_conn_id
-
-    def execute(self, context):
-        ti = context["ti"]
-        bucket_name = ti.xcom_pull(task_ids=self.cws_task_id, key=XCOM_CWS_BUCKET)
-        key = ti.xcom_pull(task_ids=self.cws_task_id, key=XCOM_CWS_KEY)
-        s3 = S3Hook(aws_conn_id=self.aws_conn_id)
-        file = s3.download_file(key, bucket_name=bucket_name)
-        with open(file, "r") as myfile:
-            data = myfile.read()
-        payload = loads(data)
-        if payload['statusCode'] >= 300:
-            raise AirflowFailException(f"TechMicroService doesn't complete successfully: {payload['statusCode']}")
-        if payload['isBase64Encoded']:
-            return base64.b64decode(payload['body'])
-        return payload['body']
