@@ -177,13 +177,13 @@ def create_rest_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
                 resp.headers['Content-Type'] = content_type
 
             return resp
-        except TypeError as e:
-            current_app.logger.error(f"TypeError: {str(e)}")
-            raise BadRequest(str(e))
         except HTTPException as e:
             return e.description, e.code
+        except TypeError as e:
+            current_app.logger.error(''.join(traceback.format_exception(None, e, e.__traceback__)))
+            raise BadRequest(str(e))
         except Exception as e:
-            current_app.logger.error(e)
+            current_app.logger.error(''.join(traceback.format_exception(None, e, e.__traceback__)))
             raise
 
     return update_wrapper(proxy, func)

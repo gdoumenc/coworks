@@ -1,3 +1,4 @@
+import logging
 import os
 from contextlib import contextmanager
 
@@ -52,6 +53,9 @@ class SqlAlchemy(Blueprint):
         app.config['SQLALCHEMY_DATABASE_URI'] = f"{db_engine}://{db_user}:{db_pasword}@{db_url}/{db_name}"
         app.config['SQLALCHEMY_BINDS'] = {}
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+        if app.debug:
+            logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
 
         self.db = FlaskSQLAlchemy(app, **self.sqlalchemy_kwargs)
 
