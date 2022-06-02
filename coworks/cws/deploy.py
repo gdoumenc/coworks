@@ -264,6 +264,10 @@ class TerraformLocal:
 
 class RemoteTerraform(TerraformLocal):
 
+    def __init__(self, app_context: TerraformContext, bar, refresh=True, **options):
+        super().__init__(app_context, bar, **options)
+        self.refresh = refresh
+
     def select_workspace(self, workspace) -> None:
         """Workspace are defined remotly."""
         pass
@@ -274,6 +278,9 @@ class RemoteTerraform(TerraformLocal):
                 self.init()
             except CalledProcessError:
                 raise ExitCommand("Cannot init terraform: perhaps variables are not defined on terraform cloud.")
+        cmd = ['apply', '-auto-approve']
+        if not self.refresh:
+            cmd.append('-refresh=false')
         self._execute(['apply', '-auto-approve', '-refresh=false'])
 
 
@@ -283,12 +290,13 @@ class TerraformCloud(TerraformLocal):
     - One for the stage.
     """
 
-    def __init__(self, app_context, bar, **options):
+    def __init__(self, app_context, bar, terraform_refresh, **options):
         """The remote terraform class correspond to the terraform command interface for workspaces.
         """
         super().__init__(app_context, bar, **options)
         self.remote_terraform_class = RemoteTerraform
         self.workspace = get_app_workspace()
+        self.terraform_refresh = terraform_refresh
         self._api_terraform = self._workspace_terraform = None
 
     @property
@@ -305,6 +313,7 @@ class TerraformCloud(TerraformLocal):
             self.app_context.app.logger.debug(f"Create {self.workspace} terraform instance")
             terraform_dir = f"{self.working_dir}_{self.workspace}"
             self._workspace_terraform = self.remote_terraform_class(self.app_context, self.bar,
+                                                                    refresh=self.terraform_refresh,
                                                                     terraform_dir=terraform_dir)
         return self._workspace_terraform
 
@@ -385,6 +394,7 @@ class TerraformCloud(TerraformLocal):
 @click.option('--timeout', default=60, help="Lambda timeout (default 60s).Only for asynchronous call (API call 30s).")
 @click.option('--terraform-dir', default="terraform", help="Terraform folder (default terraform).")
 @click.option('--terraform-cloud', is_flag=True, help="Use cloud workspaces (default false).")
+@click.option('--terraform-refresh', is_flag=True, help="Forces terraform to refresh the state.")
 @click.pass_context
 @pass_script_info
 @with_appcontext
