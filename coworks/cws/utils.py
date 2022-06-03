@@ -41,7 +41,7 @@ def progressbar(length=200, *, threaded=False, label: str = None) -> t.ContextMa
     Creates it with a task label and updates it with progress messages using the 'update' function.
     """
     try:
-        with click.progressbar(range(length - 1), label=label, show_eta=False) as bar:
+        with click.progressbar(range(length - 1), label=label.ljust(40), show_eta=False) as bar:
             pb = ProgressBar(bar)
             if threaded:
 
