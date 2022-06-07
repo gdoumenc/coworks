@@ -101,11 +101,11 @@ class TestClass:
                 terraform.generate_files("deploy.j2", "test.tf", **options)
             with (Path(example_dir) / "terraform" / "test.tf").open() as f:
                 lines = f.readlines()
-            assert len(lines) == 2148
+            assert len(lines) == 2143
             print(lines[20:25])
             assert lines[1].strip() == 'alias = "envtechms"'
-            assert lines[23].strip() == 'envtechms_when_default = terraform.workspace == "default" ? 1 : 0'
-            assert lines[24].strip() == 'envtechms_when_stage = terraform.workspace != "default" ? 1 : 0'
+            assert lines[21].strip() == 'envtechms_when_default = terraform.workspace == "default" ? 1 : 0'
+            assert lines[22].strip() == 'envtechms_when_stage = terraform.workspace != "default" ? 1 : 0'
             (Path(example_dir) / "terraform" / "test.tf").unlink()
             (Path(example_dir) / "terraform").rmdir()
 
@@ -129,10 +129,10 @@ class TestClass:
                 terraform.generate_files("deploy.j2", "test.tf", **options)
             with (Path(example_dir) / "terraform" / "test.tf").open() as f:
                 lines = f.readlines()
-            assert len(lines) == 2148
+            assert len(lines) == 2143
             print(lines[20:25])
             assert lines[1].strip() == 'alias = "envtechms"'
-            assert lines[23].strip() == 'envtechms_when_default = terraform.workspace == "default" ? 0 : 0'
-            assert lines[24].strip() == 'envtechms_when_stage = terraform.workspace != "default" ? 0 : 0'
+            assert lines[21].strip() == 'envtechms_when_default = terraform.workspace == "default" ? 0 : 0'
+            assert lines[22].strip() == 'envtechms_when_stage = terraform.workspace != "default" ? 0 : 0'
             (Path(example_dir) / "terraform" / "test.tf").unlink()
             (Path(example_dir) / "terraform").rmdir()
