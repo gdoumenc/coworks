@@ -21,8 +21,6 @@ provider "aws" {
 data "aws_caller_identity" "current" {}
 
 locals {
-  account_id = data.aws_caller_identity.current.account_id
-  region = "{{ aws_region or "eu-west-1" }}"
 {% if terraform_cloud %}
   {{ resource_name }}_when_default = var.TFC_WORKSPACE_NAME == "{{ ms_name }}{{ stage }}" ? {{ 1 if deploy else 0 }} : 0
   {{ resource_name }}_when_stage = var.TFC_WORKSPACE_NAME != "{{ ms_name }}{{ stage }}" ? {{ 1 if deploy else 0 }} : 0
