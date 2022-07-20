@@ -14,8 +14,8 @@ class TechMicroServiceSensor(BaseSensorOperator, TechMicroServiceOperator):
     Same parameters as TechMicroServiceOperator except 'asynchronous' and 'raise_400_errors'
     """
 
-    def __init__(self, **kwargs):
-        super().__init__(asynchronous=False, raise_400_errors=False, **kwargs)
+    def __init__(self, poke_interval: float = 30, **kwargs):
+        super().__init__(asynchronous=False, raise_400_errors=False, poke_interval=poke_interval, **kwargs)
 
     def poke(self, context):
         self.pre_execute(context)
