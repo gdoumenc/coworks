@@ -5,9 +5,9 @@ from json import JSONDecodeError
 from json import loads
 
 import requests
+
 from airflow.exceptions import AirflowFailException
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.operators.branch import BaseBranchOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.http.hooks.http import HttpHook
@@ -126,13 +126,13 @@ class TechMicroServiceOperator(BaseOperator):
             logging.error(f"Internal error: {res.text}'")
             raise AirflowFailException(f"The TechMicroService {self.cws_name} had an internal error {res.status_code}!")
 
-        if self.log_response:
-            logging.info(res.text)
-
         # Return values or store file information
         if self.xcom_push_flag:
             self.xcom_push(context, XCOM_CWS_NAME, self.cws_name or self.api_id)
-            if not self.asynchronous:
+            if self.asynchronous:
+                self.xcom_push(context, XCOM_CWS_BUCKET, self._bucket)
+                self.xcom_push(context, XCOM_CWS_KEY, self._key)
+            else:
                 if self.json_result:
                     try:
                         returned_value = res.json() if res.content else {}
@@ -141,13 +141,12 @@ class TechMicroServiceOperator(BaseOperator):
                         returned_value = res.text
                 else:
                     returned_value = res.text
-                self.xcom_push(context, XCOM_STATUS_CODE, res.status_code)
-                self.xcom_push(context, XCOM_RETURN_KEY, returned_value)
-            else:
-                self.xcom_push(context, XCOM_CWS_BUCKET, self._bucket)
-                self.xcom_push(context, XCOM_CWS_KEY, self._key)
 
-        return res
+                if self.log_response:
+                    logging.info(returned_value)
+
+                self.xcom_push(context, XCOM_STATUS_CODE, res.status_code)
+                return returned_value
 
 
 class AsyncTechServicePullOperator(BaseOperator):
@@ -157,10 +156,12 @@ class AsyncTechServicePullOperator(BaseOperator):
     :param aws_conn_id: aws connection (default 'aws_s3').
     """
 
-    def __init__(self, *, cws_task_id: str = None, aws_conn_id: str = 'aws_s3', **kwargs) -> None:
+    def __init__(self, *, cws_task_id: str = None, aws_conn_id: str = 'aws_s3',
+                 raise_errors: bool = True, **kwargs) -> None:
         super().__init__(**kwargs)
         self.cws_task_id = cws_task_id
         self.aws_conn_id = aws_conn_id
+        self.raise_errors = raise_errors
 
     def execute(self, context):
         ti = context["ti"]
@@ -174,9 +175,12 @@ class AsyncTechServicePullOperator(BaseOperator):
             data = myfile.read()
         payload = loads(data)
 
-        if payload['statusCode'] >= 300:
-            raise AirflowFailException(f"TechMicroService doesn't complete successfully: {payload['statusCode']}")
+        status_code = payload['statusCode']
 
+        if self.raise_errors and status_code >= 300:
+            raise AirflowFailException(f"TechMicroService doesn't complete successfully: {status_code}")
+
+        self.xcom_push(context, XCOM_STATUS_CODE, status_code)
         if payload['isBase64Encoded']:
             return base64.b64decode(payload['body'])
         return payload['body']
@@ -205,12 +209,8 @@ class BranchTechMicroServiceOperator(BaseBranchOperator):
         self.on_check = on_check
 
     def choose_branch(self, context):
-        service_name = context['ti'].xcom_pull(task_ids=self.cws_task_id, key=XCOM_CWS_NAME)
-        if not service_name:
-            msg = f"The TechMicroService {self.cws_task_id} doesn't exist (check the parameter 'cws_task_id')."
-            raise AirflowFailException(msg)
         status_code = int(context['ti'].xcom_pull(task_ids=self.cws_task_id, key=XCOM_STATUS_CODE))
-        logging.info(f"TechMS {service_name} returned code : {status_code}")
+        logging.info(f"TechMS {self.cws_task_id} returned code : {status_code}")
         if self.on_failure and status_code >= 400:
             return self.on_failure
         if self.on_no_content and status_code == 204:
