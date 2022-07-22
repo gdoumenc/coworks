@@ -17,7 +17,7 @@ deploy: clean dist
 deploy-test: clean dist
 	pipenv run twine upload --repository testpypi dist/*
 
-plugins.zip: coworks/operators.py coworks/sensors.py
+plugins.zip: coworks/operators.py coworks/sensors.py coworks/biz/*
 	mkdir -p build
 	zip -r build/plugins.zip $^
 

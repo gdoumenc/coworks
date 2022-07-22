@@ -69,3 +69,25 @@ Follow these `instructions <https://www.terraform.io/downloads.html>`_ to instal
 	(project) $ terraform --version
 
 Terraform can also be used `online <https://www.terraform.io>`_.
+
+Apache Airflow
+**************
+
+`Apache Airflow <https://github.com/apache/airflow>`_ may be installed
+`manually <https://airflow.apache.org/docs/apache-airflow/stable/installation/index.html>`_, or provided by
+`Astronomer <https://www.astronomer.io>`_ or
+`AWS <https://aws.amazon.com/fr/managed-workflows-for-apache-airflow/>`_.
+
+In this documentation we will describe how to use ``CoWorks`` with AWS MWAA.
+
+From the coworks source code, create the zip plugins file by ::
+
+   $ make plugins.zip
+
+And upload it to S3, then attached this file to the MWAA environment used. Now the coworks operators and sensors are
+accessible defined in your environment.
+
+More information :
+`Installing custom plugins <https://docs.aws.amazon.com/mwaa/latest/userguide/configuring-dag-import-plugins.html>`_.
+
+

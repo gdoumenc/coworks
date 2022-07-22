@@ -514,8 +514,3 @@ class TechMicroService(Flask):
     def _structured_error(self, e: HTTPException):
         headers = {'content_type': "application/json"}
         return self._structured_payload(e.description, e.code, headers)
-
-
-class BizMicroService(TechMicroService):
-    """Biz composed microservice activated by events.
-    """
