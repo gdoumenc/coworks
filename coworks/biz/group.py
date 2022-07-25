@@ -27,7 +27,7 @@ class CoworksTaskGroup(TaskGroup):
         self.__read_task = task
 
 
-def TechMicroServiceAsyncGroup(group_id: str, timeout=3600, **tech_kwargs):
+def TechMicroServiceAsyncGroup(group_id: str, raise_errors=True, timeout=3600, **tech_kwargs):
     """Task group to allow asynchronous call of a TechMicroService.
 
     The returned value is defined in the task_id : '{group_id}.read'.
@@ -45,7 +45,8 @@ def TechMicroServiceAsyncGroup(group_id: str, timeout=3600, **tech_kwargs):
         )
         read = AsyncTechServicePullOperator(
             task_id='read',
-            cws_task_id=f'{group_id}.call'
+            cws_task_id=f'{group_id}.call',
+            raise_errors=raise_errors,
         )
 
     call >> wait >> read
