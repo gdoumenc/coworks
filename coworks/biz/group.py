@@ -12,11 +12,20 @@ class CoworksTaskGroup(TaskGroup):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.__call_task: t.Optional[BaseOperator] = None
         self.__read_task: t.Optional[BaseOperator] = None
 
     @property
     def output(self):
         return self.read_task.output
+
+    @property
+    def call_task(self):
+        return self.__call_task
+
+    @call_task.setter
+    def call_task(self, task):
+        self.__call_task = task
 
     @property
     def read_task(self):
@@ -49,8 +58,9 @@ def TechMicroServiceAsyncGroup(group_id: str, raise_errors=True, timeout=3600, *
             raise_errors=raise_errors,
         )
 
-    call >> wait >> read
-
+    tg.call_task = call
     tg.read_task = read
+
+    call >> wait >> read
 
     return tg
