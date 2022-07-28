@@ -74,7 +74,10 @@ class Mail(Blueprint):
         to_addrs = to_addrs or os.getenv('to_addrs')
         if not to_addrs:
             raise BadRequest("To addresses not defined (to_addrs:[str])")
-        if body_template:
+
+        if body_template is not None:
+            if body is not None:
+                raise BadRequest("Body and body_template parameters both defined.")
             body = render_template_string(body_template, **data)
 
         # Creates email
