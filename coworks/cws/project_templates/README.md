@@ -7,7 +7,7 @@ Info : *This project was created by the cws new command.*
 To run the microservice locally :
 
 ```
-$> FLASK_ENV=dev cws -p src/tech run
+$> FLASK_ENV=dev cws -p tech run
  * Environment: dev
  * Debug mode: off
  * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
@@ -20,12 +20,12 @@ project ready!
 ```
 
 If you are testing your microservice in an IDE then set the root path to src/tech and
-define the INSTANCE_RELATIVE_PATH to ../.. (there env_vars are defined in fact)
+define the INSTANCE_RELATIVE_PATH to .. (there env_vars are defined in fact)
 
 #### Deploy :
 
 ```
-$> FLASK_ENV=dev cws -p src/tech deploy -b bucket_name -pn aws_profile
+$> FLASK_ENV=dev cws -p tech deploy -b bucket_name -pn aws_profile
  * Workspace: dev
 Copy files to S3  [####################################]  100% 0%
 Terraform apply (Create API routes)                              
@@ -37,7 +37,3 @@ coworks_layers_id = "xxxx"
 $> curl -H "Authorization:to_be_set" -H "USER_KEY:test" https://xxxx.execute-api.eu-west-1.amazonaws.com/dev
 project ready!
 ```
-
-To destroy the created service :
-
-$> terraform -chdir=terraform destroy

@@ -1,7 +1,7 @@
 .. _tech_quickstart:
 
 TechMicroService Quickstart
-=================
+===========================
 
 This page gives a quick and partial introduction to CoWorks Technical Microservices.
 Follow :doc:`installation` to install CoWorks and set up a new project.
@@ -23,7 +23,7 @@ Start
 
 To create your first complete technical microservice, create a file ``simple.py`` with the following content:
 
-.. literalinclude:: ../samples/docs/simple.py
+.. literalinclude:: ../samples/docs/tech/simple.py
 
 This first example defines a very simple microservice ``app`` with a simple ``GET`` entry ``/``
 (see :ref:`routing` for more details on entry)
@@ -55,7 +55,7 @@ More
 
 To add more elements, complete the try with the following content:
 
-.. literalinclude:: ../samples/docs/first.py
+.. literalinclude:: ../samples/docs/tech/first.py
 
 We have added a dedicated function ``token_authorizer`` to define an authorizer
 (see :ref:`auth` for more details on authorizer).
@@ -102,7 +102,7 @@ First, ensure that `aws_xray_sdk` is installed in your python environment::
 
 Then, enter the following content:
 
-.. literalinclude:: ../samples/docs/complete.py
+.. literalinclude:: ../samples/docs/tech/complete.py
 
 *Note* : `aws_xray_sdk` must be installed in your python environment or you will get an ``ImportError``. If you receive this error, follow the step above to install.
 

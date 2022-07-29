@@ -76,10 +76,15 @@ And to get complete command description::
 CoWorks Commands
 -------------------
 
-The "deploy" command
-^^^^^^^^^^^^^^^^^^^^
+new
+^^^
 
-The ``deploy`` command is defined to deploy the microservice on the AWS plateform.
+The ``new`` command crate an empty CoWorks project.
+
+deploy
+^^^^^^
+
+The ``deploy`` command is defined to deploy a ``TechMicroService`` on the AWS plateform.
 
 This is done by creating terraform files from jinja template files. You can override those templates or add new files
 if you needed to enhance the deployment process.

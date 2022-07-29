@@ -21,9 +21,8 @@ it. Contrary to ``TechMicroService``, ``BizMicroService`` have states.
 
 To interact with DAG defined in airflow, two main operators have been defined : ``TechMicroServiceOperator`` and
 ``BranchTechMicroServiceOperator``.
-
 The first operator allows to call a technical microservice. The second one is a branching operator on the status
-returned by a technical microservice..
+returned by a technical microservice.
 
 At last, but certainly the more usefull and powerfull, the call to a microservice may be call **asynchronously**.
 The called microservice stores automatically its result in

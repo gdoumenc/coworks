@@ -5,14 +5,18 @@ Samples
 
 Developers love sample applications. In this part, we will show you how to use the CoWorks framework to :
 
+ * Create a directory service to call technical microservice by there name
  * Create a website with content defined in the CosmisJS headless tool
- * Create a simple dashboard with ODOO as data source.
+
+.. _directory:
+
+It is usefull to be able to call a service by its name instead of by its api id;
 
 .. _headless:
 
-CosmicJS is an awesome headless CMS. Easy to use, intuitive and efficient. This sample uses also the Jinja2
-template engine to construct dynamic pages from CosmicJS content. At least we will use Cloud Front the AWS CDN tool
-to provide a efficient plateform.
+There are a lot of easy to use, intuitive and efficient headless CMS. This sample uses also the Jinja2
+template engine to construct dynamic pages from CosmicJS content. At least we will use Cloud Front, the AWS CDN tool,
+to provide an efficient content delivery.
 
 Fist verify that CoWorks is installed::
 
