@@ -47,12 +47,13 @@ to provide an efficient content delivery.
 
 Let have some explanation on the project structure::
 
-    - headless
-        - assets : all the website assest (css, js, img, ...)
-        - templates : the Jinja2 templates
-        - terraform : the deployment
-        - cosmicjs.py : client to access cosmic content
-        - website.py : the cws microservice for the website
+    headless
+        tech:
+            assets : all the website assest (css, js, img, ...)
+            templates : the Jinja2 templates
+            cosmicjs.py : client to access cosmic content
+            website.py : the cws microservice for the website
+        terraform : the deployment
 
 Let have a closer code to the microservice::
 
