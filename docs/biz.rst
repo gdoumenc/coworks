@@ -15,6 +15,9 @@ DAG
 The definition of the DAG, the BizMicroService, is done by thru ``biz`` decorator, which is simply a renaming
 of the ``dag`` decorator of Airflow.
 
+*Notice* : It seems stupid to just rename a decorator, but we have in mind to use this decorator in future for
+creating relation dependencies between microservices.
+
 .. code-block:: python
 
     from coworks.biz import biz
