@@ -4,7 +4,6 @@ import boto3
 from aws_xray_sdk.core import xray_recorder
 
 from config import DevConfig
-from config import LocalConfig
 from config import ProdConfig
 from coworks import TechMicroService
 from coworks import entry
@@ -35,8 +34,6 @@ class CoworksLayersMicroService(TechMicroService):
         return {'coworks': [layer['LayerName'] for layer in layers]}
 
 
-local = LocalConfig()
-test = DevConfig('test')
 dev = DevConfig()
 prod = ProdConfig()
-app = CoworksLayersMicroService(configs=[local, test, dev, prod])
+app = CoworksLayersMicroService(configs=[dev, prod])

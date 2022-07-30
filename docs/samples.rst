@@ -3,26 +3,47 @@
 Samples
 ========
 
-Developers love sample applications. In this part, we will show you how to use the CoWorks framework to :
+Impatient developers often love samples to learn quickly. In this part, we will show you how to use CoWorks to :
 
- * Create a directory service to call technical microservice by there name
- * Create a website with content defined in the CosmisJS headless tool
+ * Understand the CoWorks layer service.
+ * Create a directory service to call technical microservice by there name.
+ * Create a website with content defined in the CosmisJS headless tool.
+
+.. _layers:
+
+CoWorks layers
+--------------
+
+Very simple microservice defining only one public entry.
+
+.. literalinclude:: ../samples/layers/tech/app.py
 
 .. _directory:
 
-It is usefull to be able to call a service by its name instead of by its api id;
+Directory
+---------
+
+This microservice is just made by a predefined microservice and specific environment variables.
+
+.. literalinclude:: ../samples/directory/tech/app.py
+
+To create your directory service, you just have to define a file ``env_vars/vars.secret.json`` like ::
+
+    {
+      "AWS_USER_ACCESS_KEY_ID": XXXX,
+      "AWS_USER_SECRET_ACCESS_KEY": YYY
+    }
 
 .. _headless:
+
+Website
+-------
+
+**TO BE UPDATED**
 
 There are a lot of easy to use, intuitive and efficient headless CMS. This sample uses also the Jinja2
 template engine to construct dynamic pages from CosmicJS content. At least we will use Cloud Front, the AWS CDN tool,
 to provide an efficient content delivery.
-
-Fist verify that CoWorks is installed::
-
-    $ cws --version
-
-If not take time to read the installation part:`Installation <https://coworks.readthedocs.io/en/latest/installation.html/>`_)
 
 Let have some explanation on the project structure::
 
@@ -85,9 +106,3 @@ At last, make an entry to provide all assets::
             return content, 200, {'Content-Type': mt[0]}
 
 And that's it, your website is ready.
-
-Just deploy it on AWS ::
-
-    $ cws -w prod deploy
-
-And enjoy!
