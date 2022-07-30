@@ -80,3 +80,6 @@ To create your first simple business microservice, create a file ``simple.py`` w
 
 
     first = first()
+
+
+You microservice is called every 5 minutes and traces are print in logs.

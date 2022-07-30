@@ -15,6 +15,9 @@ DAG
 The definition of the DAG, the BizMicroService, is done by thru ``biz`` decorator, which is simply a renaming
 of the ``dag`` decorator of Airflow.
 
+*Notice* : It seems stupid to just rename a decorator, but we have in mind to use this decorator in future for
+creating relation dependencies between microservices.
+
 .. code-block:: python
 
     from coworks.biz import biz
@@ -90,7 +93,6 @@ BranchTechMicroServiceOperator
 
 This branching operator allows to test microservice status code or result content
 
-
 .. code-block:: python
 
     check_invoice = BranchTechMicroServiceOperator(
@@ -106,9 +108,48 @@ The arguments are :
  * ``on_success`` : branch task id on success,
  * ``on_failure`` :branch task id on failure.
 
-
 Sensors
 -------
 
 This sensor is defined to wait until an asynchronous call is finished.
+
+.. code-block:: python
+
+    await_invoice = AsyncTechMicroServiceSensor(
+        task_id='await_invoice',
+        cws_task_id='neorezo-billing_invoice-eshop',
+    )
+
+This sensor will await the microservice ``billing_invoice-eshop`` will terminate its asynchronous execution.
+
+The arguments are :
+
+ * ``cws_task_id`` : the microserrvice call task awaited,
+
+Other main arguments are needed to be understood :
+
+ * ``aws_conn_id`` :  the airflow connection id used to observe S3 result. By default 'aws_s3'.
+
+Asynchronous task
+-----------------
+
+The sequence of a calling task, a waiting task and a reading result task for an asynchronous call is done by:
+
+.. code-block:: python
+
+    invoice = TechMicroServiceAsyncGroup(
+        'invoice',
+        cws_name='neorezo-billing_invoice-eshop',
+        method='POST',
+        entry="/invoice",
+        json="{{ dag_run.conf['data'] }}",
+    )
+
+The result is then accessible in ``invoice.output`` in python code, or thru the ``invoice.read`` task id::
+
+    invoice >> send_mail(invoice.output)
+
+or::
+
+    ti.xcom_pull(task_ids='invoice.read')
 

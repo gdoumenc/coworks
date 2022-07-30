@@ -140,7 +140,13 @@ in project file to avoid given then on command line see :ref:`configuration` )::
 	classical_id = "xxxxxxxx"
 	(project) $
 
+**Notice**: To get the available coworks layer versions, just call this public microservice
+(source code available in ``samples/layers``)::
+
+	curl https://2kb9hn4bs4.execute-api.eu-west-1.amazonaws.com/v1
+
 Now we can test our first deployed microservice::
 
 	(project) $ curl -H "Authorization:test" https://xxxxxxxx.execute-api.eu-west-1.amazonaws.com/dev
 	Stored value 0.
+
