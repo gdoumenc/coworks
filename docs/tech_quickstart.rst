@@ -1,12 +1,13 @@
 .. _tech_quickstart:
 
-TechMS Quickstart
-=================
+TechMicroService Quickstart
+===========================
 
-This page gives a quick and partial introduction to Coworks Technical Microservices.
-Follow :doc:`installation` to install Coworks and set up a new project.
+This page gives a quick and partial introduction to CoWorks Technical Microservices.
+Follow :doc:`installation` to install CoWorks and set up a new project.
 
-Coworks Technical Microservices are ``atomic microservices``, meaning that they are single ``atomic`` components (i.e: singular blobs of code with a few inputs and outputs).
+CoWorks Technical Microservices are ``atomic microservices``, meaning that they are single ``atomic`` components
+(i.e: singular blobs of code with a few inputs and outputs).
 
 A tech microservice is simply defined by a single python class which looks like this:
 
@@ -22,7 +23,7 @@ Start
 
 To create your first complete technical microservice, create a file ``simple.py`` with the following content:
 
-.. literalinclude:: ../samples/docs/simple.py
+.. literalinclude:: ../samples/docs/tech/simple.py
 
 This first example defines a very simple microservice ``app`` with a simple ``GET`` entry ``/``
 (see :ref:`routing` for more details on entry)
@@ -54,7 +55,7 @@ More
 
 To add more elements, complete the try with the following content:
 
-.. literalinclude:: ../samples/docs/first.py
+.. literalinclude:: ../samples/docs/tech/first.py
 
 We have added a dedicated function ``token_authorizer`` to define an authorizer
 (see :ref:`auth` for more details on authorizer).
@@ -92,8 +93,8 @@ Complete
 We can create and test a more complete case by leveraging blueprints and adding middlewares.
 We will also use `StringIO <https://docs.python.org/3/library/io.html#text-i-o>`_ to write our output to a string buffer.
 
-For more information on how Coworks uses blueprints, see `TechMS Blueprints <https://coworks.readthedocs.io/en/master/tech.html#blueprints>`_.
-For more information on how Coworks uses WSGI middlewares, see `Middlewares <https://coworks.readthedocs.io/en/master/middleware.html>`_.
+For more information on how CoWorks uses blueprints, see `TechMS Blueprints <https://coworks.readthedocs.io/en/master/tech.html#blueprints>`_.
+For more information on how CoWorks uses WSGI middlewares, see `Middlewares <https://coworks.readthedocs.io/en/master/middleware.html>`_.
 
 First, ensure that `aws_xray_sdk` is installed in your python environment::
 
@@ -101,7 +102,7 @@ First, ensure that `aws_xray_sdk` is installed in your python environment::
 
 Then, enter the following content:
 
-.. literalinclude:: ../samples/docs/complete.py
+.. literalinclude:: ../samples/docs/tech/complete.py
 
 *Note* : `aws_xray_sdk` must be installed in your python environment or you will get an ``ImportError``. If you receive this error, follow the step above to install.
 
@@ -124,7 +125,7 @@ We have also a WSGI middleware ``ProfilerMiddleware`` to profile the last reques
 			14    0.001    0.000    0.006    0.000 /home/gdo/.local/share/virtualenvs/coworks-otSHAmdg/lib/python3.8/site-packages/werkzeug/routing.py:968(_compile_builder)
 	...
 
-And at last we have a Coworks middleware to add `XRay traces <https://docs.aws.amazon.com/xray/latest/devguide/aws-xray.html>`_ (available only for deployed microservices).
+And at last we have a CoWorks middleware to add `XRay traces <https://docs.aws.amazon.com/xray/latest/devguide/aws-xray.html>`_ (available only for deployed microservices).
 
 Deploy
 ------
@@ -139,7 +140,13 @@ in project file to avoid given then on command line see :ref:`configuration` )::
 	classical_id = "xxxxxxxx"
 	(project) $
 
+**Notice**: To get the available coworks layer versions, just call this public microservice
+(source code available in ``samples/layers``)::
+
+	curl https://2kb9hn4bs4.execute-api.eu-west-1.amazonaws.com/v1
+
 Now we can test our first deployed microservice::
 
 	(project) $ curl -H "Authorization:test" https://xxxxxxxx.execute-api.eu-west-1.amazonaws.com/dev
 	Stored value 0.
+

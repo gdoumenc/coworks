@@ -1,3 +1,4 @@
+import logging
 import os
 from contextlib import contextmanager
 
@@ -53,6 +54,9 @@ class SqlAlchemy(Blueprint):
         app.config['SQLALCHEMY_BINDS'] = {}
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+        if app.debug:
+            logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
+
         self.db = FlaskSQLAlchemy(app, **self.sqlalchemy_kwargs)
 
     @property
@@ -67,4 +71,8 @@ class SqlAlchemy(Blueprint):
     def set_schema(self, schema):
         """Set default schema for request (default schema is defiend by key None).
         """
-        yield self.session.connection(execution_options={'schema_translate_map': {None: schema}})
+
+        try:
+            yield self.session.connection(execution_options={'schema_translate_map': {None: schema}})
+        finally:
+            self.session.close()

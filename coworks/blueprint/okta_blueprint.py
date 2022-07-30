@@ -45,8 +45,7 @@ class OktaResponse:
     return OktaResponse.combine({'user': resp_user, 'groups': resp_groups})
     """
 
-    def __init__(self, value=None):
-        self.value = value
+    def __init__(self):
         self.api_resp = self.next_url = self.error = None
 
     @xray_recorder.capture()

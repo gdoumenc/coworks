@@ -21,7 +21,7 @@
 Introduction
 ============
 
-Coworks is a unified serverless microservices framework based on AWS technologies
+CoWorks is a unified serverless microservices framework based on AWS technologies
 (`API Gateway <https://aws.amazon.com/api-gateway/>`_, `AWS Lambda <https://aws.amazon.com/lambda/>`_),
 the `Flask <https://github.com/pallets/flask>`_ framework and the `Airflow <https://github.com/apache/airflow>`_
 plateform.
@@ -49,7 +49,7 @@ Main other tools used:
 
 Other AWS or Terraform technologies are used for logging, administration, …
 
-What does microservice mean in Coworks?
+What does microservice mean in CoWorks?
 ---------------------------------------
 
 In short, the microservice architectural style is an approach to developing a single application as a suite of small services,
@@ -67,7 +67,7 @@ by outlining traits microservice applications share:
 * Decentralized
 * Built and released with automated processes
 
-In Coworks, microservices are serverless services over APIs.
+In CoWorks, microservices are serverless services over APIs.
 
 Small in size
   Simply implemented as a python class.
@@ -88,13 +88,13 @@ Smart endpoints
   Deriving directly from class methods.
 
 
-What are Coworks main benefits?
+What are CoWorks main benefits?
 -------------------------------
 
 Two levels of microservice
 **************************
 
-Coworks microservices are divided in two categories :
+CoWorks microservices are divided in two categories :
 
 **Small technical microservice**
 
@@ -123,7 +123,7 @@ Code oriented tools
 Like any model of software architecture, it is very usefull to have complementary tools for programming, testing,
 documenting or deploying over it.
 
-The main advantage of using Coworks is its ability to defined those tools, called `commands`, directly in
+The main advantage of using CoWorks is its ability to defined those tools, called `commands`, directly in
 the microservice code.
 Predefined commands like ``run`` (defined by the Flask framework) or ``deploy`` are provided,
 but you can redefined them or creates new ones like for documentation or testing.
@@ -133,7 +133,7 @@ For more details, see: :ref:`command`.
 Microservice architecture structuration
 ***************************************
 
-The Coworks microservice architecture provides some best pratices for code organization and directory structure.
+The CoWorks microservice architecture provides some best pratices for code organization and directory structure.
 Indeed it's so easy to start in serverless project, it's also easy to start moving the wrong direction.
 
 **API and Lambda organization**
@@ -141,7 +141,7 @@ Indeed it's so easy to start in serverless project, it's also easy to start movi
   With AWS API a single Lambda function handles a single HTTP verb/path combinaison. For Rest API it is better to have
   a single lambda function to handle all HTTP verbs for a particular resource.
 
-  Coworks regroups all microservice entrypoints into one single class. And a class is the resource granularity
+  CoWorks regroups all microservice entrypoints into one single class. And a class is the resource granularity
   for the API.
 
   For example, following the CRUD design :
@@ -154,12 +154,12 @@ Indeed it's so easy to start in serverless project, it's also easy to start movi
 
 **Configuration**
 
-  Coworks differenciates two kind of configurations:
+  CoWorks differenciates two kind of configurations:
 
     * Automation and command configuraton
     * Execution configuration
 
-  For those who are familiar with the Twelve-Factor App methodology, the Coworks configuration model correspond exactly
+  For those who are familiar with the Twelve-Factor App methodology, the CoWorks configuration model correspond exactly
   with the strict separation of config from code. More precisely:
 
     * The project configuration file : *Use a declarative format for setup automation, to minimize time and cost for new developers joining the project*

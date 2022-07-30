@@ -3,7 +3,7 @@
 TechMS
 ======
 
-TechMicroservices are the 'atoms' of the Coworks microservices framework. They represent the building blocks
+TechMicroservices are the 'atoms' of the CoWorks microservices framework. They represent the building blocks
 for other more complex 'compound' microservices.
 
 Defining Tech Microservices
@@ -137,24 +137,6 @@ This is useful for offering a CRUD microservice:
 	def put(self, id, data):
 		return f"modifies an instance identified by {id} with {data}"
 
-Typed parameters
-^^^^^^^^^^^^^^^^
-
-You can specify the type of your URI parameters or data query in order to use native built-in types (other than the default of string).
-
-.. code-block:: python
-
-	@entry
-  # id of type int
-	def get(self, id:int):
-		return f"the type of id is {type(id)}"
-
-	@entry
-  # id of type int with default value None
-	def get_(self, id:int = None):
-		return f"the type of id is {type(id)}"
-
-
 Query or body parameters
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -201,6 +183,32 @@ For more information on how to use keyword arguments in Python, see `this useful
 **Note**: The current implementation doesn't take into account the typing of the entry point function parameters
 (forcasted in a future release).
 So all query parameters are from type ``string``. If you want to pass typed or structured values, use the JSON mode.
+
+Typed parameters
+^^^^^^^^^^^^^^^^
+
+You can specify the type of your URI parameters or data query in order to get more control on your parameters.
+You can use basic types, List, or Union.
+
+.. code-block:: python
+
+	@entry
+  # id of type int
+	def get(self, id:int):
+		return f"the type of id is int: {type(id)}"
+
+	@entry
+  # flag of type bool with default value None
+	def get_(self, flag:bool = None):
+	    """Take care True for 'true', '1' or 'yes' values, not bool(str)."""
+		return f"the type of flag is bool : {type(flag)}"
+
+	@entry
+  # ids of type list(int) with default value None
+	def get_(self, ids:List[int] = None):
+	    """Avoid to deal with one id or more ids, always a list."""
+		return f"the type of ids is list of int : {type(ids)}"
+
 
 Entrypoints
 ^^^^^^^^^^^
@@ -309,7 +317,7 @@ Blueprints
 Blueprints
 ^^^^^^^^^^
 
-Coworks blueprints are used to add to your application more routes deriving from logical components.
+CoWorks blueprints are used to add to your application more routes deriving from logical components.
 Blueprints allow you to complete your microservices with transversal functionalities.
 
 Blueprints are a part of Flask. To learn more about how Blueprints are implemented and used in Flask,
@@ -319,7 +327,7 @@ Blueprint Registration
 **********************
 
 Blueprints are defined similarly to microservice classes. However, they will instead
-inherit from the coworks implementation of the ``Blueprint`` object.
+inherit from the CoWorks implementation of the ``Blueprint`` object.
 
 Methods within the class should still be decorated with ``@entry``.
 
@@ -355,7 +363,7 @@ The admin blueprint adds the following routes:
 ``/route``
 
 	List all the routes of the microservice with the signature extracted from its associated function
-    (similar to the coworks ``route`` command).
+    (similar to the CoWorks ``route`` command).
 
 ``/context``
 

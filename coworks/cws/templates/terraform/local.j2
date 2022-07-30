@@ -3,9 +3,6 @@
 # ---------------------------------------------------------------------------------------------------------------------
 
 locals {
-  {{ resource_name }}_when_default = terraform.workspace == "default" ? 1 : 0
-  {{ resource_name }}_when_stage = terraform.workspace != "default" ? 1 : 0
-
   {{ resource_name }}_security_group_ids = []
   {{ resource_name }}_vpc_id = []
   {{ resource_name }}_subnet_ids = []

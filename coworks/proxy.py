@@ -6,6 +6,8 @@ import requests
 
 class CwsProxy(ABC):
     """Abstract proxy class to call CoWorks TechnMicroService.
+
+    Should not be used in TechMicroService ; use BizzMicroService instead.
     
     .. versionchanged:: 0.7.3
         Added in this version.

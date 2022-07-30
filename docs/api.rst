@@ -17,9 +17,6 @@ Microservices
 .. autoclass:: Blueprint
    :members:
 
-.. autoclass:: BizMicroService
-   :members:
-
 Configuration
 -------------
 

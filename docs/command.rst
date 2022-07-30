@@ -3,7 +3,7 @@
 Commands
 ========
 
-Coworks allows you to extend the ``cws`` application with commands. This powerfull extension is very usefull
+CoWorks allows you to extend the ``cws`` application with commands. This powerfull extension is very usefull
 for complex deployment, testing or documentation.
 
 As explained before, the microservice architecture needs to be completed by tools. The ``cws`` command line is
@@ -76,14 +76,19 @@ And to get complete command description::
 CoWorks Commands
 -------------------
 
-The "deploy" command
-^^^^^^^^^^^^^^^^^^^^
+new
+^^^
 
-The ``deploy`` command is defined to deploy the microservice on the AWS plateform.
+The ``new`` command crate an empty CoWorks project.
 
-This is done by creating terraform files from templates. You can override those templates or add new files if
-needed to enhance the deployment process.
+deploy
+^^^^^^
 
-This command may be used to deal with complex deployments, mainly for staging or respecting infrastucture constraints.
+The ``deploy`` command is defined to deploy a ``TechMicroService`` on the AWS plateform.
 
-A more complete usage of this command is explained in the :ref:`tech_deployment` chapter.
+This is done by creating terraform files from jinja template files. You can override those templates or add new files
+if you needed to enhance the deployment process.
+
+This command may be used to deal with complex deployments, mainly for staging or respecting infrastucture constraints
+or processes.
+

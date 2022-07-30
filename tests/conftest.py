@@ -13,7 +13,7 @@ def fixture_example_dir():
 
 
 def fixture_samples_docs_dir():
-    return os.getenv('SAMPLES_DOCS_DIR', 'samples/docs')
+    return os.getenv('SAMPLES_DOCS_DIR', 'samples/docs/tech')
 
 
 @pytest.fixture

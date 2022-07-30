@@ -8,7 +8,9 @@ from email.utils import make_msgid
 
 import requests
 from flask import current_app
+from flask import render_template_string
 from werkzeug.datastructures import FileStorage
+from werkzeug.exceptions import BadRequest
 
 from coworks import Blueprint
 from coworks import entry
@@ -57,21 +59,26 @@ class Mail(Blueprint):
             raise EnvironmentError(f'{self.env_passwd_var_name} not defined in environment.')
 
     @entry
-    def post_send(self, subject="", from_addr: str = None, from_name: str = '', reply_to: str = None,
+    def post_send(self, subject: str = "", from_addr: str = None, from_name: str = '', reply_to: str = None,
                   to_addrs: [str] = None, cc_addrs: [str] = None, bcc_addrs: [str] = None,
-                  body="", body_type="plain",
+                  body: str = "", body_template: str = None, body_type="plain",
                   attachments: t.Union[FileStorage, t.List[FileStorage]] = None, attachment_urls: dict = None,
-                  starttls=True):
+                  starttls=True, **data):
         """ Send mail.
         To send attachments, add files in the body of the request as multipart/form-data.
         """
 
         from_addr = from_addr or os.getenv('from_addr')
         if not from_addr:
-            return "From address not defined (from_addr:str)", 400
+            raise BadRequest("From address not defined (from_addr:str)")
         to_addrs = to_addrs or os.getenv('to_addrs')
         if not to_addrs:
-            return "To addresses not defined (to_addrs:[str])", 400
+            raise BadRequest("To addresses not defined (to_addrs:[str])")
+
+        if body_template is not None:
+            if body is not None:
+                raise BadRequest("Body and body_template parameters both defined.")
+            body = render_template_string(body_template, **data)
 
         # Creates email
         try:
@@ -109,7 +116,7 @@ class Mail(Blueprint):
                         return f"Failed to download attachment, error {response.status_code}.", 400
 
         except Exception as e:
-            return f"Cannot create email message (Error: {str(e)}).", 400
+            raise BadRequest(f"Cannot create email message (Error: {str(e)}).")
 
         # Send email
         try:
@@ -123,6 +130,6 @@ class Mail(Blueprint):
             current_app.logger.debug(resp)
             return resp
         except smtplib.SMTPAuthenticationError:
-            return "Wrong username/password : cannot connect.", 400
+            raise BadRequest("Wrong username/password : cannot connect.")
         except Exception as e:
-            return f"Cannot send email message (Error: {str(e)}).", 400
+            raise BadRequest(f"Cannot send email message (Error: {str(e)}).")

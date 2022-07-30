@@ -3,31 +3,57 @@
 Samples
 ========
 
-Developers love sample applications. In this part, we will show you how to use the Coworks framework to :
+Impatient developers often love samples to learn quickly. In this part, we will show you how to use CoWorks to :
 
- * Create a website with content defined in the CosmisJS headless tool
- * Create a simple dashboard with ODOO as data source.
+ * Understand the CoWorks layer service.
+ * Create a directory service to call technical microservice by there name.
+ * Create a website with content defined in the CosmisJS headless tool.
+
+.. _layers:
+
+CoWorks layers
+--------------
+
+Very simple microservice defining only one public entry.
+
+.. literalinclude:: ../samples/layers/tech/app.py
+
+.. _directory:
+
+Directory
+---------
+
+This microservice is just made by a predefined microservice and specific environment variables.
+
+.. literalinclude:: ../samples/directory/tech/app.py
+
+To create your directory service, you just have to define a file ``env_vars/vars.secret.json`` like ::
+
+    {
+      "AWS_USER_ACCESS_KEY_ID": XXXX,
+      "AWS_USER_SECRET_ACCESS_KEY": YYY
+    }
 
 .. _headless:
 
-CosmicJS is an awesome headless CMS. Easy to use, intuitive and efficient. This sample uses also the Jinja2
-template engine to construct dynamic pages from CosmicJS content. At least we will use Cloud Front the AWS CDN tool
-to provide a efficient plateform.
+Website
+-------
 
-Fist verify that Coworks is installed::
+**TO BE UPDATED**
 
-    $ cws --version
-
-If not take time to read the installation part:`Installation <https://coworks.readthedocs.io/en/latest/installation.html/>`_)
+There are a lot of easy to use, intuitive and efficient headless CMS. This sample uses also the Jinja2
+template engine to construct dynamic pages from CosmicJS content. At least we will use Cloud Front, the AWS CDN tool,
+to provide an efficient content delivery.
 
 Let have some explanation on the project structure::
 
-    - headless
-        - assets : all the website assest (css, js, img, ...)
-        - templates : the Jinja2 templates
-        - terraform : the deployment
-        - cosmicjs.py : client to access cosmic content
-        - website.py : the cws microservice for the website
+    headless
+        tech:
+            assets : all the website assest (css, js, img, ...)
+            templates : the Jinja2 templates
+            cosmicjs.py : client to access cosmic content
+            website.py : the cws microservice for the website
+        terraform : the deployment
 
 Let have a closer code to the microservice::
 
@@ -81,9 +107,3 @@ At last, make an entry to provide all assets::
             return content, 200, {'Content-Type': mt[0]}
 
 And that's it, your website is ready.
-
-Just deploy it on AWS ::
-
-    $ cws -w prod deploy
-
-And enjoy!

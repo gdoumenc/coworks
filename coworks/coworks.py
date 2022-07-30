@@ -355,9 +355,6 @@ class TechMicroService(Flask):
     def _lambda_handler(self, event: t.Dict[str, t.Any], context: t.Dict[str, t.Any]):
         """Lambda handler.
         """
-        self.logger.debug(f"Event: {event}")
-        self.logger.debug(f"Context: {context}")
-
         if event.get('type') == 'TOKEN':
             return self._token_handler(event, context)
         return self._api_handler(event, context)
@@ -365,7 +362,7 @@ class TechMicroService(Flask):
     def _token_handler(self, event: t.Dict[str, t.Any], context: t.Dict[str, t.Any]) -> dict:
         """Authorization token handler.
         """
-        self.logger.debug(f"Calling {self.name} for authorization : {event}")
+        self.logger.info(f"Calling {self.name} for authorization : {event}")
 
         try:
             res = self.token_authorizer(event['authorizationToken'])
@@ -378,7 +375,7 @@ class TechMicroService(Flask):
     def _api_handler(self, event: t.Dict[str, t.Any], context: t.Dict[str, t.Any]) -> dict:
         """API handler.
         """
-        self.logger.debug(f"Calling {self.name} by api : {event}")
+        self.logger.info(f"Calling {self.name} by api : {event}")
 
         def full_path():
             url = event['path']
@@ -420,6 +417,7 @@ class TechMicroService(Flask):
 
         if isinstance(resp, Response):
             self.logger.debug(f"Status code returned by api : {resp.status_code}")
+        self.logger.debug("API returns")
         return resp
 
     def _flask_handler(self, environ: t.Dict[str, t.Any], start_response: t.Callable[[t.Any], None]):
@@ -477,7 +475,7 @@ class TechMicroService(Flask):
         body = event['body']
         if body and is_encoded:
             body = self.base64decode(body)
-        self.logger.debug(f"Body: {body}")
+        self.logger.debug(f"Body: {body} {type(body)}")
 
         if is_json(content_type):
             kwargs['json'] = body
@@ -516,8 +514,3 @@ class TechMicroService(Flask):
     def _structured_error(self, e: HTTPException):
         headers = {'content_type': "application/json"}
         return self._structured_payload(e.description, e.code, headers)
-
-
-class BizMicroService(TechMicroService):
-    """Biz composed microservice activated by events.
-    """

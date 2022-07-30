@@ -1,13 +1,17 @@
 import os
 
-# from aws_xray_sdk.core import xray_recorder
+from flask import request
 
+from config import DevConfig
+from config import LocalConfig
+from config import ProdConfig
 from coworks import TechMicroService
 from coworks import entry
 from coworks.blueprint.admin_blueprint import Admin
 from coworks.blueprint.profiler_blueprint import Profiler
-from coworks.config import LocalConfig
-from coworks.config import ProdConfig
+
+
+# from aws_xray_sdk.core import xray_recorder
 # from coworks.middleware.xray import XRayMiddleware
 
 
@@ -23,7 +27,7 @@ class MyMicroService(TechMicroService):
 
         @self.before_first_request
         def first():
-            var = int(os.getenv('VAR', 0))
+            ...
 
         @self.before_request
         def before():
@@ -33,17 +37,24 @@ class MyMicroService(TechMicroService):
         def handle(e):
             ...
 
+    def init_app(self):
+        user_key = os.getenv("USER_KEY")
+
     def token_authorizer(self, token):
-        return token == os.getenv('TOKEN')
+        # Redefined to allow specific verification
+        user_key = request.headers.get("USER_KEY")
+        return token == os.getenv('TOKEN') and user_key is not None
 
     @entry
     def get(self):
-        return 'project ready!'
+        return 'project ready!\n'
 
 
 local = LocalConfig()
 local.environment_variables = {
     'LOCAL': 'my_value',
 }
+test = DevConfig('test')
+dev = DevConfig()
 prod = ProdConfig()
-app = MyMicroService(configs=[local, prod])
+app = MyMicroService(configs=[local, test, dev, prod])
