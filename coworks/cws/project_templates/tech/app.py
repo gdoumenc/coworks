@@ -16,6 +16,9 @@ from coworks.blueprint.profiler_blueprint import Profiler
 
 
 class MyMicroService(TechMicroService):
+    DOC_MD = """
+## Microservice for ...
+"""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
