@@ -27,7 +27,7 @@ CoWorks framework in two levels:
 
 * ``TechMicroservice`` are each composed of simple python `Flask <https://github.com/pallets/flask>`_ application and deployed as a serverless Lambda. Each ``TechMicroService`` is an ``atomic component`` or `atomic microservice <http://resources.fiorano.com/blog/microservices/>`_. These microservices may be called synchronously or asynchronously.
 
-* ``BizMicroservice`` are `composite business microservices <http://resources.fiorano.com/blog/microservices/>`_, which are `Airflow <https://github.com/apache/airflow>`_ dags providing orchestration of atomic microservices or components (i.e: ``TechMicroService``).
+* ``BizMicroservice`` are `composite business microservices <http://resources.fiorano.com/blog/microservices/>`_, which are `Airflow <https://github.com/apache/airflow>`_ DAGs providing orchestration of atomic microservices or components (aka: ``TechMicroService``).
 
 To get started with CoWorks, first follow the `Installation Guide <https://coworks.readthedocs.io/en/latest/installation.html>`_. Then you can get a quickstart on `TechMicroService Quickstart <https://coworks.readthedocs.io/en/latest/tech_quickstart.html>`_.
 Once familiar with ``TechMicroService``, you can continue with `BizMicroService Quickstart <https://coworks.readthedocs.io/en/latest/biz_quickstart.html>`_.
