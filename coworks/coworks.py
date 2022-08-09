@@ -362,7 +362,7 @@ class TechMicroService(Flask):
     def _token_handler(self, event: t.Dict[str, t.Any], context: t.Dict[str, t.Any]) -> dict:
         """Authorization token handler.
         """
-        self.logger.info(f"Calling {self.name} for authorization : {event}")
+        self.logger.warning(f"Calling {self.name} for authorization : {event}")
 
         try:
             res = self.token_authorizer(event['authorizationToken'])
@@ -375,7 +375,7 @@ class TechMicroService(Flask):
     def _api_handler(self, event: t.Dict[str, t.Any], context: t.Dict[str, t.Any]) -> dict:
         """API handler.
         """
-        self.logger.info(f"Calling {self.name} by api : {event}")
+        self.logger.warning(f"Calling {self.name} by api : {event}")
 
         def full_path():
             url = event['path']

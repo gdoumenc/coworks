@@ -191,7 +191,7 @@ requests.get('/stages/{name}')
         }
         url = f"{info['url']}{path}"
 
-        current_app.logger.info(f"{method.upper()} on {url}, with {data}")
+        current_app.logger.warning(f"{method.upper()} on {url}, with {data}")
         if method.upper() == 'GET':
             res = requests.get(url, params=data, headers=headers)
         elif method.upper() == 'POST':
