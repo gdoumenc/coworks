@@ -414,10 +414,11 @@ class TechMicroService(Flask):
             else:
                 self.logger.error(f"Error in api handler for {self.name} : {e}")
                 resp = self._structured_error(InternalServerError(original_exception=e))
-
-        if isinstance(resp, Response):
-            self.logger.debug(f"Status code returned by api : {resp.status_code}")
-        self.logger.debug("API returns")
+            self.logger.debug(f"Status code returned by api : {resp.get('statusCode')}")
+        else:
+            if isinstance(resp, Response):
+                self.logger.debug(f"Status code returned by api : {resp.status_code}")
+        self.logger.debug("api returns")
         return resp
 
     def _flask_handler(self, environ: t.Dict[str, t.Any], start_response: t.Callable[[t.Any], None]):
