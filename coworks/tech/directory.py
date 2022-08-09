@@ -174,7 +174,7 @@ requests.get('/stages/{name}')
                   accept='application/json', data=None):
         """Call a microservice from its name.
         :param name: microservice's name.
-        :param stage: method called.
+        :param stage: stage version.
         If stage is not defined the latest production version is choosen or 'dev' if no production version.
         :param path: entry path (default '/admin').
         :param method: method called (default 'get').
