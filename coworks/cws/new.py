@@ -1,9 +1,14 @@
+import sys
 from distutils.dir_util import copy_tree
 from pathlib import Path
 
 import click
+from jinja2 import Environment
+from jinja2 import PackageLoader
+from jinja2 import select_autoescape
 
 from coworks.utils import get_app_debug
+from coworks.version import __version__
 from .utils import progressbar
 
 
@@ -33,7 +38,17 @@ def new_command(ctx, force) -> None:
             project_dir.mkdir()
         bar.update()
 
+        # Copy files
         copy_tree(src.as_posix(), dest.as_posix())
+        bar.update()
+
+        # Render project configuration file
+        template_loader = PackageLoader(sys.modules[__name__].__package__)
+        jinja_env = Environment(loader=template_loader, autoescape=select_autoescape(['html', 'xml']))
+        template = jinja_env.get_template('project.cws.yml')
+        output = dest / 'project.cws.yml'
+        with output.open("w") as f:
+            f.write(template.render({'version': __version__.replace('.', '_')}))
         bar.update()
 
         if debug:
