@@ -13,6 +13,7 @@ from flask import Blueprint as FlaskBlueprint
 from flask import Flask
 from flask import Response
 from flask import current_app
+from flask import g
 from flask import json
 from flask.blueprints import BlueprintSetupState
 from flask.ctx import RequestContext

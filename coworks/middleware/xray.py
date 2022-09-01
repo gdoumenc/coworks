@@ -1,14 +1,13 @@
 import traceback
-
 import typing as t
+from functools import partial
+from functools import update_wrapper
+
 from aws_xray_sdk import global_sdk_config
 from aws_xray_sdk.core import patch_all
-from functools import partial, update_wrapper
-
 from flask import make_response
+from flask.globals import request_ctx
 
-from coworks.globals import aws_context
-from coworks.globals import aws_event
 from coworks.globals import request
 
 if t.TYPE_CHECKING:
@@ -116,8 +115,8 @@ class XRayMiddleware:
 
     def capture_exception(self, e):
         if not self._enabled:
-            self._app.logger.error(f"Event: {aws_event}")
-            self._app.logger.error(f"Context: {aws_context}")
+            self._app.logger.error(f"Event: {getattr(request_ctx, 'aws_event')}")
+            self._app.logger.error(f"Context: {getattr(request_ctx, 'aws_context')}")
             self._app.logger.debug("Skipped capture exception because the SDK is currently disabled.")
 
         subsegment = self._recorder.current_subsegment()
