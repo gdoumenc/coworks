@@ -40,6 +40,5 @@ class TestClass:
             response = c.get('/prefix/test/3', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "blueprint BP 3"
-            init_bp.do_before_first_activation.assert_called_once()
             init_bp.do_before_activation.assert_called_once()
             init_bp.do_after_activation.assert_called_once()

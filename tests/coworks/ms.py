@@ -1,8 +1,9 @@
 import io
 from unittest.mock import MagicMock
 
+from flask.globals import request_ctx
+
 from coworks import TechMicroService, entry
-from coworks.globals import aws_event
 
 
 class TechMS(TechMicroService):
@@ -84,4 +85,4 @@ class GlobalMS(TechMicroService):
 
     @entry
     def get_event_method(self):
-        return aws_event['httpMethod']
+        return request_ctx.aws_event['httpMethod']

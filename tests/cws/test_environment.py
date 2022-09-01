@@ -118,14 +118,14 @@ class TestClass:
 
 
 def run_server(project_dir, app, port):
-    obj = ScriptInfo(create_app=lambda _: app, set_debug_flag=False)
+    obj = ScriptInfo(create_app=lambda: app, set_debug_flag=False)
     client.main(['--project-dir', project_dir, 'run', '--port', port], 'cws', obj=obj, standalone_mode=False)
 
 
 def run_server_with_workspace(project_dir, app, port, workspace):
     @mock.patch.dict(os.environ, {"FLASK_ENV": workspace})
     def run():
-        obj = ScriptInfo(create_app=lambda _: app, set_debug_flag=False)
+        obj = ScriptInfo(create_app=lambda : app, set_debug_flag=False)
         client.main(['-p', project_dir, 'run', '--port', port], 'cws', obj=obj, standalone_mode=False)
 
     run()
