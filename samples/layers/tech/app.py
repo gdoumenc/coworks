@@ -28,10 +28,22 @@ class CoworksLayersMicroService(TechMicroService):
     @entry(no_auth=True)
     def get(self, full: bool = False):
         res = self.lambda_client.list_layers()
-        layers = filter(lambda x: x['LayerName'].startswith('coworks'), res['Layers'])
+        layers = {l['LayerName']: l for l in filter(lambda x: x['LayerName'].startswith('coworks'), res['Layers'])}
         if full:
-            return {layer['LayerName']: layer for layer in layers}
-        return {'coworks': [layer['LayerName'] for layer in layers]}
+            return layers
+        versions = [*filter(lambda x: 'dev' not in x, map(lambda x: x[8:].replace('_', '.'), layers))]
+        versions.sort(key=lambda s: list(map(int, s.split('.'))))
+        last_version = layers[f"coworks-{versions[-1].replace('.', '_')}"]
+        return {
+            'last': last_version['LayerArn'],
+            'layers': [*map(lambda x: x['LayerArn'], layers.values())],
+        }
+
+
+def to_json(layers, full):
+    if full:
+        return {layer['LayerName']: layer for layer in layers}
+    return {'coworks': [layer['LayerName'] for layer in layers]}
 
 
 dev = DevConfig()
