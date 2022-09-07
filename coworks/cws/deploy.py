@@ -209,12 +209,14 @@ class TerraformLocal:
         return data
 
     def generate_common_files(self, **options) -> None:
+        """Generates common terraform file."""
         template = self.jinja_env.get_template("terraform.j2")
         with open(f"{self.working_dir}/terraform.tf", 'w+') as f:
             data = self.get_context_data(**options)
             f.write(template.render(**{**options, **data}))
 
     def generate_files(self, template_filename, output_filename, **options) -> None:
+        """Generates workspace terraform files."""
         project_dir = options['project_dir']
         workspace = get_app_workspace()
         debug = get_app_debug()
@@ -465,6 +467,7 @@ def deployed_command(info, ctx, **options) -> None:
 
 
 def pop_terraform_class(options):
+    """Removes and returns terrafom class to be used (defined by the terraform cloud parameter or default)."""
     cloud = options.get('terraform_cloud')
     click.echo(" * Using terraform cloud" if cloud else " * Using terraform local")
     return options.pop('terraform_class', TerraformCloud if cloud else TerraformLocal)
