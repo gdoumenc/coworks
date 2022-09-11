@@ -392,7 +392,8 @@ class TerraformCloud(TerraformLocal):
 @click.option('--memory-size', default=128, help="Lambda memory size (default 128).")
 @click.option('--python', '-p', type=click.Choice(['3.7', '3.8']), default='3.8',
               help="Python version for the lambda.")
-@click.option('--source', help="Header identification token source.")
+@click.option('--security-groups', multiple=True, default=[], help="Security groups to be added [ids].")
+@click.option('--subnets', multiple=True, default=[], help="Subnets to be added [ids].")
 @click.option('--timeout', default=60, help="Lambda timeout (default 60s).Only for asynchronous call (API call 30s).")
 @click.option('--terraform-dir', default="terraform", help="Terraform folder (default terraform).")
 @click.option('--terraform-cloud', is_flag=True, help="Use cloud workspaces (default false).")
@@ -423,8 +424,6 @@ def deploy_command(info, ctx, **options) -> None:
 @click.option('--bucket', '-b', help="Bucket to upload sources zip file to", required=True)
 @click.option('--key', '-k', help="Sources zip file bucket's name.")
 @click.option('--profile-name', '-pn', required=True, help="AWS credential profile.")
-# Deploy specific optionsElle est immédiatement opérationnelle et fonctionnell
-@click.option('--source', help="Header identification token source.")
 @click.option('--terraform-dir', default="terraform", help="Terraform folder (default terraform).")
 @click.option('--terraform-cloud', is_flag=True, help="Use cloud workspaces (default false).")
 @click.pass_context
