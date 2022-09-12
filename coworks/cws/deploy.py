@@ -283,7 +283,7 @@ class RemoteTerraform(TerraformLocal):
         cmd = ['apply', '-auto-approve']
         if not self.refresh:
             cmd.append('-refresh=false')
-        self._execute(['apply', '-auto-approve', '-refresh=false'])
+        self._execute(cmd)
 
 
 class TerraformCloud(TerraformLocal):
@@ -410,10 +410,10 @@ def deploy_command(info, ctx, **options) -> None:
     app = app_context.app
     terraform = None
 
-    app.logger.debug('Start deploy command')
+    app.logger.debug(f"Start deploy command: {options}")
     terraform_class = pop_terraform_class(options)
-    with progressbar(label='Deploy microservice', threaded=not app.debug) as bar:
-        app.logger.debug(f'Deploying {app} using {terraform_class}')
+    with progressbar(label="Deploy microservice", threaded=not app.debug) as bar:
+        app.logger.debug(f"Deploying {app} using {terraform_class}")
         terraform = process_terraform(app_context, ctx, terraform_class, bar, 'deploy.j2', **options)
     if terraform:
         echo_output(terraform)
@@ -468,7 +468,8 @@ def deployed_command(info, ctx, **options) -> None:
 def pop_terraform_class(options):
     """Removes and returns terrafom class to be used (defined by the terraform cloud parameter or default)."""
     cloud = options.get('terraform_cloud')
-    click.echo(" * Using terraform cloud" if cloud else " * Using terraform local")
+    refresh = options.get('terraform_refresh')
+    click.echo(f" * Using terraform {'cloud' if cloud else 'local'} (refresh={refresh})")
     return options.pop('terraform_class', TerraformCloud if cloud else TerraformLocal)
 
 
