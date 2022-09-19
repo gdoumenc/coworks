@@ -1,0 +1,11 @@
+<div>
+  The available CoWorks layers are:
+</div>
+<ul>
+  {% for layer in layers %}
+    <li>{{ layer }}</li>
+  {% endfor %}
+</ul>
+<div>
+  Last updated on {{ now }} - Powered by <a href="https://github.com/gdoumenc/coworks" target="_blank">CoWorks</a>.
+</div>
