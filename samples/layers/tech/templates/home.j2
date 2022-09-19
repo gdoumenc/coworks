@@ -1,0 +1,28 @@
+<html lang="en">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+  <script>
+      function call_cws() {
+          fetch('{{ url }}', {
+              method: 'GET',
+              headers: new Headers({
+                  'Accept': 'text/html',
+                  'Content-Type': 'application/json',
+              }),
+          })
+              .then(res => res.text())
+              .then((txt) => {
+                  document.getElementById("layers").innerHTML = txt;
+              })
+      }
+  </script>
+</head>
+<body>
+
+<div style="margin-bottom: 20px;">
+  <input type="button" value="Get CoWorks Layers"
+         onclick="call_cws();"/>
+</div>
+<div id="layers"></div>
+</body>
+</html>

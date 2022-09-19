@@ -1,14 +1,12 @@
 import traceback
-
 import typing as t
+from functools import partial
+from functools import update_wrapper
+
 from aws_xray_sdk import global_sdk_config
 from aws_xray_sdk.core import patch_all
-from functools import partial, update_wrapper
-
 from flask import make_response
 
-from coworks.globals import aws_context
-from coworks.globals import aws_event
 from coworks.globals import request
 
 if t.TYPE_CHECKING:
@@ -64,9 +62,8 @@ class XRayMiddleware:
                     subsegment = self._recorder.current_subsegment()
                     if subsegment:
                         try:
-                            subsegment.put_metadata('context', lambda_context_to_json(aws_context),
-                                                    LAMBDA_NAMESPACE)
-
+                            aws_context = request.aws_context
+                            subsegment.put_metadata('context', lambda_context_to_json(aws_context), LAMBDA_NAMESPACE)
                             metadata = {
                                 'service': self._app.name,
                                 'request': request_to_dict(request),
@@ -90,6 +87,7 @@ class XRayMiddleware:
                             self._app.logger.error(traceback.extract_stack())
 
                     response = _view_function(*args, **kwargs)
+                    aws_context = request.aws_context
 
                     # Traces response
                     if subsegment:
@@ -116,8 +114,8 @@ class XRayMiddleware:
 
     def capture_exception(self, e):
         if not self._enabled:
-            self._app.logger.error(f"Event: {aws_event}")
-            self._app.logger.error(f"Context: {aws_context}")
+            self._app.logger.error(f"Event: {request.aws_event}")
+            self._app.logger.error(f"Context: {request.aws_context}")
             self._app.logger.debug("Skipped capture exception because the SDK is currently disabled.")
 
         subsegment = self._recorder.current_subsegment()

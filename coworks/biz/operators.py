@@ -25,8 +25,9 @@ class TechMicroServiceOperator(BaseOperator):
     :param entry: the route entry.
     :param method: the route method ('GET', 'POST').
     :param no_auth: set to 'True' if no authorization is needded (default 'False').
-    :param data: data for GET method (use data keyword as request 'params' keyword is used in Airflow)
-    :param json: data for POST method.
+    :param query_params: query parameters for GET method.
+    :param json: dict data for POST method.
+    :param data: object to send in the body for POST method
     :param stage: the microservice stage (default 'dev' if 'cws_name' not defined).
     :param api_id: APIGateway id (must be defined if no 'cws_name').
     :param token: Authorization token (must be defined if auth and no 'cws_name').
@@ -39,10 +40,11 @@ class TechMicroServiceOperator(BaseOperator):
     :param headers: specific header values forced (default {}).
     :param log_response: Trace result content (default False).
     """
-    template_fields = ["cws_name", "entry", "data", "json", "asynchronous"]
+    template_fields = ["cws_name", "entry", "query_params", "json", "data"]
 
     def __init__(self, *, cws_name: str = None, entry: str = None, method: str = None, no_auth: bool = False,
-                 data: t.Union[dict, str] = None, json: t.Union[dict, str] = None,
+                 query_params: t.Union[dict, str] = None, json: t.Union[dict, str] = None,
+                 data: t.Union[dict, str] = None,
                  stage: str = None, api_id: str = None, token: str = None,
                  directory_conn_id: str = 'coworks_directory', asynchronous: bool = False,
                  xcom_push=True, json_result=True, raise_400_errors: bool = True, accept='application/json',
@@ -54,9 +56,10 @@ class TechMicroServiceOperator(BaseOperator):
         self.method = method.lower() if method else 'get'
         self.no_auth = no_auth
         self.log_response = log_response
-        self.data = data
+        self.query_params = query_params
         self.json = json
-        self.stage = stage or "dev"
+        self.data = data
+        self.stage = stage
         self.api_id = api_id
         self.token = token
         self.directory_conn_id = directory_conn_id
@@ -86,7 +89,8 @@ class TechMicroServiceOperator(BaseOperator):
         if self.cws_name:
             http = HttpHook('get', http_conn_id=self.directory_conn_id)
             self.log.info("Calling CoWorks directory")
-            response = http.run(self.cws_name)
+            data = {'stage': self.stage} if self.stage else {}
+            response = http.run(self.cws_name, data=data)
             if self.log_response:
                 self.log.info(response.text)
             coworks_data = loads(response.text)
@@ -114,7 +118,10 @@ class TechMicroServiceOperator(BaseOperator):
 
     def _call_cws(self, context):
         logging.info(f"Calling {self.method.upper()} method to {self._url}")
-        res = requests.request(self.method.upper(), self._url, headers=self.headers, data=self.data, json=self.json)
+        res = requests.request(
+            self.method.upper(), self._url, headers=self.headers,
+            params=self.query_params, json=self.json, data=self.data
+        )
         logging.info(f"Resulting status code : {res.status_code}")
 
         # Manages status

@@ -3,7 +3,6 @@
 # ---------------------------------------------------------------------------------------------------------------------
 
 locals {
-  {{ resource_name }}_security_group_ids = []
-  {{ resource_name }}_vpc_id = []
-  {{ resource_name }}_subnet_ids = []
+  {{ resource_name }}_security_group_ids = {{ security_groups | list | replace("'", '"') }}
+  {{ resource_name }}_subnet_ids = {{ subnets | list | replace("'", '"')}}
 }

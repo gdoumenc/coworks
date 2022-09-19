@@ -51,13 +51,12 @@ requests.get('/stages/{name}')
         self.register_blueprint(Admin(), url_prefix='admin')
         XRayMiddleware(self, xray_recorder)
         self.api_client = self.lambda_client = None
-        self.access_key = None
 
     def init_app(self):
-        self.access_key = os.getenv("AWS_USER_ACCESS_KEY_ID")
+        access_key = os.getenv("AWS_USER_ACCESS_KEY_ID")
         secret_key = os.getenv("AWS_USER_SECRET_ACCESS_KEY")
         region_name = os.getenv("AWS_REGION_NAME")
-        session = boto3.Session(self.access_key, secret_key, region_name=region_name)
+        session = boto3.Session(access_key, secret_key, region_name=region_name)
         self.api_client = session.client('apigateway')
         self.lambda_client = session.client('lambda')
 
@@ -174,7 +173,7 @@ requests.get('/stages/{name}')
                   accept='application/json', data=None):
         """Call a microservice from its name.
         :param name: microservice's name.
-        :param stage: method called.
+        :param stage: stage version.
         If stage is not defined the latest production version is choosen or 'dev' if no production version.
         :param path: entry path (default '/admin').
         :param method: method called (default 'get').
@@ -191,7 +190,7 @@ requests.get('/stages/{name}')
         }
         url = f"{info['url']}{path}"
 
-        current_app.logger.info(f"{method.upper()} on {url}, with {data}")
+        current_app.logger.warning(f"{method.upper()} on {url}, with {data}")
         if method.upper() == 'GET':
             res = requests.get(url, params=data, headers=headers)
         elif method.upper() == 'POST':

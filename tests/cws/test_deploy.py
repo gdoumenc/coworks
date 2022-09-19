@@ -46,7 +46,7 @@ class TestClass:
     def test_api_resources(self, example_dir, progressbar):
         app = TechMS()
         with app.test_request_context() as ctx:
-            info = ScriptInfo(create_app=lambda _: app)
+            info = ScriptInfo(create_app=lambda : app)
             app_context = TerraformContext(info)
             terraform = TerraformLocal(app_context, progressbar, terraform_dir="terraform")
             ressources = terraform.api_resources
@@ -67,7 +67,7 @@ class TestClass:
         with project_dir_context(example_dir):
             app = import_attr('cmd', 'app')
             with app.test_request_context() as ctx:
-                info = ScriptInfo(create_app=lambda _: app)
+                info = ScriptInfo(create_app=lambda : app)
                 app_context = TerraformContext(info)
                 api_ressources = TerraformLocal(app_context, progressbar, terraform_dir=example_dir).api_resources
             assert len(api_ressources) == 5
@@ -95,13 +95,13 @@ class TestClass:
                     'memory_size': 100,
                     'deploy':True,
                 }
-                info = ScriptInfo(create_app=lambda _: app)
+                info = ScriptInfo(create_app=lambda : app)
                 app_context = TerraformContext(info)
                 terraform = TerraformLocal(app_context, progressbar, terraform_dir=Path(example_dir) / "terraform")
                 terraform.generate_files("deploy.j2", "test.tf", **options)
             with (Path(example_dir) / "terraform" / "test.tf").open() as f:
                 lines = f.readlines()
-            assert len(lines) == 2143
+            assert len(lines) == 2156
             print(lines[20:25])
             assert lines[1].strip() == 'alias = "envtechms"'
             assert lines[21].strip() == 'envtechms_when_default = terraform.workspace == "default" ? 1 : 0'
@@ -123,13 +123,13 @@ class TestClass:
                     'memory_size': 100,
                     'deploy':False,
                 }
-                info = ScriptInfo(create_app=lambda _: app)
+                info = ScriptInfo(create_app=lambda : app)
                 app_context = TerraformContext(info)
                 terraform = TerraformLocal(app_context, progressbar, terraform_dir=Path(example_dir) / "terraform")
                 terraform.generate_files("deploy.j2", "test.tf", **options)
             with (Path(example_dir) / "terraform" / "test.tf").open() as f:
                 lines = f.readlines()
-            assert len(lines) == 2143
+            assert len(lines) == 2156
             print(lines[20:25])
             assert lines[1].strip() == 'alias = "envtechms"'
             assert lines[21].strip() == 'envtechms_when_default = terraform.workspace == "default" ? 0 : 0'

@@ -12,7 +12,7 @@ from werkzeug.exceptions import NotFound
 
 from coworks import Blueprint
 from coworks import entry
-from coworks.globals import aws_event
+from coworks import request
 
 
 class Admin(Blueprint):
@@ -74,8 +74,7 @@ class Admin(Blueprint):
     @entry
     def get_event(self):
         """Returns the calling event."""
-        # noinspection PyProtectedMember
-        return aws_event._get_current_object()
+        return request.aws_event
 
     def get_proxy(self):
         """Returns the calling context."""

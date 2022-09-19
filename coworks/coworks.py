@@ -13,6 +13,7 @@ from flask import Blueprint as FlaskBlueprint
 from flask import Flask
 from flask import Response
 from flask import current_app
+from flask import g
 from flask import json
 from flask.blueprints import BlueprintSetupState
 from flask.ctx import RequestContext
@@ -223,16 +224,6 @@ class TechMicroService(Flask):
 
         return super().app_context()
 
-    def request_context(self, environ: dict) -> RequestContext:
-        """Redefined to :
-        - initialize the environment
-        - add Lambda event and context in globals.
-        """
-        ctx = super().request_context(environ)
-        ctx.aws_event = environ.get('aws_event')
-        ctx.aws_context = environ.get('aws_context')
-        return ctx
-
     def cws_client(self, event, context):
         """CoWorks client with new globals.
         """
@@ -362,7 +353,7 @@ class TechMicroService(Flask):
     def _token_handler(self, event: t.Dict[str, t.Any], context: t.Dict[str, t.Any]) -> dict:
         """Authorization token handler.
         """
-        self.logger.info(f"Calling {self.name} for authorization : {event}")
+        self.logger.warning(f"Calling {self.name} for authorization : {event}")
 
         try:
             res = self.token_authorizer(event['authorizationToken'])
@@ -375,7 +366,7 @@ class TechMicroService(Flask):
     def _api_handler(self, event: t.Dict[str, t.Any], context: t.Dict[str, t.Any]) -> dict:
         """API handler.
         """
-        self.logger.info(f"Calling {self.name} by api : {event}")
+        self.logger.warning(f"Calling {self.name} by api : {event}")
 
         def full_path():
             url = event['path']
@@ -414,10 +405,11 @@ class TechMicroService(Flask):
             else:
                 self.logger.error(f"Error in api handler for {self.name} : {e}")
                 resp = self._structured_error(InternalServerError(original_exception=e))
-
-        if isinstance(resp, Response):
-            self.logger.debug(f"Status code returned by api : {resp.status_code}")
-        self.logger.debug("API returns")
+            self.logger.debug(f"Status code returned by api : {resp.get('statusCode')}")
+        else:
+            if isinstance(resp, Response):
+                self.logger.debug(f"Status code returned by api : {resp.status_code}")
+        self.logger.debug("api returns")
         return resp
 
     def _flask_handler(self, environ: t.Dict[str, t.Any], start_response: t.Callable[[t.Any], None]):

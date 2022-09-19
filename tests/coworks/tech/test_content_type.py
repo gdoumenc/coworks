@@ -1,6 +1,8 @@
 import os
 from unittest import mock
 
+from flask import json
+
 from coworks import TechMicroService
 from coworks import entry
 from ..event import get_event
@@ -24,11 +26,11 @@ class ContentMS(TechMicroService):
             return f"post {text}, {context} and {[f.file.name for f in files]}"
         return f"post {text}, {context}"
 
-    @entry(binary=True)
+    @entry(binary=True, no_auth=True)
     def get_binary(self):
         return b"test"
 
-    @entry(binary=True, content_type='application/pdf')
+    @entry(binary=True, content_type='application/pdf', no_auth=True)
     def get_content_type(self):
         return b"test"
 
@@ -91,7 +93,7 @@ class TestClass:
             assert response.status_code == 200
             assert response.is_json
             assert response.headers['Content-Type'] == 'application/json'
-            assert response.get_data(as_text=True) == '{"text":"value","int":1}\n'
+            assert json.loads(response.get_data(as_text=True)) == {"text": "value", "int": 1}
 
     def test_binary_content_type(self, empty_context):
         app = ContentMS()

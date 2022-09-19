@@ -5,8 +5,10 @@ commands:
     bucket: coworks-microservice
     profile_name: fpr-customer
     layers:
-      - arn:aws:lambda:eu-west-1:935392763270:layer:coworks-0_7_3
-    workspaces:
-      - workspace: dev
+      - arn:aws:lambda:eu-west-1:935392763270:layer:coworks-0_7_4
+workspaces:
+  dev:
+    commands:
+      deploy:
         layers:
-          - arn:aws:lambda:eu-west-1:935392763270:layer:coworks-dev
+          - arn:aws:lambda:eu-west-1:935392763270:layer:coworks-dev1

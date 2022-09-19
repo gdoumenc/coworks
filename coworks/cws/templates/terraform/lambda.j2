@@ -20,7 +20,7 @@ data "aws_s3_object" "{{ resource_name }}-b64sha256" {
 {% if layers -%}
 data "aws_lambda_layer_version" "{{ resource_name }}" {
   provider = aws.{{ resource_name }}
-  for_each = {for layer_name in [{% for layer in layers %}"{{ layer }}",{% endfor %}]: layer_name => layer_name}
+  for_each = toset([{% for layer in layers %}"{{ layer }}",{% endfor %}])
   layer_name = each.value
 }
 {%- endif %}

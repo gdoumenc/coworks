@@ -268,4 +268,18 @@ resource "aws_cloudwatch_log_group" "api_{{ resource_name }}" {
   name = "API-Gateway-Execution-Logs_${local.{{ resource_name }}_api_id}/{{ workspace }}"
   retention_in_days = 7
 }
+
+resource "aws_api_gateway_method_settings" "api_{{ resource_name }}" {
+  provider = aws.{{ resource_name }}
+  count = local.{{ resource_name }}_when_stage
+  rest_api_id = local.{{ resource_name }}_api_id
+  stage_name  = local.{{ resource_name }}_when_stage==1?aws_api_gateway_stage.{{ resource_name }}[0].stage_name:""
+  method_path = "*/*"
+
+  settings {
+    metrics_enabled = true
+    logging_level = "INFO"
+    data_trace_enabled = true
+  }
+}
 {% endif -%}

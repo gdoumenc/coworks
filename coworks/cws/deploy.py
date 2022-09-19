@@ -209,12 +209,14 @@ class TerraformLocal:
         return data
 
     def generate_common_files(self, **options) -> None:
+        """Generates common terraform file."""
         template = self.jinja_env.get_template("terraform.j2")
         with open(f"{self.working_dir}/terraform.tf", 'w+') as f:
             data = self.get_context_data(**options)
             f.write(template.render(**{**options, **data}))
 
     def generate_files(self, template_filename, output_filename, **options) -> None:
+        """Generates workspace terraform files."""
         project_dir = options['project_dir']
         workspace = get_app_workspace()
         debug = get_app_debug()
@@ -281,7 +283,7 @@ class RemoteTerraform(TerraformLocal):
         cmd = ['apply', '-auto-approve']
         if not self.refresh:
             cmd.append('-refresh=false')
-        self._execute(['apply', '-auto-approve', '-refresh=false'])
+        self._execute(cmd)
 
 
 class TerraformCloud(TerraformLocal):
@@ -390,7 +392,8 @@ class TerraformCloud(TerraformLocal):
 @click.option('--memory-size', default=128, help="Lambda memory size (default 128).")
 @click.option('--python', '-p', type=click.Choice(['3.7', '3.8']), default='3.8',
               help="Python version for the lambda.")
-@click.option('--source', help="Header identification token source.")
+@click.option('--security-groups', multiple=True, default=[], help="Security groups to be added [ids].")
+@click.option('--subnets', multiple=True, default=[], help="Subnets to be added [ids].")
 @click.option('--timeout', default=60, help="Lambda timeout (default 60s).Only for asynchronous call (API call 30s).")
 @click.option('--terraform-dir', default="terraform", help="Terraform folder (default terraform).")
 @click.option('--terraform-cloud', is_flag=True, help="Use cloud workspaces (default false).")
@@ -407,10 +410,10 @@ def deploy_command(info, ctx, **options) -> None:
     app = app_context.app
     terraform = None
 
-    app.logger.debug('Start deploy command')
+    app.logger.debug(f"Start deploy command: {options}")
     terraform_class = pop_terraform_class(options)
-    with progressbar(label='Deploy microservice', threaded=not app.debug) as bar:
-        app.logger.debug(f'Deploying {app} using {terraform_class}')
+    with progressbar(label="Deploy microservice", threaded=not app.debug) as bar:
+        app.logger.debug(f"Deploying {app} using {terraform_class}")
         terraform = process_terraform(app_context, ctx, terraform_class, bar, 'deploy.j2', **options)
     if terraform:
         echo_output(terraform)
@@ -421,8 +424,6 @@ def deploy_command(info, ctx, **options) -> None:
 @click.option('--bucket', '-b', help="Bucket to upload sources zip file to", required=True)
 @click.option('--key', '-k', help="Sources zip file bucket's name.")
 @click.option('--profile-name', '-pn', required=True, help="AWS credential profile.")
-# Deploy specific optionsElle est immédiatement opérationnelle et fonctionnell
-@click.option('--source', help="Header identification token source.")
 @click.option('--terraform-dir', default="terraform", help="Terraform folder (default terraform).")
 @click.option('--terraform-cloud', is_flag=True, help="Use cloud workspaces (default false).")
 @click.pass_context
@@ -465,8 +466,10 @@ def deployed_command(info, ctx, **options) -> None:
 
 
 def pop_terraform_class(options):
+    """Removes and returns terrafom class to be used (defined by the terraform cloud parameter or default)."""
     cloud = options.get('terraform_cloud')
-    click.echo(" * Using terraform cloud" if cloud else " * Using terraform local")
+    refresh = options.get('terraform_refresh')
+    click.echo(f" * Using terraform {'cloud' if cloud else 'local'} (refresh={refresh})")
     return options.pop('terraform_class', TerraformCloud if cloud else TerraformLocal)
 
 

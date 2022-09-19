@@ -3,8 +3,11 @@ commands:
   deploy:
     class: coworks.cws.deploy.deploy_command
     layers:
-      - arn:aws:lambda:eu-west-1:935392763270:layer:coworks-0_7_3
-    workspaces:
-      - workspace: dev
+      - arn:aws:lambda:eu-west-1:935392763270:layer:coworks-{{ version }}
+workspaces:
+  dev:
+    commands:
+      deploy:
         layers:
           - arn:aws:lambda:eu-west-1:935392763270:layer:coworks-dev
+

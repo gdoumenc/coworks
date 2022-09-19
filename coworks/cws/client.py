@@ -63,9 +63,7 @@ class CoWorksGroup(FlaskGroup):
 
         # Warning for deprecated options
         if ctx.params.get('workspace'):
-            click.echo("Option workspace deprecated! Will not be used (set FLASK_ENV).")
-        if ctx.params.get('workspace'):
-            click.echo("Option debug deprecated! Will not be used (set FLASK_DEBUG).")
+            click.echo("Option debug deprecated! Will not be used (set FLASK_ENV).")
 
         # Get project infos
         config_file = ctx.params.get('config_file')
