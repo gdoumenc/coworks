@@ -224,16 +224,6 @@ class TechMicroService(Flask):
 
         return super().app_context()
 
-    def request_context(self, environ: dict) -> RequestContext:
-        """Redefined to :
-        - initialize the environment
-        - add Lambda event and context in globals.
-        """
-        ctx = super().request_context(environ)
-        ctx.aws_event = environ.get('aws_event')
-        ctx.aws_context = environ.get('aws_context')
-        return ctx
-
     def cws_client(self, event, context):
         """CoWorks client with new globals.
         """

@@ -26,10 +26,14 @@ CoWorks is a unified serverless microservices framework based on AWS technologie
 the `Flask <https://github.com/pallets/flask>`_ framework and the `Airflow <https://github.com/apache/airflow>`_
 plateform.
 
+**Small technical microservice**
+
 Each atomic microservice (defined as ``class TechMicroService``) is a simple python class deployed as a serverless
 AWS Lambda and can be called synchronously and asynchrously.
 
-Composition of microservices (defined as ``class BizMicroService``) is performed over the tech microservices and
+**Functional business service**
+
+Composition of microservices (defined with ``@biz``) is performed over the tech microservices and
 constructed by Airflow workflows.
 
 Technical documentation :
@@ -67,22 +71,22 @@ by outlining traits microservice applications share:
 * Decentralized
 * Built and released with automated processes
 
-In CoWorks, microservices are serverless services over APIs.
+In CoWorks, microservices are serverless functions over APIs.
 
 Small in size
-  Simply implemented as a python class.
+  Simply implemented as a Flask python class.
 
 Messaging enabled
   API Gateway request-response managed services.
 
 Service oriented
-  Technological service on Lambda and Functional service over Step Function.
+  Technological service by Flask entry, biz service by Airflow workflow.
 
 Independently deployable
-  All needed deployment information defined in the python class.
+  Serverless component accessed thru API.
 
 Decentralized
-  Serverless components.
+  Serverless components managed by workflows.
 
 Smart endpoints
   Deriving directly from class methods.
@@ -102,20 +106,18 @@ CoWorks microservices are divided in two categories :
   operations over a specific service. Technical miscroservice should be stateless.
 
 
-**Functional business microservice**
+**Functional business service**
 
   Implemented by Airflow workflow, this kind of microservice allows non programmer to construct
   functional business workflows.
 
 
-Distinction between ``TechMicroservice`` and ``BizMicroservice`` is based not only on granularity size but also:
+Distinction between technical microservice and business service is based not only on granularity size but also:
 
-* A ``TechMicroservice`` should only be used as receivers of orders coming from ``BizMicroservices``.
-* A ``BizMicroservice`` represents a logical workflow of actions while a ``TechMicroservice`` represents a simple
-concrete action.
-* A ``TechMicroservice`` is an independant microservice while a ``BizMicroservice`` is connected to event handlers
-(cron, notification, event, ...).
-* A ``TechMicroservice`` is more a handler pattern and ``BizMicroservice`` a reactor pattern.
+* A ``TechMicroservice`` should mainly be used as receivers of orders coming from ``@biz``.
+* A ``@biz`` represents a logical workflow of actions while a ``TechMicroservice`` represents a simple concrete action.
+* A ``TechMicroservice`` is an independant microservice while a ``@biz`` is connected to event handlers (cron, notification, event, ...).
+* A ``TechMicroservice`` is more a handler pattern and ``@biz`` a reactor pattern.
 
 Code oriented tools
 *******************

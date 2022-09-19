@@ -101,7 +101,7 @@ class TestClass:
                 terraform.generate_files("deploy.j2", "test.tf", **options)
             with (Path(example_dir) / "terraform" / "test.tf").open() as f:
                 lines = f.readlines()
-            assert len(lines) == 2157
+            assert len(lines) == 2156
             print(lines[20:25])
             assert lines[1].strip() == 'alias = "envtechms"'
             assert lines[21].strip() == 'envtechms_when_default = terraform.workspace == "default" ? 1 : 0'
@@ -129,7 +129,7 @@ class TestClass:
                 terraform.generate_files("deploy.j2", "test.tf", **options)
             with (Path(example_dir) / "terraform" / "test.tf").open() as f:
                 lines = f.readlines()
-            assert len(lines) == 2157
+            assert len(lines) == 2156
             print(lines[20:25])
             assert lines[1].strip() == 'alias = "envtechms"'
             assert lines[21].strip() == 'envtechms_when_default = terraform.workspace == "default" ? 0 : 0'

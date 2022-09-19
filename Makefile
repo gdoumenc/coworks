@@ -23,5 +23,5 @@ plugins.zip: coworks/operators.py coworks/sensors.py coworks/biz/*
 
 clean:
 	rm -rf dist build coworks.egg-info terraform .pytest_cache &2>/dev/null
-	find . -type f -name \*.pyc -delete &2>/dev/null
-	find . -type d -name __pycache__ -exec rm -rf {} \; &2>/dev/null
+	find . -type f -name \*.pyc -delete &1>/dev/null &2>/dev/null
+	find . -type d -name __pycache__ -exec rm -rf {} \; &1>/dev/null &2>/dev/null

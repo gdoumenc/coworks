@@ -5,7 +5,6 @@ from inspect import Parameter
 
 import markdown
 from flask import current_app
-from flask.globals import request_ctx
 from jinja2 import Environment
 from jinja2 import PackageLoader
 from jinja2 import select_autoescape
@@ -13,7 +12,7 @@ from werkzeug.exceptions import NotFound
 
 from coworks import Blueprint
 from coworks import entry
-from flask import g
+from coworks import request
 
 
 class Admin(Blueprint):
@@ -75,7 +74,7 @@ class Admin(Blueprint):
     @entry
     def get_event(self):
         """Returns the calling event."""
-        return getattr(request_ctx, 'aws_event')
+        return request.aws_event
 
     def get_proxy(self):
         """Returns the calling context."""
