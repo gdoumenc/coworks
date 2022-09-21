@@ -109,7 +109,7 @@ class Odoo(Blueprint):
             return res
 
         if len(res) == 0:
-            raise NotFound()
+            raise NotFound(f"No {model} with domain: {json.dumps(domain)}")
         if ensure_one:
             if len(res) != 1:
                 raise NotFound("More than one element found and ensure_one parameters was set")
