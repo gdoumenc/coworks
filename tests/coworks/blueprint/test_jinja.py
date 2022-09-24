@@ -14,7 +14,7 @@ class JinjaMS(TechMicroService):
         self.register_blueprint(Jinja())
 
 
-@mock.patch.dict(os.environ, {"FLASK_ENV": "local"})
+@mock.patch.dict(os.environ, {"CWS_STAGE": "local"})
 class TestClass:
 
     def test_render_empty_template(self, auth_headers):

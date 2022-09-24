@@ -5,7 +5,7 @@ from werkzeug.middleware.profiler import ProfilerMiddleware
 from coworks import TechMicroService
 from coworks import entry
 from coworks.blueprint.admin_blueprint import Admin
-from coworks.middleware.xray import XRayMiddleware
+from coworks.extension.xray import XRay
 
 
 class SimpleMicroService(TechMicroService):
@@ -46,4 +46,4 @@ app = SimpleMicroService(name="sample-complete-microservice")
 app.register_blueprint(Admin(), url_prefix='/admin')
 
 app.wsgi_app = ProfilerMiddleware(app.wsgi_app, stream=app.output)
-XRayMiddleware(app, xray_recorder)
+XRay(app, xray_recorder)

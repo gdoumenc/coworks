@@ -11,7 +11,7 @@ from tests.conftest import project_dir_context
 
 class TestClass:
 
-    @mock.patch.dict(os.environ, {"FLASK_ENV": "local"})
+    @mock.patch.dict(os.environ, {"CWS_STAGE": "local"})
     @mock.patch.dict(os.environ, {"FLASK_RUN_FROM_CLI": "false"})
     def test_run_simple(self, samples_docs_dir, unused_tcp_port):
         with project_dir_context(samples_docs_dir):

@@ -8,14 +8,14 @@ Configuration versus Environment variable
 
 There are three configuration levels:
 
-    * Project config,
-    * Execution config,
-    * Application config.
+* Project config,
+* Execution config,
+* Application config.
 
 **Project configuration**
     Project configuration is related to how the team works and how deployment should be done. This description
     is done by a project configuration file: ``project.cws.yml``. This project configuration file describes
-    the commands and options associated on the project.
+    the commands and options associated to the project.
 
 **Execution configuration**
     As for the `Twelve-Factor App <https://12factor.net/>`_ : *"The twelve-factor app stores config in environment variables.
@@ -28,10 +28,17 @@ There are three configuration levels:
 
     That's why entries are defined in the code. The link from entry to function is always the same.
 
+In Flask, there is only the concept of application configuration as the excution configuration if out of is scope
+(mainly associated to the USWGI server).
+
+In CoWorks, we use the concept of *stage* for execution configuration deployed in lambda variables.
+
+
 Project configuration
 ---------------------
 
-Stage is a key concept for the deployment. Stages are defined thru the concept of workspace (same as for terraform).
+Stage is a key concept for the deployment. Stages are defined thru the concept of *workspace* in terraform, *stage* for
+AWS API Gateway and *variables* of AWS Lambda.
 
 
 Workspace definition
@@ -43,7 +50,7 @@ constructor::
 	config = Config(workspace='local', environment_variables_file=Path("config") / "vars_local.json")
 	app = SimpleMicroService(ms_name='test', configs=config)
 
-The ``workspace`` value will correspond to the ``FLASK_ENV`` variable value.
+The ``workspace`` value will correspond to the ``CWS_STAGE`` variable value.
 
 In the exemple over, if you run the microservice in the workspace ``local``, then environment file will be found in
 ``config/vars_local.json``.
@@ -58,15 +65,15 @@ This allows you to define specific environment values for local running and for 
 
 Three predefined workspace configurations are defined:
 
-    * ``LocalConfig`` for local development run.
-    * ``DevConfig`` for deployed development version with trace.
-    * ``ProdConfig``. This configuration class is defined for production workspace where their names are version names,
+* ``LocalConfig`` for local development run.
+* ``DevConfig`` for deployed development version with trace.
+* ``ProdConfig``. This configuration class is defined for production workspace where their names are version names,
 i.e. defined as ``r"v[1-9]+"``.
 
 As example you can deploy the specific stage ``dev`` of the microservice ``service`` defined in the ``ms`` python file
 in the folder ``src/tech``::
 
-    $ FLASK_ENV=dev FLASK_APP=ms:service cws -p src/tech deploy
+    $ CWS_STAGE=dev FLASK_APP=ms:service cws -p src/tech deploy
 
 Project configuration file
 ^^^^^^^^^^^^^^^^^^^^^^^^^^

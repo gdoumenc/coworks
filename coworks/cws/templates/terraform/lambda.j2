@@ -54,7 +54,7 @@ resource "aws_lambda_function" "{{ resource_name }}" {
 {%- if environment_variable_files %}
       [for item in local.{{ resource_name }}_environment_variables: merge(item,local.{{ resource_name }}_environment_variables...)][0],
 {%- endif %}
-      {"FLASK_DEBUG":"{{ '1' if workspace == "dev" else '0' }}", "FLASK_ENV":"{{ workspace }}"}
+      {"FLASK_DEBUG":"{{ '1' if workspace == "dev" else '0' }}", "CWS_STAGE":"{{ workspace }}"}
     )
   }
   tracing_config {

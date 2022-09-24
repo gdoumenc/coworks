@@ -13,23 +13,27 @@ if t.TYPE_CHECKING:
     from coworks import TechMicroService
     from aws_xray_sdk.core import AWSXRayRecorder
 
-MIDDLEWARE_NAME = 'xray'
 LAMBDA_NAMESPACE = 'lambda'
 REQUEST_NAMESPACE = 'flask'
 COWORKS_NAMESPACE = 'coworks'
 
 
-class XRayMiddleware:
+class XRay:
 
-    def __init__(self, app: "TechMicroService", recorder: "AWSXRayRecorder", name=MIDDLEWARE_NAME):
+    def __init__(self, app: "TechMicroService", recorder: "AWSXRayRecorder", name="xray"):
         self._app = app
         self._app.before_first_request(self.capture_routes)
         self._app.errorhandler(500)(self.capture_exception)
         self._recorder = recorder
+        self._name = name
         self._enabled = False
 
+        if app is not None:
+            self.init_app(app)
+
+    def init_app(self, app):
         def first():
-            app.logger.debug(f"Initializing xray middleware {name}")
+            app.logger.debug(f"Initializing xray extension {self._name}")
 
             # Checks XRay is enabled
             self._enabled = global_sdk_config.sdk_enabled()

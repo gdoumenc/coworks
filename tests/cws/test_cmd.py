@@ -64,7 +64,7 @@ class TestClass:
         captured = capsys.readouterr()
         assert captured.out == "test command with a=default/test command with b=right"
 
-    @mock.patch.dict(os.environ, {"FLASK_ENV": "v1", "FLASK_APP": "cmd:app"})
+    @mock.patch.dict(os.environ, {"CWS_STAGE": "v1", "FLASK_APP": "cmd:app"})
     def test_v1_cmd(self, example_dir, capsys):
         client.main(['--project-dir', example_dir, 'test', '-a', 'right'], 'cws',
                     standalone_mode=False)

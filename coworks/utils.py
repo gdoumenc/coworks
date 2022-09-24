@@ -337,7 +337,7 @@ def is_json(mt):
 
 
 def get_app_workspace():
-    return os.getenv('FLASK_ENV', DEFAULT_DEV_WORKSPACE)
+    return os.getenv('CWS_STAGE', DEFAULT_DEV_WORKSPACE)
 
 
 def get_app_debug():

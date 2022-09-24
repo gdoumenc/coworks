@@ -72,7 +72,7 @@ class AmbiguousMS(TechMicroService):
         return {'value': 'ok'}, 200
 
 
-@mock.patch.dict(os.environ, {"FLASK_ENV": "local"})
+@mock.patch.dict(os.environ, {"CWS_STAGE": "local"})
 class TestClass:
     def test_request_arg(self):
         app = SimpleMS()

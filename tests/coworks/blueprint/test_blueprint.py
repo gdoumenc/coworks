@@ -5,7 +5,7 @@ from ..blueprint.blueprint import BP, InitBP
 from ..ms import SimpleMS
 
 
-@mock.patch.dict(os.environ, {"FLASK_ENV": "local"})
+@mock.patch.dict(os.environ, {"CWS_STAGE": "local"})
 class TestClass:
     def test_request(self):
         app = SimpleMS()

@@ -3,11 +3,11 @@
 Commands
 ========
 
-CoWorks allows you to extend the ``cws`` application with commands. This powerfull extension is very usefull
+AS for Flask, CoWorks allows you to extend the ``cws`` application with commands. This powerfull extension is very usefull
 for complex deployment, testing or documentation.
 
-As explained before, the microservice architecture needs to be completed by tools. The ``cws`` command line is
-the interface for that purpose.
+As explained before, the microservice architecture needs to be completed by tools. The ``cws`` command line extends
+the ``flask`` command for that purpose.
 
 .. _cli:
 
@@ -17,10 +17,10 @@ CWS : Command Line Interface
 ``cws`` is an extension of the Flask command-line shell program that provides convenience and productivity
 features to help user to :
 
- * Get microservices informations,
- * Export microservices to another formats,
- * Update deployed microservices,
- * ...
+* Get microservices informations,
+* Export microservices to another formats,
+* Update deployed microservices,
+* ...
 
 It is a generic client interface on which commands may be defined.
 
@@ -51,8 +51,8 @@ To view a list of the available commands at any time, just run `cws` with no arg
       zip       Zip all source files to create a Lambda file source.
 
 
-As you can see, the default Falsk command as shell, routes or shell are predefined.
-A new command ``deploy`` has been defined.
+As you can see, the default Flssk commands as shell, routes or shell are predefined.
+Some new commands as ``deploy`` have been defined.
 
 The options ``-p (project_dir)`` is mandatory if the ``cws`` command is not issued in the source folder.
 
@@ -60,7 +60,10 @@ The options ``-p (project_dir)`` is mandatory if the ``cws`` command is not issu
 for example in your IDE, you can define the environment variable ``INSTANCE_RELATIVE_PATH`` to be able to retrieve
 the environment variable file. The value is a relative path from ``project_dir``.
 
-At last the usefull variables ``FLASK_ENV`` and ``FLASK_DEBUG`` may be used same way as for Flask.
+At last the usefull variables:
+
+* ``CWS_STAGE``: to determine which stage will be used.
+* ``FLASK_DEBUG``: may be used same way as for Flask.
 
 Example of a simple command from the coworks directory::
 
@@ -79,12 +82,12 @@ CoWorks Commands
 new
 ^^^
 
-The ``new`` command crate an empty CoWorks project.
+The ``new`` command creates an empty CoWorks project.
 
 deploy
 ^^^^^^
 
-The ``deploy`` command is defined to deploy a ``TechMicroService`` on the AWS plateform.
+The ``deploy`` command allows to deploy a ``TechMicroService`` on the AWS plateform.
 
 This is done by creating terraform files from jinja template files. You can override those templates or add new files
 if you needed to enhance the deployment process.
