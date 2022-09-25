@@ -147,6 +147,12 @@ resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_{
       #set($context.responseOverride.header=$inputRoot.headers)
       $inputRoot.body
     EOF
+    "text/css" = <<-EOF
+      #set($inputRoot = $input.path('$'))
+      #set($context.responseOverride.status=$inputRoot.statusCode)
+      #set($context.responseOverride.header=$inputRoot.headers)
+      $inputRoot.body
+    EOF
   }
   {%- endif %}
   depends_on = [aws_api_gateway_method_response.{{ resource_name }}_{{ uid }}_{{ method }}_response_200]

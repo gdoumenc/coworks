@@ -13,15 +13,20 @@ from coworks import TechMicroService
 from coworks import entry
 from coworks import request
 from coworks.blueprint.admin_blueprint import Admin
-from coworks.middleware.xray import XRayMiddleware
+from coworks.extension.xray import XRay
 
 
 class CoworksLayersMicroService(TechMicroService):
+    DOC_MD = """
+## Layers service
+
+Microservice to get all available CoWorks layers.
+"""
 
     def __init__(self, **kwargs):
         super().__init__(name="cws_layers", **kwargs)
         self.register_blueprint(Admin(), url_prefix='/admin')
-        XRayMiddleware(self, xray_recorder)
+        XRay(self, xray_recorder)
         self.lambda_client = None
 
     def init_app(self):
@@ -34,11 +39,13 @@ class CoworksLayersMicroService(TechMicroService):
 
     @entry(no_auth=True)
     def get_home(self):
+        """HTML page to get the layers."""
         headers = {'Content-Type': 'text/html; charset=utf-8'}
         return render_template('home.j2', url=url_for('get')), 200, headers
 
     @entry(no_auth=True)
     def get(self, full: bool = False):
+        """Layers in json or text format."""
         res = self.lambda_client.list_layers()
         layers = {x['LayerName']: x for x in filter(lambda x: x['LayerName'].startswith('coworks'), res['Layers'])}
         if full:

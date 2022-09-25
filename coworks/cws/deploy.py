@@ -9,6 +9,7 @@ from shutil import ExecError
 from shutil import copy
 from subprocess import CalledProcessError
 from subprocess import CompletedProcess
+import os
 
 import boto3
 import click
@@ -410,6 +411,12 @@ def deploy_command(info, ctx, **options) -> None:
     app = app_context.app
     terraform = None
 
+    if "FLASK_ENV" in os.environ:
+        print(
+            "\033[91m'FLASK_ENV' is deprecated. Use 'CWS_STAGE' instead.\033[00m",
+            file=sys.stderr,
+        )
+
     app.logger.debug(f"Start deploy command: {options}")
     terraform_class = pop_terraform_class(options)
     with progressbar(label="Deploy microservice", threaded=not app.debug) as bar:
@@ -510,7 +517,7 @@ def process_terraform(app_context, ctx, terraform_class, bar, command_template, 
     terraform.generate_common_files(**root_command_params, **options)
 
     # Generates terraform files and copy environment variable files in terraform working dir for provisionning
-    terraform_filename = f"{app.name}.{app.ms_type}.tf"
+    terraform_filename = f"{app.name}.tech.tf"
     app.logger.debug(f'Generate terraform {terraform_filename} file')
     terraform.generate_files(command_template, terraform_filename, **root_command_params, **options)
 
