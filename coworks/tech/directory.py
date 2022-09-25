@@ -12,7 +12,7 @@ from werkzeug.exceptions import NotFound
 from coworks import TechMicroService
 from coworks import entry
 from coworks.blueprint.admin_blueprint import Admin
-from coworks.middleware.xray import XRayMiddleware
+from coworks.extension.xray import XRay
 from coworks.utils import is_json
 
 
@@ -49,7 +49,7 @@ requests.get('/stages/{name}')
     def __init__(self, **kwargs):
         super().__init__(name="directory", **kwargs)
         self.register_blueprint(Admin(), url_prefix='admin')
-        XRayMiddleware(self, xray_recorder)
+        XRay(self, xray_recorder)
         self.api_client = self.lambda_client = None
 
     def init_app(self):

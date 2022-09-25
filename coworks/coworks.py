@@ -13,10 +13,8 @@ from flask import Blueprint as FlaskBlueprint
 from flask import Flask
 from flask import Response
 from flask import current_app
-from flask import g
 from flask import json
 from flask.blueprints import BlueprintSetupState
-from flask.ctx import RequestContext
 from flask.testing import FlaskClient
 from werkzeug.datastructures import ImmutableDict
 from werkzeug.datastructures import WWWAuthenticate
@@ -236,10 +234,6 @@ class TechMicroService(Flask):
         self._init_app(False)
 
         return super().test_client(*args, **kwargs)
-
-    @property
-    def ms_type(self) -> str:
-        return 'tech'
 
     @property
     def routes(self) -> t.List[Rule]:

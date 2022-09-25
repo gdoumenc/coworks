@@ -11,6 +11,7 @@ Pipfile.lock
 **/*.secret.json
 samples/*/terraform
 samples/*/Pipfile.lock
+samples/*/node_modules/
 
 # Tests example
 tests/example/*.zip
@@ -25,5 +26,4 @@ coworks/cattr.py
 docs/_build/
 .pytest_cache/
 **/*.log
-
 

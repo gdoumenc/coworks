@@ -5,16 +5,16 @@ Samples
 
 Impatient developers often love samples to learn quickly. In this part, we will show you how to use CoWorks to :
 
- * Understand the CoWorks layer service.
- * Create a directory service to call technical microservice by there name.
- * Create a website with content defined in the CosmisJS headless tool.
+* Understand the CoWorks layer service.
+* Create a directory service to call technical microservice by there name.
+* Create a website with content defined in the CosmisJS headless tool.
 
 .. _layers:
 
 CoWorks layers
 --------------
 
-Very simple microservice defining only one public entry.
+Very simple microservice defining a simple HTML page and a call thru javascript.
 
 .. literalinclude:: ../samples/layers/tech/app.py
 

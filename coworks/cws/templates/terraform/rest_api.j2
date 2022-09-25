@@ -135,18 +135,7 @@ resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_{
 
   # Transforms the backend JSON response
   response_templates = {
-    "application/json" = <<-EOF
-      #set($inputRoot = $input.path('$'))
-      #set($context.responseOverride.status=$inputRoot.statusCode)
-      #set($context.responseOverride.header=$inputRoot.headers)
-      $input.json('$.body')
-    EOF
-    "text/html" = <<-EOF
-      #set($inputRoot = $input.path('$'))
-      #set($context.responseOverride.status=$inputRoot.statusCode)
-      #set($context.responseOverride.header=$inputRoot.headers)
-      $inputRoot.body
-    EOF
+    {% include "terraform/response_templates.j2" %}
   }
   {%- endif %}
   depends_on = [aws_api_gateway_method_response.{{ resource_name }}_{{ uid }}_{{ method }}_response_200]

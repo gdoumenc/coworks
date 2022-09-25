@@ -1,0 +1,23 @@
+{% macro json_response(mimetype) -%}
+  "{{ mimetype }}" = <<-EOF
+    #set($inputRoot = $input.path('$'))
+    #set($context.responseOverride.status=$inputRoot.statusCode)
+    #set($context.responseOverride.header=$inputRoot.headers)
+    $input.json('$.body')
+  EOF
+{%- endmacro -%}
+{% macro text_response(mimetype) -%}
+  "{{ mimetype }}" = <<-EOF
+    #set($inputRoot = $input.path('$'))
+    #set($context.responseOverride.status=$inputRoot.statusCode)
+    #set($context.responseOverride.header=$inputRoot.headers)
+    $inputRoot.body
+  EOF
+{%- endmacro -%}
+
+{{ json_response("application/json") }}
+{{ json_response("text/x-json") }}
+{{ json_response("application/javascript") }}
+{{ json_response("application/x-javascript") }}
+{{ text_response("text/html") }}
+{{ text_response("text/css") }}
