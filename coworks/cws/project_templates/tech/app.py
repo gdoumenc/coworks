@@ -12,7 +12,7 @@ from coworks.blueprint.profiler_blueprint import Profiler
 
 
 # from aws_xray_sdk.core import xray_recorder
-# from coworks.middleware.xray import XRayMiddleware
+# from coworks.extension.xray import XRay
 
 
 class MyMicroService(TechMicroService):
@@ -25,12 +25,8 @@ class MyMicroService(TechMicroService):
         self.register_blueprint(Admin(), url_prefix='/admin')
         self.register_blueprint(Profiler(), url_prefix='/profiler')
 
-        # For this middleware you need to install 'aws_xray_sdk'.
-        # XRayMiddleware(self, xray_recorder)
-
-        @self.before_first_request
-        def first():
-            ...
+        # For this extension you need to install 'aws_xray_sdk'.
+        # XRay(self, xray_recorder)
 
         @self.before_request
         def before():
