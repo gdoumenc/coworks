@@ -5,6 +5,7 @@ from inspect import Parameter
 
 import markdown
 from flask import current_app
+from flask import render_template_string
 from jinja2 import Environment
 from jinja2 import PackageLoader
 from jinja2 import select_autoescape
@@ -29,11 +30,22 @@ class Admin(Blueprint):
         md = getattr(current_app, 'doc_md', None)
         if not md:
             md = getattr(current_app.__class__, 'DOC_MD', None)
-        if md:
-            return markdown.markdown(md, extensions=['fenced_code'])
 
+        top = ""
+        if md:
+            top = markdown.markdown(md, extensions=['fenced_code'])
         if current_app.__class__.__doc__:
-            return current_app.__class__.__doc__.replace('\n', ' ').strip(),
+            top = current_app.__class__.__doc__.replace('\n', ' ').strip(),
+
+        template = """<style type="text/css">ul.nobull {list-style-type: none;}</style>
+        <hr/><ul class="nobull">{% for entry,route in routes.items() %}
+        <li>{{ entry }} : <ul>{% for method,info in route.items() %}
+        <li>{{ method }}{{ info.signature }} : <i>{{ info.doc }}</i>{% endfor %}</li>
+        </ul></li>{% endfor %}</ul>"""
+        routes = dict(sorted(self.get_route(blueprint="__all__").items()))
+        bottom = render_template_string(template, routes=routes)
+
+        return top + bottom
 
     @entry
     def get_route(self, prefix=None, blueprint=None):
