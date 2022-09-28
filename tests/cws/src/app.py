@@ -1,6 +1,5 @@
-from collections import defaultdict
-
 import os
+from collections import defaultdict
 
 from coworks import TechMicroService, entry
 
@@ -12,9 +11,8 @@ class EnvTechMS(TechMicroService):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        @self.before_first_request
-        def init():
-            assert os.getenv("test") is not None, "no environment variable 'test'"
+    def init_app(self):
+        assert os.getenv("test") is not None, "no environment variable 'test'"
 
     def token_authorizer(self, token):
         return True

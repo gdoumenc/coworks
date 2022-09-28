@@ -204,9 +204,9 @@ class BranchTechMicroServiceOperator(BaseBranchOperator):
     :param on_success: the task_ids in case of status code returned == 200 and on check branch not selected.
     """
 
-    def __init__(self, *, cws_task_id: str = None, on_success: str = None, on_failure: str = None,
-                 on_no_content: str = None, response_check: t.Optional[t.Callable[..., bool]] = None,
-                 on_check: str = None, **kwargs) -> None:
+    def __init__(self, *, cws_task_id: str = None, on_success: t.Union[str, t.Iterable[str]] = None,
+                 on_failure: t.Union[str, t.Iterable[str]] = None, on_no_content: t.Union[str, t.Iterable[str]] = None,
+                 response_check: t.Optional[t.Callable[..., bool]] = None, on_check: str = None, **kwargs) -> None:
         super().__init__(**kwargs)
         self.cws_task_id = cws_task_id
         self.on_success = on_success

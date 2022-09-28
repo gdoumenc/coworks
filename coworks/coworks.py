@@ -23,6 +23,7 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import Unauthorized
 from werkzeug.routing import Rule
+from werkzeug.test import EnvironBuilder
 
 from .config import Config
 from .config import DEFAULT_LOCAL_WORKSPACE
@@ -109,21 +110,56 @@ class CoworksCookieJar(CookieJar):
         pass
 
 
+class CoworksEnvironBuilder(EnvironBuilder):
+    def __init__(self, app, *args, environ_base=None, **kwargs):
+        self.app = app
+        aws_event = environ_base['aws_event']
+        kwargs = {
+            'headers': aws_event['headers'],
+            # 'base_url': aws_event['headers'],
+        }
+        content_type = aws_event['headers'].get('content-type')
+        if is_json(content_type):
+            is_encoded = aws_event.get('isBase64Encoded', False)
+            body = aws_event['body']
+            if body and is_encoded:
+                body = app.base64decode(body)
+            app.logger.debug(f"Body: {body} {type(body)}")
+            kwargs['json'] = body
+        else:
+            kwargs['query_string'] = aws_event.get('multiValueQueryStringParameters')
+
+        super().__init__(*args, environ_base=environ_base, **kwargs)
+
+    def json_dumps(self, obj: t.Any, **kwargs: t.Any) -> str:  # type: ignore
+        """Redefined to use Flask one."""
+        return self.app.json.dumps(obj, **kwargs)
+
+
 class CoworksClient(FlaskClient):
     """Creates environment and complete request.
     """
 
     def __init__(self, *args: t.Any, aws_event=None, aws_context=None, **kwargs: t.Any) -> None:
         super().__init__(*args, **kwargs)
-        self.environ_base.update({
+        self.environ_base = {
             "aws_event": aws_event,
             "aws_context": aws_context,
-        })
+        }
 
         # Complete request content from lambda event
         if aws_event and 'headers' in aws_event:
             headers = aws_event['headers']
             self.cookie_jar = CoworksCookieJar(headers.get('cookie'))
+
+    def _request_from_builder_args(self, args, kwargs):
+        kwargs["environ_base"] = self._copy_environ(kwargs.get("environ_base", {}))
+        builder = CoworksEnvironBuilder(self.application, *args, **kwargs)
+
+        try:
+            return builder.get_request()
+        finally:
+            builder.close()
 
 
 class Blueprint(FlaskBlueprint):
@@ -186,7 +222,6 @@ class TechMicroService(Flask):
         name = name or self.__class__.__name__.lower()
         super().__init__(import_name=name, static_folder=None, **kwargs)
 
-        self.test_client_class = CoworksClient
         self.request_class = CoworksRequest
         self.response_class = CoworksResponse
 
@@ -222,18 +257,11 @@ class TechMicroService(Flask):
 
         return super().app_context()
 
-    def cws_client(self, event, context):
+    def cws_client(self, event=None, context=None):
         """CoWorks client with new globals.
         """
-        return super().test_client(aws_event=event, aws_context=context)
-
-    def test_client(self, *args, **kwargs):
-        """This client must be used only for testing.
-        """
-        self.testing = True
         self._init_app(False)
-
-        return super().test_client(*args, **kwargs)
+        return CoworksClient(self, CoworksResponse, use_cookies=True, aws_event=event, aws_context=context)
 
     @property
     def routes(self) -> t.List[Rule]:
@@ -385,8 +413,7 @@ class TechMicroService(Flask):
         try:
             with self.cws_client(event, context) as c:
                 method = event['httpMethod']
-                kwargs = self._get_kwargs(event)
-                resp = getattr(c, method.lower())(full_path(), **kwargs)
+                resp = getattr(c, method.lower())(full_path())
                 resp = self._convert_to_lambda_response(resp)
 
                 # Strores response in S3 if asynchronous call
@@ -446,28 +473,6 @@ class TechMicroService(Flask):
                 valid = self.token_authorizer(token)
                 if not valid:
                     raise Forbidden()
-
-    def _get_kwargs(self, event):
-        kwargs = {}
-        content_type = event['headers'].get('content-type')
-        if content_type:
-            kwargs['content_type'] = content_type
-
-        method = event['httpMethod']
-        if method not in ['PUT', 'POST']:
-            return kwargs
-
-        is_encoded = event.get('isBase64Encoded', False)
-        body = event['body']
-        if body and is_encoded:
-            body = self.base64decode(body)
-        self.logger.debug(f"Body: {body} {type(body)}")
-
-        if is_json(content_type):
-            kwargs['json'] = body
-            return kwargs
-        kwargs['data'] = body
-        return kwargs
 
     def _convert_to_lambda_response(self, resp):
         """Convert Lambda response."""

@@ -39,6 +39,8 @@ class ErrorMS(TechMicroService):
 
 class TestClass:
 
+    import pytest
+    @pytest.mark.wip
     def test_request_arg(self, empty_context):
         app = SimpleMS()
         with app.app_context() as c:
