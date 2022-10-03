@@ -132,4 +132,6 @@ class Mail(Blueprint):
         except smtplib.SMTPAuthenticationError:
             raise BadRequest("Wrong username/password : cannot connect.")
         except Exception as e:
+            print(self.smtp_server)
+            print(self.smtp_port)
             raise BadRequest(f"Cannot send email message (Error: {str(e)}).")
