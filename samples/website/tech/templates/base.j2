@@ -5,8 +5,8 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>CoWorks Website Sample</title>
-  <link rel="icon" type="image/png" href="/assets/images/favicon.png"/>
-  <link href="{{ url_for("get_assets", folder="css", filename="output.css") }}" rel="stylesheet">
+  <link rel="icon" type="image/png" href="{{ url_for("get_assets_img", filename="coworks.ico") }}"/>
+  <link href="{{ url_for("get_assets_css", filename="output.css") }}" rel="stylesheet">
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
 </head>
 
@@ -39,7 +39,7 @@
                   <div class="sm:flex sm:space-x-5">
                     <div class="flex-shrink-0">
                       <img class="mx-auto h-16 w-auto"
-                           src="https://raw.githubusercontent.com/gdoumenc/coworks/dev/docs/img/coworks.png" alt="">
+                           src="{{ url_for("get_assets_img", filename="coworks.png") }}" alt="CoWorks">
                     </div>
                     <div class="mt-4 text-center sm:mt-0 sm:pt-1 sm:text-left">
                       <p class="text-sm font-medium text-gray-600">Welcome and enjoy</p>

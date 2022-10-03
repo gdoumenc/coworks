@@ -53,6 +53,11 @@ Microservice to implement a small website with session.
         return render_template("home.j2", **data), 200, headers
 
     @entry(no_auth=True)
-    def get_assets(self, folder, filename):
+    def get_assets_css(self, filename):
         """Access for all assets."""
-        return send_from_directory('assets', f"{folder}/{filename}", as_attachment=False)
+        return send_from_directory('assets', f"css/{filename}", as_attachment=False)
+
+    @entry(no_auth=True, binary=True)
+    def get_assets_img(self, filename):
+        """Access for all assets."""
+        return send_from_directory('assets', f"img/{filename}", as_attachment=False)
