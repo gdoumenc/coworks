@@ -45,7 +45,7 @@ def get_event(path, method, params=None, body=None, headers=None):
             'resourcePath': path,
             'extendedRequestId': 'EktgyFweDoEFabw=',
             'requestTime': '24/Aug/2021:13:37:08 +0000',
-            'path': path,
+            'path': f"/dev{path}",
             'accountId': '935392763270',
             'protocol': 'HTTP/1.1',
             'stage': 'dev',

@@ -3,6 +3,9 @@ import io
 import logging
 import os
 import typing as t
+
+if t.TYPE_CHECKING:
+    from _typeshed.wsgi import WSGIEnvironment
 from functools import partial
 from http.cookiejar import CookieJar
 from inspect import isfunction
@@ -17,6 +20,7 @@ from flask import json
 from flask.blueprints import BlueprintSetupState
 from flask.testing import FlaskClient
 from werkzeug.datastructures import ImmutableDict
+from werkzeug.datastructures import MultiDict
 from werkzeug.datastructures import WWWAuthenticate
 from werkzeug.exceptions import Forbidden
 from werkzeug.exceptions import HTTPException
@@ -34,7 +38,6 @@ from .globals import request
 from .utils import HTTP_METHODS
 from .utils import add_coworks_routes
 from .utils import get_app_workspace
-from .utils import is_json
 from .utils import trim_underscores
 from .wrappers import CoworksRequest
 from .wrappers import CoworksResponse
@@ -111,25 +114,37 @@ class CoworksCookieJar(CookieJar):
 
 
 class CoworksEnvironBuilder(EnvironBuilder):
-    def __init__(self, app, *args, environ_base=None, **kwargs):
+    """Environment builder used only in AWS environment.
+    """
+
+    def __init__(self, app, path, environ_base=None, **kwargs):
         self.app = app
         aws_event = environ_base['aws_event']
-        kwargs = {
-            'headers': aws_event['headers'],
-            # 'base_url': aws_event['headers'],
-        }
-        content_type = aws_event['headers'].get('content-type')
-        if is_json(content_type):
-            is_encoded = aws_event.get('isBase64Encoded', False)
-            body = aws_event['body']
-            if body and is_encoded:
-                body = app.base64decode(body)
-            app.logger.debug(f"Body: {body} {type(body)}")
-            kwargs['json'] = body
-        else:
-            kwargs['query_string'] = aws_event.get('multiValueQueryStringParameters')
+        headers = aws_event['headers']
+        request_context = aws_event['requestContext']
 
-        super().__init__(*args, environ_base=environ_base, **kwargs)
+        kwargs = {
+            'headers': headers,
+            'method': request_context['httpMethod'],
+            'base_url': f"{headers['x-forwarded-proto']}://{headers['host']}/{request_context['stage']}",
+            'path': path[len(request_context['stage']) + 1:],
+            'query_string': MultiDict(aws_event.get('multiValueQueryStringParameters')),
+        }
+
+        is_encoded = aws_event.get('isBase64Encoded', False)
+        body = aws_event['body']
+        if body and is_encoded:
+            body = app.base64decode(body)
+        kwargs['json'] = body
+
+        super().__init__(environ_base=environ_base, **kwargs)
+
+    def get_environ(self) -> "WSGIEnvironment":
+        """Optimize query params usage.
+        """
+        environ = super().get_environ()
+        environ['aws_query_string'] = self.args
+        return environ
 
     def json_dumps(self, obj: t.Any, **kwargs: t.Any) -> str:  # type: ignore
         """Redefined to use Flask one."""
@@ -390,30 +405,10 @@ class TechMicroService(Flask):
         """
         self.logger.warning(f"Calling {self.name} by api : {event}")
 
-        def full_path():
-            url = event['path']
-
-            # Replaces route parameters
-            url = url.format(url, **event['params']['path'])
-
-            # Adds query parameters
-            params = event['multiValueQueryStringParameters']
-            if params:
-                url += '?'
-                for i, (k, v) in enumerate(params.items()):
-                    if i:
-                        url += '&'
-                    for j, vl in enumerate(v):
-                        if j:
-                            url += '&'
-                        url += f"{k}={vl}"
-            return url
-
         # Transforms as simple client call and manage exception if needed
         try:
             with self.cws_client(event, context) as c:
-                method = event['httpMethod']
-                resp = getattr(c, method.lower())(full_path())
+                resp = getattr(c, event['httpMethod'].lower())(event['requestContext']['path'])
                 resp = self._convert_to_lambda_response(resp)
 
                 # Strores response in S3 if asynchronous call
@@ -436,7 +431,6 @@ class TechMicroService(Flask):
     def _flask_handler(self, environ: t.Dict[str, t.Any], start_response: t.Callable[[t.Any], None]):
         """Flask handler.
         """
-
         return self.wsgi_app(environ, start_response)
 
     def _update_config(self, *, in_lambda: bool):

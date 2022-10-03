@@ -74,6 +74,4 @@ def to_html(layers, last_version):
     return render_template('layers.j2', **data), 200, {'Content-Type': 'text/html; charset=utf-8'}
 
 
-dev = DevConfig()
-prod = ProdConfig()
-app = CoworksLayersMicroService(configs=[dev, prod])
+app = CoworksLayersMicroService(configs=[DevConfig(), ProdConfig()])

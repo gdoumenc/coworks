@@ -15,8 +15,8 @@ from coworks.utils import get_app_workspace
 from coworks.utils import get_system_info
 from coworks.utils import import_attr
 from .deploy import deploy_command
-from .deploy import destroy_command
 from .deploy import deployed_command
+from .deploy import destroy_command
 from .new import new_command
 from .zip import zip_command
 
@@ -27,19 +27,23 @@ class CwsContext(click.Context):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.__project_dir = None
+        self.__project_dir = self.instance_relative_path = None
         self.__project_dir_added = False
 
     def add_project_dir(self, project_dir):
         self.__project_dir = project_dir
 
     def __enter__(self):
+        self.instance_relative_path = os.environ.get('INSTANCE_RELATIVE_PATH')
+        os.environ['INSTANCE_RELATIVE_PATH'] = os.getcwd()
         if self.__project_dir not in sys.path:
             sys.path.insert(0, self.__project_dir)
             self.__project_dir_added = True
         return super().__enter__()
 
     def __exit__(self, *args):
+        if self.instance_relative_path:
+            os.environ['INSTANCE_RELATIVE_PATH'] = self.instance_relative_path
         if self.__project_dir_added:
             sys.path.remove(self.__project_dir)
             self.__project_dir_added = False
@@ -71,7 +75,6 @@ class CoWorksGroup(FlaskGroup):
         project_dir = ctx.params.get('project_dir')
         if project_dir:
             ctx.add_project_dir(project_dir)
-            os.environ['INSTANCE_RELATIVE_PATH'] = os.getcwd()
 
         # Adds defined commands from project file
         with ctx:
@@ -122,7 +125,10 @@ class ProjectConfig:
     def __init__(self, project_dir, file_name, file_suffix):
         getLogger('anyconfig').setLevel(WARNING)
         self.project_dir = project_dir
-        self.params = self._load_config(project_dir, file_name, file_suffix)
+        try:
+            self.params = self._load_config(project_dir, file_name, file_suffix)
+        except TypeError:
+            raise RuntimeError(f"Cannot find project coniguration file in {project_dir}")
         if self.params and self.params.get('version', PROJECT_CONFIG_VERSION) != PROJECT_CONFIG_VERSION:
             raise RuntimeError(f"Wrong project file version (should be {PROJECT_CONFIG_VERSION}).\n")
 

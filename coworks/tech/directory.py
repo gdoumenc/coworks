@@ -208,6 +208,3 @@ requests.get('/stages/{name}')
 
     def _get_position(self, objects):
         return objects['position'] if 'position' in objects else None
-
-
-app = DirectoryMicroService()

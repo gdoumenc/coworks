@@ -19,4 +19,4 @@ class ProdConfig(config.ProdConfig):
 
     def __init__(self, **kwargs):
         super().__init__(workspace='prod', **kwargs)
-        self.environment_variables_file = ['env_vars/vars.json', 'env_vars/prod.json']
+        self.environment_variables_file = ['env_vars/vars.json', 'env_vars/v1.json']

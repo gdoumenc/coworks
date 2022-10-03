@@ -12,7 +12,7 @@ class DevConfig(config.DevConfig):
 
     def __init__(self,workspace='dev',  **kwargs):
         super().__init__(workspace=workspace, **kwargs)
-        self.environment_variables_file = ['env_vars/vars.json', 'env_vars/dev.json']
+        self.environment_variables_file = ['env_vars/vars.json', 'env_vars/v1.json']
 
 
 class ProdConfig(config.ProdConfig):

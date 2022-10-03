@@ -1,0 +1,22 @@
+{% macro news(title) %}
+  <li class="py-5">
+    <div class="relative focus-within:ring-2 focus-within:ring-cyan-500">
+      <h3 class="text-sm font-semibold text-gray-800">
+        <span class="absolute inset-0" aria-hidden="true"></span> {{ title }}
+      </h3>
+      <p class="mt-1 text-sm text-gray-600 line-clamp-2">{{ caller() }}</p>
+    </div>
+  </li>
+{% endmacro %}
+
+<ul role="list" class="-my-5 divide-y divide-gray-200">
+
+  {% call news("Next release using Flask 2.2") %}
+    We are working hard to release the next version of CoWorks using Flask2.2.
+  {% endcall %}
+
+  {% call news("Asynchronous BizMicroservice") %}
+    We have released a new Airflow Group Operator for asynchronous TechMicroservice call.
+  {% endcall %}
+
+</ul>
