@@ -2,6 +2,7 @@
 coworks.egg-info/
 build/
 dist/
+**/node_modules
 **/.terraform
 **/*.tfstate*
 Pipfile.lock
