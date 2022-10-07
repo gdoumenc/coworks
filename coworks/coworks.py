@@ -6,6 +6,7 @@ import typing as t
 
 if t.TYPE_CHECKING:
     from _typeshed.wsgi import WSGIEnvironment
+
 from functools import partial
 from http.cookiejar import CookieJar
 from inspect import isfunction
@@ -412,9 +413,9 @@ class TechMicroService(Flask):
                 resp = self._convert_to_lambda_response(resp)
 
                 # Strores response in S3 if asynchronous call
-                invocation_type = event['headers'].get('invocationtype')
+                invocation_type = request.headers.get('invocationtype')
                 if invocation_type == 'Event':
-                    self.store_response(resp, event['headers'])
+                    self.store_response(resp, request.headers)
         except Exception as e:
             if isinstance(e, HTTPException):
                 resp = self._structured_error(e)

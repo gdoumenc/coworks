@@ -35,7 +35,7 @@ class Admin(Blueprint):
         if md:
             top = markdown.markdown(md, extensions=['fenced_code'])
         if current_app.__class__.__doc__:
-            top = current_app.__class__.__doc__.replace('\n', ' ').strip(),
+            top = current_app.__class__.__doc__.replace('\n', ' ').strip()
 
         template = """<style type="text/css">ul.nobull {list-style-type: none;}</style>
         <hr/><ul class="nobull">{% for entry,route in routes.items() %}
