@@ -33,7 +33,7 @@ class Admin(Blueprint):
             return markdown.markdown(md, extensions=['fenced_code'])
 
         if current_app.__class__.__doc__:
-            return current_app.__class__.__doc__.replace('\n', ' ').strip(),
+            return current_app.__class__.__doc__.replace('\n', ' ').strip()
 
     @entry
     def get_route(self, prefix=None, blueprint=None):
