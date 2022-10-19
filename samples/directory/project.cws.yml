@@ -11,4 +11,4 @@ workspaces:
     commands:
       deploy:
         layers:
-          - arn:aws:lambda:eu-west-1:935392763270:layer:coworks-dev
+          - arn:aws:lambda:eu-west-1:935392763270:layer:coworks-dev1

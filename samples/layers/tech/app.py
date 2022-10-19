@@ -33,7 +33,7 @@ Microservice to get all available CoWorks layers.
         access_key = os.getenv("KEY_ID")
         secret_key = os.getenv("SECRET_KEY")
         if not access_key or not secret_key:
-            raise BadRequest("Something wrong in your environment : no AXS credentials defined!")
+            raise BadRequest("Something wrong in your environment : no AWS credentials defined!")
         session = boto3.Session(access_key, secret_key, region_name='eu-west-1')
         self.lambda_client = session.client('lambda')
 

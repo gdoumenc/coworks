@@ -39,7 +39,7 @@ def zip_command(info, ctx, bucket, dry, hash, ignore, module_name, key, profile_
     module_name = module_name or []
 
     app = info.load_app()
-    with progressbar(3, label='Copy files to S3',  threaded=not app.debug) as bar:
+    with progressbar(3, label='Copy files to S3', threaded=not app.debug) as bar:
         key = key if key else app.name
         if debug:
             where = f"{bucket}/{key}"
@@ -96,10 +96,10 @@ def zip_command(info, ctx, bucket, dry, hash, ignore, module_name, key, profile_
             # Creates hash value
             if not dry:
                 if hash:
+                    # Uploads archive hash value to bucket
                     with tmp_path.with_name('b64sha256_file').open('wb') as b64sha256_file:
                         b64sha256_file.write(b64sha256)
 
-                    # Uploads archive hash value to bucket
                     with tmp_path.with_name('b64sha256_file').open('rb') as b64sha256_file:
                         try:
                             aws_s3_session.client.upload_fileobj(b64sha256_file, bucket, f"{key}.b64sha256",

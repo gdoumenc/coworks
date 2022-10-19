@@ -1,4 +1,5 @@
 import inspect
+import os
 import subprocess
 import sys
 import typing as t
@@ -9,7 +10,6 @@ from shutil import ExecError
 from shutil import copy
 from subprocess import CalledProcessError
 from subprocess import CompletedProcess
-import os
 
 import boto3
 import click
