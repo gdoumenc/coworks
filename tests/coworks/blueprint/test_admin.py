@@ -68,24 +68,26 @@ class TestClass:
             assert response.status_code == 200
             routes = json.loads(response.get_data(as_text=True))
             assert routes["/"]['GET'] == {
-                "doc": "Root access.", "signature": "()",
+                "doc": "Root access.", "signature": "()", "endpoint": "get",
                 'binary': False, 'no_auth': False, 'no_cors': True
             }
             assert routes["/"]['POST'] == {
-                "doc": "Root access.", "signature": "()",
+                "doc": "Root access.", "signature": "()", "endpoint": "post",
                 'binary': False, 'no_auth': False, 'no_cors': True
             }
             assert routes["/content/<value>"]['POST'] == {
-                "doc": "Add content.", "signature": "(value, other=none)",
+                "doc": "Add content.", "signature": "(value, other=none)", "endpoint": "post_content",
                 'binary': False, 'no_auth': False, 'no_cors': True
             }
             assert routes["/contentannotated/<value>"]['POST'] == {
                 "doc": "Add content.", "signature": "(value:<class 'int'>, other:<class 'str'>=none)",
+                'endpoint': "post_contentannotated",
                 'binary': False, 'no_auth': False, 'no_cors': True
             }
             assert routes["/admin/route"]['GET']['signature'] == "(prefix=None, blueprint=None)"
+            assert routes["/admin/route"]['GET']['endpoint'] == "admin.get_route"
             assert routes["/list/<values>"]['GET'] == {
-                "signature": "(values:[<class 'int'>])",
+                "signature": "(values:[<class 'int'>])", 'endpoint': 'get_list',
                 'binary': False, 'no_auth': True, 'no_cors': True
             }
 

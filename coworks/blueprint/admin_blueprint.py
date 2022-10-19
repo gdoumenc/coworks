@@ -105,6 +105,7 @@ class Admin(Blueprint):
                 function_called = current_app.view_functions[rule.endpoint]
                 route[http_method] = {
                     'signature': get_signature(function_called),
+                    'endpoint': rule.endpoint,
                     'binary': getattr(function_called, '__CWS_BINARY'),
                     'no_auth': getattr(function_called, '__CWS_NO_AUTH'),
                     'no_cors': getattr(function_called, '__CWS_NO_CORS'),
