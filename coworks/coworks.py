@@ -2,6 +2,7 @@ import base64
 import io
 import logging
 import os
+import traceback
 import typing as t
 
 if t.TYPE_CHECKING:
@@ -399,6 +400,7 @@ class TechMicroService(Flask):
             return TokenResponse(res, event['methodArn']).json
         except Exception as e:
             self.logger.error(f"Error in token handler for {self.name} : {e}")
+            self.logger.error(''.join(traceback.format_exception(None, e, e.__traceback__)))
             return TokenResponse(False, event['methodArn']).json
 
     def _api_handler(self, event: t.Dict[str, t.Any], context: t.Dict[str, t.Any]) -> dict:
@@ -421,12 +423,16 @@ class TechMicroService(Flask):
                 resp = self._structured_error(e)
             else:
                 self.logger.error(f"Error in api handler for {self.name} : {e}")
+                self.logger.error(''.join(traceback.format_exception(None, e, e.__traceback__)))
                 resp = self._structured_error(InternalServerError(original_exception=e))
             self.logger.debug(f"Status code returned by api : {resp.get('statusCode')}")
         else:
             if isinstance(resp, Response):
                 self.logger.debug(f"Status code returned by api : {resp.status_code}")
-        self.logger.debug("api returns")
+
+        if self.logger.getEffectiveLevel() == logging.DEBUG:
+            content = json.dumps(resp) if type(resp) is dict else resp
+            self.logger.debug(f"API returns ({len(content)})")
         return resp
 
     def _flask_handler(self, environ: t.Dict[str, t.Any], start_response: t.Callable[[t.Any], None]):
@@ -480,7 +486,7 @@ class TechMicroService(Flask):
                 resp.mimetype = "text/plain"
 
         # returns simple string JSON structure
-        if resp.mimetype.startswith('text'):
+        if resp.mimetype and resp.mimetype.startswith('text'):
             try:
                 return self._structured_payload(resp.get_data(True), resp.status_code, resp.headers)
             except ValueError:
