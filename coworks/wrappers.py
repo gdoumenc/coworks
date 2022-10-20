@@ -2,6 +2,7 @@ import typing as t
 
 from flask import Request as FlaskRequest
 from flask import Response as FlaskResponse
+from werkzeug.datastructures import ETags
 
 
 class TokenResponse:
@@ -70,3 +71,15 @@ class CoworksRequest(FlaskRequest):
     @property
     def args(self):
         return self.aws_query_string if self._in_lambda_context else super().args
+
+    @property
+    def if_match(self):  # No cache
+        return ETags()
+
+    @property
+    def if_none_match(self):  # No cache
+        return ETags()
+
+    @property
+    def if_modified_since(self):  # No cache
+        return None
