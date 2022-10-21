@@ -85,20 +85,24 @@ class TerraformLocal:
     """Terraform class to manage local terraform deployements."""
     TIMEOUT = 600
 
-    def __init__(self, app_context: TerraformContext, bar, **options):
+    def __init__(self, app_context: TerraformContext, bar, refresh=True, **options):
         self.app_context = app_context
         self.bar = bar
 
         # Creates terraform dir if needed
         self.working_dir = Path(options['terraform_dir'])
         self.working_dir.mkdir(exist_ok=True)
+        self.refresh = refresh
 
     def init(self):
         self._execute(['init', '-input=false'])
 
     def apply(self, workspace) -> None:
         self.select_workspace(workspace)
-        self._execute(['apply', '-auto-approve', '-parallelism=1', '-refresh=false'])
+        cmd = ['apply', '-auto-approve', '-parallelism=1']
+        if not self.refresh:
+            cmd.append('-refresh=false')
+        self._execute(cmd)
 
     def output(self):
         self.select_workspace("default")
@@ -255,6 +259,7 @@ class TerraformLocal:
         self.bar.update()
 
     def _execute(self, cmd_args: t.List[str]) -> CompletedProcess:
+        self.logger.debug(f"Terraform arguments : {' '.join(cmd_args)}")
         p = subprocess.run(["terraform", *cmd_args], capture_output=True, cwd=self.working_dir,
                            timeout=self.TIMEOUT)
         if p.returncode != 0:
@@ -264,12 +269,15 @@ class TerraformLocal:
             raise ExecError(msg)
         return p
 
+    @property
+    def logger(self):
+        return self.app_context.app.logger
+
 
 class RemoteTerraform(TerraformLocal):
 
-    def __init__(self, app_context: TerraformContext, bar, refresh=True, **options):
+    def __init__(self, app_context: TerraformContext, bar, **options):
         super().__init__(app_context, bar, **options)
-        self.refresh = refresh
 
     def select_workspace(self, workspace) -> None:
         """Workspace are defined remotly."""
@@ -387,7 +395,13 @@ class TerraformCloud(TerraformLocal):
 @click.option('--module-name', '-m', multiple=True, help="Python module added from current pyenv (module or file.py).")
 @click.option('--profile-name', '-pn', required=True, help="AWS credential profile.")
 # Deploy specific optionsElle est immédiatement opérationnelle et fonctionnell
-@click.option('--binary-media-types', help="Content types defined as binary contents (no encoding).")
+@click.option('--binary-types',  multiple=True,
+              help="Content types defined as binary contents (no encoding).")
+@click.option('--json-types', multiple=True,
+              help="Add mime types for JSON response [at least application/json, text/x-json, "
+                   "application/javascript, application/x-javascript].")
+@click.option('--text-types', multiple=True,
+              help="Add mime types for JSON response [at least text/plain, text/html].")
 @click.option('--layers', '-l', multiple=True, required=True,
               help="Add layer (full arn: aws:lambda:...). Must contains CoWorks at least.")
 @click.option('--memory-size', default=128, help="Lambda memory size (default 128).")

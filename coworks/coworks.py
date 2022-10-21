@@ -137,7 +137,14 @@ class CoworksEnvironBuilder(EnvironBuilder):
         body = aws_event['body']
         if body and is_encoded:
             body = app.base64decode(body)
-        kwargs['json'] = body
+
+        if 'content-type' in headers:
+            if headers['content-type'] == 'application/x-www-form-urlencoded':
+                kwargs['data'] = body
+            else:
+                kwargs['json'] = body
+        else:
+            kwargs['json'] = body
 
         super().__init__(environ_base=environ_base, **kwargs)
 
