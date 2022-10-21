@@ -2,14 +2,16 @@ import os
 
 import requests
 from aws_xray_sdk.core import xray_recorder
-from flask import render_template
 from flask import send_from_directory
+from flask_login import LoginManager
 
+from account import AccountBlueprint
 from coworks import TechMicroService
 from coworks import __version__ as coworks_version
 from coworks import entry
 from coworks.blueprint.admin_blueprint import Admin
 from coworks.extension.xray import XRay
+from util import render_html_template
 
 
 class WebsiteMicroService(TechMicroService):
@@ -21,7 +23,11 @@ Microservice to implement a small website with session.
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+        self.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+
         self.register_blueprint(Admin(), url_prefix='/admin')
+        self.register_blueprint(AccountBlueprint(LoginManager(self)), url_prefix='/account')
         XRay(self, xray_recorder)
 
         @self.context_processor
@@ -49,15 +55,19 @@ Microservice to implement a small website with session.
             zip = layers_resp["last"].split(':')[-1].replace('_', '.')
             data['last_layer_url'] = f"https://coworks-layer.s3.eu-west-1.amazonaws.com/{zip}.zip"
 
-        headers = {'Content-Type': 'text/html; charset=utf-8'}
-        return render_template("home.j2", **data), 200, headers
+        return render_html_template("home.j2", **data)
 
     @entry(no_auth=True)
     def get_assets_css(self, filename):
-        """Access for all assets."""
-        return send_from_directory('assets', f"css/{filename}", as_attachment=False)
+        """Access for all css files."""
+        return send_from_directory('assets', f"css/{filename}", as_attachment=False, conditional=False)
 
     @entry(no_auth=True, binary=True)
     def get_assets_img(self, filename):
-        """Access for all assets."""
-        return send_from_directory('assets', f"img/{filename}", as_attachment=False)
+        """Access for all images."""
+        return send_from_directory('assets', f"img/{filename}", as_attachment=False, conditional=False)
+
+    @entry(no_auth=True, binary=True)
+    def get_zip(self):
+        """Access to the AirFlow plugins zip."""
+        return send_from_directory('assets', "plugins.zip", as_attachment=True, conditional=False)

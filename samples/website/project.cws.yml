@@ -4,11 +4,17 @@ commands:
     class: coworks.cws.deploy.deploy_command
     bucket: coworks-microservice
     profile_name: fpr-customer
+    text_types:
+      - text/css
+    binary_types:
+      - application/zip
     layers:
+      - arn:aws:lambda:eu-west-1:935392763270:layer:website-0_3
       - arn:aws:lambda:eu-west-1:935392763270:layer:coworks-0_7_4_1
 workspaces:
   dev:
     commands:
       deploy:
         layers:
+          - arn:aws:lambda:eu-west-1:935392763270:layer:website-0_3
           - arn:aws:lambda:eu-west-1:935392763270:layer:coworks-dev1

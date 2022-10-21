@@ -1,6 +1,6 @@
 {% extends "base.j2" %}
 
-{% macro info(title, link) %}
+{% macro info(title, a_link=None, js_link=None) %}
   <div
       class="rounded-tl-lg rounded-tr-lg sm:rounded-tr-none relative group bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-cyan-500">
     <div>
@@ -13,14 +13,15 @@
       </span>
     </div>
     <div class="mt-8">
-      <h3 class="text-lg font-medium">
-        <a href="{{ link }}" class="focus:outline-none">
+      <h3 class="text-lg font-medium"
+          {% if js_link %}onclick="DownLoadFile('{{ js_link }}','application/zip', 'plugins.zip')"{% endif %}>
+        <a href="{{ a_link if a_link else '#' }}" class="focus:outline-none">
           <!-- Extend touch target to entire panel -->
           <span class="absolute inset-0" aria-hidden="true"></span>
           {{ title }}
         </a>
       </h3>
-      <p class="mt-2 text-sm text-gray-500">{{ caller() }}.</p>
+      <p class="mt-2 text-sm text-gray-500">{{ caller() }}</p>
     </div>
     <span class="pointer-events-none absolute top-6 right-6 text-gray-300 group-hover:text-gray-400"
           aria-hidden="true">
@@ -38,13 +39,12 @@
         class="divide-y divide-gray-200 overflow-hidden rounded-lg bg-gray-200 shadow sm:grid sm:grid-cols-2 sm:gap-px sm:divide-y-0">
       <h2 class="sr-only" id="quick-links-title">Quick links</h2>
 
-      {% call info("Last AWS layer", last_layer_url) %}
+      {% call info("Last AWS layer", a_link=last_layer_url) %}
         {{ last_layer }}
       {% endcall %}
 
-      {% call info("To Be Done") %}
-        Doloribus dolores nostrum quia qui natus officia quod et
-        dolorem. Sit repellendus qui ut at blanditiis et quo et molestiae.
+      {% call info("AirFlow plugins", js_link = url_for("get_zip")) %}
+        The AirFlow plugins containing the CoWorks operators and sensors.
       {% endcall %}
     </div>
   </section>
