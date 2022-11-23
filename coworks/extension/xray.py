@@ -66,8 +66,6 @@ class XRay:
                     if subsegment:
                         try:
                             aws_context = request.aws_context
-                            print(f"DEBUG captured {request}")
-                            print(f"DEBUG captured {request.aws_context}")
                             subsegment.put_metadata('context', lambda_context_to_json(aws_context), LAMBDA_NAMESPACE)
                             metadata = {
                                 'service': self._app.name,
