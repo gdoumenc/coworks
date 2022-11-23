@@ -112,7 +112,7 @@ def create_cws_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
                         if request.is_json:
                             data = request.get_data()
                             if not data:
-                                kwargs = {}
+                                kwargs = {**kwargs}
                             else:
                                 data = request.json
                                 if type(data) is dict:

@@ -1,3 +1,4 @@
+import base64
 import os
 from unittest import mock
 
@@ -101,7 +102,7 @@ class TestClass:
             headers = {'Accept': 'img/webp', 'Authorization': 'token'}
             response = app(get_event('/binary', 'get', headers=headers), empty_context)
             assert type(response) == str
-            assert app.base64decode(response) == b"test"
+            assert base64.b64decode(str(response)) == b"test"
 
     def test_content_type(self, empty_context):
         app = ContentMS()
@@ -109,4 +110,4 @@ class TestClass:
             headers = {'Accept': 'img/webp', 'Authorization': 'token'}
             response = app(get_event('/content/type', 'get', headers=headers), empty_context)
             assert type(response) == str
-            assert app.base64decode(response) == b"test"
+            assert base64.b64decode(str(response)) == b"test"

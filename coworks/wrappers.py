@@ -1,8 +1,9 @@
+import json
 import typing as t
 
 from flask import Request as FlaskRequest
 from flask import Response as FlaskResponse
-from werkzeug.datastructures import ETags
+from werkzeug.datastructures import ETags, Headers
 
 
 class TokenResponse:
@@ -38,17 +39,26 @@ class CoworksResponse(FlaskResponse):
 class CoworksRequest(FlaskRequest):
 
     def __init__(self, environ, **kwargs):
-        self.aws_event = environ.pop('aws_event', None)
-        self.aws_context = environ.pop('aws_context', None)
+        self.aws_event = environ.get('aws_event')
+        self.aws_context = environ.get('aws_context')
+        self.aws_query_string = environ.get('aws_query_string')
+        self.aws_body = environ.get('aws_body')
         self._in_lambda_context: bool = self.aws_event is not None
-        self.aws_query_string = environ.get('aws_query_string') if self._in_lambda_context else None
 
         super().__init__(environ, **kwargs)
+
+        if self._in_lambda_context:
+            self.headers = Headers(self.aws_event.get('headers'))
 
     @property
     def in_lambda_context(self):
         """Defined as a property to be read only."""
         return self._in_lambda_context
+
+    @property
+    def is_json(self) -> bool:
+        """If no content type defined in request, default is application/json`.        """
+        return not self.mimetype or super().is_json
 
     @property
     def is_multipart(self) -> bool:
@@ -70,7 +80,19 @@ class CoworksRequest(FlaskRequest):
 
     @property
     def args(self):
-        return self.aws_query_string if self._in_lambda_context else super().args
+        if self.aws_query_string is None:
+            return super().args
+        return self.aws_query_string
+
+    def get_data(self, **kwargs):
+        if self.aws_body is None:
+            return super().get_data(**kwargs)
+        return json.dumps(self.aws_body) if kwargs.get('as_text', False) else self.aws_body
+
+    def get_json(self, **kwargs):
+        if self.aws_body is None:
+            return super().get_json(**kwargs)
+        return self.aws_body
 
     @property
     def if_match(self):  # No cache

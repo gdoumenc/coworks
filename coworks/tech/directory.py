@@ -220,6 +220,9 @@ See 'samples/directory' to get how to create and deploy it.
         :param duration: token duration in minutes.
         :param kwargs: call parameters.
         """
+        if not request.in_lambda_context:
+            raise BadRequest("Temporary code may be created only in Lambda environment.")
+
         kwargs['name'] = name
 
         # Adds expiration time
@@ -235,10 +238,12 @@ See 'samples/directory' to get how to create and deploy it.
 
     @entry(no_auth=True)
     def get_temporary_call(self, code=None, data=None):
+        """Call the microservice defined by the code with GET method."""
         return self._temporary_call(code=code, data=data)
 
     @entry(no_auth=True)
     def post_temporary_call(self, code=None, data=None):
+        """Call the microservice defined by the code with POST method."""
         return self._temporary_call(code=code, data=data)
 
     def _temporary_call(self, code=None, data=None):

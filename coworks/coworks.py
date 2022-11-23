@@ -4,10 +4,6 @@ import logging
 import os
 import traceback
 import typing as t
-
-if t.TYPE_CHECKING:
-    from _typeshed.wsgi import WSGIEnvironment
-
 from functools import partial
 from http.cookiejar import CookieJar
 from inspect import isfunction
@@ -29,7 +25,6 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import Unauthorized
 from werkzeug.routing import Rule
-from werkzeug.test import EnvironBuilder
 
 from .config import Config
 from .config import DEFAULT_LOCAL_WORKSPACE
@@ -115,75 +110,45 @@ class CoworksCookieJar(CookieJar):
         pass
 
 
-class CoworksEnvironBuilder(EnvironBuilder):
-    """Environment builder used only in AWS environment.
-    """
-
-    def __init__(self, app, path, environ_base=None, **kwargs):
-        self.app = app
-        aws_event = environ_base['aws_event']
-        headers = aws_event['headers']
-        request_context = aws_event['requestContext']
-
-        kwargs = {
-            'headers': headers,
-            'method': request_context['httpMethod'],
-            'base_url': f"{headers['x-forwarded-proto']}://{headers['host']}/{request_context['stage']}",
-            'path': path[len(request_context['stage']) + 1:],
-            'query_string': MultiDict(aws_event.get('multiValueQueryStringParameters')),
-        }
-
-        is_encoded = aws_event.get('isBase64Encoded', False)
-        body = aws_event['body']
-        if body and is_encoded:
-            body = app.base64decode(body)
-
-        if 'content-type' in headers:
-            if headers['content-type'] == 'application/x-www-form-urlencoded':
-                kwargs['data'] = body
-            else:
-                kwargs['json'] = body
-        else:
-            kwargs['json'] = body
-
-        super().__init__(environ_base=environ_base, **kwargs)
-
-    def get_environ(self) -> "WSGIEnvironment":
-        """Optimize query params usage.
-        """
-        environ = super().get_environ()
-        environ['aws_query_string'] = self.args
-        return environ
-
-    def json_dumps(self, obj: t.Any, **kwargs: t.Any) -> str:  # type: ignore
-        """Redefined to use Flask one."""
-        return self.app.json.dumps(obj, **kwargs)
-
-
 class CoworksClient(FlaskClient):
     """Creates environment and complete request.
     """
 
     def __init__(self, *args: t.Any, aws_event=None, aws_context=None, **kwargs: t.Any) -> None:
         super().__init__(*args, **kwargs)
-        self.environ_base = {
-            "aws_event": aws_event,
-            "aws_context": aws_context,
+
+        headers = aws_event['headers']
+        request_context = aws_event['requestContext']
+
+        method = request_context['httpMethod']
+        scheme = headers['x-forwarded-proto']
+        stage = request_context['stage']
+        path = aws_event['requestContext']['path'][len(stage) + 1:]
+        query_string = MultiDict(aws_event['multiValueQueryStringParameters'])
+
+        is_encoded = aws_event.get('isBase64Encoded', False)
+        body = aws_event['body']
+        if body and is_encoded:
+            body = base64.b64decode(body)
+
+        self.aws_environ = {
+            'aws_event': aws_event,
+            'aws_context': aws_context,
+            'aws_query_string': query_string,
+            'aws_body': body,
+            "wsgi.input": io.BytesIO(b""),
+            "wsgi.url_scheme": scheme,
+            "REQUEST_METHOD": method,
+            "PATH_INFO": path,
         }
+        self.cookie_jar = CoworksCookieJar(headers.get('cookie'))
 
-        # Complete request content from lambda event
-        if aws_event and 'headers' in aws_event:
-            headers = aws_event['headers']
-            self.cookie_jar = CoworksCookieJar(headers.get('cookie'))
+    def open(self, *args, **kwargs):
+        req = CoworksRequest(self.aws_environ, populate_request=False, shallow=True)
+        return super().open(req)
 
-    def _request_from_builder_args(self, args, kwargs):
-        kwargs["environ_base"] = self._copy_environ(kwargs.get("environ_base", {}))
-        builder = CoworksEnvironBuilder(self.application, *args, **kwargs)
-
-        try:
-            return builder.get_request()
-        finally:
-            builder.close()
+    def _copy_environ(self, other):
+        return {**other}
 
 
 class Blueprint(FlaskBlueprint):
@@ -224,7 +189,7 @@ class Blueprint(FlaskBlueprint):
 
 class TechMicroService(Flask):
     """Simple tech microservice.
-    
+
     See :ref:`tech` for more information.
     """
 
@@ -281,11 +246,11 @@ class TechMicroService(Flask):
 
         return super().app_context()
 
-    def cws_client(self, event=None, context=None):
+    def cws_client(self, aws_event, aws_context):
         """CoWorks client with new globals.
         """
         self._init_app(False)
-        return CoworksClient(self, CoworksResponse, use_cookies=True, aws_event=event, aws_context=context)
+        return CoworksClient(self, CoworksResponse, use_cookies=True, aws_event=aws_event, aws_context=aws_context)
 
     @property
     def routes(self) -> t.List[Rule]:
@@ -314,23 +279,6 @@ class TechMicroService(Flask):
         if get_app_workspace() == DEFAULT_LOCAL_WORKSPACE:
             return True
         return token == os.getenv('TOKEN')
-
-    def base64decode(self, data):
-        """Base64 decode function used for lambda interaction.
-        """
-        if not isinstance(data, bytes):
-            data = data.encode('ascii')
-        output = base64.b64decode(data)
-        return output
-
-    def base64encode(self, data):
-        """Base64 encode function used for lambda interaction.
-        """
-        if not isinstance(data, bytes):
-            msg = f'Expected bytes type for body with binary Content-Type. Got {type(data)} type body instead.'
-            raise ValueError(msg)
-        data = base64.b64encode(data).decode('ascii')
-        return data
 
     def auto_find_instance_path(self):
         """Instance path may be redefined by an environment variable.
@@ -396,35 +344,35 @@ class TechMicroService(Flask):
             return self._token_handler(event, context)
         return self._api_handler(event, context)
 
-    def _token_handler(self, event: t.Dict[str, t.Any], context: t.Dict[str, t.Any]) -> dict:
+    def _token_handler(self, aws_event: t.Dict[str, t.Any], aws_context: t.Dict[str, t.Any]) -> dict:
         """Authorization token handler.
         """
-        self.logger.warning(f"Calling {self.name} for authorization : {event}")
+        self.logger.warning(f"Calling {self.name} for authorization : {aws_event}")
 
         try:
-            res = self.token_authorizer(event['authorizationToken'])
+            res = self.token_authorizer(aws_event['authorizationToken'])
             self.logger.debug(f"Token authorizer return is : {res}")
-            return TokenResponse(res, event['methodArn']).json
+            return TokenResponse(res, aws_event['methodArn']).json
         except Exception as e:
             self.logger.error(f"Error in token handler for {self.name} : {e}")
             self.logger.error(''.join(traceback.format_exception(None, e, e.__traceback__)))
-            return TokenResponse(False, event['methodArn']).json
+            return TokenResponse(False, aws_event['methodArn']).json
 
-    def _api_handler(self, event: t.Dict[str, t.Any], context: t.Dict[str, t.Any]) -> dict:
+    def _api_handler(self, aws_event: t.Dict[str, t.Any], aws_context: t.Dict[str, t.Any]) -> dict:
         """API handler.
         """
-        self.logger.warning(f"Calling {self.name} by api : {event}")
+        self.logger.warning(f"Calling {self.name} by api : {aws_event}")
 
         # Transforms as simple client call and manage exception if needed
         try:
-            with self.cws_client(event, context) as c:
-                resp = getattr(c, event['httpMethod'].lower())(event['requestContext']['path'])
+            with self.cws_client(aws_event, aws_context) as c:
+                resp = c.open()
                 resp = self._convert_to_lambda_response(resp)
 
                 # Strores response in S3 if asynchronous call
-                invocation_type = request.headers.get('invocationtype')
+                invocation_type = aws_event['headers'].get('invocationtype')
                 if invocation_type == 'Event':
-                    self.store_response(resp, request.headers)
+                    self.store_response(resp, aws_event['headers'])
         except Exception as e:
             if isinstance(e, HTTPException):
                 resp = self._structured_error(e)
@@ -500,7 +448,11 @@ class TechMicroService(Flask):
                 pass
 
         # returns direct payload
-        return self.base64encode(resp.get_data())
+        data = resp.get_data()
+        if not isinstance(data, bytes):
+            msg = f'Expected bytes type for body with binary Content-Type. Got {type(data)} type body instead.'
+            raise ValueError(msg)
+        return base64.b64encode(data).decode('ascii')
 
     def _structured_payload(self, body, status_code, headers):
         return {

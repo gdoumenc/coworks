@@ -20,8 +20,8 @@ class TestClass:
             session.side_effect = lambda: session
             session.client = MagicMock(side_effect=lambda _: session.client)
             app = AsyncMS()
-            with app.cws_client() as c:
-                event = get_event('/', 'get')
+            event = get_event('/', 'get')
+            with app.cws_client(event, empty_context) as c:
                 event['headers']['InvocationType'.lower()] = 'Event'
                 event['headers'][Config.bizz_bucket_header_key.lower()] = 'bucket'
                 event['headers'][Config.bizz_key_header_key.lower()] = 'specific/key'

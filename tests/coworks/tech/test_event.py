@@ -119,9 +119,10 @@ class TestClass:
             assert response['body'] == {'session': '70b58773-af3e-4153-a5ab-5356481ea87e'}
 
     def test_request_no_content_type(self, empty_context):
+        """If content-type is not defined then default is application/json"""
         app = SimpleMS()
         with app.app_context() as c:
-            event = get_event('/content', 'post', body={"other": 'other'})
+            event = get_event('/content', 'post', body={'other': 'other'})
             del event['headers']['content-type']
             response = app(event, empty_context)
             assert response['statusCode'] == 200

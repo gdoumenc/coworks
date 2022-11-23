@@ -22,7 +22,6 @@ class XRay:
 
     def __init__(self, app: "TechMicroService", recorder: "AWSXRayRecorder", name="xray"):
         self._app = app
-        self._app.before_first_request(self.capture_routes)
         self._app.errorhandler(500)(self.capture_exception)
         self._recorder = recorder
         self._name = name
@@ -50,7 +49,7 @@ class XRay:
 
             patch_all()
 
-        app.before_first_request_funcs = [first, *app.before_first_request_funcs]
+        app.before_first_request_funcs = [first, self.capture_routes, *app.before_first_request_funcs]
 
     def capture_routes(self):
         if not self._enabled:
@@ -67,6 +66,8 @@ class XRay:
                     if subsegment:
                         try:
                             aws_context = request.aws_context
+                            print(f"DEBUG captured {request}")
+                            print(f"DEBUG captured {request.aws_context}")
                             subsegment.put_metadata('context', lambda_context_to_json(aws_context), LAMBDA_NAMESPACE)
                             metadata = {
                                 'service': self._app.name,

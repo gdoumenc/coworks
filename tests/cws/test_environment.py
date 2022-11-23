@@ -16,11 +16,11 @@ from tests.cws.src.app import EnvTechMS
 
 
 class TestClass:
-    def test_no_env(self, example_dir):
+    def test_no_env(self, example_dir, empty_context):
         with pytest.raises(AssertionError) as pytest_wrapped_e:
             app = EnvTechMS()
             event = get_event('/', 'get')
-            with app.cws_client(event) as c:
+            with app.cws_client(event, empty_context) as c:
                 response = c.get('/', headers={'Authorization': 'token'})
         assert pytest_wrapped_e.type == AssertionError
         assert pytest_wrapped_e.value.args[0] == "no environment variable 'test'"

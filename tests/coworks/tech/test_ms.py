@@ -138,7 +138,7 @@ class TestClass:
             assert response.get_data(as_text=True) == "get **param with 5 and ['other']"
             response = c.put('/kwparam2?other=other&value=5', headers={'Authorization': 'token'})
             assert response.status_code == 200
-            assert response.get_data(as_text=True) == "get **param with 5 and ['other']"
+            assert response.get_data(as_text=True) == "get **param with 0 and []"
 
             response = c.post('/kwparam2/5', headers={'Authorization': 'token'})
             assert response.status_code == 200
@@ -148,7 +148,7 @@ class TestClass:
             assert response.get_data(as_text=True) == "get **param with 5 and ['other']"
             response = c.post('/kwparam2/5?other=other', headers={'Authorization': 'token'})
             assert response.status_code == 200
-            assert response.get_data(as_text=True) == "get **param with 5 and ['other']"
+            assert response.get_data(as_text=True) == "get **param with 5 and []"
 
             response = c.get('/extended/content', headers={'Authorization': 'token'})
             assert response.status_code == 200
