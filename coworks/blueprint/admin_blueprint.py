@@ -35,16 +35,18 @@ class Admin(Blueprint):
             top = markdown.markdown(md, extensions=['fenced_code'])
         if current_app.__class__.__doc__:
             top = current_app.__class__.__doc__.replace('\n', ' ').strip()
+            
+        header = '<img src="https://neorezo.io/assets/img/logo_neorezo.png" width="100" />'
 
         template = """<style type="text/css">ul.nobull {list-style-type: none;}</style>
-        <hr/><ul class="nobull">{% for entry,route in routes.items() %}
+        <ul class="nobull">{% for entry,route in routes.items() %}
         <li>{{ entry }} : <ul>{% for method,info in route.items() %}
         <li>{{ method }}{{ info.signature }} : <i>{{ info.doc }}</i>{% endfor %}</li>
         </ul></li>{% endfor %}</ul>"""
         routes = dict(sorted(self.get_route(blueprint="__all__").items()))
         bottom = render_template_string(template, routes=routes)
 
-        return top + bottom
+        return header + '<hr/>' + top + '<hr/>' + bottom
 
     @entry
     def get_route(self, prefix=None, blueprint=None):
