@@ -425,12 +425,6 @@ def deploy_command(info, ctx, **options) -> None:
     app = app_context.app
     terraform = None
 
-    if "FLASK_ENV" in os.environ:
-        print(
-            "\033[91m'FLASK_ENV' is deprecated. Use 'CWS_STAGE' instead.\033[00m",
-            file=sys.stderr,
-        )
-
     app.logger.debug(f"Start deploy command: {options}")
     terraform_class = pop_terraform_class(options)
     with progressbar(label="Deploy microservice", threaded=not app.debug) as bar:

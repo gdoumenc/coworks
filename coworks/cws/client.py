@@ -65,9 +65,13 @@ class CoWorksGroup(FlaskGroup):
     def make_context(self, info_name, args, parent=None, **kwargs):
         ctx: CwsContext = t.cast(CwsContext, super().make_context(info_name, args, **kwargs))
 
-        # Warning for deprecated options
-        if ctx.params.get('workspace'):
-            click.echo("Option debug deprecated! Will not be used (set CWS_STAGE).")
+        # Warning for deprecated options and echo stage
+        if "FLASK_ENV" in os.environ:
+            print(
+                "\x1b[1m\x1b[31m'FLASK_ENV' is deprecated. Use 'CWS_STAGE' instead.\x1b[0m",
+                file=sys.stderr,
+            )
+        click.echo(f" * Workspace: {get_app_workspace()}")
 
         # Get project infos
         config_file = ctx.params.get('config_file')
@@ -76,7 +80,7 @@ class CoWorksGroup(FlaskGroup):
         if project_dir:
             ctx.add_project_dir(project_dir)
 
-        # Adds defined commands from project file
+        # Adds environment variables and defined commands from project file
         with ctx:
             project_config = ProjectConfig(project_dir, config_file, config_file_suffix)
             commands = project_config.get_commands(get_app_workspace())

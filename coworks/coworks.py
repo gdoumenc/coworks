@@ -401,8 +401,6 @@ class TechMicroService(Flask):
             config = self.get_config(workspace)
 
             if not in_lambda:
-                import click
-                click.echo(f" * Workspace: {workspace}")
                 config.load_environment_variables(self)
 
             # Set predefined environment variables

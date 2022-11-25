@@ -5,6 +5,7 @@ from functools import update_wrapper
 
 from aws_xray_sdk import global_sdk_config
 from aws_xray_sdk.core import patch_all
+from aws_xray_sdk.core.exceptions.exceptions import SegmentNotFoundException
 from flask import make_response
 
 from coworks.globals import request
@@ -19,13 +20,10 @@ COWORKS_NAMESPACE = 'coworks'
 
 
 class XRay:
-
     def __init__(self, app: "TechMicroService", recorder: "AWSXRayRecorder", name="xray"):
         self._app = app
-        self._app.errorhandler(500)(self.capture_exception)
         self._recorder = recorder
         self._name = name
-        self._enabled = False
 
         if app is not None:
             self.init_app(app)
@@ -34,128 +32,106 @@ class XRay:
         def first():
             app.logger.debug(f"Initializing xray extension {self._name}")
 
-            # Checks XRay is enabled
-            self._enabled = global_sdk_config.sdk_enabled()
-            if self._enabled:
+            if global_sdk_config.sdk_enabled():
+                # Checks XRay is available
                 try:
-                    subsegment = self._recorder.current_subsegment()
-                except (Exception,) as e:
-                    self._app.logger.debug(str(e))
-                    self._enabled = False
+                    segment = self._recorder.current_segment()
+                except SegmentNotFoundException as e:
+                    pass
+                else:
+                    # Captures routes
+                    patch_all()
+                    app.errorhandler(500)(self.capture_exception)
+                    self.capture_routes()
+                    return
 
-            if not self._enabled:
-                self._app.logger.debug("Skipped capture routes because the SDK is currently disabled.")
-                return
+            self._app.logger.debug("Skipped capture routes because the SDK is currently disabled.")
 
-            patch_all()
-
-        app.before_first_request_funcs = [first, self.capture_routes, *app.before_first_request_funcs]
+        app.before_first_request_funcs = [first, *app.before_first_request_funcs]
 
     def capture_routes(self):
-        if not self._enabled:
-            return
+        for rule in self._app.url_map.iter_rules():
+            view_function = self._app.view_functions[rule.endpoint]
 
-        try:
-            for rule in self._app.url_map.iter_rules():
-                view_function = self._app.view_functions[rule.endpoint]
-
-                def captured(_view_function, *args, **kwargs):
-
-                    # Traces event, context, request and coworks function
-                    subsegment = self._recorder.current_subsegment()
-                    if subsegment:
-                        try:
-                            aws_context = request.aws_context
-                            subsegment.put_metadata('context', lambda_context_to_json(aws_context), LAMBDA_NAMESPACE)
-                            metadata = {
-                                'service': self._app.name,
-                                'request': request_to_dict(request),
-                            }
-                            if request.is_json:
-                                try:
-                                    metadata['json'] = request.json
-                                except (Exception,):
-                                    metadata['json'] = request.get_data(cache=False, as_text=True)
-                            elif request.is_multipart:
-                                metadata['multipart'] = request.form.to_dict(False)
-                                metadata['files'] = [*request.files.keys()]
-                            elif request.is_form_urlencoded:
-                                metadata['form'] = request.form.to_dict(False)
-                                metadata['files'] = [*request.files.keys()]
-                            else:
-                                metadata['values'] = request.values.to_dict(False)
-                            subsegment.put_metadata('request', metadata, COWORKS_NAMESPACE)
-                        except (Exception,) as e:
-                            self._app.logger.error(f"Cannot capture before route in XRay : {e}")
-                            self._app.logger.error(traceback.extract_stack())
-
-                    response = _view_function(*args, **kwargs)
-                    aws_context = request.aws_context
-
-                    # Traces response
-                    if subsegment:
-                        flask_response = make_response(response)
-                        try:
-                            metadata = {
-                                'status': flask_response.status,
-                                'headers': flask_response.headers,
-                                'direct_passthrough': flask_response.direct_passthrough,
-                                'is_json': flask_response.is_json,
-                            }
-                            subsegment.put_metadata('response', metadata, COWORKS_NAMESPACE)
-                        except (Exception,) as e:
-                            self._app.logger.error(f"Cannot capture after route in XRay : {e}")
-                            self._app.logger.error(traceback.extract_stack())
-                    return response
-
-                wrapped_fun = update_wrapper(partial(captured, view_function), view_function)
-                self._app.view_functions[rule.endpoint] = self._recorder.capture(name=wrapped_fun.__name__)(wrapped_fun)
-
-        except Exception:
-            self._app.logger.error("Cannot set xray context manager : are you using xray_recorder?")
-            raise
-
-    def capture_exception(self, e):
-        if not self._enabled:
-            self._app.logger.error(f"Event: {request.aws_event}")
-            self._app.logger.error(f"Context: {request.aws_context}")
-            self._app.logger.debug("Skipped capture exception because the SDK is currently disabled.")
-
-        subsegment = self._recorder.current_subsegment()
-        if subsegment:
-            subsegment.add_error_flag()
-            subsegment.put_annotation('service', self._app.name)
-            subsegment.add_exception(e, traceback.extract_stack())
-
-    @staticmethod
-    def capture(recorder):
-        """Decorator to trace function calls on XRay."""
-        enabled = global_sdk_config.sdk_enabled()
-        if not enabled:
-            return lambda x: x
-
-        # Set XRay decorator
-        def xray_decorator(function):
-            def xray_captured(*args, **kwargs):
-                subsegment = recorder.current_subsegment()
-                if subsegment:
+            def route_captured(_view_function, *args, **kwargs):
+                # Traces context, request and data
+                aws_context = request.aws_context
+                subsegment = self._recorder.current_subsegment()
+                subsegment.put_metadata('context', lambda_context_to_json(aws_context), LAMBDA_NAMESPACE)
+                metadata = {
+                    'service': self._app.name,
+                    'request': request_to_dict(request),
+                }
+                if request.is_json:
                     try:
-                        subsegment.put_metadata(f'{function.__name__}.args', args[1:], COWORKS_NAMESPACE)
-                        subsegment.put_metadata(f'{function.__name__}.kwargs', kwargs, COWORKS_NAMESPACE)
-                    except (Exception,) as e:
-                        pass
+                        metadata['json'] = request.json
+                    except (Exception,):
+                        metadata['json'] = request.get_data(cache=False, as_text=True)
+                elif request.is_multipart:
+                    metadata['multipart'] = request.form.to_dict(False)
+                    metadata['files'] = [*request.files.keys()]
+                elif request.is_form_urlencoded:
+                    metadata['form'] = request.form.to_dict(False)
+                    metadata['files'] = [*request.files.keys()]
+                else:
+                    metadata['values'] = request.values.to_dict(False)
+                subsegment.put_metadata('request', metadata, COWORKS_NAMESPACE)
 
-                response = function(*args, **kwargs)
-                if subsegment:
-                    try:
-                        subsegment.put_metadata(f'{function.__name__}.response', response, COWORKS_NAMESPACE)
-                    except (Exception,) as e:
-                        pass
+                response = _view_function(*args, **kwargs)
+
+                # Traces response
+                flask_response = make_response(response)
+                metadata = {
+                    'status': flask_response.status,
+                    'headers': flask_response.headers,
+                    'direct_passthrough': flask_response.direct_passthrough,
+                    'is_json': flask_response.is_json,
+                }
+                subsegment.put_metadata('response', metadata, COWORKS_NAMESPACE)
 
                 return response
 
-            wrapped_fun = update_wrapper(xray_captured, function)
-            return recorder.capture(name=function.__name__)(wrapped_fun)
+            wrapped_fun = update_wrapper(partial(route_captured, view_function), view_function)
+            self._app.view_functions[rule.endpoint] = self._recorder.capture(name=wrapped_fun.__name__)(wrapped_fun)
+
+    def capture_exception(self, e):
+        try:
+            subsegment = self._recorder.current_subsegment()
+            if subsegment:
+                subsegment.add_error_flag()
+                subsegment.put_annotation('service', self._app.name)
+                subsegment.add_exception(e, traceback.extract_stack())
+        except (SegmentNotFoundException,) as e:
+            pass
+
+        self._app.logger.error(f"Event: {request.aws_event}")
+        self._app.logger.error(f"Context: {request.aws_context}")
+        self._app.logger.debug("Skipped capture exception because the SDK is currently disabled.")
+
+    @staticmethod
+    def capture(recorder):
+        # Decorator to trace function calls on XRay.
+        def xray_decorator(function):
+            def function_captured(*args, **kwargs):
+                subsegment = recorder.current_subsegment()
+                subsegment.put_metadata(f'{function.__name__}.args', args[1:], COWORKS_NAMESPACE)
+                subsegment.put_metadata(f'{function.__name__}.kwargs', kwargs, COWORKS_NAMESPACE)
+                response = function(*args, **kwargs)
+                subsegment.put_metadata(f'{function.__name__}.response', response, COWORKS_NAMESPACE)
+                return response
+
+            if global_sdk_config.sdk_enabled():
+                # Checks XRay is available
+                try:
+                    segment = recorder.current_segment()
+                except SegmentNotFoundException as e:
+                    pass
+                else:
+                    # Captures function
+                    wrapped_fun = update_wrapper(function_captured, function)
+                    return recorder.capture(name=function.__name__)(wrapped_fun)
+
+            return function
 
         return xray_decorator
 

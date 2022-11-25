@@ -13,6 +13,7 @@ from werkzeug.exceptions import NotFound
 
 from coworks import Blueprint
 from coworks import entry
+from coworks.extension.xray import XRay
 
 
 @dataclass
@@ -189,7 +190,7 @@ class Odoo(Blueprint):
         except Exception:
             raise Forbidden()
 
-    @xray_recorder.capture()
+    @XRay.capture(xray_recorder)
     def odoo_execute_kw(self, bind, model, method, *args, **kwargs):
         """Standard externalm API entries.
         See also: https://www.odoo.com/documentation/15.0/developer/misc/api/odoo.html
