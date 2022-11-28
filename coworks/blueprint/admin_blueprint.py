@@ -2,6 +2,7 @@ import inspect
 import sys
 from collections import defaultdict
 from inspect import Parameter
+from textwrap import dedent
 
 import markdown
 from flask import current_app
@@ -26,27 +27,30 @@ class Admin(Blueprint):
     def get(self):
         """Returns the markdown documentation associated to this microservice.
         """
+        title = f"<span style=\"font-size:xx-large;font-weight:bold\">" \
+                f"{current_app.__class__.__name__}</span>"
+        header = f"{title}<img style=\"float:right;\" " \
+                 f"src=\"https://neorezo.io/assets/img/logo_neorezo.png\" width=\"100\" />"
+
         md = getattr(current_app, 'doc_md', None)
         if not md:
             md = getattr(current_app.__class__, 'DOC_MD', None)
+        if not md and current_app.__class__.__doc__:
+            md = current_app.__class__.__doc__.replace('\n', ' ').strip()
+        content = markdown.markdown(md, extensions=['fenced_code']) if md else ""
 
-        top = ""
-        if md:
-            top = markdown.markdown(md, extensions=['fenced_code'])
-        if current_app.__class__.__doc__:
-            top = current_app.__class__.__doc__.replace('\n', ' ').strip()
-            
-        header = '<img src="https://neorezo.io/assets/img/logo_neorezo.png" width="100" />'
-
-        template = """<style type="text/css">ul.nobull {list-style-type: none;}</style>
-        <ul class="nobull">{% for entry,route in routes.items() %}
-        <li>{{ entry }} : <ul>{% for method,info in route.items() %}
-        <li>{{ method }}{{ info.signature }} : <i>{{ info.doc }}</i>{% endfor %}</li>
-        </ul></li>{% endfor %}</ul>"""
+        template = dedent(
+            """<style type="text/css">ul.nobull {list-style-type: none;}</style>
+            <ul class="nobull">{% for entry,route in routes.items() %}
+            <li>{{ entry }} : <ul>{% for method,info in route.items() %}
+            <li>{{ method }}{{ info.signature }} :<br/><i>{{ info.doc }}</i><ul class="nobull">{% for param in info.params %}
+            <li>{{ param }}{% endfor %}</ul>{% endfor %}</li>
+            </ul></li>{% endfor %}</ul>"""
+        )
         routes = dict(sorted(self.get_route(blueprint="__all__").items()))
         bottom = render_template_string(template, routes=routes)
 
-        return header + '<hr/>' + top + '<hr/>' + bottom
+        return header + '<hr/>' + content + '<hr/>' + bottom
 
     @entry
     def get_route(self, prefix=None, blueprint=None):
