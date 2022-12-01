@@ -1,7 +1,6 @@
 import click
 from flask.cli import pass_script_info
 
-from coworks.config import Config
 from tests.cws.src.app import EnvTechMS
 
 
@@ -34,4 +33,3 @@ def cmd1(info, ctx, a, b):
 
 
 app = EnvTechMS()
-app_with_conf = EnvTechMS(configs=Config(environment_variables_file="config/vars_dev.json"))

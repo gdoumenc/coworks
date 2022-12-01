@@ -10,6 +10,7 @@ from inspect import isfunction
 from pathlib import Path
 
 import boto3
+import dotenv
 from flask import Blueprint as FlaskBlueprint
 from flask import Flask
 from flask import Response
@@ -26,12 +27,10 @@ from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import Unauthorized
 from werkzeug.routing import Rule
 
-from .config import Config
-from .config import DEFAULT_LOCAL_WORKSPACE
-from .config import DevConfig
-from .config import LocalConfig
-from .config import ProdConfig
 from .globals import request
+from .utils import BIZ_BUCKET_HEADER_KEY
+from .utils import BIZ_KEY_HEADER_KEY
+from .utils import DEFAULT_LOCAL_WORKSPACE
 from .utils import HTTP_METHODS
 from .utils import add_coworks_routes
 from .utils import get_app_workspace
@@ -161,7 +160,6 @@ class Blueprint(FlaskBlueprint):
         """Initialize a blueprint.
 
         :param kwargs: Other Flask blueprint parameters.
-
         """
         import_name = self.__class__.__name__.lower()
         super().__init__(name or import_name, import_name, **kwargs)
@@ -193,20 +191,24 @@ class TechMicroService(Flask):
     See :ref:`tech` for more information.
     """
 
-    def __init__(self, name: str = None, *, configs: t.Union[Config, t.List[Config]] = None, **kwargs) -> None:
+    def __init__(self, name: str = None, **kwargs) -> None:
         """ Initialize a technical microservice.
         :param name: Name used to identify the microservice.
-        :param configs: Deployment configurations.
         :param kwargs: Other Chalice parameters.
         """
+
+        # Adds stage variables
+        if os.getenv("FLASK_RUN_FROM_CLI"):
+            workspace = get_app_workspace()
+            project_dir = os.getenv("CWS_PROJECT_DIR", '.')
+            for env_filename in (f".env.{workspace}", f".flaskenv.{workspace}"):
+                path = dotenv.find_dotenv((Path(project_dir) / env_filename).as_posix(), usecwd=True)
+                loaded = dotenv.load_dotenv(path)
+
         self.default_config = ImmutableDict({
             **self.default_config,
-            "JSON_SORT_KEYS": False,
+            "FLASK_SKIP_DOTENV": True,
         })
-
-        self.configs = configs or [LocalConfig(), DevConfig(), ProdConfig()]
-        if type(self.configs) is not list:
-            self.configs = [configs]
 
         name = name or self.__class__.__name__.lower()
         super().__init__(import_name=name, static_folder=None, **kwargs)
@@ -257,14 +259,6 @@ class TechMicroService(Flask):
         """Returns the list of routes defined in the microservice.
         """
         return [r.rule for r in self.url_map.iter_rules()]
-
-    def get_config(self, workspace) -> Config:
-        """Returns the configuration corresponding to the workspace.
-        """
-        for conf in self.configs:
-            if conf.is_valid_for(workspace):
-                return conf
-        return Config()
 
     def token_authorizer(self, token: str) -> t.Union[bool, str]:
         """Defined the authorization process.
@@ -317,7 +311,6 @@ class TechMicroService(Flask):
             for fun in self.deferred_init_routes_functions:
                 fun()
 
-            self.init_app()
             for bp in self.blueprints.values():
                 if isinstance(bp, Blueprint):
                     t.cast(Blueprint, bp).init_app(self)
@@ -398,14 +391,10 @@ class TechMicroService(Flask):
     def _update_config(self, *, in_lambda: bool):
         if not self._cws_conf_updated:
             workspace = get_app_workspace()
-            config = self.get_config(workspace)
-
-            if not in_lambda:
-                config.load_environment_variables(self)
 
             # Set predefined environment variables
-            self.config['X-CWS-S3Bucket'] = config.bizz_bucket_header_key
-            self.config['X-CWS-S3Key'] = config.bizz_key_header_key
+            self.config['X-CWS-S3Bucket'] = BIZ_BUCKET_HEADER_KEY
+            self.config['X-CWS-S3Key'] = BIZ_KEY_HEADER_KEY
 
             self._cws_conf_updated = True
 
@@ -434,14 +423,14 @@ class TechMicroService(Flask):
         # returns JSON structure
         if resp.is_json:
             try:
-                return self._structured_payload(resp.json, resp.status_code, resp.headers)
+                return self._aws_payload(resp.json, resp.status_code, resp.headers)
             except (Exception,):
                 resp.mimetype = "text/plain"
 
         # returns simple string JSON structure
         if resp.mimetype and resp.mimetype.startswith('text'):
             try:
-                return self._structured_payload(resp.get_data(True), resp.status_code, resp.headers)
+                return self._aws_payload(resp.get_data(True), resp.status_code, resp.headers)
             except ValueError:
                 pass
 
@@ -452,7 +441,7 @@ class TechMicroService(Flask):
             raise ValueError(msg)
         return base64.b64encode(data).decode('ascii')
 
-    def _structured_payload(self, body, status_code, headers):
+    def _aws_payload(self, body, status_code, headers):
         return {
             "statusCode": status_code,
             "headers": {k: v for k, v in headers.items()},
@@ -462,4 +451,4 @@ class TechMicroService(Flask):
 
     def _structured_error(self, e: HTTPException):
         headers = {'content_type': "application/json"}
-        return self._structured_payload(e.description, e.code, headers)
+        return self._aws_payload(e.description, e.code, headers)

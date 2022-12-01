@@ -10,7 +10,9 @@ from flask.cli import FlaskGroup
 from flask.cli import ScriptInfo
 
 from coworks import __version__
-from coworks.config import DEFAULT_PROJECT_DIR
+from coworks.utils import DEFAULT_DEV_WORKSPACE
+from coworks.utils import DEFAULT_PROJECT_DIR
+from coworks.utils import PROJECT_CONFIG_VERSION
 from coworks.utils import get_app_workspace
 from coworks.utils import get_system_info
 from coworks.utils import import_attr
@@ -20,40 +22,38 @@ from .deploy import destroy_command
 from .new import new_command
 from .zip import zip_command
 
-PROJECT_CONFIG_VERSION = 3
-
 
 class CwsContext(click.Context):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.__project_dir = self.instance_relative_path = None
-        self.__project_dir_added = False
+        self.__project_dir = None
+        self.__project_dir_added_in_path = False
 
     def add_project_dir(self, project_dir):
         self.__project_dir = project_dir
 
     def __enter__(self):
-        self.instance_relative_path = os.environ.get('INSTANCE_RELATIVE_PATH')
-        os.environ['INSTANCE_RELATIVE_PATH'] = os.getcwd()
-        if self.__project_dir not in sys.path:
-            sys.path.insert(0, self.__project_dir)
-            self.__project_dir_added = True
+        if self.__project_dir:
+            os.environ['CWS_PROJECT_DIR'] = self.__project_dir
+            if self.__project_dir not in sys.path:
+                sys.path.insert(0, self.__project_dir)
+                self.__project_dir_added_in_path = True
         return super().__enter__()
 
     def __exit__(self, *args):
-        if self.instance_relative_path:
-            os.environ['INSTANCE_RELATIVE_PATH'] = self.instance_relative_path
-        if self.__project_dir_added:
-            sys.path.remove(self.__project_dir)
-            self.__project_dir_added = False
+        if self.__project_dir:
+            os.environ.pop('CWS_PROJECT_DIR', None)
+            if self.__project_dir_added_in_path:
+                sys.path.remove(self.__project_dir)
+                self.__project_dir_added_in_path = False
         super().__exit__(*args)
 
 
 class CoWorksGroup(FlaskGroup):
 
     def __init__(self, add_default_commands=True, **kwargs):
-        super().__init__(add_version_option=False, **kwargs)
+        super().__init__(add_version_option=False, load_dotenv=False, **kwargs)
         self.context_class = CwsContext
         if add_default_commands:
             self.add_command(t.cast("Command", new_command))
@@ -114,6 +114,7 @@ class CoWorksGroup(FlaskGroup):
 
 @click.group(cls=CoWorksGroup)
 @click.version_option(version=__version__, message=f'%(prog)s %(version)s, {get_system_info()}')
+@click.option('-s', '--stage', default=DEFAULT_DEV_WORKSPACE, help="Stage environment.")
 @click.option('-p', '--project-dir', default=DEFAULT_PROJECT_DIR,
               help=f"The project directory path (absolute or relative) [default to '{DEFAULT_PROJECT_DIR}'].")
 @click.option('-c', '--config-file', default='project', help="Configuration file path [relative from project dir].")

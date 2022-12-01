@@ -35,7 +35,7 @@ class TestClass:
     def test_cmd(self, example_dir, capsys):
         client.main(['--project-dir', example_dir, 'test'], 'cws', standalone_mode=False)
         captured = capsys.readouterr()
-        assert captured.out == "test command with a=default/test command with b=value"
+        assert captured.out == " * Workspace: dev\ntest command with a=default/test command with b=value"
 
     def test_cmd_wrong_option(self, example_dir):
         with pytest.raises(NoSuchOption) as pytest_wrapped_e:
@@ -47,7 +47,7 @@ class TestClass:
     def test_cmd_right_option(self, example_dir, capsys):
         client.main(['--project-dir', example_dir, 'test', '-a', 'right'], 'cws', standalone_mode=False)
         captured = capsys.readouterr()
-        assert captured.out == "test command with a=right/test command with b=value"
+        assert captured.out == " * Workspace: dev\ntest command with a=right/test command with b=value"
 
     @mock.patch.dict(os.environ, {"FLASK_APP": "cmd:app"})
     def test_cmd_wrong_b_option(self, example_dir, capsys):
@@ -62,11 +62,11 @@ class TestClass:
         finally:
             os.unsetenv("FLASK_RUN_FROM_CLI")
         captured = capsys.readouterr()
-        assert captured.out == "test command with a=default/test command with b=right"
+        assert captured.out == " * Workspace: dev\ntest command with a=default/test command with b=right"
 
     @mock.patch.dict(os.environ, {"CWS_STAGE": "v1", "FLASK_APP": "cmd:app"})
     def test_v1_cmd(self, example_dir, capsys):
         client.main(['--project-dir', example_dir, 'test', '-a', 'right'], 'cws',
                     standalone_mode=False)
         captured = capsys.readouterr()
-        assert captured.out == "test command v1 with a=right/test command v1 with b=value1"
+        assert captured.out == " * Workspace: v1\ntest command v1 with a=right/test command v1 with b=value1"

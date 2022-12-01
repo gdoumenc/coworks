@@ -1,11 +1,11 @@
 import contextlib
 import os
 import socket
-import sys
-from contextlib import contextmanager
 from unittest.mock import MagicMock
 
 import pytest
+
+from cws.client import CwsContext
 
 
 def fixture_example_dir():
@@ -50,13 +50,10 @@ def empty_context():
     return LambdaContextTest()
 
 
-@contextmanager
 def project_dir_context(project_dir):
-    sys.path.insert(0, project_dir)
-    try:
-        yield
-    finally:
-        sys.path.remove(project_dir)
+    ctx = CwsContext(command=None, allow_extra_args={}, allow_interspersed_args={}, ignore_unknown_options={})
+    ctx.add_project_dir(project_dir)
+    return ctx
 
 
 class LambdaContextTest:

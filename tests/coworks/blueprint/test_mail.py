@@ -8,7 +8,6 @@ import pytest
 
 from coworks import TechMicroService
 from coworks.blueprint.mail_blueprint import Mail
-from coworks.config import LocalConfig
 
 smtp_mock = mock.MagicMock()
 smtp_mock.return_value.__enter__.return_value.login = login_mock = mock.Mock()
@@ -21,7 +20,7 @@ email_mock.return_value.add_attachment = add_mock = mock.Mock()
 class MailMS(TechMicroService):
 
     def __init__(self, **mail_names):
-        super().__init__('mail', configs=LocalConfig())
+        super().__init__('mail')
         self.register_blueprint(Mail(**mail_names))
 
     def _check_token(self):

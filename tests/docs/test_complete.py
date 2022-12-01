@@ -10,7 +10,7 @@ from tests.conftest import project_dir_context
 
 
 class TestClass:
-    @mock.patch.dict(os.environ, {"FLASK_RUN_FROM_CLI": "false", "AWS_XRAY_SDK_ENABLED": "false"})
+    @mock.patch.dict(os.environ, {"FLASK_RUN_FROM_CLI": "false"})
     def test_run_complete(self, samples_docs_dir, unused_tcp_port):
         with project_dir_context(samples_docs_dir):
             app = import_attr('complete', 'app')

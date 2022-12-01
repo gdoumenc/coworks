@@ -19,7 +19,6 @@ from werkzeug.exceptions import NotFound
 
 from coworks import TechMicroService
 from coworks import entry
-from coworks import request
 from coworks.blueprint.admin_blueprint import Admin
 from coworks.extension.xray import XRay
 from coworks.utils import is_json
@@ -157,7 +156,7 @@ See 'samples/directory' to get how to create and deploy it.
     def get_doc(self, name, stage=None):
         """Get microservice documentation.
         If stage is not defined the latest production version is choosen or 'dev' if no production version.
-        
+
         :param name: AWS microservice's name.
         :param stage: AWS microservice's stage.
         """
@@ -212,59 +211,52 @@ See 'samples/directory' to get how to create and deploy it.
 
         return res.json() if is_json(accept) else res.text, res.status_code, dict(res.headers)
 
-    @entry(binary=True)
-    def post_temporary_code(self, name, duration=60, **kwargs):
-        """Returns a temporary token.
+    @entry
+    def post_code(self, name, duration=60, **kwargs):
+        """Returns a temporary code to call a microservice.
 
         :param name: microservice's name.
         :param duration: token duration in minutes.
         :param kwargs: call parameters.
         """
-        if not request.in_lambda_context:
-            raise BadRequest("Temporary code may be created only in Lambda environment.")
-
         kwargs['name'] = name
 
         # Adds expiration time
-        epoch = request.aws_event['requestContext']['requestTimeEpoch']
-        now = datetime.datetime.fromtimestamp(epoch / 1000) + datetime.timedelta(minutes=duration)
-        kwargs['expiration_date'] = now.strftime('%Y-%m-%dT%H:%M:%S%z')
+        expiration_time = datetime.datetime.now() + datetime.timedelta(minutes=duration)
+        kwargs['expiration_time'] = expiration_time.strftime('%Y-%m-%dT%H:%M:%S%z')
 
         # Encodes invocation data
-        iv = ''.join((secrets.choice(string.ascii_letters) for i in range(AES.block_size))).encode('ascii')
-        crypto_obj = AES.new(self._pad(os.getenv("TOKEN")), AES.MODE_CBC, iv)
-        cipher = crypto_obj.encrypt(self._pad(json.dumps(kwargs), ' '))
-        return iv + cipher
+        iv = ''.join((secrets.choice(string.ascii_letters) for i in range(AES.block_size)))
+        crypto_obj = AES.new(self._pad(os.getenv("TOKEN")).encode('utf-8'), AES.MODE_CBC, iv.encode('utf-8'))
+        cipher = crypto_obj.encrypt(self._pad(json.dumps(kwargs), ' ').encode('utf-8'))
+        return iv + base64.b64encode(cipher).decode()
 
-    @entry(no_auth=True)
-    def get_temporary_call(self, code=None, data=None):
+    @entry
+    def post_decode(self, code=None):
         """Call the microservice defined by the code with GET method."""
-        return self._temporary_call(code=code, data=data)
+        return self._decode(code=code)
 
     @entry(no_auth=True)
-    def post_temporary_call(self, code=None, data=None):
+    def post_code_call(self, code=None, data=None):
         """Call the microservice defined by the code with POST method."""
-        return self._temporary_call(code=code, data=data)
+        return self._call(code=code, data=data)
 
-    def _temporary_call(self, code=None, data=None):
-        data = data or {}
-        if 'name' in data:
-            raise BadRequest("Cannot overload name parameters")
+    def _decode(self, code=None):
+        data = {}
 
         # Decodes invocation data
-        code = base64.b64decode(code)
         iv = code[:AES.block_size]
-        crypto_obj = AES.new(self._pad(os.getenv("TOKEN")), AES.MODE_CBC, iv)
-        cipher = code[AES.block_size:]
-        call_data = json.loads(crypto_obj.decrypt(cipher).decode('ascii'))
+        code = base64.b64decode(code[AES.block_size:])
+        crypto_obj = AES.new(self._pad(os.getenv("TOKEN")).encode('utf-8'), AES.MODE_CBC, iv.encode('utf-8'))
+        cipher = crypto_obj.decrypt(code).decode('ascii')
+        call_data = json.loads(cipher)
         current_app.logger.debug(call_data)
 
         # Checks expiration time
-        expiration_date = datetime.datetime.strptime(call_data.pop('expiration_date'), '%Y-%m-%dT%H:%M:%S')
-        epoch = request.aws_event['requestContext']['requestTimeEpoch']
-        now = datetime.datetime.fromtimestamp(epoch / 1000)
-        if now > expiration_date:
-            current_app.logger.debug(f"Expired call : {now} > {expiration_date}")
+        expiration_time = datetime.datetime.strptime(call_data.pop('expiration_time'), '%Y-%m-%dT%H:%M:%S')
+        now = datetime.datetime.now()
+        if now > expiration_time:
+            current_app.logger.debug(f"Expired call : {now} > {expiration_time}")
             raise Forbidden("Your link is no more available.")
 
         # Check path prefix
@@ -274,7 +266,14 @@ See 'samples/directory' to get how to create and deploy it.
                 raise Forbidden("You cannot access this entry.")
 
         # Checks mandatory parameters
-        final_data = {**data, **call_data}
+        return call_data
+
+    def _call(self, code=None, data=None):
+        data = data or {}
+        if 'name' in data:
+            raise BadRequest("Cannot overload name parameters")
+
+        final_data = {**data, **self._decode(code)}
         if 'path' not in final_data:
             raise BadRequest("Missing path parameters")
 
@@ -285,5 +284,6 @@ See 'samples/directory' to get how to create and deploy it.
         return objects['position'] if 'position' in objects else None
 
     def _pad(self, str: str, padding_char: t.Optional[str] = None) -> str:
+        """Pads the string to AES.block_size (pad with padding_char)"""
         padding = (AES.block_size - (len(str) % AES.block_size))
         return str + padding * (padding_char if padding_char is not None else chr(padding))

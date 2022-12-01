@@ -12,6 +12,7 @@ pyyaml = ">=6.0"
 pycrypto = "*"
 flask-login = "*"
 flask-wtf = "*"
+python-dotenv = "*"
 
 [dev-packages]
 #  Uninstall flask-appbuilder after

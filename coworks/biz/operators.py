@@ -123,6 +123,7 @@ class TechMicroServiceOperator(BaseOperator):
             params=self.query_params, json=self.json, data=self.data
         )
         logging.info(f"Resulting status code : {res.status_code}")
+        logging.info(f"XRay trace id : {res.headers.get('X-Amzn-Trace-Id')}")
 
         # Manages status
         if self.raise_400_errors and res.status_code >= 400:

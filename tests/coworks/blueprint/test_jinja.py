@@ -4,13 +4,12 @@ from unittest import mock
 
 from coworks import TechMicroService
 from coworks.blueprint.jinja_blueprint import Jinja
-from coworks.config import LocalConfig
 
 
 class JinjaMS(TechMicroService):
 
     def __init__(self):
-        super().__init__('jinja', configs=LocalConfig())
+        super().__init__('jinja')
         self.register_blueprint(Jinja())
 
 

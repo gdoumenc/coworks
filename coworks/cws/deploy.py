@@ -13,6 +13,7 @@ from subprocess import CompletedProcess
 
 import boto3
 import click
+import dotenv
 from flask.cli import pass_script_info
 from flask.cli import with_appcontext
 from jinja2 import BaseLoader
@@ -34,8 +35,6 @@ class TerraformContext:
 
     def __init__(self, info):
         self.app = info.load_app()
-        self.config = self.app.get_config(get_app_workspace())
-        self.environment_variable_files = self.config.existing_environment_variables_files(self.app)
 
         # Transform flask app import path into module import path
         if info.app_import_path and '/' in info.app_import_path:
@@ -186,6 +185,14 @@ class TerraformLocal:
         project_dir = options['project_dir']
         workspace = get_app_workspace()
 
+        # Adds stage variables
+        environment_variables = {}
+        workspace = get_app_workspace()
+        project_dir = os.getenv("CWS_PROJECT_DIR", '.')
+        for env_filename in (f".env.{workspace}", f".flaskenv.{workspace}"):
+            path = dotenv.find_dotenv((Path(project_dir) / env_filename).as_posix(), usecwd=True)
+            environment_variables = {**environment_variables, **dotenv.dotenv_values(path)}
+
         # Microservice context data
         app = self.app_context.app
         data = {
@@ -193,8 +200,7 @@ class TerraformLocal:
             'app': app,
             'app_import_path': self.app_context.app_import_path,
             'description': inspect.getdoc(app) or "",
-            'environment_variables': self.app_context.config.environment_variables,
-            'environment_variable_files': [Path(f).name for f in self.app_context.environment_variable_files],
+            'environment_variables': environment_variables,
             'ms_name': app.name,
             'resource_name': app.name,
             'workspace': workspace,
@@ -395,7 +401,7 @@ class TerraformCloud(TerraformLocal):
 @click.option('--module-name', '-m', multiple=True, help="Python module added from current pyenv (module or file.py).")
 @click.option('--profile-name', '-pn', required=True, help="AWS credential profile.")
 # Deploy specific optionsElle est immédiatement opérationnelle et fonctionnell
-@click.option('--binary-types',  multiple=True,
+@click.option('--binary-types', multiple=True,
               help="Content types defined as binary contents (no encoding).")
 @click.option('--json-types', multiple=True,
               help="Add mime types for JSON response [at least application/json, text/x-json, "

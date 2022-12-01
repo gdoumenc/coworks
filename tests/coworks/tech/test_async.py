@@ -3,7 +3,8 @@ from unittest.mock import MagicMock
 
 from coworks import TechMicroService
 from coworks import entry
-from coworks.config import Config
+from coworks.utils import BIZ_BUCKET_HEADER_KEY
+from coworks.utils import BIZ_KEY_HEADER_KEY
 from ..event import get_event
 
 
@@ -23,8 +24,8 @@ class TestClass:
             event = get_event('/', 'get')
             with app.cws_client(event, empty_context) as c:
                 event['headers']['InvocationType'.lower()] = 'Event'
-                event['headers'][Config.bizz_bucket_header_key.lower()] = 'bucket'
-                event['headers'][Config.bizz_key_header_key.lower()] = 'specific/key'
+                event['headers'][BIZ_BUCKET_HEADER_KEY.lower()] = 'bucket'
+                event['headers'][BIZ_KEY_HEADER_KEY.lower()] = 'specific/key'
                 app(event, empty_context)
                 session.assert_called_once()
                 session.client.assert_called_once_with('s3')

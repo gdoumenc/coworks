@@ -11,8 +11,6 @@ from werkzeug.exceptions import BadRequest
 from werkzeug.exceptions import Forbidden
 from werkzeug.exceptions import NotFound
 
-from coworks import Blueprint
-from coworks import entry
 from coworks.extension.xray import XRay
 
 
@@ -25,26 +23,25 @@ class OdooBinding:
     uid: str = None
 
 
-class Odoo(Blueprint):
-    """Odoo blueprint.
-    This blueprint uses the API Rest application which must be installed on ODOO server.
+class Odoo:
+    """Odoo extension.
+    This extension uses the external API of ODOO.
 
     .. versionchanged:: 0.7.3
         ``env_var_prefix`` parameter may be a dict of bind values.
         GraphQL removed.
     """
 
-    def __init__(self, name='odoo', *, env_url_var_name: str = '', env_dbname_var_name: str = '',
+    def __init__(self, app=None, *, env_url_var_name: str = '', env_dbname_var_name: str = '',
                  env_user_var_name: str = '', env_passwd_var_name: str = '',
                  env_var_prefix: t.Optional[t.Union[str, t.Dict[str, str]]] = None, **kwargs):
         """
-        @param env_url_var_name: environment variable name for the odoo url.
-        @param env_dbname_var_name: environment variable name for the odoo database.
-        @param env_user_var_name: environment variable name for the odoo user.
-        @param env_passwd_var_name: environment variable name for the odoo password.
-        @param env_var_prefix: global environment variable prefix name.
+        :param env_url_var_name: environment variable name for the odoo url.
+        :param env_dbname_var_name: environment variable name for the odoo database.
+        :param env_user_var_name: environment variable name for the odoo user.
+        :param env_passwd_var_name: environment variable name for the odoo password.
+        :param env_var_prefix: global environment variable prefix name.
         """
-        super().__init__(name=name, **kwargs)
         self._bind: t.Optional[OdooBinding] = None
         self._binds: t.Dict[str, OdooBinding] = {}
         self.env_var_prefix = env_var_prefix
@@ -53,6 +50,9 @@ class Odoo(Blueprint):
             self._env_dbname_var_name = env_dbname_var_name
             self._env_user_var_name = env_user_var_name
             self._env_passwd_var_name = env_passwd_var_name
+
+        if app is not None:
+            self.init_app(app)
 
     def init_app(self, app):
         if self.env_var_prefix:
@@ -64,7 +64,6 @@ class Odoo(Blueprint):
             self._bind = get_config(self._env_url_var_name, self._env_url_var_name, self._env_user_var_name,
                                     self._env_passwd_var_name)
 
-    @entry
     def kw(self, model: str, method: str = "search_read", id: int = None, fields: t.List[str] = None,
            order: str = None, domain: t.List[t.Tuple[str, str, t.Any]] = None, limit: int = None, page_size: int = None,
            page: int = 0, ensure_one: bool = False, bind: str = None):
@@ -118,7 +117,6 @@ class Odoo(Blueprint):
 
         return {"ids": [rec['id'] for rec in res], "values": res}
 
-    @entry
     def create(self, model: str, data: t.List[dict] = None, bind: str = None) -> int:
         """Creates new records for the model.
 
@@ -131,7 +129,6 @@ class Odoo(Blueprint):
         """
         return self.odoo_execute_kw(bind, model, "create", data)
 
-    @entry
     def write(self, model: str, id: int, data: dict = None, bind: str = None) -> list:
         """Updates one record with the provided values.
         See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.write
@@ -142,7 +139,6 @@ class Odoo(Blueprint):
         """
         return self.odoo_execute_kw(bind, model, "write", [[id], data])
 
-    @entry
     def delete_(self, model: str, id: int, bind: str = None) -> list:
         """delete the record.
         See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.unlink
@@ -152,7 +148,6 @@ class Odoo(Blueprint):
         """
         return self.odoo_execute_kw(bind, model, "unlink", [[id]])
 
-    @entry
     def get_pdf(self, report_id: int, rec_ids: t.List[str], bind: str = None) -> bytes:
         """Returns the PDF document attached to a report.
         Specif entry to allow PDF base64 encoding with JSON_RPC.

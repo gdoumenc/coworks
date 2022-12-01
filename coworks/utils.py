@@ -16,7 +16,6 @@ from werkzeug.exceptions import BadRequest
 from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import UnprocessableEntity
 
-from .config import DEFAULT_DEV_WORKSPACE
 from .globals import request
 from .wrappers import CoworksResponse
 
@@ -24,6 +23,15 @@ if t.TYPE_CHECKING:
     from flask.scaffold import Scaffold
 
 HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
+
+PROJECT_CONFIG_VERSION = 3
+
+DEFAULT_DEV_WORKSPACE = "dev"
+DEFAULT_LOCAL_WORKSPACE = "local"
+DEFAULT_PROJECT_DIR = "tech"
+
+BIZ_BUCKET_HEADER_KEY: str = 'X-CWS-S3Bucket'
+BIZ_KEY_HEADER_KEY: str = 'X-CWS-S3Key'
 
 
 def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:

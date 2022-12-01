@@ -86,10 +86,8 @@ class TestClass:
 
     @mock.patch.dict(os.environ, {"test": "local"})
     def test_deploy_cmd(self, monkeypatch, example_dir, progressbar, capsys):
-        monkeypatch.setattr(boto3, "Session", Mock(return_value=Mock(return_value='region')))
         with project_dir_context(example_dir):
             app = import_attr('cmd', 'app')
-            config = app.get_config('workspace')
             with app.test_request_context() as ctx:
                 options = {
                     'project_dir': example_dir,
@@ -118,7 +116,6 @@ class TestClass:
         monkeypatch.setattr(boto3, "Session", Mock(return_value=Mock(return_value='region')))
         with project_dir_context(example_dir):
             app = import_attr('cmd', 'app')
-            config = app.get_config('workspace')
             with app.test_request_context() as ctx:
                 options = {
                     'project_dir': example_dir,
