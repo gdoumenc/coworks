@@ -22,7 +22,7 @@ class OdooBinding:
     dbname: str
     user: str
     passwd: str
-    uid: str
+    uid: str = None
 
 
 class Odoo(Blueprint):
@@ -199,6 +199,11 @@ class Odoo(Blueprint):
             config = self.get_bind(bind)
         else:
             config = self._bind
+
+        if config.uid is None:
+            common = xmlrpc.client.ServerProxy(f'{config.url}/xmlrpc/2/common')
+            config.uid = common.authenticate(config.dbname, config.user, config.passwd, {})
+
         models = xmlrpc.client.ServerProxy(f'{config.url}/xmlrpc/2/object')
         return models.execute_kw(config.dbname, config.uid, config.passwd, model, method, *args, **kwargs)
 
@@ -229,7 +234,4 @@ def get_config(env_url_var_name: str, env_dbname_var_name: str, env_user_var_nam
     if not passwd:
         raise EnvironmentError(f'{env_passwd_var_name} not defined in environment.')
 
-    common = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/common')
-    uid = common.authenticate(dbname, user, passwd, {})
-
-    return OdooBinding(url, dbname, user, passwd, uid)
+    return OdooBinding(url, dbname, user, passwd)
