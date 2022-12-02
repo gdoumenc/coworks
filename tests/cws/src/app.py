@@ -10,7 +10,7 @@ class EnvTechMS(TechMicroService):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        assert os.getenv("TEST") is not None, "no environment variable 'TEST'"
+        assert os.getenv("STAGE") is not None, "no environment variable 'STAGE'"
 
     def token_authorizer(self, token):
         return True

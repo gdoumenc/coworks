@@ -1,6 +1,6 @@
 import io
+
 from aws_xray_sdk.core import xray_recorder
-from werkzeug.middleware.profiler import ProfilerMiddleware
 
 from coworks import TechMicroService
 from coworks import entry
@@ -13,12 +13,11 @@ class SimpleMicroService(TechMicroService):
 #### Microservice Documentation
 You can document your CoWorks MicroService using the class attributes `DOC_MD` (markdown) or
 the instance attributes `doc_md` (markdown) which gets rendered from the '/' entry of the admin blueprint.
-
-![img](https://coworks.readthedocs.io/en/master/_images/coworks.png)
     """
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.register_blueprint(Admin(), url_prefix='/admin')
         self.value = 0
         self.output = io.StringIO()
 
@@ -43,7 +42,5 @@ the instance attributes `doc_md` (markdown) which gets rendered from the '/' ent
 
 
 app = SimpleMicroService(name="sample-complete-microservice")
-app.register_blueprint(Admin(), url_prefix='/admin')
 
-app.wsgi_app = ProfilerMiddleware(app.wsgi_app, stream=app.output)
 XRay(app, xray_recorder)

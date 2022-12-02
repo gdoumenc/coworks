@@ -96,18 +96,18 @@ class TestClass:
             assert response.headers['Content-Type'] == 'application/json'
             assert json.loads(response.get_data(as_text=True)) == {"text": "value", "int": 1}
 
-    def test_binary_content_type(self, empty_context):
+    def test_binary_content_type(self, empty_aws_context):
         app = ContentMS()
         with app.test_client() as c:
             headers = {'Accept': 'img/webp', 'Authorization': 'token'}
-            response = app(get_event('/binary', 'get', headers=headers), empty_context)
+            response = app(get_event('/binary', 'get', headers=headers), empty_aws_context)
             assert type(response) == str
             assert base64.b64decode(str(response)) == b"test"
 
-    def test_content_type(self, empty_context):
+    def test_content_type(self, empty_aws_context):
         app = ContentMS()
         with app.test_client() as c:
             headers = {'Accept': 'img/webp', 'Authorization': 'token'}
-            response = app(get_event('/content/type', 'get', headers=headers), empty_context)
+            response = app(get_event('/content/type', 'get', headers=headers), empty_aws_context)
             assert type(response) == str
             assert base64.b64decode(str(response)) == b"test"

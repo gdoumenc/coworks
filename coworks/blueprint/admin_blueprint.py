@@ -42,10 +42,11 @@ class Admin(Blueprint):
         template = dedent(
             """<style type="text/css">ul.nobull {list-style-type: none;}</style>
             <ul class="nobull">{% for entry,route in routes.items() %}
-            <li>{{ entry }} : <ul>{% for method,info in route.items() %}
-            <li>{{ method }}{{ info.signature }} :<br/><i>{{ info.doc }}</i><ul class="nobull">{% for param in info.params %}
-            <li>{{ param }}{% endfor %}</ul>{% endfor %}</li>
-            </ul></li>{% endfor %}</ul>"""
+                <li>{{ entry }} : <ul>{% for method,info in route.items() %}
+                    <li>{{ method }}{{ info.signature }} :<br/><i>{{ info.doc }}</i>
+                    <ul class="nobull">{% for param in info.params %}<li>{{ param }}{% endfor %}</ul>
+                {% endfor %}</li></ul></li>
+            {% endfor %}</ul>"""
         )
         routes = dict(sorted(self.get_route(blueprint="__all__").items()))
         bottom = render_template_string(template, routes=routes)

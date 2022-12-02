@@ -33,7 +33,7 @@ AWS Lambda and can be called synchronously and asynchrously.
 
 **Functional business service**
 
-Composition of microservices (defined with ``@biz``) is performed over the tech microservices and
+Composition of microservices (defined with the ``@biz`` decorator) is performed over the tech microservices and
 constructed by Airflow workflows.
 
 Technical documentation :
@@ -161,11 +161,14 @@ Indeed it's so easy to start in serverless project, it's also easy to start movi
     * Automation and command configuraton
     * Execution configuration
 
-  For those who are familiar with the Twelve-Factor App methodology, the CoWorks configuration model correspond exactly
-  with the strict separation of config from code. More precisely:
+  For those who are familiar with the `Twelve-Factor App <https://12factor.net>`_ methodology,
+  the CoWorks configuration model correspond exactly
+  with the strict separation of config from code.
+
+  More precisely:
 
     * The project configuration file : *Use a declarative format for setup automation, to minimize time and cost for new developers joining the project*
-    * The environmant variables file : *Env vars are easy to change between deploys without changing any code*
+    * The dotenv file : *Env vars are easy to change between deploys without changing any code*
 
 .. _doc:
 

@@ -13,8 +13,8 @@ Install Coworks
 
 Use a virtual environment to install CoWorks. We recommend using ``pipenv``::
 
-	$ mkdir project
-	$ cd project
+	$ mkdir project && cd "$_"
+	$ touch Pipfile
 	$ pipenv install coworks
 	$ pipenv shell
 

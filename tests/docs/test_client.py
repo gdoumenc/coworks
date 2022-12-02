@@ -18,12 +18,11 @@ class TestClass:
     def test_routes_command(self, monkeypatch, samples_docs_dir):
         mclick = Mock()
         monkeypatch.setattr(click, "echo", mclick)
-        client.main(['--project-dir', samples_docs_dir, 'routes'], 'cws', standalone_mode=False)
+        client.main(['routes'], 'cws', standalone_mode=False)
         mclick.assert_called()
-        assert len(mclick.mock_calls) == 8
+        assert len(mclick.mock_calls) == 7
         out = [call.args[0].split(' ')[0] for call in mclick.mock_calls]
-        assert 'Workspace' in str(mclick.mock_calls[0])
-        assert 'Endpoint' in str(mclick.mock_calls[1])
+        assert 'Endpoint' in out
         assert 'admin.get_route' in out
         assert 'get' in out
         assert 'post' in out

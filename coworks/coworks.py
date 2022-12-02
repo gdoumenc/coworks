@@ -34,6 +34,7 @@ from .utils import DEFAULT_LOCAL_WORKSPACE
 from .utils import HTTP_METHODS
 from .utils import add_coworks_routes
 from .utils import get_app_workspace
+from .utils import get_env_files
 from .utils import trim_underscores
 from .wrappers import CoworksRequest
 from .wrappers import CoworksResponse
@@ -200,10 +201,10 @@ class TechMicroService(Flask):
         # Adds stage variables
         if os.getenv("FLASK_RUN_FROM_CLI"):
             workspace = get_app_workspace()
-            project_dir = os.getenv("CWS_PROJECT_DIR", '.')
-            for env_filename in (f".env.{workspace}", f".flaskenv.{workspace}"):
-                path = dotenv.find_dotenv((Path(project_dir) / env_filename).as_posix(), usecwd=True)
-                loaded = dotenv.load_dotenv(path)
+            for env_filename in get_env_files(workspace):
+                path = dotenv.find_dotenv(env_filename, usecwd=True)
+                if path:
+                    loaded = dotenv.load_dotenv(path, override=True)
 
         self.default_config = ImmutableDict({
             **self.default_config,
@@ -227,6 +228,8 @@ class TechMicroService(Flask):
     def init_app(self):
         """Called to finalize the application initialization.
         Mainly to get external variables defined specifically for a workspace.
+
+        .. deprecated:: 0.8.0
         """
 
     def init_cli(self):

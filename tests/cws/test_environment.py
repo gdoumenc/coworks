@@ -8,7 +8,6 @@ import requests
 from flask.cli import ScriptInfo
 
 from coworks.cws.client import client
-from tests.conftest import project_dir_context
 from tests.coworks.event import get_event
 from tests.cws.src.app import EnvTechMS
 
@@ -16,16 +15,15 @@ from tests.cws.src.app import EnvTechMS
 class TestClass:
 
     @mock.patch.dict(os.environ, {"CWS_STAGE": "no", "FLASK_RUN_FROM_CLI": "true"})
-    def test_no_env(self, example_dir, empty_context):
-        os.environ.pop("TEST")
+    def test_no_env(self, example_dir, empty_aws_context):
+        os.environ.pop("STAGE")
         with pytest.raises(AssertionError) as pytest_wrapped_e:
-            with project_dir_context(example_dir):
-                app = EnvTechMS()
-                event = get_event('/', 'get')
-                with app.cws_client(event, empty_context) as c:
-                    response = c.get('/', headers={'Authorization': 'token'})
+            app = EnvTechMS()
+            event = get_event('/', 'get')
+            with app.cws_client(event, empty_aws_context) as c:
+                response = c.get('/', headers={'Authorization': 'token'})
         assert pytest_wrapped_e.type == AssertionError
-        assert pytest_wrapped_e.value.args[0] == "no environment variable 'TEST'"
+        assert pytest_wrapped_e.value.args[0] == "no environment variable 'STAGE'"
 
     @mock.patch.dict(os.environ, {"CWS_STAGE": 'dev', "FLASK_RUN_FROM_CLI": "true"})
     def test_run_dev_env(self, example_dir, unused_tcp_port):
@@ -88,13 +86,13 @@ class TestClass:
 
 def run_server(project_dir, port):
     obj = ScriptInfo(create_app=lambda: EnvTechMS(), set_debug_flag=False)
-    client.main(['--project-dir', project_dir, 'run', '--port', port], 'cws', obj=obj, standalone_mode=False)
+    client.main(['--project-dir', '.', 'run', '--port', port], 'cws', obj=obj, standalone_mode=False)
 
 
 def run_server_with_workspace(project_dir, port, workspace):
     @mock.patch.dict(os.environ, {"CWS_STAGE": workspace, "FLASK_RUN_FROM_CLI": "true"})
     def run():
         obj = ScriptInfo(create_app=lambda: EnvTechMS(), set_debug_flag=False)
-        client.main(['-p', project_dir, 'run', '--port', port], 'cws', obj=obj, standalone_mode=False)
+        client.main(['-p', '.', 'run', '--port', port], 'cws', obj=obj, standalone_mode=False)
 
     run()

@@ -8,6 +8,7 @@ import typing as t
 from functools import partial
 from functools import update_wrapper
 
+import click
 from flask import current_app
 from flask import make_response
 from flask.blueprints import BlueprintSetupState
@@ -345,8 +346,16 @@ def is_json(mt):
 
 
 def get_app_workspace():
-    return os.getenv('CWS_STAGE', os.getenv('FLASK_ENV', DEFAULT_DEV_WORKSPACE))
+    return os.getenv('CWS_STAGE', DEFAULT_DEV_WORKSPACE)
 
 
 def get_app_debug():
     return os.getenv('FLASK_DEBUG')
+
+
+def get_env_files(workspace):
+    return [".env", ".flaskenv", f".env.{workspace}", f".flaskenv.{workspace}"]
+
+
+def show_stage_banner():
+    click.echo(f" * Stage: {get_app_workspace()}")

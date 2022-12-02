@@ -5,27 +5,26 @@ from unittest import mock
 
 import requests
 
-from coworks.utils import import_attr
-from tests.conftest import project_dir_context
+from cws.client import CwsScriptInfo
 
 
 class TestClass:
 
-    @mock.patch.dict(os.environ, {"CWS_STAGE": "local"})
     @mock.patch.dict(os.environ, {"FLASK_RUN_FROM_CLI": "false"})
-    def test_run_simple(self, samples_docs_dir, unused_tcp_port):
-        with project_dir_context(samples_docs_dir):
-            app = import_attr('simple', 'app')
-            server = multiprocessing.Process(target=run_server, args=(app, unused_tcp_port), daemon=True)
-            server.start()
-            counter = 1
+    def test_run_simple(self, samples_docs_dir, unused_tcp_port, monkeypatch):
+        info = CwsScriptInfo(project_dir='tech')
+        info.app_import_path = "simple:app"
+        app = info.load_app()
+        server = multiprocessing.Process(target=run_server, args=(app, unused_tcp_port), daemon=True)
+        server.start()
+        counter = 1
+        time.sleep(counter)
+        while not server.is_alive() and counter < 3:
             time.sleep(counter)
-            while not server.is_alive() and counter < 3:
-                time.sleep(counter)
-                counter += 1
-            response = requests.get(f'http://localhost:{unused_tcp_port}/', headers={'Authorization': "token"})
-            assert response.text == "Hello world.\n"
-            server.terminate()
+            counter += 1
+        response = requests.get(f'http://localhost:{unused_tcp_port}/', headers={'Authorization': "token"})
+        assert response.text == "Hello world.\n"
+        server.terminate()
 
 
 def run_server(app, port):

@@ -5,25 +5,22 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from cws.client import CwsContext
-
-
-def fixture_example_dir():
-    return os.getenv('EXAMPLE_DIR', 'tests/cws/src')
-
-
-def fixture_samples_docs_dir():
-    return os.getenv('SAMPLES_DOCS_DIR', 'samples/docs/tech')
+fixture_example_dir = os.getenv('EXAMPLE_DIR', 'tests/cws/src')
+fixture_samples_docs_dir = os.getenv('SAMPLES_DOCS_DIR', 'samples/docs')
 
 
 @pytest.fixture
-def example_dir():
-    yield fixture_example_dir()
+def example_dir(monkeypatch):
+    monkeypatch.syspath_prepend(fixture_example_dir)
+    monkeypatch.chdir(fixture_example_dir)
+    yield fixture_example_dir
 
 
 @pytest.fixture
-def samples_docs_dir():
-    yield fixture_samples_docs_dir()
+def samples_docs_dir(monkeypatch):
+    monkeypatch.syspath_prepend(fixture_example_dir)
+    monkeypatch.chdir(fixture_samples_docs_dir)
+    yield fixture_samples_docs_dir
 
 
 @pytest.fixture
@@ -46,24 +43,14 @@ def auth_headers():
 
 
 @pytest.fixture
-def empty_context():
-    return LambdaContextTest()
-
-
-def project_dir_context(project_dir):
-    ctx = CwsContext(command=None, allow_extra_args={}, allow_interspersed_args={}, ignore_unknown_options={})
-    ctx.add_project_dir(project_dir)
-    return ctx
-
-
-class LambdaContextTest:
-    ...
+def empty_aws_context():
+    return object()
 
 
 def pytest_sessionstart():
-    if not os.path.exists(fixture_samples_docs_dir()):
+    if not os.path.exists(fixture_samples_docs_dir):
         msg = "Undefined samples folder: (environment variable 'SAMPLES_DOCS_DIR' must be redefined)."
         raise pytest.UsageError(msg)
-    if not os.path.exists(fixture_example_dir()):
+    if not os.path.exists(fixture_example_dir):
         msg = "Undefined example folder: (environment variable 'EXAMPLE_DIR' must be redefined)."
         raise pytest.UsageError(msg)

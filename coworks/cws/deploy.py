@@ -1,5 +1,4 @@
 import inspect
-import os
 import subprocess
 import sys
 import typing as t
@@ -24,6 +23,8 @@ from werkzeug.routing import Rule
 
 from coworks.utils import get_app_debug
 from coworks.utils import get_app_workspace
+from coworks.utils import get_env_files
+from coworks.utils import show_stage_banner
 from .exception import ExitCommand
 from .utils import progressbar
 from .zip import zip_command
@@ -182,15 +183,13 @@ class TerraformLocal:
         return Environment(loader=self.template_loader, autoescape=select_autoescape(['html', 'xml']))
 
     def get_context_data(self, **options) -> dict:
-        project_dir = options['project_dir']
         workspace = get_app_workspace()
 
         # Adds stage variables
         environment_variables = {}
         workspace = get_app_workspace()
-        project_dir = os.getenv("CWS_PROJECT_DIR", '.')
-        for env_filename in (f".env.{workspace}", f".flaskenv.{workspace}"):
-            path = dotenv.find_dotenv((Path(project_dir) / env_filename).as_posix(), usecwd=True)
+        for env_filename in get_env_files(workspace):
+            path = dotenv.find_dotenv(Path(env_filename).as_posix(), usecwd=True)
             environment_variables = {**environment_variables, **dotenv.dotenv_values(path)}
 
         # Microservice context data
@@ -228,7 +227,6 @@ class TerraformLocal:
 
     def generate_files(self, template_filename, output_filename, **options) -> None:
         """Generates workspace terraform files."""
-        project_dir = options['project_dir']
         workspace = get_app_workspace()
         debug = get_app_debug()
 
@@ -432,6 +430,7 @@ def deploy_command(info, ctx, **options) -> None:
     terraform = None
 
     app.logger.debug(f"Start deploy command: {options}")
+    show_stage_banner()
     terraform_class = pop_terraform_class(options)
     with progressbar(label="Deploy microservice", threaded=not app.debug) as bar:
         app.logger.debug(f"Deploying {app} using {terraform_class}")
@@ -496,7 +495,6 @@ def pop_terraform_class(options):
 
 def process_terraform(app_context, ctx, terraform_class, bar, command_template, deploy=True, **options):
     root_command_params = ctx.find_root().params
-    project_dir = root_command_params['project_dir']
 
     if '.' not in app_context.app_import_path:
         msg = f"FLASK_APP must be in form 'module:variable' but is {app_context.app_import_path}."
@@ -520,11 +518,6 @@ def process_terraform(app_context, ctx, terraform_class, bar, command_template, 
         app.logger.debug('Call zip command')
         zip_options = {zip_param.name: options[zip_param.name] for zip_param in zip_command.params}
         ctx.invoke(zip_command, **zip_options)
-
-        # Copy environment files in terraform folder
-        app.logger.debug('Copy environment variable files')
-        for file in terraform.app_context.environment_variable_files:
-            terraform.copy_file(file)
 
     # Generates common terraform files
     app.logger.debug('Generate terraform common files')
