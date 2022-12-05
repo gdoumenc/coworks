@@ -25,6 +25,7 @@ def new_command(force) -> None:
 
     # Copy files
     copy_tree(src.as_posix(), '.')
+    Path('template.env').rename('.env')
 
     # Render project configuration file
     template_loader = PackageLoader(sys.modules[__name__].__package__)
