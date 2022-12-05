@@ -42,6 +42,7 @@ class Odoo:
         :param env_passwd_var_name: environment variable name for the odoo password.
         :param env_var_prefix: global environment variable prefix name.
         """
+        self.app = None
         self._bind: t.Optional[OdooBinding] = None
         self._binds: t.Dict[str, OdooBinding] = {}
         self.env_var_prefix = env_var_prefix
@@ -55,6 +56,7 @@ class Odoo:
             self.init_app(app)
 
     def init_app(self, app):
+        self.app = app
         if self.env_var_prefix:
             if type(self.env_var_prefix) is dict:
                 self._binds = {bind: get_prefixed_config(prefix) for bind, prefix in self.env_var_prefix.items()}
@@ -90,7 +92,7 @@ class Odoo:
         if id:
             domain = [[('id', '=', id)]]
         else:
-            domain = domain if domain else [[]]
+            domain = [domain] if domain else [[]]
 
         params = {}
         if order:
