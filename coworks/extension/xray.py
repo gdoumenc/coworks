@@ -57,37 +57,39 @@ class XRay:
                 # Traces context, request and data
                 aws_context = request.aws_context
                 subsegment = self._recorder.current_subsegment()
-                subsegment.put_metadata('context', lambda_context_to_json(aws_context), LAMBDA_NAMESPACE)
-                metadata = {
-                    'service': self._app.name,
-                    'request': request_to_dict(request),
-                }
-                if request.is_json:
-                    try:
-                        metadata['json'] = request.json
-                    except (Exception,):
-                        metadata['json'] = request.get_data(cache=False, as_text=True)
-                elif request.is_multipart:
-                    metadata['multipart'] = request.form.to_dict(False)
-                    metadata['files'] = [*request.files.keys()]
-                elif request.is_form_urlencoded:
-                    metadata['form'] = request.form.to_dict(False)
-                    metadata['files'] = [*request.files.keys()]
-                else:
-                    metadata['values'] = request.values.to_dict(False)
-                subsegment.put_metadata('request', metadata, COWORKS_NAMESPACE)
+                if subsegment:
+                    subsegment.put_metadata('context', lambda_context_to_json(aws_context), LAMBDA_NAMESPACE)
+                    metadata = {
+                        'service': self._app.name,
+                        'request': request_to_dict(request),
+                    }
+                    if request.is_json:
+                        try:
+                            metadata['json'] = request.json
+                        except (Exception,):
+                            metadata['json'] = request.get_data(cache=False, as_text=True)
+                    elif request.is_multipart:
+                        metadata['multipart'] = request.form.to_dict(False)
+                        metadata['files'] = [*request.files.keys()]
+                    elif request.is_form_urlencoded:
+                        metadata['form'] = request.form.to_dict(False)
+                        metadata['files'] = [*request.files.keys()]
+                    else:
+                        metadata['values'] = request.values.to_dict(False)
+                    subsegment.put_metadata('request', metadata, COWORKS_NAMESPACE)
 
                 response = _view_function(*args, **kwargs)
 
                 # Traces response
-                flask_response = make_response(response)
-                metadata = {
-                    'status': flask_response.status,
-                    'headers': flask_response.headers,
-                    'direct_passthrough': flask_response.direct_passthrough,
-                    'is_json': flask_response.is_json,
-                }
-                subsegment.put_metadata('response', metadata, COWORKS_NAMESPACE)
+                if subsegment:
+                    flask_response = make_response(response)
+                    metadata = {
+                        'status': flask_response.status,
+                        'headers': flask_response.headers,
+                        'direct_passthrough': flask_response.direct_passthrough,
+                        'is_json': flask_response.is_json,
+                    }
+                    subsegment.put_metadata('response', metadata, COWORKS_NAMESPACE)
 
                 return response
 
@@ -114,10 +116,15 @@ class XRay:
         def xray_decorator(function):
             def function_captured(*args, **kwargs):
                 subsegment = recorder.current_subsegment()
-                subsegment.put_metadata(f'{function.__name__}.args', args[1:], COWORKS_NAMESPACE)
-                subsegment.put_metadata(f'{function.__name__}.kwargs', kwargs, COWORKS_NAMESPACE)
+                if subsegment:
+                    subsegment.put_metadata(f'{function.__name__}.args', args[1:], COWORKS_NAMESPACE)
+                    subsegment.put_metadata(f'{function.__name__}.kwargs', kwargs, COWORKS_NAMESPACE)
+
                 response = function(*args, **kwargs)
-                subsegment.put_metadata(f'{function.__name__}.response', response, COWORKS_NAMESPACE)
+
+                if subsegment:
+                    subsegment.put_metadata(f'{function.__name__}.response', response, COWORKS_NAMESPACE)
+
                 return response
 
             if global_sdk_config.sdk_enabled():
