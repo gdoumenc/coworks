@@ -4,6 +4,7 @@ import os
 import typing as t
 import xmlrpc.client
 from dataclasses import dataclass
+from dataclasses import field
 
 import requests
 from aws_xray_sdk.core import xray_recorder
@@ -15,12 +16,38 @@ from coworks.extension.xray import XRay
 
 
 @dataclass
-class OdooBinding:
+class OdooConfig:
     url: str
     dbname: str
     user: str
     passwd: str
-    uid: str = None
+    const: t.Dict[str, t.Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_env_var_prefix(cls, env_var_prefix):
+        env_url_var_name = f"{env_var_prefix}_URL"
+        env_dbname_var_name = f"{env_var_prefix}_DBNAME"
+        env_user_var_name = f"{env_var_prefix}_USER"
+        env_passwd_var_name = f"{env_var_prefix}_PASSWD"
+        return cls.get_config(env_url_var_name, env_dbname_var_name, env_user_var_name, env_passwd_var_name)
+
+    @classmethod
+    def get_config(cls, env_url_var_name: str, env_dbname_var_name: str, env_user_var_name: str,
+                   env_passwd_var_name: str):
+        url = os.getenv(env_url_var_name)
+        if not url:
+            raise EnvironmentError(f'{env_url_var_name} not defined in environment.')
+        dbname = os.getenv(env_dbname_var_name)
+        if not dbname:
+            raise EnvironmentError(f'{env_dbname_var_name} not defined in environment.')
+        user = os.getenv(env_user_var_name)
+        if not user:
+            raise EnvironmentError(f'{env_user_var_name} not defined in environment.')
+        passwd = os.getenv(env_passwd_var_name)
+        if not passwd:
+            raise EnvironmentError(f'{env_passwd_var_name} not defined in environment.')
+
+        return OdooConfig(url, dbname, user, passwd)
 
 
 class Odoo:
@@ -32,39 +59,22 @@ class Odoo:
         GraphQL removed.
     """
 
-    def __init__(self, app=None, *, env_url_var_name: str = '', env_dbname_var_name: str = '',
-                 env_user_var_name: str = '', env_passwd_var_name: str = '',
-                 env_var_prefix: t.Optional[t.Union[str, t.Dict[str, str]]] = None, **kwargs):
+    def __init__(self, app=None, config: OdooConfig = None, binds: t.Dict[t.Optional[str], OdooConfig] = None):
         """
-        :param env_url_var_name: environment variable name for the odoo url.
-        :param env_dbname_var_name: environment variable name for the odoo database.
-        :param env_user_var_name: environment variable name for the odoo user.
-        :param env_passwd_var_name: environment variable name for the odoo password.
-        :param env_var_prefix: global environment variable prefix name.
+        :param binds: configuration binds (only one or dict).
+        :param app: Flask application.
         """
         self.app = None
-        self._bind: t.Optional[OdooBinding] = None
-        self._binds: t.Dict[str, OdooBinding] = {}
-        self.env_var_prefix = env_var_prefix
-        if env_var_prefix is None:
-            self._env_url_var_name = env_url_var_name
-            self._env_dbname_var_name = env_dbname_var_name
-            self._env_user_var_name = env_user_var_name
-            self._env_passwd_var_name = env_passwd_var_name
 
-        if app is not None:
-            self.init_app(app)
+        if not config and not binds:
+            raise RuntimeError("An odoo configuration or binds must be provided.")
+
+        self.binds = binds if binds else {}
+        if config:
+            self.binds[None] = config
 
     def init_app(self, app):
         self.app = app
-        if self.env_var_prefix:
-            if type(self.env_var_prefix) is dict:
-                self._binds = {bind: get_prefixed_config(prefix) for bind, prefix in self.env_var_prefix.items()}
-            else:
-                self._bind = get_prefixed_config(self.env_var_prefix)
-        else:
-            self._bind = get_config(self._env_url_var_name, self._env_url_var_name, self._env_user_var_name,
-                                    self._env_passwd_var_name)
 
     def kw(self, model: str, method: str = "search_read", id: int = None, fields: t.List[str] = None,
            order: str = None, domain: t.List[t.Tuple[str, str, t.Any]] = None, limit: int = None, page_size: int = None,
@@ -159,10 +169,7 @@ class Odoo:
         @param bind: bind configuration to be used.
         """
 
-        if bind:
-            config = self.get_bind(bind)
-        else:
-            config = self._bind
+        config = self.binds[bind]
         try:
             headers = {'Content-type': 'application/json'}
             data = {'jsonrpc': "2.0", 'params': {'db': config.dbname, 'login': config.user, 'password': config.passwd}}
@@ -192,43 +199,11 @@ class Odoo:
         """Standard externalm API entries.
         See also: https://www.odoo.com/documentation/15.0/developer/misc/api/odoo.html
         """
-        if bind:
-            config = self.get_bind(bind)
-        else:
-            config = self._bind
+        config = self.binds[bind]
 
-        if config.uid is None:
+        if '__uid' not in config.const:
             common = xmlrpc.client.ServerProxy(f'{config.url}/xmlrpc/2/common')
-            config.uid = common.authenticate(config.dbname, config.user, config.passwd, {})
+            config.const['__uid'] = common.authenticate(config.dbname, config.user, config.passwd, {})
 
         models = xmlrpc.client.ServerProxy(f'{config.url}/xmlrpc/2/object')
-        return models.execute_kw(config.dbname, config.uid, config.passwd, model, method, *args, **kwargs)
-
-    def get_bind(self, bind: str) -> OdooBinding:
-        assert (bind in self._binds), f"Bind {bind} is not configured by 'env_var_prefix'."
-        return self._binds[bind]
-
-
-def get_prefixed_config(env_var_prefix: str):
-    env_url_var_name = f"{env_var_prefix}_URL"
-    env_dbname_var_name = f"{env_var_prefix}_DBNAME"
-    env_user_var_name = f"{env_var_prefix}_USER"
-    env_passwd_var_name = f"{env_var_prefix}_PASSWD"
-    return get_config(env_url_var_name, env_dbname_var_name, env_user_var_name, env_passwd_var_name)
-
-
-def get_config(env_url_var_name: str, env_dbname_var_name: str, env_user_var_name: str, env_passwd_var_name: str):
-    url = os.getenv(env_url_var_name)
-    if not url:
-        raise EnvironmentError(f'{env_url_var_name} not defined in environment.')
-    dbname = os.getenv(env_dbname_var_name)
-    if not dbname:
-        raise EnvironmentError(f'{env_dbname_var_name} not defined in environment.')
-    user = os.getenv(env_user_var_name)
-    if not user:
-        raise EnvironmentError(f'{env_user_var_name} not defined in environment.')
-    passwd = os.getenv(env_passwd_var_name)
-    if not passwd:
-        raise EnvironmentError(f'{env_passwd_var_name} not defined in environment.')
-
-    return OdooBinding(url, dbname, user, passwd)
+        return models.execute_kw(config.dbname, config.const['__uid'], config.passwd, model, method, *args, **kwargs)
