@@ -10,7 +10,6 @@ from inspect import isfunction
 from pathlib import Path
 
 import boto3
-import dotenv
 from flask import Blueprint as FlaskBlueprint
 from flask import Flask
 from flask import Response
@@ -30,11 +29,11 @@ from werkzeug.routing import Rule
 from .globals import request
 from .utils import BIZ_BUCKET_HEADER_KEY
 from .utils import BIZ_KEY_HEADER_KEY
-from .utils import DEFAULT_LOCAL_WORKSPACE
+from .utils import DEFAULT_LOCAL_STAGE
 from .utils import HTTP_METHODS
 from .utils import add_coworks_routes
-from .utils import get_app_workspace
-from .utils import get_env_files
+from .utils import get_app_stage
+from .utils import load_dotenv
 from .utils import trim_underscores
 from .wrappers import CoworksRequest
 from .wrappers import CoworksResponse
@@ -47,11 +46,13 @@ from .wrappers import TokenResponse
 
 
 def entry(fun: t.Callable = None, binary: bool = False, content_type: str = None,
+          stage: t.Union[str, t.List[str]] = None,
           no_auth: bool = False, no_cors: bool = True) -> t.Callable:
     """Decorator to create a microservice entry point from function name.
     :param fun: the entry function.
     :param binary: allow payload without transformation.
     :param content_type: force default content-type.
+    :param stage: entry defined only for this stage.
     :param no_auth: set authorizer by default.
     :param no_cors: set CORS by default.
     """
@@ -77,11 +78,14 @@ def entry(fun: t.Callable = None, binary: bool = False, content_type: str = None
         method = 'POST'
         path = get_path(0)
 
+    stage = [] if stage is None else stage
+
     fun.__CWS_METHOD = method
     fun.__CWS_PATH = path
     fun.__CWS_BINARY = binary
     fun.__CWS_CONTENT_TYPE = content_type
     fun.__CWS_NO_AUTH = no_auth
+    fun.__CWS_STAGES = stage if type(stage) == list else [stage]
     fun.__CWS_NO_CORS = no_cors
 
     return fun
@@ -122,8 +126,8 @@ class CoworksClient(FlaskClient):
 
         method = request_context['httpMethod']
         scheme = headers['x-forwarded-proto']
-        stage = request_context['stage']
-        path = aws_event['requestContext']['path'][len(stage) + 1:]
+        host_name = headers['x-forwarded-host'] if 'x-forwarded-host' in headers else request_context['domainName']
+        entry_path = request_context['entryPath']
         query_string = MultiDict(aws_event['multiValueQueryStringParameters'])
 
         is_encoded = aws_event.get('isBase64Encoded', False)
@@ -139,7 +143,8 @@ class CoworksClient(FlaskClient):
             "wsgi.input": io.BytesIO(b""),
             "wsgi.url_scheme": scheme,
             "REQUEST_METHOD": method,
-            "PATH_INFO": path,
+            "SERVER_NAME": host_name,
+            "PATH_INFO": entry_path,
         }
         self.cookie_jar = CoworksCookieJar(headers.get('cookie'))
 
@@ -166,9 +171,11 @@ class Blueprint(FlaskBlueprint):
         super().__init__(name or import_name, import_name, **kwargs)
 
     def init_app(self, app):
+        """".. deprecated:: 0.8.0"""
         ...
 
     def init_cli(self, app):
+        """.. deprecated:: 0.8.0"""
         ...
 
     @property
@@ -195,16 +202,10 @@ class TechMicroService(Flask):
     def __init__(self, name: str = None, **kwargs) -> None:
         """ Initialize a technical microservice.
         :param name: Name used to identify the microservice.
-        :param kwargs: Other Chalice parameters.
+        :param kwargs: Other Flask parameters.
         """
-
-        # Adds stage variables
-        if os.getenv("FLASK_RUN_FROM_CLI"):
-            workspace = get_app_workspace()
-            for env_filename in get_env_files(workspace):
-                path = dotenv.find_dotenv(env_filename, usecwd=True)
-                if path:
-                    loaded = dotenv.load_dotenv(path, override=True)
+        stage = get_app_stage()
+        load_dotenv(stage)
 
         self.default_config = ImmutableDict({
             **self.default_config,
@@ -235,26 +236,38 @@ class TechMicroService(Flask):
     def init_cli(self):
         """Called only on cli command.
         Mainly externalized to allow specific import not needed on deployed implementation.
+
+        .. deprecated:: 0.8.0
         """
-        ...
 
     def app_context(self):
         """Override to initialize coworks microservice.
         """
         self._init_app(False)
 
-        if os.environ.get("FLASK_RUN_FROM_CLI") == "true":
-            self.init_cli()
-            for bp in self.blueprints.values():
-                if isinstance(bp, Blueprint):
-                    t.cast(Blueprint, bp).init_cli(self)
+        # todo: to be deleted
+        #
+        # if os.environ.get("FLASK_RUN_FROM_CLI") == "true":
+        #     self.init_cli()
+        #     for bp in self.blueprints.values():
+        #         if isinstance(bp, Blueprint):
+        #             t.cast(Blueprint, bp).init_cli(self)
 
         return super().app_context()
 
     def cws_client(self, aws_event, aws_context):
-        """CoWorks client with new globals.
+        """CoWorks client used by the lambda call.
         """
-        self._init_app(False)
+        # todo: to be deleted
+        #
+        # self._init_app(False)
+        #
+        # if os.environ.get("FLASK_RUN_FROM_CLI") == "true":
+        #     self.init_cli()
+        #     for bp in self.blueprints.values():
+        #         if isinstance(bp, Blueprint):
+        #             t.cast(Blueprint, bp).init_cli(self)
+        #
         return CoworksClient(self, CoworksResponse, use_cookies=True, aws_event=aws_event, aws_context=aws_context)
 
     @property
@@ -273,7 +286,7 @@ class TechMicroService(Flask):
         By default, no entry are accepted for security reason.
         """
 
-        if get_app_workspace() == DEFAULT_LOCAL_WORKSPACE:
+        if get_app_stage() == DEFAULT_LOCAL_STAGE:
             return True
         return token == os.getenv('TOKEN')
 
@@ -314,9 +327,14 @@ class TechMicroService(Flask):
             for fun in self.deferred_init_routes_functions:
                 fun()
 
-            for bp in self.blueprints.values():
-                if isinstance(bp, Blueprint):
-                    t.cast(Blueprint, bp).init_app(self)
+            if os.getenv("FLASK_RUN_FROM_CLI"):
+                self.init_cli()
+
+            # todo: to be deleted
+            #
+            # for bp in self.blueprints.values():
+            #     if isinstance(bp, Blueprint):
+            # t.cast(Blueprint, bp).init_app(self)
             self._cws_app_initialized = True
 
     def __call__(self, arg1, arg2) -> dict:
@@ -393,7 +411,7 @@ class TechMicroService(Flask):
 
     def _update_config(self, *, in_lambda: bool):
         if not self._cws_conf_updated:
-            workspace = get_app_workspace()
+            workspace = get_app_stage()
 
             # Set predefined environment variables
             self.config['X-CWS-S3Bucket'] = BIZ_BUCKET_HEADER_KEY

@@ -36,16 +36,16 @@ class OdooConfig:
                    env_passwd_var_name: str):
         url = os.getenv(env_url_var_name)
         if not url:
-            raise EnvironmentError(f'{env_url_var_name} not defined in environment.')
+            raise RuntimeError(f'{env_url_var_name} not defined in environment.')
         dbname = os.getenv(env_dbname_var_name)
         if not dbname:
-            raise EnvironmentError(f'{env_dbname_var_name} not defined in environment.')
+            raise RuntimeError(f'{env_dbname_var_name} not defined in environment.')
         user = os.getenv(env_user_var_name)
         if not user:
-            raise EnvironmentError(f'{env_user_var_name} not defined in environment.')
+            raise RuntimeError(f'{env_user_var_name} not defined in environment.')
         passwd = os.getenv(env_passwd_var_name)
         if not passwd:
-            raise EnvironmentError(f'{env_passwd_var_name} not defined in environment.')
+            raise RuntimeError(f'{env_passwd_var_name} not defined in environment.')
 
         return OdooConfig(url, dbname, user, passwd)
 
@@ -61,17 +61,18 @@ class Odoo:
 
     def __init__(self, app=None, config: OdooConfig = None, binds: t.Dict[t.Optional[str], OdooConfig] = None):
         """
-        :param binds: configuration binds (only one or dict).
         :param app: Flask application.
+        :param config: default configuration.
+        :param binds: configuration binds.
         """
         self.app = None
-
-        if not config and not binds:
-            raise RuntimeError("An odoo configuration or binds must be provided.")
 
         self.binds = binds if binds else {}
         if config:
             self.binds[None] = config
+
+        if app:
+            self.init_app(app)
 
     def init_app(self, app):
         self.app = app

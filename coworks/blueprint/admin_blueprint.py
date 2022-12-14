@@ -53,7 +53,7 @@ class Admin(Blueprint):
 
         return header + '<hr/>' + content + '<hr/>' + bottom
 
-    @entry
+    @entry(stage="dev")
     def get_route(self, prefix=None, blueprint=None):
         """Returns the list of entrypoints with signature.
 

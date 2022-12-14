@@ -2,7 +2,7 @@ from werkzeug.exceptions import BadRequest
 
 from coworks import Blueprint
 from coworks import entry
-from coworks.utils import get_app_workspace
+from coworks.utils import get_app_stage
 
 
 class TestBlueprint(Blueprint):
@@ -20,7 +20,7 @@ class TestBlueprint(Blueprint):
 
         @self.before_request
         def check():
-            if get_app_workspace() not in self.test_workspaces:
+            if get_app_stage() not in self.test_workspaces:
                 raise BadRequest("Entry accessible only in test environment")
 
     @property

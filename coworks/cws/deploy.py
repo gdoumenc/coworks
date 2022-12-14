@@ -12,7 +12,6 @@ from subprocess import CompletedProcess
 
 import boto3
 import click
-import dotenv
 from flask.cli import pass_script_info
 from flask.cli import with_appcontext
 from jinja2 import BaseLoader
@@ -22,8 +21,8 @@ from jinja2 import select_autoescape
 from werkzeug.routing import Rule
 
 from coworks.utils import get_app_debug
-from coworks.utils import get_app_workspace
-from coworks.utils import get_env_files
+from coworks.utils import get_app_stage
+from coworks.utils import load_dotvalues
 from coworks.utils import show_stage_banner
 from .exception import ExitCommand
 from .utils import progressbar
@@ -62,7 +61,8 @@ class TerraformResource:
         if self.parent_is_root:
             return uid
 
-        return f"{self.parent_uid}{UID_SEP}{uid}" if self.path else self.parent_uid
+        parent_uid = self.parent_uid if len(self.parent_uid) < 80 else id(self.parent_uid)
+        return f"{parent_uid}{UID_SEP}{uid}" if self.path else parent_uid
 
     @cached_property
     def is_root(self) -> bool:
@@ -183,14 +183,7 @@ class TerraformLocal:
         return Environment(loader=self.template_loader, autoescape=select_autoescape(['html', 'xml']))
 
     def get_context_data(self, **options) -> dict:
-        workspace = get_app_workspace()
-
-        # Adds stage variables
-        environment_variables = {}
-        workspace = get_app_workspace()
-        for env_filename in get_env_files(workspace):
-            path = dotenv.find_dotenv(Path(env_filename).as_posix(), usecwd=True)
-            environment_variables = {**environment_variables, **dotenv.dotenv_values(path)}
+        workspace = get_app_stage()
 
         # Microservice context data
         app = self.app_context.app
@@ -199,7 +192,7 @@ class TerraformLocal:
             'app': app,
             'app_import_path': self.app_context.app_import_path,
             'description': inspect.getdoc(app) or "",
-            'environment_variables': environment_variables,
+            'environment_variables': load_dotvalues(workspace),
             'ms_name': app.name,
             'resource_name': app.name,
             'workspace': workspace,
@@ -227,7 +220,7 @@ class TerraformLocal:
 
     def generate_files(self, template_filename, output_filename, **options) -> None:
         """Generates workspace terraform files."""
-        workspace = get_app_workspace()
+        workspace = get_app_stage()
         debug = get_app_debug()
 
         if debug:
@@ -244,7 +237,7 @@ class TerraformLocal:
         """In the default terraform workspace, we have the API.
         In the specific workspace, we have the corresponding stagging lambda.
         """
-        workspace = get_app_workspace()
+        workspace = get_app_stage()
         if deploy:
             self.bar.update(msg="Create API")
             self.apply("default")
@@ -310,7 +303,7 @@ class TerraformCloud(TerraformLocal):
         """
         super().__init__(app_context, bar, **options)
         self.remote_terraform_class = RemoteTerraform
-        self.workspace = get_app_workspace()
+        self.workspace = get_app_stage()
         self.terraform_refresh = terraform_refresh
         self._api_terraform = self._workspace_terraform = None
 
@@ -319,6 +312,7 @@ class TerraformCloud(TerraformLocal):
         if self._api_terraform is None:
             self.app_context.app.logger.debug("Create common terraform instance")
             self._api_terraform = self.remote_terraform_class(self.app_context, self.bar,
+                                                              refresh=self.terraform_refresh,
                                                               terraform_dir=self.working_dir)
         return self._api_terraform
 
@@ -351,14 +345,14 @@ class TerraformCloud(TerraformLocal):
         self.workspace_terraform.select_workspace(workspace)
 
     def generate_common_files(self, **options) -> None:
-        env_data = {'workspace': get_app_workspace(), 'debug': get_app_debug()}
+        env_data = {'workspace': get_app_stage(), 'debug': get_app_debug()}
         options_for_api = {**options, **env_data, **{'profile_name': '', 'stage': ''}}
         self._generate_common_file(self.api_terraform, **options_for_api)
         options_for_stage = {**options, **env_data, **{'profile_name': '', 'stage': f"_{self.workspace}"}}
         self._generate_common_file(self.workspace_terraform, **options_for_stage)
 
     def generate_files(self, template_filename, output_filename, **options) -> None:
-        env_data = {'workspace': get_app_workspace(), 'debug': get_app_debug()}
+        env_data = {'workspace': get_app_stage(), 'debug': get_app_debug()}
         options_for_api = {**options, **env_data, **{'profile_name': '', 'stage': ''}}
         self.api_terraform.generate_files(template_filename, output_filename, **options_for_api)
         options_for_stage = {**options, **env_data, **{'profile_name': '', 'stage': f"_{self.workspace}"}}
@@ -416,7 +410,7 @@ class TerraformCloud(TerraformLocal):
 @click.option('--timeout', default=60, help="Lambda timeout (default 60s).Only for asynchronous call (API call 30s).")
 @click.option('--terraform-dir', default="terraform", help="Terraform folder (default terraform).")
 @click.option('--terraform-cloud', is_flag=True, help="Use cloud workspaces (default false).")
-@click.option('--terraform-refresh', is_flag=True, help="Forces terraform to refresh the state.")
+@click.option('--terraform-refresh', is_flag=True, default=False, help="Forces terraform to refresh the state.")
 @click.pass_context
 @pass_script_info
 @with_appcontext
@@ -461,7 +455,7 @@ def destroy_command(info, ctx, **options) -> None:
         app.logger.debug(f'Destroying {app} using {terraform_class}')
         process_terraform(app_context, ctx, terraform_class, bar, 'destroy.j2', memory_size=128, timeout=60,
                           deploy=False, **options)
-    click.echo(f"You can now delete the terraform_{get_app_workspace()} folder.")
+    click.echo(f"You can now delete the terraform_{get_app_stage()} folder.")
 
 
 @click.command("deployed", short_help="Retrieve the microservices deployed for this project.")
@@ -476,13 +470,14 @@ def deployed_command(info, ctx, **options) -> None:
     terraform = None
 
     app.logger.debug('Start deployed command')
+    show_stage_banner()
     terraform_class = pop_terraform_class(options)
     with progressbar(label='Retrieving information', threaded=not app.debug) as bar:
         app.logger.debug(f'Get deployed informations {app} using {terraform_class}')
         root_command_params = ctx.find_root().params
         terraform = terraform_class(app_context, bar, **root_command_params, **options)
-    if terraform:
-        echo_output(terraform)
+        if terraform:
+            echo_output(terraform)
 
 
 def pop_terraform_class(options):

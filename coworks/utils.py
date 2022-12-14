@@ -9,6 +9,7 @@ from functools import partial
 from functools import update_wrapper
 
 import click
+import dotenv
 from flask import current_app
 from flask import make_response
 from flask.blueprints import BlueprintSetupState
@@ -27,8 +28,8 @@ HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
 
 PROJECT_CONFIG_VERSION = 3
 
-DEFAULT_DEV_WORKSPACE = "dev"
-DEFAULT_LOCAL_WORKSPACE = "local"
+DEFAULT_DEV_STAGE = "dev"
+DEFAULT_LOCAL_STAGE = "local"
 DEFAULT_PROJECT_DIR = "tech"
 
 BIZ_BUCKET_HEADER_KEY: str = 'X-CWS-S3Bucket'
@@ -41,10 +42,17 @@ def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
     :param bp_state the blueprint state
     """
     # Adds entrypoints
+    stage = get_app_stage()
     scaffold = bp_state.blueprint if bp_state else app
     method_members = inspect.getmembers(scaffold.__class__, lambda x: inspect.isfunction(x))
     methods = [fun for _, fun in method_members if hasattr(fun, '__CWS_METHOD')]
     for fun in methods:
+
+        # the entry is not defined for this stage
+        stages = getattr(fun, '__CWS_STAGES')
+        if stages and stage not in stages:
+            continue
+
         method = getattr(fun, '__CWS_METHOD')
         entry_path = path_join(getattr(fun, '__CWS_PATH'))
 
@@ -345,17 +353,35 @@ def is_json(mt):
     )
 
 
-def get_app_workspace():
-    return os.getenv('CWS_STAGE', DEFAULT_DEV_WORKSPACE)
+def get_app_stage():
+    return os.getenv('CWS_STAGE', DEFAULT_DEV_STAGE)
 
 
 def get_app_debug():
     return os.getenv('FLASK_DEBUG')
 
 
-def get_env_files(workspace):
-    return [".env", ".flaskenv", f".env.{workspace}", f".flaskenv.{workspace}"]
+def load_dotenv(stage: str, as_dict: bool = False):
+    loaded = True
+    for env_filename in get_env_filenames(stage):
+        path = dotenv.find_dotenv(env_filename, usecwd=True)
+        if path:
+            loaded = loaded and dotenv.load_dotenv(path, override=True)
+    return loaded
+
+
+def load_dotvalues(stage: str):
+    environment_variables = {}
+    for env_filename in get_env_filenames(stage):
+        path = dotenv.find_dotenv(env_filename, usecwd=True)
+        if path:
+            environment_variables.update(dotenv.dotenv_values(path))
+    return environment_variables
+
+
+def get_env_filenames(stage):
+    return [".env", ".flaskenv", f".env.{stage}", f".flaskenv.{stage}"]
 
 
 def show_stage_banner():
-    click.echo(f" * Stage: {get_app_workspace()}")
+    click.echo(f" * Stage: {get_app_stage()}")

@@ -14,12 +14,13 @@ from click import UsageError
 from flask.cli import ScriptInfo
 
 from coworks import __version__
-from coworks.utils import DEFAULT_DEV_WORKSPACE
+from coworks.utils import DEFAULT_DEV_STAGE
 from coworks.utils import DEFAULT_PROJECT_DIR
 from coworks.utils import PROJECT_CONFIG_VERSION
-from coworks.utils import get_app_workspace
+from coworks.utils import get_app_stage
 from coworks.utils import get_system_info
 from coworks.utils import import_attr
+from coworks.utils import load_dotenv
 from coworks.utils import show_stage_banner
 from .deploy import deploy_command
 from .deploy import deployed_command
@@ -33,6 +34,7 @@ class CwsScriptInfo(ScriptInfo):
     def __init__(self, project_dir=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.project_dir = project_dir
+        self.__dotenv_loaded = False
 
     @property
     def project_dir(self):
@@ -40,18 +42,22 @@ class CwsScriptInfo(ScriptInfo):
 
     @project_dir.setter
     def project_dir(self, project_dir):
-        if project_dir:
-            self.__project_dir = Path(project_dir).absolute().as_posix()
+        self.__project_dir = Path(project_dir).absolute().as_posix() if project_dir else None
 
     @contextmanager
     def project_context(self):
+        if not self.__dotenv_loaded:
+            workspace = get_app_stage()
+            load_dotenv(workspace)
+            self.__dotenv_loaded = True
+
         old_dir = os.getcwd()
         try:
             os.chdir(self.project_dir)
-            yield
         except OSError as e:
             raise UsageError(f"Project dir {self.project_dir} not found.")
         finally:
+            yield
             os.chdir(old_dir)
 
     def load_app(self):
@@ -68,7 +74,7 @@ def _set_stage(ctx, param, value):
 _stage_option = click.Option(
     ["-S", "--stage"],
     help=(
-        f"The CoWorks stage (default {DEFAULT_DEV_WORKSPACE})."
+        f"The CoWorks stage (default {DEFAULT_DEV_STAGE})."
     ),
     is_eager=True,
     expose_value=False,
@@ -135,7 +141,7 @@ class CoWorksGroup(flask.cli.FlaskGroup):
         # Adds environment variables and defined commands from project file
         project_config = ProjectConfig(project_dir, config_file, config_file_suffix)
         with script_info.project_context():
-            commands = project_config.get_commands(get_app_workspace())
+            commands = project_config.get_commands(get_app_stage())
             if commands:
                 for name, options in commands.items():
                     cmd_class_name = options.pop('class', None)
@@ -143,7 +149,7 @@ class CoWorksGroup(flask.cli.FlaskGroup):
                         cmd_module, cmd_class = cmd_class_name.rsplit('.', 1)
                         try:
                             cmd = import_attr(cmd_module, cmd_class)
-                        except ModuleNotFoundError:
+                        except ModuleNotFoundError as e:
                             raise click.UsageError(f"Cannot load command {cmd_class!r} in module {cmd_module!r}.")
 
                         # Sets option's value as default command param

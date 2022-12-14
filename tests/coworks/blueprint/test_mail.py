@@ -28,12 +28,13 @@ class MailMS(TechMicroService):
 
 
 class TestClass:
+
     def test_wrong_init(self):
-        with pytest.raises(OSError) as pytest_wrapped_e:
+        with pytest.raises(RuntimeError) as pytest_wrapped_e:
             app = MailMS()
             with app.test_client() as c:
                 response = c.post('/send')
-        assert pytest_wrapped_e.type == OSError
+        assert pytest_wrapped_e.type == RuntimeError
 
     @mock.patch.dict(os.environ, {
         "SMTP_SERVER": "mail.test.com:587",
