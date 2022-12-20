@@ -7,8 +7,6 @@ from flask import render_template
 from flask import url_for
 from werkzeug.exceptions import BadRequest
 
-from config import DevConfig
-from config import ProdConfig
 from coworks import TechMicroService
 from coworks import entry
 from coworks import request
@@ -26,10 +24,7 @@ Microservice to get all available CoWorks layers.
     def __init__(self, **kwargs):
         super().__init__(name="cws_layers", **kwargs)
         self.register_blueprint(Admin(), url_prefix='/admin')
-        XRay(self, xray_recorder)
-        self.lambda_client = None
 
-    def init_app(self):
         access_key = os.getenv("KEY_ID")
         secret_key = os.getenv("SECRET_KEY")
         if not access_key or not secret_key:
@@ -74,4 +69,5 @@ def to_html(layers, last_version):
     return render_template('layers.j2', **data), 200, {'Content-Type': 'text/html; charset=utf-8'}
 
 
-app = CoworksLayersMicroService(configs=[DevConfig(), ProdConfig()])
+app = CoworksLayersMicroService()
+XRay(app, xray_recorder)
