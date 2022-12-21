@@ -1,6 +1,7 @@
-from config import DevConfig
-from config import LocalConfig
-from config import ProdConfig
+from aws_xray_sdk.core import xray_recorder
+
+from coworks.extension.xray import XRay
 from website import WebsiteMicroService
 
-app = WebsiteMicroService(configs=[LocalConfig(), DevConfig(), ProdConfig()])
+app = WebsiteMicroService()
+XRay(app, xray_recorder)

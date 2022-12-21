@@ -1,7 +1,6 @@
 import os
 
 import requests
-from aws_xray_sdk.core import xray_recorder
 from flask import send_from_directory
 from flask_login import LoginManager
 
@@ -10,7 +9,6 @@ from coworks import TechMicroService
 from coworks import __version__ as coworks_version
 from coworks import entry
 from coworks.blueprint.admin_blueprint import Admin
-from coworks.extension.xray import XRay
 from util import render_html_template
 
 
@@ -28,7 +26,6 @@ Microservice to implement a small website with session.
 
         self.register_blueprint(Admin(), url_prefix='/admin')
         self.register_blueprint(AccountBlueprint(LoginManager(self)), url_prefix='/account')
-        XRay(self, xray_recorder)
 
         @self.context_processor
         def inject_context():
@@ -71,3 +68,5 @@ Microservice to implement a small website with session.
     def get_zip(self):
         """Access to the AirFlow plugins zip."""
         return send_from_directory('assets', "plugins.zip", as_attachment=True, conditional=False)
+
+

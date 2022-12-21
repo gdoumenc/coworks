@@ -1,7 +1,6 @@
 version: 3
 commands:
   deploy:
-    class: coworks.cws.deploy.deploy_command
     bucket: coworks-microservice
     profile_name: fpr-customer
     layers:
