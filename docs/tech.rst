@@ -1,13 +1,10 @@
 .. _tech:
 
-TechMS
-======
+TechMicroservices
+=================
 
 TechMicroservices are the 'atoms' of the CoWorks microservices framework. They represent the building blocks
 for other more complex 'compound' microservices.
-
-Defining Tech Microservices
----------------------------
 
 The microservice class can be defined as a class inheriting from ``TechMicroService``:
 
@@ -64,8 +61,8 @@ The following function defines the PUT method for the root path:
     def put(self):
 		return "put"
 
-Entrypoint Parameters
----------------------
+Entrypoint
+----------
 
 URI Parameters
 ^^^^^^^^^^^^^^
@@ -277,8 +274,9 @@ Binary type
 
 Nevertheless the current AWS ApiGateway integration with Lambda doesn't allow to defined the content type in response
 header so the caller must know in advance the returned content type ot the entry.
-Microservice Response
----------------------
+
+Response
+--------
 
 ``Flask`` automatically converts return values from a class microservice into a response
 object for you.
@@ -295,7 +293,7 @@ Nevertheless we strongly recommend to use only JSON structure (``str`` or ``dict
 for return status code. This allows you to easily call your entry from another entry.
 
 Binary response
----------------
+^^^^^^^^^^^^^^^
 
 You can return a binary response on a specific entry::
 
@@ -324,7 +322,7 @@ Blueprints are a part of Flask. To learn more about how Blueprints are implement
 check out `Flask Blueprints <https://flask.palletsprojects.com/en/2.0.x/blueprints/>`_.
 
 Blueprint Registration
-**********************
+^^^^^^^^^^^^^^^^^^^^^^
 
 Blueprints are defined similarly to microservice classes. However, they will instead
 inherit from the CoWorks implementation of the ``Blueprint`` object.
@@ -337,9 +335,9 @@ Methods within the class should still be decorated with ``@entry``.
 
 	class Admin(Blueprint):
 
-	  @entry
-		def get_context(self):
-			return self.current_request.to_dict()
+	    @entry
+	    def get_context(self):
+		    return self.current_request.to_dict()
 
 This blueprint defines a new route ``context``. To add this route to your microservice, just register the
 microservice, you'll need to register the blueprint:
@@ -352,60 +350,21 @@ microservice, you'll need to register the blueprint:
 The ``url_prefix`` parameter adds the prefix ``admin`` to the route ``context``.
 Now the ``SimpleExampleMicroservice`` has a new route ``/admin/context``.
 
-Predefined Blueprints
-*********************
+Predefined Blueprints and Extensions
+------------------------------------
+
+Some blueprints and extensions are defined to help understanding, manipulating and debugging the frameworks.
 
 Admin
-:::::
+^^^^^
 
-The admin blueprint adds the following routes:
+The admin blueprint adds routes for documentation and description of the microservice.
 
-``/route``
 
-	List all the routes of the microservice with the signature extracted from its associated function
-    (similar to the CoWorks ``route`` command).
+Profiler
+^^^^^^^^
 
-``/context``
+The profiler blueprint adds a middleware to profile the execution of each request.
+This can help identify bottlenecks in your code that may be slowing down your application.
 
-	Return the deployment context of the microservice.
 
-Other routes added by the admin blueprint are as follows::
-
-  {
-        "/": {
-            "POST": {
-                "doc": "",
-                "signature": "(value=None)"
-            }
-        },
-        "/admin/context": {
-            "GET": {
-                "doc": "Returns the calling context.",
-                "signature": "()"
-            }
-        },
-        "/admin/env": {
-            "GET": {
-                "doc": "Returns the stage environment.",
-                "signature": "()"
-            }
-        },
-        "/admin/event": {
-            "GET": {
-                "doc": "Returns the calling context.",
-                "signature": "()"
-            }
-        },
-        "/admin/route": {
-            "GET": {
-                "doc": "Returns the list of entrypoints with signature.",
-                "signature": "(pretty=False)"
-            }
-        },
-        "/profile": {
-            "GET": {
-                "doc": "",
-                "signature": "()"
-            }
-        }
-    }

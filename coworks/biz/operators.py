@@ -91,8 +91,6 @@ class TechMicroServiceOperator(BaseOperator):
             self.log.info("Calling CoWorks directory")
             data = {'stage': self.stage} if self.stage else {}
             response = http.run(self.cws_name, data=data)
-            if self.log_response:
-                self.log.info(response.text)
             coworks_data = loads(response.text)
             self.token = coworks_data['token']
             self._url = f"{coworks_data['url']}/{self.entry}"

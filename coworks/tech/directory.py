@@ -10,7 +10,6 @@ import typing as t
 import boto3
 import requests
 from Crypto.Cipher import AES
-from aws_xray_sdk.core import xray_recorder
 from flask import current_app
 from werkzeug.exceptions import BadRequest
 from werkzeug.exceptions import Forbidden
@@ -19,8 +18,6 @@ from werkzeug.exceptions import NotFound
 
 from coworks import TechMicroService
 from coworks import entry
-from coworks.blueprint.admin_blueprint import Admin
-from coworks.extension.xray import XRay
 from coworks.utils import is_json
 
 
@@ -35,17 +32,15 @@ You can also call a microservice by its name or get a code for a temporary autho
 See 'samples/directory' to get how to create and deploy it.
 """
 
-    def __init__(self, **kwargs):
-        super().__init__(name="directory", **kwargs)
-        self.register_blueprint(Admin(), url_prefix='admin')
-        XRay(self, xray_recorder)
-        self.api_client = self.lambda_client = None
+    def __init__(self, name="directory", session=None, access_key_var="AWS_USER_ACCESS_KEY_ID",
+                 secret_access_key_var="AWS_USER_SECRET_ACCESS_KEY", region_name_var="AWS_REGION_NAME", **kwargs):
+        super().__init__(name=name, **kwargs)
 
-    def init_app(self):
-        access_key = os.getenv("AWS_USER_ACCESS_KEY_ID")
-        secret_key = os.getenv("AWS_USER_SECRET_ACCESS_KEY")
-        region_name = os.getenv("AWS_REGION_NAME")
-        session = boto3.Session(access_key, secret_key, region_name=region_name)
+        if session is None:
+            access_key = os.getenv(access_key_var)
+            secret_key = os.getenv(secret_access_key_var)
+            region_name = os.getenv(region_name_var)
+            session = boto3.Session(access_key, secret_key, region_name=region_name)
         self.api_client = session.client('apigateway')
         self.lambda_client = session.client('lambda')
 
@@ -146,11 +141,7 @@ See 'samples/directory' to get how to create and deploy it.
 
         url = f"https://{api_id}.execute-api.eu-west-1.amazonaws.com/{stage}"
         token = lambda_fun['Configuration']['Environment']['Variables'].get(token_var_name)
-        result = {'url': url, 'token': token}
-
-        xray_recorder.put_metadata('return', result, namespace='coworks')
-
-        return result
+        return {'url': url, 'token': token}
 
     @entry
     def get_doc(self, name, stage=None):

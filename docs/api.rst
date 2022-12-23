@@ -17,13 +17,6 @@ Microservices
 .. autoclass:: Blueprint
    :members:
 
-Configuration
--------------
-
-.. module:: coworks.config
-
-.. autoclass:: Config
-   :members:
 
 
 

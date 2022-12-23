@@ -1,4 +1,4 @@
-def get_event(path, method, params=None, body=None, headers=None):
+def get_event(entry_path, method, entry_path_parameters=None, params=None, body=None, headers=None):
     headers = headers or {
         'accept': '*/*',
         'authorization': 'token',
@@ -6,8 +6,8 @@ def get_event(path, method, params=None, body=None, headers=None):
     }
     return {
         'type': 'LAMBDA',
-        'resource': path,
-        'path': path,
+        'resource': entry_path,
+        'path': entry_path,
         'httpMethod': method.upper(),
         'headers': {
             'accept-encoding': 'gzip, deflate, br',
@@ -39,13 +39,14 @@ def get_event(path, method, params=None, body=None, headers=None):
         'pathParameters': {},
         'stageVariables': None,
         'isBase64Encoded': False,
+        'entryPathParameters': entry_path_parameters or {},
         'requestContext': {
             'httpMethod': method.upper(),
             'resourceId': 'fp5ol74tr7',
-            'resourcePath': path,
+            'entryPath': entry_path,
             'extendedRequestId': 'EktgyFweDoEFabw=',
             'requestTime': '24/Aug/2021:13:37:08 +0000',
-            'path': f"/dev{path}",
+            'path': f"/dev{entry_path}",
             'accountId': '935392763270',
             'protocol': 'HTTP/1.1',
             'stage': 'dev',

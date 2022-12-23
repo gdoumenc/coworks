@@ -151,14 +151,18 @@ class CoWorksGroup(flask.cli.FlaskGroup):
                             cmd = import_attr(cmd_module, cmd_class)
                         except ModuleNotFoundError as e:
                             raise click.UsageError(f"Cannot load command {cmd_class!r} in module {cmd_module!r}.")
+                    elif name in self.commands:
+                        cmd = self.commands[name]
+                    else:
+                        raise click.UsageError(f"The command {name} is undefined or the class option is missing.")
 
-                        # Sets option's value as default command param
-                        # (may then be forced in command line or defined by default)
-                        for param in cmd.params:
-                            if param.name in options:
-                                param.default = options.get(param.name)
+                    # Sets option's value as default command param
+                    # (may then be forced in command line or defined by default)
+                    for param in cmd.params:
+                        if param.name in options:
+                            param.default = options.get(param.name)
 
-                        self.add_command(cmd, name)
+                    self.add_command(cmd, name)
 
         return ctx
 

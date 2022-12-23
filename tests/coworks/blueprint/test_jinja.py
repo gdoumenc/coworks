@@ -32,7 +32,7 @@ class TestClass:
                 'template': "hello {{ world_name }}",
                 'world_name': "world",
             }
-            response = c.get('/render', json=data, headers=auth_headers)
+            response = c.get('/render', query_string=data, headers=auth_headers)
             assert response.status_code == 405
             response = c.post('/render', json=data, headers=auth_headers)
             assert response.status_code == 200

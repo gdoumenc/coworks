@@ -38,10 +38,11 @@ class AuthorizedMS(AuthorizeAll):
 
 
 class TestClass:
+
     def test_authorize_all(self, empty_aws_context):
         app = AuthorizeAll()
         with app.app_context() as c:
-            response = app(get_event('token'), empty_aws_context)
+            response = app(get_event('/token'), empty_aws_context)
             assert response['principalId'] == 'user'
             assert response['policyDocument']['Statement'][0]['Effect'] == 'Allow'
 

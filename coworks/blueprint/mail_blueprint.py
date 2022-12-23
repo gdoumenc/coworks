@@ -25,6 +25,7 @@ class Mail(Blueprint):
     Initialization parameters must be in environment (Twelve-Factor App).
     Environment variables needed:
     - env_server_var_name: Variable name for the SMTP server.
+    - env_port_var_name: Variable name for the SMPT port.
     - env_login_var_name: Variable name for the login.
     - env_passwd_var_name: Variable name for the password.
     """
@@ -34,35 +35,28 @@ class Mail(Blueprint):
                  env_login_var_name: str = '', env_passwd_var_name: str = '',
                  env_var_prefix: str = '', **kwargs):
         super().__init__(name=name, **kwargs)
-        self.smtp_server = self.smtp_port = self.smtp_login = self.smtp_passwd = None
         if env_var_prefix:
-            self.env_server_var_name = f"{env_var_prefix}_SERVER"
-            self.env_port_var_name = f"{env_var_prefix}_PORT"
-            self.env_login_var_name = f"{env_var_prefix}_LOGIN"
-            self.env_passwd_var_name = f"{env_var_prefix}_PASSWD"
-        else:
-            self.env_server_var_name = env_server_var_name
-            self.env_port_var_name = env_port_var_name
-            self.env_login_var_name = env_login_var_name
-            self.env_passwd_var_name = env_passwd_var_name
+            env_server_var_name = f"{env_var_prefix}_SERVER"
+            env_port_var_name = f"{env_var_prefix}_PORT"
+            env_login_var_name = f"{env_var_prefix}_LOGIN"
+            env_passwd_var_name = f"{env_var_prefix}_PASSWD"
 
-    def init_app(self, app):
-        self.smtp_server = os.getenv(self.env_server_var_name)
+        self.smtp_server = os.getenv(env_server_var_name)
         if not self.smtp_server:
-            raise RuntimeError(f'{self.env_server_var_name} not defined in environment.')
-        self.smtp_port = int(os.getenv(self.env_port_var_name, 587))
-        self.smtp_login = os.getenv(self.env_login_var_name)
+            raise RuntimeError(f'{env_server_var_name} not defined in environment.')
+        self.smtp_port = int(os.getenv(env_port_var_name, 587))
+        self.smtp_login = os.getenv(env_login_var_name)
         if not self.smtp_login:
-            raise RuntimeError(f'{self.env_login_var_name} not defined in environment.')
-        self.smtp_passwd = os.getenv(self.env_passwd_var_name)
+            raise RuntimeError(f'{env_login_var_name} not defined in environment.')
+        self.smtp_passwd = os.getenv(env_passwd_var_name)
         if not self.smtp_passwd:
-            raise RuntimeError(f'{self.env_passwd_var_name} not defined in environment.')
+            raise RuntimeError(f'{env_passwd_var_name} not defined in environment.')
 
     @entry
     def post_send(self, subject: str = "", from_addr: str = None, from_name: str = '', reply_to: str = None,
                   to_addrs: [str] = None, cc_addrs: [str] = None, bcc_addrs: [str] = None,
                   body: str = "", body_template: str = None, body_type="plain",
-                  attachments: t.Union[FileStorage, t.List[FileStorage]] = None, attachment_urls: dict = None,
+                  attachments: t.Union[FileStorage, t.Iterator[FileStorage]] = None, attachment_urls: dict = None,
                   starttls=True, **data):
         """ Send mail.
         To send attachments, add files in the body of the request as multipart/form-data.

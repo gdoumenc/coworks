@@ -3,8 +3,8 @@
 Commands
 ========
 
-AS for Flask, CoWorks allows you to extend the ``cws`` application with commands. This powerfull extension is very usefull
-for complex deployment, testing or documentation.
+As for Flask, CoWorks allows you to extend the ``cws`` application with commands.
+This powerfull extension is very usefull for complex deployment, testing or documentation.
 
 As explained before, the microservice architecture needs to be completed by tools. The ``cws`` command line extends
 the ``flask`` command for that purpose.
@@ -35,11 +35,22 @@ To view a list of the available commands at any time, just run `cws` with no arg
     Options:
       --version                  Show the version and exit.
       -p, --project-dir TEXT     The project directory path (absolute or relative)
-                                 [default to '.'].
+                                 [default to 'tech'].
       -c, --config-file TEXT     Configuration file path [relative from project
                                  dir].
       --config-file-suffix TEXT  Configuration file suffix.
+      -S, --stage TEXT           The CoWorks stage (default dev).
+      -e, --env-file FILE        Load environment variables from this file.
+                                 python-dotenv must be installed.
+      -A, --app IMPORT           The Flask application or factory function to
+                                 load, in the form 'module:name'. Module can be a
+                                 dotted import or file path. Name is not required
+                                 if it is 'app', 'application', 'create_app', or
+                                 'make_app', and can be 'name(args)' to pass
+                                 arguments.
+      --debug / --no-debug       Set debug mode.
       --help                     Show this message and exit.
+
 
     Commands:
       deploy    Deploy the CoWorks microservice on AWS Lambda.

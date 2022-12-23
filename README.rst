@@ -42,7 +42,9 @@ Documentation
 
 * Setup and installation: `Installation <https://coworks.readthedocs.io/en/latest/installation.html>`_
 * Complete reference guide: `Documentation <https://coworks.readthedocs.io/>`_.
-* Very simple website done as a simple microservice: `Website <https://3jr90vkbe5.execute-api.eu-west-1.amazonaws.com/dev>`_.
+* Samples:
+    * layers : Get available CoWorks lambda layers: `CoWorks layers <https://2kb9hn4bs4.execute-api.eu-west-1.amazonaws.com/v1>`_.
+    * website : Very simple website done as a simple microservice: `Website <https://3jr90vkbe5.execute-api.eu-west-1.amazonaws.com/v1>`_.
 * Read `FAQ <https://coworks.readthedocs.io/en/latest/faq.html/>`_ for other information.
 
 

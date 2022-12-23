@@ -77,8 +77,8 @@ class Odoo:
     def init_app(self, app):
         self.app = app
 
-    def kw(self, model: str, method: str = "search_read", id: int = None, fields: t.List[str] = None,
-           order: str = None, domain: t.List[t.Tuple[str, str, t.Any]] = None, limit: int = None, page_size: int = None,
+    def kw(self, model: str, method: str = "search_read", id: int = None, fields: t.Iterator[str] = None,
+           order: str = None, domain: t.Iterator[t.Tuple[str, str, t.Any]] = None, limit: int = None, page_size: int = None,
            page: int = 0, ensure_one: bool = False, bind: str = None):
         """Searches with API for records based on the args.
         
@@ -130,7 +130,7 @@ class Odoo:
 
         return {"ids": [rec['id'] for rec in res], "values": res}
 
-    def create(self, model: str, data: t.List[dict] = None, bind: str = None) -> int:
+    def create(self, model: str, data: t.Iterator[dict] = None, bind: str = None) -> int:
         """Creates new records for the model.
 
         See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.create
@@ -161,7 +161,7 @@ class Odoo:
         """
         return self.odoo_execute_kw(bind, model, "unlink", [[id]])
 
-    def get_pdf(self, report_id: int, rec_ids: t.List[str], bind: str = None) -> bytes:
+    def get_pdf(self, report_id: int, rec_ids: t.Iterator[str], bind: str = None) -> bytes:
         """Returns the PDF document attached to a report.
         Specif entry to allow PDF base64 encoding with JSON_RPC.
 

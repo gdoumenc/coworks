@@ -57,6 +57,7 @@ def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
         entry_path = path_join(getattr(fun, '__CWS_PATH'))
 
         # Get parameters
+        # todo: if default is None, set to 0 then same code
         args = inspect.getfullargspec(fun).args[1:]
         defaults = inspect.getfullargspec(fun).defaults
         varkw = inspect.getfullargspec(fun).varkw
@@ -97,7 +98,7 @@ def create_cws_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
     def proxy(**kwargs):
         try:
             # Adds kwargs parameters
-            def check_param_expected_in_lambda(param_name):
+            def check_keyword_expected_in_lambda(param_name):
                 """Alerts when more parameters than expected are defined in request."""
                 if param_name not in kwarg_keys and varkw is None:
                     _err_msg = f"TypeError: got an unexpected keyword argument '{param_name}'"
@@ -111,7 +112,7 @@ def create_cws_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
                 """
                 params = {}
                 for k, v in values.items():
-                    check_param_expected_in_lambda(k)
+                    check_keyword_expected_in_lambda(k)
                     params[k] = v[0] if flat and len(v) == 1 else v
                 return params
 

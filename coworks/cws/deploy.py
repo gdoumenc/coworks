@@ -48,7 +48,7 @@ class TerraformContext:
 class TerraformResource:
     parent_uid: str
     path: str
-    rules: t.List[Rule] = None
+    rules: t.Iterable[Rule] = None
 
     @cached_property
     def uid(self) -> str:
@@ -74,8 +74,8 @@ class TerraformResource:
 
     # noinspection PyUnresolvedReferences
     @cached_property
-    def no_cors_methods(self) -> t.List[t.Optional[str]]:
-        return [rule.methods for rule in self.rules if rule.cws_no_cors]
+    def no_cors_methods(self) -> t.Iterator[t.Optional[str]]:
+        return (rule.methods for rule in self.rules if rule.cws_no_cors)
 
     def __repr__(self):
         return f"{self.uid}:{self.rules}"
@@ -131,6 +131,7 @@ class TerraformLocal:
 
         def add_rule(previous: t.Optional[str], path: t.Optional[str], rule_: t.Optional[Rule]):
             """Add a method rule in a resource."""
+            # todo : may use now aws_url_map
             path = None if path is None else path.replace('<', '{').replace('>', '}')
             resource = TerraformResource(previous, path)
             if rule_:
@@ -255,7 +256,7 @@ class TerraformLocal:
         copy(file, self.working_dir)
         self.bar.update()
 
-    def _execute(self, cmd_args: t.List[str]) -> CompletedProcess:
+    def _execute(self, cmd_args: t.Iterator[str]) -> CompletedProcess:
         self.logger.debug(f"Terraform arguments : {' '.join(cmd_args)}")
         p = subprocess.run(["terraform", *cmd_args], capture_output=True, cwd=self.working_dir,
                            timeout=self.TIMEOUT)

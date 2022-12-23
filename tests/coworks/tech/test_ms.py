@@ -243,7 +243,7 @@ class TestClass:
     def test_entry_not_unique(self):
         app = AmbiguousMS()
         with app.test_request_context():
-            assert '/<uid>' in app.routes
+            assert '/{uid}' in app.routes
             assert '/test' in app.routes
 
     def test_call_not_unique(self):

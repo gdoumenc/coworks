@@ -35,6 +35,7 @@ from .utils import add_coworks_routes
 from .utils import get_app_stage
 from .utils import load_dotenv
 from .utils import trim_underscores
+from .wrappers import CoworksMapAdapter
 from .wrappers import CoworksRequest
 from .wrappers import CoworksResponse
 from .wrappers import TokenResponse
@@ -46,7 +47,7 @@ from .wrappers import TokenResponse
 
 
 def entry(fun: t.Callable = None, binary: bool = False, content_type: str = None,
-          stage: t.Union[str, t.List[str]] = None,
+          stage: t.Union[str, t.Iterable[str]] = None,
           no_auth: bool = False, no_cors: bool = True) -> t.Callable:
     """Decorator to create a microservice entry point from function name.
     :param fun: the entry function.
@@ -128,6 +129,9 @@ class CoworksClient(FlaskClient):
         scheme = headers['x-forwarded-proto']
         host_name = headers['x-forwarded-host'] if 'x-forwarded-host' in headers else request_context['domainName']
         entry_path = request_context['entryPath']
+        path_info = request_context['path']
+        stage = request_context['stage']
+        entry_path_parameters = aws_event['entryPathParameters']
         query_string = MultiDict(aws_event['multiValueQueryStringParameters'])
 
         is_encoded = aws_event.get('isBase64Encoded', False)
@@ -136,15 +140,20 @@ class CoworksClient(FlaskClient):
             body = base64.b64decode(body)
 
         self.aws_environ = {
-            'aws_event': aws_event,
-            'aws_context': aws_context,
-            'aws_query_string': query_string,
-            'aws_body': body,
             "wsgi.input": io.BytesIO(b""),
             "wsgi.url_scheme": scheme,
+            "REQUEST_SCHEME": scheme,
             "REQUEST_METHOD": method,
             "SERVER_NAME": host_name,
-            "PATH_INFO": entry_path,
+            "PATH_INFO": path_info,
+
+            'aws_event': aws_event,
+            'aws_context': aws_context,
+            'aws_stage': stage,
+            "aws_entry_path": entry_path,
+            "aws_entry_path_parameters": entry_path_parameters,
+            'aws_query_string': query_string,
+            'aws_body': body,
         }
         self.cookie_jar = CoworksCookieJar(headers.get('cookie'))
 
@@ -218,9 +227,10 @@ class TechMicroService(Flask):
         self.request_class = CoworksRequest
         self.response_class = CoworksResponse
 
-        self.deferred_init_routes_functions: t.List[t.Callable] = []
+        self.deferred_init_routes_functions: t.Iterable[t.Callable] = []
         self._cws_app_initialized = False
         self._cws_conf_updated = False
+        self.__aws_url_map = None
 
         @self.before_request
         def before():
@@ -255,6 +265,12 @@ class TechMicroService(Flask):
 
         return super().app_context()
 
+    def create_url_adapter(self, _request: t.Optional[CoworksRequest]):
+        if _request and _request.aws_event:
+            self.subdomain_matching = True
+            return CoworksMapAdapter(_request.environ, self.url_map, self.aws_url_map)
+        return super().create_url_adapter(_request)
+
     def cws_client(self, aws_event, aws_context):
         """CoWorks client used by the lambda call.
         """
@@ -271,10 +287,22 @@ class TechMicroService(Flask):
         return CoworksClient(self, CoworksResponse, use_cookies=True, aws_event=aws_event, aws_context=aws_context)
 
     @property
-    def routes(self) -> t.List[Rule]:
+    def aws_url_map(self) -> t.Dict[str, t.List[Rule]]:
+        if self.__aws_url_map is None:
+            self.__aws_url_map = {}
+            for rule in self.url_map.iter_rules():
+                entry_path = rule.rule.replace('<', '{').replace('>', '}')
+                if entry_path in self.__aws_url_map:
+                    self.__aws_url_map[entry_path].append(rule)
+                else:
+                    self.__aws_url_map[entry_path] = [rule]
+        return self.__aws_url_map
+
+    @property
+    def routes(self) -> t.List[str]:
         """Returns the list of routes defined in the microservice.
         """
-        return [r.rule for r in self.url_map.iter_rules()]
+        return [k for k in self.aws_url_map]
 
     def token_authorizer(self, token: str) -> t.Union[bool, str]:
         """Defined the authorization process.

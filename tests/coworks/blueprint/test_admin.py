@@ -54,9 +54,9 @@ class TestClass:
         app = DocumentedMS()
         with app.test_request_context():
             assert '/' in app.routes
-            assert '/content/<value>' in app.routes
-            assert '/contentannotated/<value>' in app.routes
-            assert '/list/<values>' in app.routes
+            assert '/content/{value}' in app.routes
+            assert '/contentannotated/{value}' in app.routes
+            assert '/list/{values}' in app.routes
 
     def test_documentation(self):
         app = DocumentedMS()

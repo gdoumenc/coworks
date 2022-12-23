@@ -1,6 +1,9 @@
 from unittest.mock import Mock
 
-from flask import request
+from flask import request, url_for
+from werkzeug.exceptions import MethodNotAllowed
+from werkzeug.exceptions import NotFound
+from werkzeug.exceptions import UnprocessableEntity
 
 from coworks import TechMicroService
 from coworks import entry
@@ -14,6 +17,10 @@ class CookiesMS(TechMicroService):
     @entry
     def get_cookies(self):
         return request.cookies.to_dict()
+
+    @entry
+    def get_url_for(self, external=None):
+        return url_for('get_cookies', _external=external)
 
 
 class ErrorMS(TechMicroService):
@@ -38,7 +45,6 @@ class ErrorMS(TechMicroService):
 
 
 class TestClass:
-
     def test_request_arg(self, empty_aws_context):
         app = SimpleMS()
         with app.app_context() as c:
@@ -50,29 +56,42 @@ class TestClass:
             assert 'Content-Length' in response['headers']
             assert response['headers']['Content-Length'] == str(len(response['body']))
             response = app(get_event('/', 'post'), empty_aws_context)
-            assert response['statusCode'] == 405
+            assert response['statusCode'] == MethodNotAllowed.code
             response = app(get_event('/get1', 'get'), empty_aws_context)
-            assert response['statusCode'] == 404
+            assert response['statusCode'] == NotFound.code
             response = app(get_event('/content', 'get'), empty_aws_context)
             assert response['statusCode'] == 200
             assert response['body'] == "get content"
-            response = app(get_event('/content/3', 'get'), empty_aws_context)
+            response = app(
+                get_event('/content/{value}', 'get', entry_path_parameters={'value': 3}),
+                empty_aws_context)
             assert response['statusCode'] == 200
             assert response['body'] == "get content with 3"
-            response = app(get_event('/content/3/other', 'get'), empty_aws_context)
+            response = app(
+                get_event('/content/{value}/{other}', 'get', entry_path_parameters={'value': 3, 'other': 'other'}),
+                empty_aws_context)
             assert response['statusCode'] == 200
             assert response['body'] == "get content with 3 and other"
-            response = app(get_event('/content', 'post', body={"other": 'other'}), empty_aws_context)
+            response = app(
+                get_event('/content', 'post', body={"other": 'other'}),
+                empty_aws_context)
             assert response['statusCode'] == 200
             assert response['body'] == "post content without value but other"
-            response = app(get_event('/content/3', 'post', body={"other": 'other'}), empty_aws_context)
+            response = app(
+                get_event('/content/{value}', 'post', entry_path_parameters={'value': 3}, body={"other": 'other'}),
+                empty_aws_context)
             assert response['statusCode'] == 200
             assert response['body'] == "post content with 3 and other"
-            response = app(get_event('/content/3', 'post', body="other"), empty_aws_context)
+            response = app(get_event(
+                '/content/{value}', 'post', entry_path_parameters={'value': 3}, body="other"),
+                empty_aws_context)
             assert response['statusCode'] == 200
             assert response['body'] == "post content with 3 and other"
-            response = app(get_event('/content/3', 'post', body={"other": 'other', "value": 5}), empty_aws_context)
-            assert response['statusCode'] == 422
+            response = app(
+                get_event('/content/{value}', 'post', entry_path_parameters={'value': 3},
+                          body={"other": 'other', "value": 5}),
+                empty_aws_context)
+            assert response['statusCode'] == UnprocessableEntity.code
 
     def test_request_kwargs(self, empty_aws_context):
         app = SimpleMS()
@@ -133,9 +152,25 @@ class TestClass:
         with app.app_context() as c:
             event = get_event('/', 'get')
             response = app(event, empty_aws_context)
-            assert response['statusCode'] == 404
+            assert response['statusCode'] == NotFound.code
             assert response['body'] == "Error 404"
             event = get_event('/exception', 'get')
             response = app(event, empty_aws_context)
             assert response['statusCode'] == 500
             app.err.assert_called_once()
+
+    def test_url_for(self, empty_aws_context):
+        app = CookiesMS()
+        with app.app_context() as c:
+            event = get_event('/url/for', 'get')
+            response = app(event, empty_aws_context)
+            assert response['statusCode'] == 200
+            assert response['body'] == '/dev/cookies'
+            event = get_event('/url/for', 'get', params={'external': True})
+            response = app(event, empty_aws_context)
+            assert response['statusCode'] == 200
+            assert response['body'] == 'https://htzd2rneg1.execute-api.eu-west-1.amazonaws.com/dev/cookies'
+            event = get_event('/url/for', 'get', params={'external': False})
+            response = app(event, empty_aws_context)
+            assert response['statusCode'] == 200
+            assert response['body'] == '/dev/cookies'

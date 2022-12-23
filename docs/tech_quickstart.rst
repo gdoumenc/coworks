@@ -1,12 +1,12 @@
 .. _tech_quickstart:
 
-TechMicroService Quickstart
-===========================
+Tech Quickstart
+===============
 
 This page gives a quick and partial introduction to CoWorks Technical Microservices.
 Follow :doc:`installation` to install CoWorks and set up a new project.
 
-CoWorks Technical Microservices are ``atomic microservices``, meaning that they are single ``atomic`` components
+CoWorks Technical Microservices are `atomic microservices`, meaning that they are single `atomic` components
 (i.e: singular blobs of code with a few inputs and outputs).
 
 A tech microservice is simply defined by a single python class which looks like this:
