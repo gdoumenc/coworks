@@ -115,6 +115,13 @@ resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_{{ met
   {%- endif %}
   http_method = "{{ method }}"
   status_code = "200"
+  {%- if rule.cws_binary_headers %}
+  response_parameters = {
+    {%- for k in rule.cws_binary_headers.keys() %}
+    "method.response.header.{{ k }}" = true,
+    {%- endfor %}
+  }
+  {%- endif %}
   depends_on = [aws_api_gateway_method.{{ resource_name }}_{{ uid }}_{{ method }}]
 }
 resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_{{ method }}_response_200" {
@@ -128,7 +135,14 @@ resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_{
   {%- endif %}
   http_method = join("", aws_api_gateway_method.{{ resource_name }}_{{ uid }}_{{ method }}.*.http_method)
   status_code = "200"
-  {%- if not rule.cws_binary %}
+  {%- if rule.cws_binary_headers %}
+  response_parameters = {
+  {%- for k, v in rule.cws_binary_headers.items() %}
+  "method.response.header.{{ k }}" = "'{{ v }}'",
+  {%- endfor %}
+  }
+  {%- endif %}
+  {%- if not rule.cws_binary_headers %}
   response_templates = {
   {% include "terraform/response_templates.j2" %}
   }
@@ -209,6 +223,7 @@ resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_OPTION
     "method.response.header.Access-Control-Allow-Headers" = true,
     "method.response.header.Access-Control-Allow-Methods" = true,
     "method.response.header.Access-Control-Allow-Origin" = true,
+    "method.response.header.Access-Control-Allow-Credentials" = true,
   }
   depends_on = [aws_api_gateway_method.{{ resource_name }}_{{ uid }}_OPTIONS]
 }

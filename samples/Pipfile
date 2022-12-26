@@ -4,6 +4,7 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [packages]
-coworks = "*"
+coworks = {editable = true, path = "/home/gdo/workspace/coworks"}
+aws-xray-sdk = "*"
 
 [dev-packages]

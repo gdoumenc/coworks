@@ -1,6 +1,6 @@
 {% extends "base.j2" %}
 
-{% macro info(title, a_link=None, js_link=None) %}
+{% macro info(title, a_link=None) %}
   <div
       class="rounded-tl-lg rounded-tr-lg sm:rounded-tr-none relative group bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-cyan-500">
     <div>
@@ -13,8 +13,7 @@
       </span>
     </div>
     <div class="mt-8">
-      <h3 class="text-lg font-medium"
-          {% if js_link %}onclick="DownLoadFile('{{ js_link }}','application/zip', 'plugins.zip')"{% endif %}>
+      <h3 class="text-lg font-medium">
         <a href="{{ a_link if a_link else '#' }}" class="focus:outline-none">
           <!-- Extend touch target to entire panel -->
           <span class="absolute inset-0" aria-hidden="true"></span>
@@ -43,7 +42,7 @@
         {{ last_layer }}
       {% endcall %}
 
-      {% call info("AirFlow plugins", js_link = url_for("get_zip")) %}
+      {% call info("AirFlow plugins", a_link = url_for("get_zip")) %}
         The AirFlow plugins containing the CoWorks operators and sensors.
       {% endcall %}
     </div>

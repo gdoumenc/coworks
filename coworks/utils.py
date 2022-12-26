@@ -72,11 +72,13 @@ def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
             kwarg_keys = {}
 
         proxy = create_cws_proxy(scaffold, fun, kwarg_keys, args, varkw)
-        proxy.__CWS_BINARY = getattr(fun, '__CWS_BINARY')
-        proxy.__CWS_CONTENT_TYPE = getattr(fun, '__CWS_CONTENT_TYPE')
+        proxy.__CWS_BINARY_HEADERS = getattr(fun, '__CWS_BINARY_HEADERS')
         proxy.__CWS_NO_AUTH = getattr(fun, '__CWS_NO_AUTH')
         proxy.__CWS_NO_CORS = getattr(fun, '__CWS_NO_CORS')
         proxy.__CWS_FROM_BLUEPRINT = bp_state.blueprint.name if bp_state else None
+
+        prefix = f"{bp_state.blueprint.name}." if bp_state else ''
+        endpoint = f"{prefix}{fun.__name__}"
 
         # Creates the entry
         url_prefix = bp_state.url_prefix if bp_state else ''
@@ -84,9 +86,6 @@ def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
         for r in app.url_map.iter_rules():
             if r.rule == rule and method in r.methods:
                 raise AssertionError(f"Duplicate route {rule}")
-
-        prefix = f"{bp_state.blueprint.name}." if bp_state else ''
-        endpoint = f"{prefix}{fun.__name__}"
 
         try:
             app.add_url_rule(rule=rule, view_func=proxy, methods=[method], endpoint=endpoint, strict_slashes=False)
@@ -175,24 +174,8 @@ def create_cws_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
                         current_app.logger.error(f"Should not go here (3) : {kwargs}")
 
             kwargs = as_typed_kwargs(func, kwargs)
-            resp = func(scaffold, **kwargs)
-            if resp is None:
-                return make_response("", 204)
-
-            # Set a specific content type if response is not a tuple and entry has a default content type
-            content_type = None
-            if type(resp) is not tuple:
-                cws_content_type = getattr(func, '__CWS_CONTENT_TYPE')
-                if cws_content_type:
-                    content_type = cws_content_type
-
-            # Creates response class object
-            resp = make_response(resp)
-
-            # Forces default entry content type
-            if content_type:
-                resp.headers['Content-Type'] = content_type
-
+            result = func(scaffold, **kwargs)
+            resp = make_response(result) if result is not None else make_response("", 204)
             return resp
         except HTTPException as e:
             return e.description, e.code

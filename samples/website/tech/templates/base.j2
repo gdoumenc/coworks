@@ -8,23 +8,6 @@
   <link rel="icon" type="image/png" href="{{ url_for("get_assets_img", filename="coworks.ico") }}"/>
   <link href="{{ url_for("get_assets_css", filename="output.css") }}" rel="stylesheet">
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
-  <script>
-      function DownLoadFile(url, accept, filename) {
-          const request = new Request(url, {headers: {'Accept': accept}});
-          fetch(request)
-              .then(res => res.blob())
-              .then(blob => {
-                  const aElement = document.createElement('a');
-                  aElement.setAttribute('download', filename);
-                  const href = URL.createObjectURL(blob);
-                  aElement.href = href;
-                  aElement.setAttribute('target', '_blank');
-                  aElement.click();
-                  URL.revokeObjectURL(href);
-              })
-      }
-  </script>
-
 </head>
 
 <body class="h-full">
@@ -81,11 +64,7 @@
                              src="{{ url_for("get_assets_img", filename="coworks.png") }}" alt="CoWorks">
                       </div>
                       <div class="mt-4 text-center sm:mt-0 sm:pt-1 sm:text-left">
-                        {#                        {% if current_user.is_authenticated %}#}
                         <p class="text-sm font-medium text-gray-600">Welcome {{ current_user.email }} and enjoy</p>
-                        {#                        {% else %}#}
-                        {#                          <p class="text-sm font-medium text-gray-600">{{ current_user.email }}</p>#}
-                        {#                        {% endif %}#}
                         <p class="text-xl font-bold text-gray-900 sm:text-2xl">CoWorks framework</p>
                         <p class="text-sm font-medium text-gray-600">Serverless Microservices Solution</p>
                       </div>

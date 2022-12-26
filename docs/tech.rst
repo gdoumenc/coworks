@@ -11,7 +11,7 @@ The microservice class can be defined as a class inheriting from ``TechMicroServ
 .. code-block:: python
 
   class SimpleMicroService(TechMicroService):
-    pass
+	pass
 
 .. _routing:
 
@@ -22,7 +22,7 @@ Routes are defined by decorated functions in the microservice class.
 
 The decorator is::
 
-    @entry
+	@entry
 
 The function names must follow the syntax below::
 
@@ -41,24 +41,24 @@ The following function defines the GET method for the root path of the microserv
 
 .. code-block:: python
 
-    @entry
-    def get(self):
-        return "root"
+	@entry
+	def get(self):
+		return "root"
 
 The following function defines the GET method for the route ``/service/test``:
 
 .. code-block:: python
 
-    @entry
-    def get_service_test(self):
+	@entry
+	def get_service_test(self):
 		return "service test"
 
 The following function defines the PUT method for the root path:
 
 .. code-block:: python
 
-    @entry
-    def put(self):
+	@entry
+	def put(self):
 		return "put"
 
 Entrypoint
@@ -154,17 +154,9 @@ Or in python code using the ``requests`` module::
 
 	requests.get("/content", params={"id": 32, "name": "test"})
 
-or by a JSON structure::
+or by a JSON structure (for POST/PUT method)::
 
-	request.get("/content", json={"id": 32, "name": "test"})
-
-A list parameter can be defined by a multi value parameter::
-
-	/content?id=32&name=test&name=other
-
-Which is equivalent to the JSON call::
-
-	request.get("/content", json={"id": 32, "name": ["test", "other"]})
+	request.post("/content", json={"id": 32, "name": "test"})
 
 *Beware*: With `API gateway` you can only use query parameters for a ``GET`` method. Attempting
 to send data in the request body for a ``GET`` request will raise an error in execution.
@@ -190,20 +182,20 @@ You can use basic types, List, or Union.
 .. code-block:: python
 
 	@entry
-  # id of type int
+	# id of type int
 	def get(self, id:int):
 		return f"the type of id is int: {type(id)}"
 
 	@entry
-  # flag of type bool with default value None
+	# flag of type bool with default value None
 	def get_(self, flag:bool = None):
-	    """Take care True for 'true', '1' or 'yes' values, not bool(str)."""
+		"""Take care True for 'true', '1' or 'yes' values, not bool(str)."""
 		return f"the type of flag is bool : {type(flag)}"
 
 	@entry
-  # ids of type list(int) with default value None
+	# ids of type list(int) with default value None
 	def get_(self, ids:List[int] = None):
-	    """Avoid to deal with one id or more ids, always a list."""
+		"""Avoid to deal with one id or more ids, always a list."""
 		return f"the type of ids is list of int : {type(ids)}"
 
 
@@ -217,8 +209,8 @@ The entries define routes with the following format :
 
 For example ::
 
-    url_for('get') # app root entry
-    url_for('manager.get_dashboard') # get_dashborad entry for the manager blueprint
+	url_for('get') # app root entry
+	url_for('manager.get_dashboard') # get_dashborad entry for the manager blueprint
 
 Disable authorizer for an entry
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -237,30 +229,12 @@ If needed you can disable the token authorizer on an entry:
 			return "Entry without authorizer."
 
 
-Content type
-^^^^^^^^^^^^
-
-By default all entries are defined as ``application/json`` content-type. You can change this default value for an entry,
-so all simple returned responses will have this content type value, thus avoiding to add the specific header value.
-
-.. code-block:: python
-
-	from coworks import TechMicroService
-	from coworks import entry
-
-	class SimpleExampleMicroservice(TechMicroService):
-
-        @entry(content_type='text/html')
-        def get_hi(self, lang='fr'):
-            if lang=='fr':
-                return "<p>bonjour</p>"
-            return "<p>hello</p>"
-
-If you return a tuple this default value is not set.
-
 Binary type
 ^^^^^^^^^^^
 
+the current AWS ApiGateway integration with Lambda doesn't allow to defined the content type in response
+header so the caller must know in advance the returned content type ot the entry.
+
 .. code-block:: python
 
 	from coworks import TechMicroService
@@ -268,12 +242,15 @@ Binary type
 
 	class SimpleExampleMicroservice(TechMicroService):
 
-        @entry(binary=True)
-        def get_content_type(self):
-            return b"test"
+		@entry(binary_headers={'Content-Type': 'application/octet'})
+		def get_content_type(self):
+			return b"test"
 
-Nevertheless the current AWS ApiGateway integration with Lambda doesn't allow to defined the content type in response
-header so the caller must know in advance the returned content type ot the entry.
+		@entry(no_auth=True, binary_headers={
+		    'Content-Type': 'application/zip','Content-Disposition': 'attachment; filename=plugins.zip'
+                })
+		def get_zip(self):
+			return send_from_directory('assets', "plugins.zip", conditional=False)
 
 Response
 --------
@@ -290,22 +267,7 @@ object for you.
   can be a list or dictionary of additional header values.
 
 Nevertheless we strongly recommend to use only JSON structure (``str`` or ``dict``) and use werkzeug ``HttpException``
-for return status code. This allows you to easily call your entry from another entry.
-
-Binary response
-^^^^^^^^^^^^^^^
-
-You can return a binary response on a specific entry::
-
-	@entry(binary=True)
-	def get(self):
-		return b"the image bytes"
-
-For such entry the returned value must be a list of bytes.
-
-Unfortunately it is not possible with AWS Lambda to dynamically set the returned content-type.
-So the content-type value may be set by the ``Accept`` header parameter or by fixing it for the route.
-
+for returning status code. This allows you to easily call your entry from another entry.
 
 .. _blueprint:
 
@@ -331,24 +293,24 @@ Methods within the class should still be decorated with ``@entry``.
 
 .. code-block:: python
 
-	from coworks import Blueprint
+    from coworks import Blueprint
 
-	class Admin(Blueprint):
+    class Admin(Blueprint):
 
-	    @entry
-	    def get_context(self):
-		    return self.current_request.to_dict()
+        @entry
+        def get_event(self):
+            return request.aws_event
 
 This blueprint defines a new route ``context``. To add this route to your microservice, just register the
 microservice, you'll need to register the blueprint:
 
 .. code-block:: python
 
-	app = SimpleExampleMicroservice()
-	app.register_blueprint(Admin(), url_prefix="/admin")
+    app = SimpleExampleMicroservice()
+    app.register_blueprint(Admin(), url_prefix="/admin")
 
-The ``url_prefix`` parameter adds the prefix ``admin`` to the route ``context``.
-Now the ``SimpleExampleMicroservice`` has a new route ``/admin/context``.
+The ``url_prefix`` parameter adds the prefix ``admin`` to the route ``event``.
+Now the ``SimpleExampleMicroservice`` has a new route ``/admin/event``.
 
 Predefined Blueprints and Extensions
 ------------------------------------
@@ -364,7 +326,7 @@ The admin blueprint adds routes for documentation and description of the microse
 Profiler
 ^^^^^^^^
 
-The profiler blueprint adds a middleware to profile the execution of each request.
+The profiler extension adds a middleware to profile the execution of each request.
 This can help identify bottlenecks in your code that may be slowing down your application.
 
 

@@ -2,11 +2,11 @@ from coworks import TechMicroService
 from coworks import entry
 
 
-class SimpleMicroService(TechMicroService):
+class HelloMicroService(TechMicroService):
 
     @entry(no_auth=True)
     def get(self):
         return "Hello world.\n"
 
 
-app = SimpleMicroService()
+app = HelloMicroService()

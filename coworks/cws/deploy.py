@@ -136,8 +136,7 @@ class TerraformLocal:
             resource = TerraformResource(previous, path)
             if rule_:
                 view_function = self.app_context.app.view_functions.get(rule_.endpoint)
-                rule_.cws_binary = getattr(view_function, '__CWS_BINARY')
-                rule_.cws_content_type = getattr(view_function, '__CWS_CONTENT_TYPE')
+                rule_.cws_binary_headers = getattr(view_function, '__CWS_BINARY_HEADERS')
                 rule_.cws_no_auth = getattr(view_function, '__CWS_NO_AUTH')
                 rule_.cws_no_cors = getattr(view_function, '__CWS_NO_CORS')
 
@@ -491,11 +490,6 @@ def pop_terraform_class(options):
 
 def process_terraform(app_context, ctx, terraform_class, bar, command_template, deploy=True, **options):
     root_command_params = ctx.find_root().params
-
-    if '.' not in app_context.app_import_path:
-        msg = f"FLASK_APP must be in form 'module:variable' but is {app_context.app_import_path}."
-        bar.terminate(msg)
-        return
 
     # Set default options calculated value
     app = app_context.app

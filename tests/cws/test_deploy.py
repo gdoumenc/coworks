@@ -37,7 +37,7 @@ class TechMS(TechMicroService):
     def get(self):
         return "simple get"
 
-    @entry(binary=True, no_auth=True)
+    @entry(binary_headers={'content-type': 'img/webp'}, no_auth=True)
     def get_img(self):
         return b"image content"
 
@@ -54,10 +54,10 @@ class TestClass:
         assert len(ressources) == 7
         assert ressources[''].rules is not None
         assert len(ressources[''].rules) == 1
-        assert not ressources[''].rules[0].cws_binary
+        assert not ressources[''].rules[0].cws_binary_headers
         assert not ressources[''].rules[0].cws_no_auth
         assert len(ressources['img'].rules) == 1
-        assert ressources['img'].rules[0].cws_binary
+        assert ressources['img'].rules[0].cws_binary_headers
         assert ressources['img'].rules[0].cws_no_auth
         assert ressources['test'].rules is None
         assert ressources['test_index'].rules is not None

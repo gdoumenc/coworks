@@ -62,10 +62,8 @@ To view a list of the available commands at any time, just run `cws` with no arg
       zip       Zip all source files to create a Lambda file source.
 
 
-As you can see, the default Flssk commands as shell, routes or shell are predefined.
+As you can see, the default Flask commands as shell, routes or shell are predefined.
 Some new commands as ``deploy`` have been defined.
-
-The options ``-p (project_dir)`` is mandatory if the ``cws`` command is not issued in the source folder.
 
 **Note**: As the ``project_dir`` is not defined when you run the microservice without the ``run`` command,
 for example in your IDE, you can define the environment variable ``INSTANCE_RELATIVE_PATH`` to be able to retrieve
@@ -73,19 +71,8 @@ the environment variable file. The value is a relative path from ``project_dir``
 
 At last the usefull variables:
 
-* ``CWS_STAGE``: to determine which stage will be used.
+* ``CWS_STAGE``: to determine which stage will be used (environment file).
 * ``FLASK_DEBUG``: may be used same way as for Flask.
-
-Example of a simple command from the coworks directory::
-
-    $ FLASK_APP=app:app cws -p samples/headless info
-    microservice project1 defined in tests/example/example.py
-    microservice project2 defined in tests/example/example.py
-
-And to get complete command description::
-
-    $ cws CMD --help
-
 
 CoWorks Commands
 -------------------

@@ -12,7 +12,7 @@ Pipfile.lock
 # Samples
 **/*.secret.json
 samples/*/terraform
-samples/*/Pipfile.lock
+samples/Pipfile.lock
 samples/*/node_modules/
 
 # Tests example

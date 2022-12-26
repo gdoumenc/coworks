@@ -49,8 +49,8 @@ Microservice to implement a small website with session.
         if resp.ok:
             layers_resp = resp.json()
             data['last_layer'] = layers_resp["last"]
-            zip = layers_resp["last"].split(':')[-1].replace('_', '.')
-            data['last_layer_url'] = f"https://coworks-layer.s3.eu-west-1.amazonaws.com/{zip}.zip"
+            zip_name = layers_resp["last"].split(':')[-1].replace('_', '.')
+            data['last_layer_url'] = f"https://coworks-layer.s3.eu-west-1.amazonaws.com/{zip_name}.zip"
 
         return render_html_template("home.j2", **data)
 
@@ -59,14 +59,13 @@ Microservice to implement a small website with session.
         """Access for all css files."""
         return send_from_directory('assets', f"css/{filename}", as_attachment=False, conditional=False)
 
-    @entry(no_auth=True, binary=True)
+    @entry(no_auth=True, binary_headers={'Content-Type': 'image/webp', 'Content-Disposition': 'inline'})
     def get_assets_img(self, filename):
         """Access for all images."""
-        return send_from_directory('assets', f"img/{filename}", as_attachment=False, conditional=False)
+        return send_from_directory('assets', f"img/{filename}", conditional=False)
 
-    @entry(no_auth=True, binary=True)
+    @entry(no_auth=True, binary_headers={'Content-Type': 'application/zip',
+                                         'Content-Disposition': 'attachment; filename=plugins.zip'})
     def get_zip(self):
         """Access to the AirFlow plugins zip."""
-        return send_from_directory('assets', "plugins.zip", as_attachment=True, conditional=False)
-
-
+        return send_from_directory('assets', "plugins.zip", conditional=False)

@@ -74,6 +74,9 @@ class CoworksResponse(FlaskResponse):
     """Default mimetype is redefined."""
     default_mimetype = "application/json"
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
 
 class CoworksRequest(FlaskRequest):
 

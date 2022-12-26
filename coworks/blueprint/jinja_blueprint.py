@@ -14,11 +14,12 @@ class Jinja(Blueprint):
         super().__init__(name=name, **kwargs)
         self.autoescape = autoescape
 
-    @entry(content_type='text/html; charset=utf-8')
+    @entry
     def post_render(self, template="", **context):
         """Returns the templating result."""
         if type(template) == FileStorage:
             template = t.cast(FileStorage, template).stream.read().decode()
         template = Template(template, autoescape=self.autoescape)
         current_app.update_template_context(context)
-        return template.render(config=current_app.config, **context)
+        headers = {'content-type': 'text/html; charset=utf-8'}
+        return template.render(config=current_app.config, **context), 200, headers

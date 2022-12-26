@@ -23,7 +23,7 @@ class Admin(Blueprint):
     def __init__(self, name: str = 'admin', **kwargs):
         super().__init__(name=name, **kwargs)
 
-    @entry(no_auth=True, no_cors=True, content_type='text/html; charset=utf-8')
+    @entry(no_auth=True, no_cors=True)
     def get(self):
         """Returns the markdown documentation associated to this microservice.
         """
@@ -50,8 +50,12 @@ class Admin(Blueprint):
         )
         routes = dict(sorted(self.get_route(blueprint="__all__").items()))
         bottom = render_template_string(template, routes=routes)
+        content = header + '<hr/>' + content + '<hr/>' + bottom + '\n'
 
-        return header + '<hr/>' + content + '<hr/>' + bottom
+        headers = {
+            "Content-Type": 'text/html; charset=utf-8'
+        }
+        return content, 200, headers
 
     @entry(stage="dev")
     def get_route(self, prefix=None, blueprint=None):
@@ -113,7 +117,7 @@ class Admin(Blueprint):
                 route[http_method] = {
                     'signature': get_signature(function_called),
                     'endpoint': rule.endpoint,
-                    'binary': getattr(function_called, '__CWS_BINARY'),
+                    'binary_headers': getattr(function_called, '__CWS_BINARY_HEADERS'),
                     'no_auth': getattr(function_called, '__CWS_NO_AUTH'),
                     'no_cors': getattr(function_called, '__CWS_NO_CORS'),
                 }
@@ -121,10 +125,6 @@ class Admin(Blueprint):
                 from_blueprint = getattr(function_called, '__CWS_FROM_BLUEPRINT')
                 if from_blueprint:
                     route[http_method]['blueprint'] = from_blueprint
-
-                content_type = getattr(function_called, '__CWS_CONTENT_TYPE')
-                if content_type:
-                    route[http_method]['content_type'] = content_type
 
                 doc = inspect.getdoc(function_called)
                 if doc:

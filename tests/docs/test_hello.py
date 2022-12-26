@@ -13,7 +13,7 @@ class TestClass:
     @mock.patch.dict(os.environ, {"FLASK_RUN_FROM_CLI": "false"})
     def test_run_simple(self, samples_docs_dir, unused_tcp_port, monkeypatch):
         info = CwsScriptInfo(project_dir='tech')
-        info.app_import_path = "simple:app"
+        info.app_import_path = "hello:app"
         app = info.load_app()
         server = multiprocessing.Process(target=run_server, args=(app, unused_tcp_port), daemon=True)
         server.start()

@@ -33,7 +33,7 @@ To create a new project, enter::
 	(project) $ cws -p . new
 	New project created.
 
-You now have everything you need to create your first micro-service by following :ref:`tech_quickstart`
+You now have everything you need to create your first micro-service by following :ref:`tech_quickstart`.
 
 Other tools
 -----------

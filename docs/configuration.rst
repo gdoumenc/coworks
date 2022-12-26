@@ -44,36 +44,20 @@ AWS API Gateway and *variables* of AWS Lambda.
 Workspace definition
 ^^^^^^^^^^^^^^^^^^^^
 
-To add a workspace and its configuration to a microservice, defined it and use it with the ``configs`` parameter in its
-constructor::
-
-	config = Config(workspace='local', environment_variables_file=Path("config") / "vars_local.json")
-	app = SimpleMicroService(ms_name='test', configs=config)
-
 The ``workspace`` value will correspond to the ``CWS_STAGE`` variable value.
 
-In the exemple over, if you run the microservice in the workspace ``local``, then environment file will be found in
-``config/vars_local.json``.
+You certainly may need to attach environment variables to your project. Of course thoses variables may depend on the
+stage status. How? You just need to create and specify custom environment files.
 
-You can then define several configurations::
+CoWorks uses dotenv files to allow you to define your environment variables for stages.
+Dotenv file are named ``.env`` and ``.env_{CWS_STAGE}``.
 
-	local_config = Config(workspace='local', environment_variables_file=Path("config") / "vars_local.json")
-	dev_config = Config(workspace='dev', environment_variables_file=Path("config") / "vars_dev.json")
-	app = SimpleMicroService(ms_name='test', configs=[local_config, dev_config])
+As example you can deploy the specific stage ``dev`` of the microservice ``app`` defined in the ``app`` python file
+in the folder ``tech``::
 
-This allows you to define specific environment values for local running and for dev deploied stages.
+    $ CWS_STAGE=dev deploy
 
-Three predefined workspace configurations are defined:
-
-* ``LocalConfig`` for local development run.
-* ``DevConfig`` for deployed development version with trace.
-* ``ProdConfig``. This configuration class is defined for production workspace where their names are version names,
-i.e. defined as ``r"v[1-9]+"``.
-
-As example you can deploy the specific stage ``dev`` of the microservice ``service`` defined in the ``ms`` python file
-in the folder ``src/tech``::
-
-    $ CWS_STAGE=dev FLASK_APP=ms:service cws -p src/tech deploy
+The environment variables accessible from the lambda must be defined in ``.env`` and ``.env_dev``.
 
 Project configuration file
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -167,63 +151,12 @@ Structure
      - port
      - 8000
 
-Environment files
------------------
-
-You certainly may need to attach environment variables to your project. Of course thoses variables may depend on the
-stage status. How? You just need to create and specify custom environment files.
-
-We will describe below an example of structured environment files.
-
-Define the specific configuration cases::
-
-    from coworks import config
-
-
-    class LocalConfig(config.LocalConfig):
-
-        def __init__(self, **kwargs):
-            super().__init__(workspace='local', **kwargs)
-            self.environment_variables_file = ['env_variables/vars.json', 'env_variables/dev.json']
-
-
-    class DevConfig(config.DevConfig):
-
-        def __init__(self, **kwargs):
-            super().__init__(workspace='dev', **kwargs)
-            self.environment_variables_file = ['env_variables/vars.json', 'env_variables/dev.json']
-
-
-    class ProdConfig(config.ProdConfig):
-
-        def __init__(self, **kwargs):
-            super().__init__(workspace='prod', **kwargs)
-            self.environment_variables_file = ['env_variables/vars.json', 'env_variables/prod.json']
-
-So the ``vars.json`` and ``vars.secret.json`` will contain respectivily all shared variables and shared secret
-variables.
-Then the stage variables are split into the specific files ``dev.json``,  ``dev.secret.json`` and
-``prod.json``,  ``prod.secret.json``.
-
-We have the following structure for those files::
-
-    src/
-    ├── env_variables/
-       ├── dev.json
-       ├── dev.secret.json
-       ├── prod.json
-       ├── prod.secret.json
-       ├── vars.json
-       ├── vars.secret.json
-
-That's all folks!
-
 .. _auth:
 
 Authorization
 -------------
 
-By default all  ``TechMicroService`` have access protection defined in the microservice itself.and defined thru
+By default all ``TechMicroService`` have access protection defined in the microservice itself and defined thru
 a token basic authentication protocol based on
 `HTTP Authentification  <https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication>`_
 

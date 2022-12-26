@@ -184,7 +184,6 @@ Documentation
   tech
   command
   configuration
-  middleware
   biz_quickstart
   biz
   samples

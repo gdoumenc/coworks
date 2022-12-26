@@ -1,5 +1,6 @@
 import base64
 import io
+import itertools
 import logging
 import os
 import traceback
@@ -46,21 +47,18 @@ from .wrappers import TokenResponse
 #
 
 
-def entry(fun: t.Callable = None, binary: bool = False, content_type: str = None,
+def entry(fun: t.Callable = None, binary_headers: t.Dict[str, str] = None,
           stage: t.Union[str, t.Iterable[str]] = None,
           no_auth: bool = False, no_cors: bool = True) -> t.Callable:
     """Decorator to create a microservice entry point from function name.
     :param fun: the entry function.
-    :param binary: allow payload without transformation.
-    :param content_type: force default content-type.
-    :param stage: entry defined only for this stage.
+    :param binary_headers: force default content-type.
+    :param stage: entry defined only for this stage(s).
     :param no_auth: set authorizer by default.
     :param no_cors: set CORS by default.
     """
     if fun is None:
-        if binary and not content_type:
-            content_type = 'application/octet-stream'
-        return partial(entry, binary=binary, content_type=content_type, no_auth=no_auth, no_cors=no_cors)
+        return partial(entry, binary_headers=binary_headers, stage=stage, no_auth=no_auth, no_cors=no_cors)
 
     def get_path(start):
         name_ = fun.__name__[start:]
@@ -83,8 +81,7 @@ def entry(fun: t.Callable = None, binary: bool = False, content_type: str = None
 
     fun.__CWS_METHOD = method
     fun.__CWS_PATH = path
-    fun.__CWS_BINARY = binary
-    fun.__CWS_CONTENT_TYPE = content_type
+    fun.__CWS_BINARY_HEADERS = binary_headers
     fun.__CWS_NO_AUTH = no_auth
     fun.__CWS_STAGES = stage if type(stage) == list else [stage]
     fun.__CWS_NO_CORS = no_cors
@@ -157,11 +154,11 @@ class CoworksClient(FlaskClient):
         }
         self.cookie_jar = CoworksCookieJar(headers.get('cookie'))
 
-    def open(self, *args, **kwargs):
+    def open(self, *args, **kwargs) -> CoworksResponse:
         req = CoworksRequest(self.aws_environ, populate_request=False, shallow=True)
-        return super().open(req)
+        return t.cast(CoworksResponse, super().open(req))
 
-    def _copy_environ(self, other):
+    def _copy_environ(self, other) -> dict:
         return {**other}
 
 
@@ -197,7 +194,8 @@ class Blueprint(FlaskBlueprint):
 
         # Defer blueprint route initialization.
         if not options.get('hide_routes', False):
-            app.deferred_init_routes_functions.append(partial(add_coworks_routes, state.app, state))
+            func = partial(add_coworks_routes, state.app, state)
+            app.deferred_init_routes_functions = itertools.chain(app.deferred_init_routes_functions, (func,))
 
         return state
 
@@ -254,15 +252,6 @@ class TechMicroService(Flask):
         """Override to initialize coworks microservice.
         """
         self._init_app(False)
-
-        # todo: to be deleted
-        #
-        # if os.environ.get("FLASK_RUN_FROM_CLI") == "true":
-        #     self.init_cli()
-        #     for bp in self.blueprints.values():
-        #         if isinstance(bp, Blueprint):
-        #             t.cast(Blueprint, bp).init_cli(self)
-
         return super().app_context()
 
     def create_url_adapter(self, _request: t.Optional[CoworksRequest]):
@@ -274,16 +263,6 @@ class TechMicroService(Flask):
     def cws_client(self, aws_event, aws_context):
         """CoWorks client used by the lambda call.
         """
-        # todo: to be deleted
-        #
-        # self._init_app(False)
-        #
-        # if os.environ.get("FLASK_RUN_FROM_CLI") == "true":
-        #     self.init_cli()
-        #     for bp in self.blueprints.values():
-        #         if isinstance(bp, Blueprint):
-        #             t.cast(Blueprint, bp).init_cli(self)
-        #
         return CoworksClient(self, CoworksResponse, use_cookies=True, aws_event=aws_event, aws_context=aws_context)
 
     @property
@@ -358,11 +337,6 @@ class TechMicroService(Flask):
             if os.getenv("FLASK_RUN_FROM_CLI"):
                 self.init_cli()
 
-            # todo: to be deleted
-            #
-            # for bp in self.blueprints.values():
-            #     if isinstance(bp, Blueprint):
-            # t.cast(Blueprint, bp).init_app(self)
             self._cws_app_initialized = True
 
     def __call__(self, arg1, arg2) -> dict:
@@ -408,8 +382,7 @@ class TechMicroService(Flask):
         # Transforms as simple client call and manage exception if needed
         try:
             with self.cws_client(aws_event, aws_context) as c:
-                resp = c.open()
-                resp = self._convert_to_lambda_response(resp)
+                resp = self._convert_to_lambda_response(c.open())
 
                 # Strores response in S3 if asynchronous call
                 invocation_type = aws_event['headers'].get('invocationtype')
@@ -466,7 +439,7 @@ class TechMicroService(Flask):
                 if not valid:
                     raise Forbidden()
 
-    def _convert_to_lambda_response(self, resp):
+    def _convert_to_lambda_response(self, resp: CoworksResponse):
         """Convert Lambda response."""
 
         # returns JSON structure
