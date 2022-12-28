@@ -18,21 +18,19 @@ class TestBlueprint(Blueprint):
     def __init__(self, name='test', **kwargs):
         super().__init__(name=name, **kwargs)
 
-        @self.before_request
-        def check():
-            if get_app_stage() not in self.test_workspaces:
-                raise BadRequest("Entry accessible only in test environment")
+        if get_app_stage() not in self.test_workspaces:
+            raise BadRequest("Entry accessible only in test environment")
 
     @property
     def test_workspaces(self):
         return ['dev']
 
-    @entry
+    @entry(stage='dev')
     def post_reset(self):
         """Entry to reset the test environment."""
         return 'ok'
 
-    @entry
+    @entry(stage='dev')
     def get(self):
         """Test entry.
 

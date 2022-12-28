@@ -11,6 +11,7 @@ from flask import current_app
 from flask import render_template_string
 from werkzeug.datastructures import FileStorage
 from werkzeug.exceptions import BadRequest
+from werkzeug.exceptions import InternalServerError
 
 from coworks import Blueprint
 from coworks import entry
@@ -124,6 +125,6 @@ class Mail(Blueprint):
             current_app.logger.debug(resp)
             return resp
         except smtplib.SMTPAuthenticationError:
-            raise BadRequest("Wrong username/password : cannot connect.")
+            raise ConnectionError("Wrong username/password : cannot connect.")
         except Exception as e:
-            raise BadRequest(f"Cannot send email message (Error: {str(e)}).")
+            raise InternalServerError(f"Cannot send email message (Error: {str(e)}).")
