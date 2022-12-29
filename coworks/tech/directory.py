@@ -10,7 +10,7 @@ import typing as t
 import boto3
 import requests
 from Crypto.Cipher import AES
-from flask import current_app
+from flask import current_app, request
 from werkzeug.exceptions import BadRequest
 from werkzeug.exceptions import Forbidden
 from werkzeug.exceptions import MethodNotAllowed
@@ -169,8 +169,7 @@ See 'samples/directory' to get how to create and deploy it.
         return self.api_client.get_rest_api(restApiId=api_id)
 
     @entry
-    def post_call(self, name, stage=None, path='/admin', method='get', token_var_name='TOKEN',
-                  content_type='application/json', accept='application/json', data=None):
+    def post_call(self, name, stage=None, path='/admin', method='get', token_var_name='TOKEN', data=None):
         """Call a microservice from its name.
 
         :param name: microservice's name.
@@ -179,17 +178,17 @@ See 'samples/directory' to get how to create and deploy it.
         :param path: entry path (default '/admin').
         :param method: method called (default 'get').
         :param token_var_name: token variable name (default 'TOKEN').
-        :param content_type: header content_type value (default 'application/json').
-        :param accept: header accept value (default 'application/json').
         :param data: query parameters or json body (default {}).
         """
         data = data or {}
         info = self.get_url(name, stage=stage, token_var_name=token_var_name)
+
         headers = {
+            'Accept': request.headers['Accept'],
             'Authorization': info['token'],
-            'Content-Type': content_type,
-            'Accept': accept,
+            'Content-Type': request.headers['Content-Type'],
         }
+
         url = f"{info['url']}{path}"
 
         current_app.logger.info(f"{method.upper()} on {url}, with {data}")
@@ -200,6 +199,7 @@ See 'samples/directory' to get how to create and deploy it.
         else:
             raise MethodNotAllowed()
 
+        accept = headers.get('Accept', 'application/json')
         return res.json() if is_json(accept) else res.text, res.status_code, dict(res.headers)
 
     @entry

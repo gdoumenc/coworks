@@ -58,9 +58,23 @@ class Mail(Blueprint):
                   to_addrs: [str] = None, cc_addrs: [str] = None, bcc_addrs: [str] = None,
                   body: str = "", body_template: str = None, body_type="plain",
                   attachments: t.Union[FileStorage, t.Iterator[FileStorage]] = None, attachment_urls: dict = None,
-                  starttls=True, **data):
+                  starttls=True, data: dict = None):
         """ Send mail.
         To send attachments, add files in the body of the request as multipart/form-data.
+
+        :param subject: Email's subject (required).
+        :param from_addr: From recipient.
+        :param from_name: Name besides from_address.
+        :param body: Email's body (required if body_template not defined).
+        :param body_template: Email's body template (required if body not defined).
+        :param body_type: Email's body type.
+        :param to_addrs: Email's recipients. Accept one or several email addresses separated by commas.
+        :param cc_addrs: Email's cc recipients. Accept one or several email addresses separated by commas.
+        :param bcc_addrs: Email's bcc recipients. Accept one or several email addresses separated by commas.
+        :param attachments: File storage.
+        :param attachment_urls: File url.
+        :param starttls: Puts the connection to the SMTP server into TLS mode.
+        :param data: Jinnja context for the templating.
         """
 
         from_addr = from_addr or os.getenv('from_addr')
