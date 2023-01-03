@@ -43,7 +43,7 @@ class Admin(Blueprint):
             """<style type="text/css">ul.nobull {list-style-type: none;}</style>
             <ul class="nobull">{% for entry,route in routes.items() %}
                 <li>{{ entry }} : <ul>{% for method,info in route.items() %}
-                    <li><i>{{ method }}{{ info.signature }}</i> : {{ info.doc }}
+                    <li><i>{{ method }}{{ info.signature }}[endpoint: {{info.endpoint}}]</i> : {{ info.doc }}
                     <ul class="nobull">{% for param in info.params %}<li><i>{{ param }}</i>{% endfor %}</ul>
                 {% endfor %}</li></ul></li>
             {% endfor %}</ul>"""
