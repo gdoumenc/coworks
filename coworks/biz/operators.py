@@ -1,5 +1,4 @@
 import base64
-import logging
 import typing as t
 from json import JSONDecodeError
 from json import loads
@@ -86,6 +85,12 @@ class TechMicroServiceOperator(BaseOperator):
         """Gets url and token from name or parameters.
         Done only before execution not on DAG loading.
         """
+        dag_run = context['dag_run']
+        start_date = dag_run.start_date.timestamp()
+        trace_id = f"Root=1-{hex(int(start_date))[2:]}-{f'cws{dag_run.id:0>9}'.encode().hex()}"
+        self.headers['x-amzn-trace-id'] = trace_id
+        self.log.info(f"Cws trace: {trace_id}")
+
         if self.cws_name:
             http = HttpHook('get', http_conn_id=self.directory_conn_id)
             self.log.info("Calling CoWorks directory")
@@ -98,13 +103,14 @@ class TechMicroServiceOperator(BaseOperator):
             self._url = f'https://{self.api_id}.execute-api.eu-west-1.amazonaws.com/{self.stage}/{self.entry}'
 
         if self.asynchronous:
+            ti = context['ti']
             self._bucket = 'coworks-airflow'
-            self._key = f"s3/{context['ti'].dag_id}/{context['ti'].task_id}/{context['ti'].job_id}"
+            self._key = f"s3/{dag_run.dag_id}/{ti.task_id}/{ti.job_id}"
 
             self.headers['InvocationType'] = 'Event'
             self.headers['X-CWS-S3Bucket'] = self._bucket
             self.headers['X-CWS-S3Key'] = self._key
-            logging.info(f"Result stored in 's3://{self._bucket}/{self._key}'")
+            self.log.info(f"Result stored in 's3://{self._bucket}/{self._key}'")
 
         if not self.no_auth:
             self.headers['Authorization'] = self.token
@@ -112,23 +118,19 @@ class TechMicroServiceOperator(BaseOperator):
     def execute(self, context):
         """Call TechMicroService.
         """
-        self._call_cws(context)
-
-    def _call_cws(self, context):
-        logging.info(f"Calling {self.method.upper()} method to {self._url}")
+        self.log.info(f"Calling {self.method.upper()} method to {self._url}")
         res = requests.request(
             self.method.upper(), self._url, headers=self.headers,
             params=self.query_params, json=self.json, data=self.data
         )
-        logging.info(f"Resulting status code : {res.status_code}")
-        logging.info(f"XRay trace id : {res.headers.get('X-Amzn-Trace-Id')}")
+        self.log.info(f"Resulting status code : {res.status_code}")
 
         # Manages status
         if self.raise_400_errors and res.status_code >= 400:
-            logging.error(f"Bad request: {res.text}'")
+            self.log.error(f"Bad request: {res.text}'")
             raise AirflowFailException(f"The TechMicroService {self.cws_name} had a client error {res.status_code}!")
         if res.status_code >= 500:
-            logging.error(f"Internal error: {res.text}'")
+            self.log.error(f"Internal error: {res.text}'")
             raise AirflowFailException(f"The TechMicroService {self.cws_name} had an internal error {res.status_code}!")
 
         # Return values or store file information
@@ -142,13 +144,13 @@ class TechMicroServiceOperator(BaseOperator):
                     try:
                         returned_value = res.json() if res.content else {}
                     except JSONDecodeError:
-                        logging.error(f"Not a JSON value: {res.text}'")
+                        self.log.error(f"Not a JSON value: {res.text}'")
                         returned_value = res.text
                 else:
                     returned_value = res.text
 
                 if self.log_response:
-                    logging.info(returned_value)
+                    self.log.info(returned_value)
 
                 self.xcom_push(context, XCOM_STATUS_CODE, res.status_code)
                 self.xcom_push(context, 'return_value', returned_value)
@@ -216,7 +218,7 @@ class BranchTechMicroServiceOperator(BaseBranchOperator):
 
     def choose_branch(self, context):
         status_code = int(context['ti'].xcom_pull(task_ids=self.cws_task_id, key=XCOM_STATUS_CODE))
-        logging.info(f"TechMS {self.cws_task_id} returned code : {status_code}")
+        self.log.info(f"TechMS {self.cws_task_id} returned code : {status_code}")
         if self.on_failure and status_code >= 400:
             return self.on_failure
         if self.on_no_content and status_code == 204:

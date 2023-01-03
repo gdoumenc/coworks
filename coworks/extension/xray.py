@@ -67,7 +67,7 @@ class XRay:
                         try:
                             metadata['json'] = request.json
                         except (Exception,):
-                            metadata['json'] = request.get_data(cache=False, as_text=True)
+                            metadata['data'] = request.get_data(cache=False, as_text=True)
                     elif request.is_multipart:
                         metadata['multipart'] = request.form.to_dict(False)
                         metadata['files'] = [*request.files.keys()]
@@ -78,7 +78,13 @@ class XRay:
                         metadata['values'] = request.values.to_dict(False)
                     subsegment.put_metadata('request', metadata, COWORKS_NAMESPACE)
 
-                response = _view_function(*args, **kwargs)
+                try:
+                    response = _view_function(*args, **kwargs)
+                except Exception as e:
+                    if subsegment:
+                        metadata = {'traceback': traceback.format_exc()}
+                        subsegment.put_metadata('exception', metadata, COWORKS_NAMESPACE)
+                    raise
 
                 # Traces response
                 if subsegment:
@@ -160,6 +166,7 @@ def request_to_dict(_request):
         'is_form_urlencoded': _request.is_form_urlencoded,
         'max_content_length': _request.max_content_length,
         'endpoint': _request.endpoint,
+        'query_string': _request.args,
         'want_form_data_parsed': _request.want_form_data_parsed,
         'script_root': _request.script_root,
         'url_root': _request.url_root,

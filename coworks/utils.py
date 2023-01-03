@@ -176,6 +176,10 @@ def create_cws_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
             kwargs = as_typed_kwargs(func, kwargs)
             result = func(scaffold, **kwargs)
             resp = make_response(result) if result is not None else make_response("", 204)
+
+            if func.__CWS_BINARY_HEADERS and not request.in_lambda_context:
+                resp.headers.update(func.__CWS_BINARY_HEADERS)
+
             return resp
         except HTTPException as e:
             return e.description, e.code

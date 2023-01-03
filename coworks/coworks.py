@@ -143,6 +143,7 @@ class CoworksClient(FlaskClient):
             "REQUEST_METHOD": method,
             "SERVER_NAME": host_name,
             "PATH_INFO": path_info,
+            "SCRIPT_ROOT": stage,
 
             'aws_event': aws_event,
             'aws_context': aws_context,
