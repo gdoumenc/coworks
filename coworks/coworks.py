@@ -299,8 +299,6 @@ class TechMicroService(Flask):
         By default, no entry are accepted for security reason.
         """
 
-        if get_app_stage() == DEFAULT_LOCAL_STAGE:
-            return True
         return token == os.getenv('TOKEN')
 
     def auto_find_instance_path(self):
@@ -428,6 +426,10 @@ class TechMicroService(Flask):
 
     def _check_token(self):
         if not request.in_lambda_context:
+
+            # No token check on local
+            if get_app_stage() == DEFAULT_LOCAL_STAGE:
+                return
 
             # Get no_auth option for this entry
             no_auth = False
