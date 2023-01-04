@@ -6,5 +6,9 @@ verify_ssl = true
 [packages]
 coworks = {editable = true, path = "/home/gdo/workspace/coworks"}
 aws-xray-sdk = "*"
+email-validator = "*"
+flask-login = "*"
+flask-wtf = "*"
+requests = "*"
 
 [dev-packages]

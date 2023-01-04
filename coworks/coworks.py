@@ -51,6 +51,7 @@ def entry(fun: t.Callable = None, binary_headers: t.Dict[str, str] = None,
           stage: t.Union[str, t.Iterable[str]] = None,
           no_auth: bool = False, no_cors: bool = True) -> t.Callable:
     """Decorator to create a microservice entry point from function name.
+
     :param fun: the entry function.
     :param binary_headers: force default content-type.
     :param stage: entry defined only for this stage(s).
@@ -119,6 +120,7 @@ class CoworksClient(FlaskClient):
     def __init__(self, *args: t.Any, aws_event=None, aws_context=None, **kwargs: t.Any) -> None:
         super().__init__(*args, **kwargs)
 
+        path_info = aws_event['path']
         headers = aws_event['headers']
         request_context = aws_event['requestContext']
 
@@ -126,7 +128,6 @@ class CoworksClient(FlaskClient):
         scheme = headers['x-forwarded-proto']
         host_name = headers['x-forwarded-host'] if 'x-forwarded-host' in headers else request_context['domainName']
         entry_path = request_context['entryPath']
-        path_info = request_context['path']
         stage = request_context['stage']
         entry_path_parameters = aws_event['entryPathParameters']
         query_string = MultiDict(aws_event['multiValueQueryStringParameters'])
@@ -142,8 +143,7 @@ class CoworksClient(FlaskClient):
             "REQUEST_SCHEME": scheme,
             "REQUEST_METHOD": method,
             "SERVER_NAME": host_name,
-            "PATH_INFO": path_info,
-            "SCRIPT_ROOT": stage,
+            "PATH_INFO": entry_path,
 
             'aws_event': aws_event,
             'aws_context': aws_context,
@@ -205,11 +205,15 @@ class TechMicroService(Flask):
     """Simple tech microservice.
 
     See :ref:`tech` for more information.
+
+    .. versionadded:: 0.8.0
+       The `stage_prefixed` parameter was added.
     """
 
-    def __init__(self, name: str = None, **kwargs) -> None:
+    def __init__(self, name: str = None, stage_prefixed: bool = True, **kwargs) -> None:
         """ Initialize a technical microservice.
         :param name: Name used to identify the microservice.
+        :param stage_prefixed: if accessed with stage or not.
         :param kwargs: Other Flask parameters.
         """
         stage = get_app_stage()
@@ -230,6 +234,7 @@ class TechMicroService(Flask):
         self._cws_app_initialized = False
         self._cws_conf_updated = False
         self.__aws_url_map = None
+        self.__stage_prefixed = stage_prefixed
 
         @self.before_request
         def before():
@@ -258,7 +263,7 @@ class TechMicroService(Flask):
     def create_url_adapter(self, _request: t.Optional[CoworksRequest]):
         if _request and _request.aws_event:
             self.subdomain_matching = True
-            return CoworksMapAdapter(_request.environ, self.url_map, self.aws_url_map)
+            return CoworksMapAdapter(_request.environ, self.url_map, self.aws_url_map, self.__stage_prefixed)
         return super().create_url_adapter(_request)
 
     def cws_client(self, aws_event, aws_context):

@@ -40,13 +40,14 @@ class TokenResponse:
 
 class CoworksMapAdapter(MapAdapter):
 
-    def __init__(self, environ, url_map, aws_url_map):
+    def __init__(self, environ, url_map, aws_url_map, stage_prefixed):
         server_name = environ["SERVER_NAME"]
         aws_stage = environ["aws_stage"]
         url_scheme = environ["REQUEST_SCHEME"]
         path_info = environ["PATH_INFO"]
         method = environ["REQUEST_METHOD"]
-        super().__init__(url_map, server_name=server_name, script_name='/' + aws_stage, subdomain='',
+        script_name = f'/{aws_stage}/' if stage_prefixed else ''
+        super().__init__(url_map, server_name=server_name, script_name=script_name, subdomain='',
                          url_scheme=url_scheme, path_info=path_info, default_method=method)
         self.aws_url_map = aws_url_map
         self.aws_entry_path = environ["aws_entry_path"]
