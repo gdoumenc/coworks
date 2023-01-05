@@ -3,6 +3,7 @@ import subprocess
 import sys
 import typing as t
 from dataclasses import dataclass
+from datetime import datetime
 from functools import cached_property
 from pathlib import Path
 from shutil import ExecError
@@ -197,6 +198,7 @@ class TerraformLocal:
             'resource_name': app.name,
             'workspace': workspace,
             'debug': get_app_debug(),
+            'now': datetime.now().isoformat(),
             **options
         }
 

@@ -1,4 +1,5 @@
 import inspect
+import os
 import sys
 from collections import defaultdict
 from inspect import Parameter
@@ -27,10 +28,16 @@ class Admin(Blueprint):
     def get(self):
         """Returns the markdown documentation associated to this microservice.
         """
-        title = f"<span style=\"font-size:xx-large;font-weight:bold\">" \
-                f"{current_app.__class__.__name__}</span>"
-        header = f"{title} ({current_app.name})<img style=\"float:right;\" " \
-                 f"src=\"https://neorezo.io/assets/img/logo_neorezo.png\" width=\"100\" />"
+        title = f"<span style=\"font-size:xx-large;font-weight:bold\">{current_app.__class__.__name__}</span>"
+        header = f"""<div style=\"display:flex;justify-content:space-between;\">{title}
+            <img style=\"margin-bottom:auto;width:100px;\" src=\"https://neorezo.io/assets/img/logo_neorezo.png\"/>
+            </div>"""
+
+        deployed = os.getenv("CWS_DATETIME", None)
+        if deployed:
+            lambda_name = os.getenv("CWS_LAMBDA", None)
+            header += f"""<div style=\"display:flex;flex-direction:row-reverse;font-size:small;margin-top:5px;\">
+                      {lambda_name} deployed {deployed}</div>"""
 
         md = getattr(current_app, 'doc_md', None)
         if not md:
