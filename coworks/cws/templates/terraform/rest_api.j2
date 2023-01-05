@@ -104,26 +104,6 @@ resource "aws_api_gateway_integration" "{{ resource_name }}_{{ uid }}_{{ method 
   }
   depends_on = [aws_api_gateway_method.{{ resource_name }}_{{ uid }}_{{ method }}]
 }
-resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_{{ method }}_response_200" {
-  provider = aws.{{ resource_name }}
-  count = {{ "local.{}_when_default".format(resource_name) }}
-  rest_api_id = local.{{ resource_name }}_api_id
-  {%- if resource.is_root %}
-  resource_id = local.{{ resource_name }}_api_root_id
-  {%- else %}
-  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
-  {%- endif %}
-  http_method = "{{ method }}"
-  status_code = "200"
-  {%- if rule.cws_binary_headers %}
-  response_parameters = {
-    {%- for k in rule.cws_binary_headers.keys() %}
-    "method.response.header.{{ k }}" = true,
-    {%- endfor %}
-  }
-  {%- endif %}
-  depends_on = [aws_api_gateway_method.{{ resource_name }}_{{ uid }}_{{ method }}]
-}
 resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_{{ method }}_response_200" {
   provider = aws.{{ resource_name }}
   count = {{ "local.{}_when_default".format(resource_name) }}
@@ -148,6 +128,25 @@ resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_{
   }
   {%- endif %}
   depends_on = [aws_api_gateway_method_response.{{ resource_name }}_{{ uid }}_{{ method }}_response_200]
+}
+resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_{{ method }}_response_200" {
+  provider = aws.{{ resource_name }}
+  count = {{ "local.{}_when_default".format(resource_name) }}
+  rest_api_id = local.{{ resource_name }}_api_id
+  {%- if resource.is_root %}
+  resource_id = local.{{ resource_name }}_api_root_id
+  {%- else %}
+  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
+  {%- endif %}
+  http_method = "{{ method }}"
+  status_code = "200"
+  {%- if rule.cws_binary_headers %}
+  response_parameters = {
+    {%- for k in rule.cws_binary_headers.keys() %}
+    "method.response.header.{{ k }}" = true,
+    {%- endfor %}
+  }
+  {%- endif %}
 }
 {%- endfor %}
 {%- endfor %}
@@ -203,7 +202,7 @@ resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_O
       })
     EOF
   }
-  depends_on = [aws_api_gateway_integration.{{ resource_name }}_{{ uid }}_OPTIONS]
+  depends_on = [aws_api_gateway_method_response.{{ resource_name }}_{{ uid }}_OPTIONS]
 }
 resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_OPTIONS" {
   provider = aws.{{ resource_name }}
@@ -225,7 +224,6 @@ resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_OPTION
     "method.response.header.Access-Control-Allow-Origin" = true,
     "method.response.header.Access-Control-Allow-Credentials" = true,
   }
-  depends_on = [aws_api_gateway_method.{{ resource_name }}_{{ uid }}_OPTIONS]
 }
 {%- endif %}
 {%- endif %}
