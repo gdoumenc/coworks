@@ -29,7 +29,7 @@ class Admin(Blueprint):
         """
         title = f"<span style=\"font-size:xx-large;font-weight:bold\">" \
                 f"{current_app.__class__.__name__}</span>"
-        header = f"{title}<img style=\"float:right;\" " \
+        header = f"{title} ({current_app.name})<img style=\"float:right;\" " \
                  f"src=\"https://neorezo.io/assets/img/logo_neorezo.png\" width=\"100\" />"
 
         md = getattr(current_app, 'doc_md', None)
