@@ -147,6 +147,7 @@ resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_{{ met
     {%- endfor %}
   }
   {%- endif %}
+  depends_on = [aws_api_gateway_method.{{ resource_name }}_{{ uid }}_{{ method }}]
 }
 {%- endfor %}
 {%- endfor %}
@@ -224,6 +225,7 @@ resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_OPTION
     "method.response.header.Access-Control-Allow-Origin" = true,
     "method.response.header.Access-Control-Allow-Credentials" = true,
   }
+  depends_on = [aws_api_gateway_method.{{ resource_name }}_{{ uid }}_OPTIONS]
 }
 {%- endif %}
 {%- endif %}
