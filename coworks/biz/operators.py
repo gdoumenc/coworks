@@ -162,6 +162,7 @@ class AsyncTechServicePullOperator(BaseOperator):
 
     :param cws_task_id: the tech microservice called asynchronously.
     :param aws_conn_id: aws connection (default 'aws_s3').
+    :param raise_errors: raises error if the called microserrvice did (default True).
     """
 
     def __init__(self, *, cws_task_id: str = None, aws_conn_id: str = 'aws_s3',
