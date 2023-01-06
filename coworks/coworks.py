@@ -13,7 +13,6 @@ from pathlib import Path
 import boto3
 from flask import Blueprint as FlaskBlueprint
 from flask import Flask
-from flask import Response
 from flask import current_app
 from flask import json
 from flask.blueprints import BlueprintSetupState
@@ -308,7 +307,7 @@ class TechMicroService(Flask):
         path = Path(self.root_path) / instance_relative_path
         return path.as_posix()
 
-    def store_response(self, resp, headers):
+    def store_response(self, resp: t.Union[dict, bytes], request_headers):
         """Store microservice response in S3 for biz task sequence.
 
         May be redefined for another storage in asynchronous call.
@@ -316,16 +315,17 @@ class TechMicroService(Flask):
 
         bucket = key = ''
         try:
-            bucket = headers.get(self.config['X-CWS-S3Bucket'].lower())
-            key = headers.get(self.config['X-CWS-S3Key'].lower())
+            bucket = request_headers.get(self.config['X-CWS-S3Bucket'].lower())
+            key = request_headers.get(self.config['X-CWS-S3Key'].lower())
             if bucket and key:
-                aws_s3_session = boto3.session.Session()
-                content = json.dumps(resp) if type(resp) is dict else resp
-                buffer = io.BytesIO(content.encode())
+                content = json.dumps(resp).encode() if type(resp) is dict else resp
+                buffer = io.BytesIO(content)
                 buffer.seek(0)
-                self.logger.debug(f"Store response in s3://{bucket}/{key}")
+                aws_s3_session = boto3.session.Session()
                 aws_s3_session.client('s3').upload_fileobj(buffer, bucket, key)
-                self.logger.debug(f"Storing response in {bucket}/{key}")
+                self.logger.debug(f"Response stored in {bucket}/{key}")
+            else:
+                self.logger.error("Cannot store response as no bucket or key")
         except Exception as e:
             self.logger.error(f"Exception when storing response in {bucket}/{key} : {str(e)}")
 
@@ -371,14 +371,14 @@ class TechMicroService(Flask):
 
         try:
             res = self.token_authorizer(aws_event['authorizationToken'])
-            self.logger.debug(f"Token authorizer return is : {res}")
+            self.logger.warning(f"Token authorizer return is : {res}")
             return TokenResponse(res, aws_event['methodArn']).json
         except Exception as e:
             self.logger.error(f"Error in token handler for {self.name} : {e}")
             self.logger.error(''.join(traceback.format_exception(None, e, e.__traceback__)))
             return TokenResponse(False, aws_event['methodArn']).json
 
-    def _api_handler(self, aws_event: t.Dict[str, t.Any], aws_context: t.Dict[str, t.Any]) -> dict:
+    def _api_handler(self, aws_event: t.Dict[str, t.Any], aws_context: t.Dict[str, t.Any]) -> t.Union[dict, bytes]:
         """API handler.
         """
         self.logger.warning(f"Calling {self.name} by api : {aws_event}")
@@ -386,27 +386,35 @@ class TechMicroService(Flask):
         # Transforms as simple client call and manage exception if needed
         try:
             with self.cws_client(aws_event, aws_context) as c:
+
+                # Get Flask return as dict or binary content
                 resp = self._convert_to_lambda_response(c.open())
 
                 # Strores response in S3 if asynchronous call
                 invocation_type = aws_event['headers'].get('invocationtype')
                 if invocation_type == 'Event':
                     self.store_response(resp, aws_event['headers'])
-        except Exception as e:
-            if isinstance(e, HTTPException):
-                resp = self._structured_error(e)
-            else:
-                self.logger.error(f"Error in api handler for {self.name} : {e}")
-                self.logger.error(''.join(traceback.format_exception(None, e, e.__traceback__)))
-                resp = self._structured_error(InternalServerError(original_exception=e))
-            self.logger.debug(f"Status code returned by api : {resp.get('statusCode')}")
-        else:
-            if isinstance(resp, Response):
-                self.logger.debug(f"Status code returned by api : {resp.status_code}")
 
-        if self.logger.getEffectiveLevel() == logging.DEBUG:
-            content = json.dumps(resp) if type(resp) is dict else resp
-            self.logger.debug(f"API returns ({len(content)})")
+                # Encodes binary content
+                if type(resp) is not dict:
+                    resp = base64.b64encode(resp).decode('ascii')
+
+        except HTTPException as e:
+            resp = self._structured_error(e)
+        except Exception as e:
+            self.logger.error(f"Error in api handler for {self.name} : {e}")
+            self.logger.error(''.join(traceback.format_exception(None, e, e.__traceback__)))
+            resp = self._structured_error(InternalServerError(original_exception=e))
+
+        # Traces Lambda status code and Flask response length and type (N/A if not in debug mode for efficiency)
+        if type(resp) is dict:
+            status_code = resp.get('statusCode')
+            content_length = len(json.dumps(resp)) if self.logger.getEffectiveLevel() == logging.DEBUG else "N/A"
+        else:
+            status_code = 200
+            content_length = len(resp) if self.logger.getEffectiveLevel() == logging.DEBUG else "N/A"
+
+        self.logger.debug(f"API returns code {status_code} and length {content_length} [{type(resp)}]")
         return resp
 
     def _flask_handler(self, environ: t.Dict[str, t.Any], start_response: t.Callable[[t.Any], None]):
@@ -447,8 +455,8 @@ class TechMicroService(Flask):
                 if not valid:
                     raise Forbidden()
 
-    def _convert_to_lambda_response(self, resp: CoworksResponse):
-        """Convert Lambda response."""
+    def _convert_to_lambda_response(self, resp: CoworksResponse) -> t.Union[dict, bytes]:
+        """Convert Lambda response (dict for JSON or text result, bytes for binary content)."""
 
         # returns JSON structure
         if resp.is_json:
@@ -469,7 +477,7 @@ class TechMicroService(Flask):
         if not isinstance(data, bytes):
             msg = f'Expected bytes type for body with binary Content-Type. Got {type(data)} type body instead.'
             raise ValueError(msg)
-        return base64.b64encode(data).decode('ascii')
+        return data
 
     def _aws_payload(self, body, status_code, headers):
         return {
