@@ -400,9 +400,10 @@ class TechMicroService(Flask):
                     resp = base64.b64encode(resp).decode('ascii')
 
         except HTTPException as e:
+            self.logger.error(f"HTTPException in api handler for {self.name} : {e}")
             resp = self._structured_error(e)
         except Exception as e:
-            self.logger.error(f"Error in api handler for {self.name} : {e}")
+            self.logger.error(f"Exception in api handler for {self.name} : {e}")
             self.logger.error(''.join(traceback.format_exception(None, e, e.__traceback__)))
             resp = self._structured_error(InternalServerError(original_exception=e))
 
@@ -414,7 +415,11 @@ class TechMicroService(Flask):
             status_code = 200
             content_length = len(resp) if self.logger.getEffectiveLevel() == logging.DEBUG else "N/A"
 
-        self.logger.debug(f"API returns code {status_code} and length {content_length} [{type(resp)}]")
+        if self.logger.getEffectiveLevel() == logging.DEBUG and content_length < 2000:
+            self.logger.debug(f"API returns {resp} [{type(resp)}]")
+        else:
+            self.logger.debug(f"API returns code {status_code} and length {content_length} [{type(resp)}]")
+
         return resp
 
     def _flask_handler(self, environ: t.Dict[str, t.Any], start_response: t.Callable[[t.Any], None]):

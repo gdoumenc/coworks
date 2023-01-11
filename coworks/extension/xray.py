@@ -1,3 +1,4 @@
+import logging
 import traceback
 import typing as t
 from functools import partial
@@ -31,6 +32,9 @@ class XRay:
     def init_app(self, app):
         def first():
             app.logger.debug(f"Initializing xray extension {self._name}")
+
+            if app.debug:
+                logging.getLogger('aws_xray_sdk').setLevel(logging.DEBUG)
 
             if global_sdk_config.sdk_enabled():
                 # Checks XRay is available
@@ -123,8 +127,11 @@ class XRay:
             def function_captured(*args, **kwargs):
                 subsegment = recorder.current_subsegment()
                 if subsegment:
-                    subsegment.put_metadata(f'{function.__name__}.args', args[1:], COWORKS_NAMESPACE)
-                    subsegment.put_metadata(f'{function.__name__}.kwargs', kwargs, COWORKS_NAMESPACE)
+                    call_data = {
+                        'args': args[1:],
+                        'kwargs': kwargs,
+                    }
+                    subsegment.put_metadata(function.__name__, call_data, COWORKS_NAMESPACE)
 
                 response = function(*args, **kwargs)
 

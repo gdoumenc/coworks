@@ -77,6 +77,7 @@ class Odoo:
     def init_app(self, app):
         self.app = app
 
+    @XRay.capture(xray_recorder)
     def kw(self, model: str, method: str = "search_read", id: int = None, fields: t.Iterator[str] = None,
            order: str = None, domain: t.Iterator[t.Tuple[str, str, t.Any]] = None, limit: int = None, page_size: int = None,
            page: int = 0, ensure_one: bool = False, bind: str = None):
@@ -122,7 +123,7 @@ class Odoo:
             return res
 
         if len(res) == 0:
-            raise NotFound()
+            raise NotFound("No element found.")
         if ensure_one:
             if len(res) != 1:
                 raise NotFound("More than one element found and ensure_one parameters was set")
@@ -130,6 +131,7 @@ class Odoo:
 
         return {"ids": [rec['id'] for rec in res], "values": res}
 
+    @XRay.capture(xray_recorder)
     def create(self, model: str, data: t.Iterator[dict] = None, bind: str = None) -> int:
         """Creates new records for the model.
 
@@ -142,6 +144,7 @@ class Odoo:
         """
         return self.odoo_execute_kw(bind, model, "create", data)
 
+    @XRay.capture(xray_recorder)
     def write(self, model: str, id: int, data: dict = None, bind: str = None) -> list:
         """Updates one record with the provided values.
         See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.write
@@ -152,6 +155,7 @@ class Odoo:
         """
         return self.odoo_execute_kw(bind, model, "write", [[id], data])
 
+    @XRay.capture(xray_recorder)
     def delete_(self, model: str, id: int, bind: str = None) -> list:
         """delete the record.
         See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.unlink
@@ -195,7 +199,6 @@ class Odoo:
         except Exception:
             raise Forbidden()
 
-    @XRay.capture(xray_recorder)
     def odoo_execute_kw(self, bind, model, method, *args, **kwargs):
         """Standard externalm API entries.
         See also: https://www.odoo.com/documentation/15.0/developer/misc/api/odoo.html
