@@ -21,7 +21,6 @@ from werkzeug.datastructures import ImmutableDict
 from werkzeug.datastructures import MultiDict
 from werkzeug.datastructures import WWWAuthenticate
 from werkzeug.exceptions import Forbidden
-from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import Unauthorized
 from werkzeug.routing import Rule
@@ -209,6 +208,9 @@ class TechMicroService(Flask):
        The `stage_prefixed` parameter was added.
     """
 
+    # Maximume content length for writing response content in debug
+    size_max_for_debug = 2000
+
     def __init__(self, name: str = None, stage_prefixed: bool = True, **kwargs) -> None:
         """ Initialize a technical microservice.
         :param name: Name used to identify the microservice.
@@ -378,7 +380,7 @@ class TechMicroService(Flask):
             self.logger.error(''.join(traceback.format_exception(None, e, e.__traceback__)))
             return TokenResponse(False, aws_event['methodArn']).json
 
-    def _api_handler(self, aws_event: t.Dict[str, t.Any], aws_context: t.Dict[str, t.Any]) -> t.Union[dict, bytes]:
+    def _api_handler(self, aws_event: t.Dict[str, t.Any], aws_context: t.Dict[str, t.Any]) -> t.Union[dict, str]:
         """API handler.
         """
         self.logger.warning(f"Calling {self.name} by api : {aws_event}")
@@ -398,29 +400,27 @@ class TechMicroService(Flask):
                 # Encodes binary content
                 if type(resp) is not dict:
                     resp = base64.b64encode(resp).decode('ascii')
+                    content_length = len(resp) if self.logger.getEffectiveLevel() == logging.DEBUG else "N/A"
+                    self.logger.debug(f"API returns binary content [length: {content_length}]")
+                    return resp
 
-        except HTTPException as e:
-            self.logger.error(f"HTTPException in api handler for {self.name} : {e}")
-            resp = self._structured_error(e)
+                # Adds trace
+                if 'headers' in resp:
+                    content_length = int(resp['headers'].get('content_length', self.size_max_for_debug))
+                else:
+                    content_length = self.size_max_for_debug
+
+                if self.logger.getEffectiveLevel() == logging.DEBUG and content_length < self.size_max_for_debug:
+                    self.logger.debug(f"API returns {resp}")
+                    return resp
+                self.logger.debug(f"API returns code {resp.get('statusCode')} and headers {resp.get('headers')}")
+                return resp
+
         except Exception as e:
             self.logger.error(f"Exception in api handler for {self.name} : {e}")
             self.logger.error(''.join(traceback.format_exception(None, e, e.__traceback__)))
-            resp = self._structured_error(InternalServerError(original_exception=e))
-
-        # Traces Lambda status code and Flask response length and type (N/A if not in debug mode for efficiency)
-        if type(resp) is dict:
-            status_code = resp.get('statusCode')
-            content_length = len(json.dumps(resp)) if self.logger.getEffectiveLevel() == logging.DEBUG else "N/A"
-        else:
-            status_code = 200
-            content_length = len(resp) if self.logger.getEffectiveLevel() == logging.DEBUG else "N/A"
-
-        if self.logger.getEffectiveLevel() == logging.DEBUG and content_length < 2000:
-            self.logger.debug(f"API returns {resp} [{type(resp)}]")
-        else:
-            self.logger.debug(f"API returns code {status_code} and length {content_length} [{type(resp)}]")
-
-        return resp
+            headers = {'content_type': "application/json"}
+            return self._aws_payload(str(e), InternalServerError.code, headers)
 
     def _flask_handler(self, environ: t.Dict[str, t.Any], start_response: t.Callable[[t.Any], None]):
         """Flask handler.
@@ -491,7 +491,3 @@ class TechMicroService(Flask):
             "body": body,
             "isBase64Encoded": False,
         }
-
-    def _structured_error(self, e: HTTPException):
-        headers = {'content_type': "application/json"}
-        return self._aws_payload(e.description, e.code, headers)

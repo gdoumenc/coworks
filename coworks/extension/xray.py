@@ -7,9 +7,9 @@ from functools import update_wrapper
 from aws_xray_sdk import global_sdk_config
 from aws_xray_sdk.core import patch_all
 from aws_xray_sdk.core.exceptions.exceptions import SegmentNotFoundException
-from flask import make_response
 
 from coworks.globals import request
+from coworks.wrappers import CoworksResponse
 
 if t.TYPE_CHECKING:
     from coworks import TechMicroService
@@ -58,50 +58,50 @@ class XRay:
             view_function = self._app.view_functions[rule.endpoint]
 
             def route_captured(_view_function, *args, **kwargs):
-                # Traces context, request and data
                 aws_context = request.aws_context
                 subsegment = self._recorder.current_subsegment()
-                if subsegment:
-                    subsegment.put_metadata('context', lambda_context_to_json(aws_context), LAMBDA_NAMESPACE)
-                    metadata = {
-                        'service': self._app.name,
-                        'request': request_to_dict(request),
-                    }
-                    if request.is_json:
-                        try:
-                            metadata['json'] = request.json
-                        except (Exception,):
-                            metadata['data'] = request.get_data(cache=False, as_text=True)
-                    elif request.is_multipart:
-                        metadata['multipart'] = request.form.to_dict(False)
-                        metadata['files'] = [*request.files.keys()]
-                    elif request.is_form_urlencoded:
-                        metadata['form'] = request.form.to_dict(False)
-                        metadata['files'] = [*request.files.keys()]
-                    else:
-                        metadata['values'] = request.values.to_dict(False)
-                    subsegment.put_metadata('request', metadata, COWORKS_NAMESPACE)
 
                 try:
-                    response = _view_function(*args, **kwargs)
+                    if subsegment:
+                        subsegment.put_metadata('context', lambda_context_to_json(aws_context), LAMBDA_NAMESPACE)
+                        metadata = {
+                            'service': self._app.name,
+                            'environ': request_environ(request),
+                        }
+                        if request.is_json:
+                            try:
+                                metadata['json'] = request.json
+                            except (Exception,):
+                                metadata['data'] = request.get_data(cache=False, as_text=True)
+                        elif request.is_multipart:
+                            metadata['multipart'] = request.form.to_dict(False)
+                            metadata['files'] = [*request.files.keys()]
+                        elif request.is_form_urlencoded:
+                            metadata['form'] = request.form.to_dict(False)
+                            metadata['files'] = [*request.files.keys()]
+                        else:
+                            metadata['values'] = request.values.to_dict(False)
+                        subsegment.put_metadata('request', metadata, COWORKS_NAMESPACE)
+
+                    response: CoworksResponse = _view_function(*args, **kwargs)
+
+                    if subsegment:
+                        metadata = {
+                            'status_code': response.status_code,
+                            'headers': response.headers,
+                        }
+                        subsegment.put_metadata('response (tmp)', metadata, COWORKS_NAMESPACE)
+                        if response.status_code >= 300:
+                            metadata['error'] = response.get_data(as_text=True)
+                        subsegment.put_metadata('response', metadata, COWORKS_NAMESPACE)
+
+                    return response
+
                 except Exception as e:
                     if subsegment:
                         metadata = {'traceback': traceback.format_exc()}
                         subsegment.put_metadata('exception', metadata, COWORKS_NAMESPACE)
                     raise
-
-                # Traces response
-                if subsegment:
-                    flask_response = make_response(response)
-                    metadata = {
-                        'status': flask_response.status,
-                        'headers': flask_response.headers,
-                        'direct_passthrough': flask_response.direct_passthrough,
-                        'is_json': flask_response.is_json,
-                    }
-                    subsegment.put_metadata('response', metadata, COWORKS_NAMESPACE)
-
-                return response
 
             wrapped_fun = update_wrapper(partial(route_captured, view_function), view_function)
             self._app.view_functions[rule.endpoint] = self._recorder.capture(name=wrapped_fun.__name__)(wrapped_fun)
@@ -166,7 +166,7 @@ def lambda_context_to_json(context):
     }
 
 
-def request_to_dict(_request):
+def request_environ(_request):
     return {
         'in_lambda_context': _request.in_lambda_context,
         'is_multipart': _request.is_multipart,

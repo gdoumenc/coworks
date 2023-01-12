@@ -13,13 +13,11 @@ import dotenv
 from flask import current_app
 from flask import make_response
 from flask.blueprints import BlueprintSetupState
-from werkzeug.datastructures import Headers
 from werkzeug.exceptions import BadRequest
 from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import UnprocessableEntity
 
 from .globals import request
-from .wrappers import CoworksResponse
 
 if t.TYPE_CHECKING:
     from flask.scaffold import Scaffold
@@ -57,7 +55,6 @@ def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
         entry_path = path_join(getattr(fun, '__CWS_PATH'))
 
         # Get parameters
-        # todo: if default is None, set to 0 then same code
         args = inspect.getfullargspec(fun).args[1:]
         defaults = inspect.getfullargspec(fun).defaults
         varkw = inspect.getfullargspec(fun).varkw
@@ -95,26 +92,25 @@ def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
 
 def create_cws_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
     def proxy(**kwargs):
+        # Adds kwargs parameters
+        def check_keyword_expected_in_lambda(param_name):
+            """Alerts when more parameters than expected are defined in request."""
+            if param_name not in kwarg_keys and varkw is None:
+                _err_msg = f"TypeError: got an unexpected keyword argument '{param_name}'"
+                raise UnprocessableEntity(_err_msg)
+
+        def as_fun_params(values: dict, flat=True):
+            """Set parameters as simple value or list of values if multiple defined.
+           :param values: Dict of values.
+           :param flat: If set to True the list values of lenth 1 is retrun as single value.
+            """
+            params = {}
+            for k, v in values.items():
+                check_keyword_expected_in_lambda(k)
+                params[k] = v[0] if flat and len(v) == 1 else v
+            return params
+
         try:
-            # Adds kwargs parameters
-            def check_keyword_expected_in_lambda(param_name):
-                """Alerts when more parameters than expected are defined in request."""
-                if param_name not in kwarg_keys and varkw is None:
-                    _err_msg = f"TypeError: got an unexpected keyword argument '{param_name}'"
-                    current_app.logger.error(_err_msg)
-                    raise UnprocessableEntity(_err_msg)
-
-            def as_fun_params(values: dict, flat=True):
-                """Set parameters as simple value or list of values if multiple defined.
-               :param values: Dict of values.
-               :param flat: If set to True the list values of lenth 1 is retrun as single value.
-                """
-                params = {}
-                for k, v in values.items():
-                    check_keyword_expected_in_lambda(k)
-                    params[k] = v[0] if flat and len(v) == 1 else v
-                return params
-
             # Get keyword arguments from request
             if kwarg_keys or varkw:
 
@@ -147,13 +143,10 @@ def create_cws_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
                             data = request.values.to_dict(False)
                             kwargs = dict(**kwargs, **as_fun_params(data))
                     except Exception as e:
-                        current_app.logger.error(traceback.print_exc())
-                        current_app.logger.error(e)
                         raise UnprocessableEntity(str(e))
 
                 else:
                     err_msg = f"Keyword arguments are not permitted for {request.method} method."
-                    current_app.logger.error(err_msg)
                     raise UnprocessableEntity(err_msg)
 
             else:
@@ -162,33 +155,30 @@ def create_cws_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
                         if request.content_length:
                             if request.is_json and request.json:
                                 err_msg = f"TypeError: got an unexpected arguments (body: {request.json})"
-                                current_app.logger.error(err_msg)
                                 raise UnprocessableEntity(err_msg)
                         if request.query_string:
                             err_msg = f"TypeError: got an unexpected arguments (query: {request.query_string})"
-                            current_app.logger.error(err_msg)
                             raise UnprocessableEntity(err_msg)
-                    except (Exception,) as e:
+                    except Exception as e:
                         current_app.logger.error(f"Should not go here (1) : {str(e)}")
                         current_app.logger.error(f"Should not go here (2) : {request.get_data()}")
                         current_app.logger.error(f"Should not go here (3) : {kwargs}")
+                        raise
 
             kwargs = as_typed_kwargs(func, kwargs)
             result = func(scaffold, **kwargs)
-            resp = make_response(result) if result is not None else make_response("", 204)
+            resp = make_response(result) if result is not None else \
+                make_response("", 204, {'content-type': 'text/plain'})
 
             if func.__CWS_BINARY_HEADERS and not request.in_lambda_context:
                 resp.headers.update(func.__CWS_BINARY_HEADERS)
-
-            return resp
         except HTTPException as e:
-            return e.description, e.code
-        except TypeError as e:
-            current_app.logger.error(''.join(traceback.format_exception(None, e, e.__traceback__)))
-            raise BadRequest(str(e))
+            resp = make_response(e.description, e.code, {'content-type': 'text/plain'})
         except Exception as e:
             current_app.logger.error(''.join(traceback.format_exception(None, e, e.__traceback__)))
-            raise
+            resp = make_response(str(e), BadRequest.code, {'content-type': 'text/plain'})
+
+        return resp
 
     return update_wrapper(proxy, func)
 
@@ -265,36 +255,6 @@ def get_system_info():
     platform_release = platform.release()
     platform_info = f"{platform_system} {platform_release}"
     return f"{flask_info}, {python_info}, {platform_info}"
-
-
-def check_success(resp):
-    def is_success(code):
-        return 200 <= code < 300
-
-    # the body must not be None
-    if resp is None:
-        return False
-
-    # unpack tuple returns
-    if isinstance(resp, tuple):
-        len_rv = len(resp)
-
-        # a 3-tuple is unpacked directly
-        if len_rv == 3:
-            return is_success(resp[1])
-        # decide if a 2-tuple has status or headers
-        if len_rv == 2:
-            if not isinstance(resp[1], (Headers, dict, tuple, list)):
-                return is_success(resp[1])
-            return True
-        # other sized tuples are not allowed
-        return False
-
-    # make sure the body is an instance of the response class
-    if isinstance(resp, CoworksResponse):
-        return is_success(resp.status_code)
-
-    return True
 
 
 def as_typed_kwargs(func, kwargs):
