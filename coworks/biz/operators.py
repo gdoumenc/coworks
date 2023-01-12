@@ -118,43 +118,50 @@ class TechMicroServiceOperator(BaseOperator):
     def execute(self, context):
         """Call TechMicroService.
         """
+        resp = self._call_cws(context)
+        if self.xcom_push_flag:
+            self._push_response(context, resp)
+
+    def _call_cws(self, context):
+        """Method used by operator and sensor."""
         self.log.info(f"Calling {self.method.upper()} method to {self._url}")
-        res = requests.request(
+        resp = requests.request(
             self.method.upper(), self._url, headers=self.headers,
             params=self.query_params, json=self.json, data=self.data
         )
-        self.log.info(f"Resulting status code : {res.status_code}")
+        self.log.info(f"Resulting status code : {resp.status_code}")
 
         # Manages status
-        if self.raise_400_errors and res.status_code >= 400:
-            self.log.error(f"Bad request: {res.text}'")
-            raise AirflowFailException(f"The TechMicroService {self.cws_name} had a client error {res.status_code}!")
-        if res.status_code >= 500:
-            self.log.error(f"Internal error: {res.text}'")
-            raise AirflowFailException(f"The TechMicroService {self.cws_name} had an internal error {res.status_code}!")
+        if self.raise_400_errors and resp.status_code >= 400:
+            self.log.error(f"Bad request: {resp.text}'")
+            raise AirflowFailException(f"The TechMicroService {self.cws_name} had a client error {resp.status_code}!")
+        if resp.status_code >= 500:
+            self.log.error(f"Internal error: {resp.text}'")
+            raise AirflowFailException(
+                f"The TechMicroService {self.cws_name} had an internal error {resp.status_code}!")
+        return resp
 
+    def _push_response(self, context, resp):
         # Return values or store file information
-        if self.xcom_push_flag:
-            self.xcom_push(context, XCOM_CWS_NAME, self.cws_name or self.api_id)
-            if self.asynchronous:
-                self.xcom_push(context, XCOM_CWS_BUCKET, self._bucket)
-                self.xcom_push(context, XCOM_CWS_KEY, self._key)
+        self.xcom_push(context, XCOM_CWS_NAME, self.cws_name or self.api_id)
+        if self.asynchronous:
+            self.xcom_push(context, XCOM_CWS_BUCKET, self._bucket)
+            self.xcom_push(context, XCOM_CWS_KEY, self._key)
+        else:
+            if self.json_result:
+                try:
+                    returned_value = resp.json() if resp.content else {}
+                except JSONDecodeError:
+                    self.log.error(f"Not a JSON value: {resp.text}'")
+                    returned_value = resp.text
             else:
-                if self.json_result:
-                    try:
-                        returned_value = res.json() if res.content else {}
-                    except JSONDecodeError:
-                        self.log.error(f"Not a JSON value: {res.text}'")
-                        returned_value = res.text
-                else:
-                    returned_value = res.text
+                returned_value = resp.text
 
-                if self.log_response:
-                    self.log.info(returned_value)
+            if self.log_response:
+                self.log.info(returned_value)
 
-                self.xcom_push(context, XCOM_STATUS_CODE, res.status_code)
-                self.xcom_push(context, 'return_value', returned_value)
-                return returned_value
+            self.xcom_push(context, XCOM_STATUS_CODE, resp.status_code)
+            self.xcom_push(context, 'return_value', returned_value)
 
 
 class AsyncTechServicePullOperator(BaseOperator):
