@@ -45,7 +45,7 @@ class CwsScriptInfo(ScriptInfo):
         self.__project_dir = Path(project_dir).absolute().as_posix() if project_dir else None
 
     @contextmanager
-    def project_context(self):
+    def project_context(self, ctx=None):
         if not self.__dotenv_loaded:
             workspace = get_app_stage()
             load_dotenv(workspace)
@@ -55,7 +55,8 @@ class CwsScriptInfo(ScriptInfo):
         try:
             os.chdir(self.project_dir)
         except OSError as e:
-            raise UsageError(f"Project dir {self.project_dir} not found.")
+            if not ctx:
+                raise UsageError(f"Project dir {self.project_dir} not found.")
         finally:
             yield
             os.chdir(old_dir)
@@ -82,26 +83,7 @@ _stage_option = click.Option(
 )
 
 
-def overriden_run_banner():
-    """Copy the original function and add stage banner."""
-    show_server_banner_copy = types.FunctionType(flask.cli.show_server_banner.__code__,
-                                                 flask.cli.show_server_banner.__globals__,
-                                                 name=flask.cli.show_server_banner.__name__,
-                                                 argdefs=flask.cli.show_server_banner.__defaults__,
-                                                 closure=flask.cli.show_server_banner.__closure__)
-
-    def show_banner_with_stage(*args):
-        show_stage_banner()
-        show_server_banner_copy(*args)
-
-    return show_banner_with_stage
-
-
-# Overrides run banner function to add stage value
-flask.cli.show_server_banner = overriden_run_banner()
-
-
-class CoWorksGroup(flask.cli.FlaskGroup):
+class CwsGroup(flask.cli.FlaskGroup):
 
     def __init__(self, add_default_commands=True, **extra):
         params = list(extra.pop("params", None) or ())
@@ -140,7 +122,7 @@ class CoWorksGroup(flask.cli.FlaskGroup):
 
         # Adds environment variables and defined commands from project file
         project_config = ProjectConfig(project_dir, config_file, config_file_suffix)
-        with script_info.project_context():
+        with script_info.project_context(ctx):
             commands = project_config.get_commands(get_app_stage())
             if commands:
                 for name, options in commands.items():
@@ -167,13 +149,12 @@ class CoWorksGroup(flask.cli.FlaskGroup):
         return ctx
 
 
-@click.group(cls=CoWorksGroup)
+@click.group(cls=CwsGroup)
 @click.version_option(version=__version__, message=f'%(prog)s %(version)s, {get_system_info()}')
 @click.option('-p', '--project-dir', default=DEFAULT_PROJECT_DIR,
               help=f"The project directory path (absolute or relative) [default to '{DEFAULT_PROJECT_DIR}'].")
 @click.option('-c', '--config-file', default='project', help="Configuration file path [relative from project dir].")
 @click.option('--config-file-suffix', default='.cws.yml', help="Configuration file suffix.")
-@click.pass_context
 def client(*args, **kwargs):
     ...
 
@@ -218,3 +199,22 @@ class ProjectConfig:
             params = load('.')
 
         return params
+
+
+def overriden_run_banner():
+    """Copy the original function and add stage banner."""
+    show_server_banner_copy = types.FunctionType(flask.cli.show_server_banner.__code__,
+                                                 flask.cli.show_server_banner.__globals__,
+                                                 name=flask.cli.show_server_banner.__name__,
+                                                 argdefs=flask.cli.show_server_banner.__defaults__,
+                                                 closure=flask.cli.show_server_banner.__closure__)
+
+    def show_banner_with_stage(*args):
+        show_stage_banner()
+        show_server_banner_copy(*args)
+
+    return show_banner_with_stage
+
+
+# Overrides run banner function to add stage value
+flask.cli.show_server_banner = overriden_run_banner()

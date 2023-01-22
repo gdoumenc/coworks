@@ -8,10 +8,13 @@ from jinja2 import PackageLoader
 from jinja2 import select_autoescape
 
 from coworks.version import __version__
+from .command import CwsCommand
+from .command import no_project_context
 
 
-@click.command("new", short_help="Creates a new CoWorks project.")
+@click.command("new", CwsCommand, short_help="Creates a new CoWorks project.")
 @click.option('--force', is_flag=True, help="Force creation even if already created.")
+@no_project_context
 def new_command(force) -> None:
     project_templates = Path(__file__).parent / 'project_templates'
 

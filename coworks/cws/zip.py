@@ -16,10 +16,11 @@ from flask.cli import pass_script_info
 
 from coworks import aws
 from coworks.utils import get_app_debug
+from .command import CwsCommand
 from .utils import progressbar
 
 
-@click.command("zip", short_help="Zip all source files to create a Lambda file source.")
+@click.command("zip", CwsCommand, short_help="Zip all source files to create a Lambda file source.")
 @click.option('--bucket', '-b', help="Bucket to upload sources zip file to", required=True)
 @click.option('--dry', is_flag=True, help="Doesn't perform upload.")
 @click.option('--hash', is_flag=True, help="Upload also hash code content.")

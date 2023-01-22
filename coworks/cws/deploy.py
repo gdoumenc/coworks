@@ -25,6 +25,7 @@ from coworks.utils import get_app_debug
 from coworks.utils import get_app_stage
 from coworks.utils import load_dotvalues
 from coworks.utils import show_stage_banner
+from .command import CwsCommand
 from .exception import ExitCommand
 from .utils import progressbar
 from .zip import zip_command
@@ -385,7 +386,7 @@ class TerraformCloud(TerraformLocal):
             f.write(template.render(**data))
 
 
-@click.command("deploy", short_help="Deploy the CoWorks microservice on AWS Lambda.")
+@click.command("deploy", CwsCommand, short_help="Deploy the CoWorks microservice on AWS Lambda.")
 # Zip options (redefined)
 @click.option('--api', is_flag=True, help="Stop after API create step (forces also dry mode).")
 @click.option('--bucket', '-b', help="Bucket to upload sources zip file to", required=True)
@@ -435,7 +436,7 @@ def deploy_command(info, ctx, **options) -> None:
         echo_output(terraform)
 
 
-@click.command("destroy", short_help="Destroy the CoWorks microservice on AWS Lambda.")
+@click.command("destroy", CwsCommand, short_help="Destroy the CoWorks microservice on AWS Lambda.")
 # Zip options (redefined)
 @click.option('--bucket', '-b', help="Bucket to upload sources zip file to", required=True)
 @click.option('--key', '-k', help="Sources zip file bucket's name.")
@@ -460,7 +461,7 @@ def destroy_command(info, ctx, **options) -> None:
     click.echo(f"You can now delete the terraform_{get_app_stage()} folder.")
 
 
-@click.command("deployed", short_help="Retrieve the microservices deployed for this project.")
+@click.command("deployed", CwsCommand, short_help="Retrieve the microservices deployed for this project.")
 @click.option('--terraform-dir', default="terraform")
 @click.option('--terraform-cloud', is_flag=True, help="Use cloud workspaces (default false).")
 @click.pass_context
