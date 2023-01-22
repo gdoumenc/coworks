@@ -13,8 +13,8 @@ import dotenv
 from flask import current_app
 from flask import make_response
 from flask.blueprints import BlueprintSetupState
-from werkzeug.exceptions import BadRequest
 from werkzeug.exceptions import HTTPException
+from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import UnprocessableEntity
 
 from .globals import request
@@ -173,10 +173,13 @@ def create_cws_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
             if func.__CWS_BINARY_HEADERS and not request.in_lambda_context:
                 resp.headers.update(func.__CWS_BINARY_HEADERS)
         except HTTPException as e:
-            resp = make_response(e.description, e.code, {'content-type': 'text/plain'})
+            try:
+                return current_app.handle_user_exception(e)
+            except (Exception,):
+                resp = make_response(e.description, e.code, {'content-type': 'text/plain'})
         except Exception as e:
             current_app.logger.error(''.join(traceback.format_exception(None, e, e.__traceback__)))
-            resp = make_response(str(e), BadRequest.code, {'content-type': 'text/plain'})
+            resp = make_response(str(e), InternalServerError.code, {'content-type': 'text/plain'})
 
         return resp
 

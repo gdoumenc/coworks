@@ -1,7 +1,7 @@
 from unittest.mock import Mock
 
 from flask import request, url_for
-from werkzeug.exceptions import MethodNotAllowed
+from werkzeug.exceptions import MethodNotAllowed, InternalServerError
 from werkzeug.exceptions import NotFound
 from werkzeug.exceptions import UnprocessableEntity
 
@@ -32,6 +32,7 @@ class ErrorMS(TechMicroService):
         @self.errorhandler(500)
         def handle(e):
             self.err(e)
+            return "ok"
 
     @entry
     def get(self):
@@ -42,6 +43,11 @@ class ErrorMS(TechMicroService):
     def get_exception(self):
         """Root access."""
         return int("a")
+
+    @entry
+    def get_http_exception(self):
+        """Root access."""
+        raise InternalServerError()
 
 
 class TestClass:
@@ -157,6 +163,10 @@ class TestClass:
             event = get_event('/exception', 'get')
             response = app(event, empty_aws_context)
             assert response['statusCode'] == 500
+            app.err.assert_not_called()
+            event = get_event('/http/exception', 'get')
+            response = app(event, empty_aws_context)
+            assert response['statusCode'] == 200
             app.err.assert_called_once()
 
     def test_url_for(self, empty_aws_context):

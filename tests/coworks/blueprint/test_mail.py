@@ -69,7 +69,7 @@ class TestClass:
             }
             response = c.post('/send', data=data, headers=auth_headers)
             assert response.status_code == 400
-            assert response.get_data(as_text=True) == "From address not defined (from_addr:str)"
+            assert "From address not defined (from_addr:str)" in response.get_data(as_text=True)
 
     @mock.patch.dict(os.environ, {
         "SMTP_SERVER": "mail.test.com:587",

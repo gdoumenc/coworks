@@ -96,8 +96,6 @@ class TestClass:
             assert response.headers['Content-Type'] == 'application/json'
             assert json.loads(response.get_data(as_text=True)) == {"text": "value", "int": 1}
 
-    import pytest
-    @pytest.mark.wip
     def test_binary_content_type(self, empty_aws_context):
         app = ContentMS()
         with app.test_client() as c:
