@@ -65,12 +65,13 @@ class Mail(Blueprint):
         :param subject: Email's subject (required).
         :param from_addr: From recipient.
         :param from_name: Name besides from_address.
-        :param body: Email's body (required if body_template not defined).
-        :param body_template: Email's body template (required if body not defined).
-        :param body_type: Email's body type.
+        :param reply_to: Reply recipient.
         :param to_addrs: Email's recipients. Accept one or several email addresses separated by commas.
         :param cc_addrs: Email's cc recipients. Accept one or several email addresses separated by commas.
         :param bcc_addrs: Email's bcc recipients. Accept one or several email addresses separated by commas.
+        :param body: Email's body (required if body_template not defined).
+        :param body_template: Email's body template (required if body not defined).
+        :param body_type: Email's body type.
         :param attachments: File storage.
         :param attachment_urls: File url.
         :param starttls: Puts the connection to the SMTP server into TLS mode.
