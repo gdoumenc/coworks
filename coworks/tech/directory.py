@@ -172,6 +172,8 @@ See 'samples/directory' to get how to create and deploy it.
     def post_call(self, name, stage=None, path='/admin', method='get', token_var_name='TOKEN', data=None):
         """Call a microservice from its name.
 
+        Accept and Content-Type may be defined in header for the microservice call.
+
         :param name: microservice's name.
         :param stage: stage version.
         If stage is not defined the latest production version is choosen or 'dev' if no production version.
@@ -184,9 +186,9 @@ See 'samples/directory' to get how to create and deploy it.
         info = self.get_url(name, stage=stage, token_var_name=token_var_name)
 
         headers = {
-            'Accept': request.headers['Accept'],
+            'Accept': request.headers.get('Accept', 'application/json'),
             'Authorization': info['token'],
-            'Content-Type': request.headers['Content-Type'],
+            'Content-Type': request.headers.get('Content-Type', 'application/json'),
         }
 
         url = f"{info['url']}{path}"
@@ -198,6 +200,9 @@ See 'samples/directory' to get how to create and deploy it.
             res = requests.post(url, json=data, headers=headers)
         else:
             raise MethodNotAllowed()
+
+        if not res.ok:
+            return res.text, res.status_code
 
         accept = headers.get('Accept', 'application/json')
         return res.json() if is_json(accept) else res.text, res.status_code, dict(res.headers)
