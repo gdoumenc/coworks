@@ -90,7 +90,6 @@ class XRay:
                             'status_code': response.status_code,
                             'headers': response.headers,
                         }
-                        subsegment.put_metadata('response (tmp)', metadata, COWORKS_NAMESPACE)
                         if response.status_code >= 300:
                             metadata['error'] = response.get_data(as_text=True)
                         subsegment.put_metadata('response', metadata, COWORKS_NAMESPACE)
