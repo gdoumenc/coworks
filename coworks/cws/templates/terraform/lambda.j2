@@ -41,7 +41,7 @@ resource "aws_lambda_function" "{{ resource_name }}" {
   source_code_hash = local.{{ resource_name }}_when_stage > 0 ? data.aws_s3_object.{{ resource_name }}-b64sha256.body : ""
   role = local.{{ resource_name }}_role_arn
   handler = "{{ app_import_path }}"
-  description = "{{ description | replace("\n", "\\n") }}"
+  description = "{{ description |truncate(256) | replace("\n", "\\n") }}"
   {%- if layers %}
   layers = [for layer in data.aws_lambda_layer_version.{{ resource_name }} : layer.arn]
   {%- endif %}
