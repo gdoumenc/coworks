@@ -52,4 +52,4 @@ class MyMicroService(TechMicroService):
 app = MyMicroService()
 
 # For this extension you need to install 'aws_xray_sdk'.
-# XRay(self, xray_recorder)
+# XRay(app, xray_recorder)
