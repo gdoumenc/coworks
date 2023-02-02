@@ -1,0 +1,37 @@
+{%- macro json_response(mimetype) -%}
+  "{{ mimetype }}" = <<-EOF
+    #set($inputRoot = $input.path('$'))
+    #set($context.responseOverride.status=$inputRoot.statusCode)
+    #set($context.responseOverride.header=$inputRoot.headers)
+    $input.json('$.body')
+  EOF
+{%- endmacro -%}
+{%- macro text_response(mimetype) -%}
+  "{{ mimetype }}" = <<-EOF
+    #set($inputRoot = $input.path('$'))
+    #set($context.responseOverride.status=$inputRoot.statusCode)
+    #set($context.responseOverride.header=$inputRoot.headers)
+    $inputRoot.body
+  EOF
+{%- endmacro -%}
+{%- macro byte_response(mimetype) -%}
+  "{{ mimetype }}" = <<-EOF
+    #set($inputRoot = $input.path('$'))
+    #set($context.responseOverride.status=$inputRoot.statusCode)
+    #set($context.responseOverride.header=$inputRoot.headers)
+    $util.base64Decode($inputRoot.body)
+  EOF
+{%- endmacro -%}
+
+  {{ json_response("application/json") }}
+  {{ json_response("text/x-json") }}
+  {{ json_response("application/javascript") }}
+  {{ json_response("application/x-javascript") }}
+{% for type in json_types %}
+  {{ json_response(type) }}
+{%- endfor %}
+  {{ text_response("text/plain") }}
+  {{ text_response("text/html") }}
+{% for type in text_types %}
+  {{ text_response(type) }}
+{%- endfor %}

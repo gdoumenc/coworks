@@ -51,10 +51,11 @@ resource "aws_lambda_function" "{{ resource_name }}" {
   environment {
     variables = merge(
       {{ environment_variables | tojson }},
-{%- if environment_variable_files %}
-      [for item in local.{{ resource_name }}_environment_variables: merge(item,local.{{ resource_name }}_environment_variables...)][0],
-{%- endif %}
-      {"FLASK_DEBUG":"{{ '1' if workspace == "dev" else '0' }}", "FLASK_ENV":"{{ workspace }}"}
+      {"FLASK_DEBUG":"{{ '1' if workspace == "dev" else '0' }}", "CWS_STAGE":"{{ workspace }}"},
+      {"CWS_DATETIME": "{{ now }}"},
+      {"CWS_LAMBDA": "{{ resource_name }}"},
+      {"CWS_BUCKET": "{{ bucket }}"},
+      {"CWS_KEY": "{{ key }}"}
     )
   }
   tracing_config {

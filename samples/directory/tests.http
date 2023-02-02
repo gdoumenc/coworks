@@ -1,0 +1,16 @@
+GET https://mjrafq1qlg.execute-api.eu-west-1.amazonaws.com/dev/admin
+Accept: text/html
+
+###
+
+GET https://mjrafq1qlg.execute-api.eu-west-1.amazonaws.com/dev/name/mjrafq1qlg
+Accept: application/json
+Authorization: {{ token }}
+
+###
+
+GET https://mjrafq1qlg.execute-api.eu-west-1.amazonaws.com/dev/url/directory
+Accept: application/json
+Authorization: {{ token }}
+
+###

@@ -1,12 +1,12 @@
 version: 3
 commands:
   test:
-    class: cmd.cmd
+    class: command.cmd
     b: value
     a: default
 workspaces:
   v1:
     commands:
       test:
-        class: cmd.cmd1
+        class: command.cmd1
         b: value1

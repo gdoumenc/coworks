@@ -4,6 +4,16 @@ Changelogs
 ==========
 
 
+Version 0.8
+^^^^^^^^^^^
+
+First released
+
+* Transformer added to asynchronous group
+* Using dotenv for stage environment variables
+* Full Flask 2.2 compatibility
+* Apache Airflow asynchronous group defined
+
 Version 0.7
 ^^^^^^^^^^^
 

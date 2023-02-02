@@ -1,11 +1,13 @@
 import os
 from unittest import mock
 
+from flask import url_for
+
 from ..blueprint.blueprint import BP, InitBP
 from ..ms import SimpleMS
 
 
-@mock.patch.dict(os.environ, {"FLASK_ENV": "local"})
+@mock.patch.dict(os.environ, {"CWS_STAGE": "local"})
 class TestClass:
     def test_request(self):
         app = SimpleMS()
@@ -31,6 +33,14 @@ class TestClass:
             response = c.get('/prefix/extended/test/3', headers={'Authorization': 'token'})
             assert response.status_code == 200
             assert response.get_data(as_text=True) == 'blueprint extended test 3'
+
+    def test_url_for(self):
+        app = SimpleMS()
+        app.register_blueprint(BP(), url_prefix="/prefix")
+        with app.test_client() as c:
+            response = c.get('/prefix/test/3', headers={'Authorization': 'token'})
+            assert url_for('get') == '/'
+            assert url_for('bp.get_test', index=2) == '/prefix/test/2'
 
     def test_before_activation(self):
         app = SimpleMS()

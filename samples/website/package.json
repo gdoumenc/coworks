@@ -1,0 +1,19 @@
+{
+  "name": "coworks_sample",
+  "version": "0.1",
+  "description": "Simple serverless website.",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "tailwind": "npx tailwindcss build -i ./input.css -o ./tech/assets/css/output.css"
+  },
+  "devDependencies": {
+    "@tailwindcss/aspect-ratio": "^0.4.2",
+    "@tailwindcss/forms": "^0.5.3",
+    "@tailwindcss/line-clamp": "^0.4.2",
+    "@tailwindcss/typography": "^0.5.7",
+    "autoprefixer": "^10.4.12",
+    "postcss": "^8.4.16",
+    "tailwindcss": "^3.1.8"
+  }
+}

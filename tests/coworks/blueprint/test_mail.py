@@ -8,7 +8,6 @@ import pytest
 
 from coworks import TechMicroService
 from coworks.blueprint.mail_blueprint import Mail
-from coworks.config import LocalConfig
 
 smtp_mock = mock.MagicMock()
 smtp_mock.return_value.__enter__.return_value.login = login_mock = mock.Mock()
@@ -21,7 +20,7 @@ email_mock.return_value.add_attachment = add_mock = mock.Mock()
 class MailMS(TechMicroService):
 
     def __init__(self, **mail_names):
-        super().__init__('mail', configs=LocalConfig())
+        super().__init__('mail')
         self.register_blueprint(Mail(**mail_names))
 
     def _check_token(self):
@@ -29,12 +28,13 @@ class MailMS(TechMicroService):
 
 
 class TestClass:
+
     def test_wrong_init(self):
-        with pytest.raises(OSError) as pytest_wrapped_e:
+        with pytest.raises(RuntimeError) as pytest_wrapped_e:
             app = MailMS()
             with app.test_client() as c:
                 response = c.post('/send')
-        assert pytest_wrapped_e.type == OSError
+        assert pytest_wrapped_e.type == RuntimeError
 
     @mock.patch.dict(os.environ, {
         "SMTP_SERVER": "mail.test.com:587",
@@ -69,7 +69,7 @@ class TestClass:
             }
             response = c.post('/send', data=data, headers=auth_headers)
             assert response.status_code == 400
-            assert response.get_data(as_text=True) == "From address not defined (from_addr:str)"
+            assert "From address not defined (from_addr:str)" in response.get_data(as_text=True)
 
     @mock.patch.dict(os.environ, {
         "SMTP_SERVER": "mail.test.com:587",

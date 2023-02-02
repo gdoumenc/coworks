@@ -54,9 +54,9 @@ class TestClass:
         app = DocumentedMS()
         with app.test_request_context():
             assert '/' in app.routes
-            assert '/content/<value>' in app.routes
-            assert '/contentannotated/<value>' in app.routes
-            assert '/list/<values>' in app.routes
+            assert '/content/{value}' in app.routes
+            assert '/contentannotated/{value}' in app.routes
+            assert '/list/{values}' in app.routes
 
     def test_documentation(self):
         app = DocumentedMS()
@@ -68,25 +68,27 @@ class TestClass:
             assert response.status_code == 200
             routes = json.loads(response.get_data(as_text=True))
             assert routes["/"]['GET'] == {
-                "doc": "Root access.", "signature": "()",
-                'binary': False, 'no_auth': False, 'no_cors': True
+                "doc": "Root access.", "signature": "()", "endpoint": "get",
+                'binary_headers': None, 'no_auth': False, 'no_cors': True
             }
             assert routes["/"]['POST'] == {
-                "doc": "Root access.", "signature": "()",
-                'binary': False, 'no_auth': False, 'no_cors': True
+                "doc": "Root access.", "signature": "()", "endpoint": "post",
+                'binary_headers': None, 'no_auth': False, 'no_cors': True
             }
             assert routes["/content/<value>"]['POST'] == {
-                "doc": "Add content.", "signature": "(value, other=none)",
-                'binary': False, 'no_auth': False, 'no_cors': True
+                "doc": "Add content.", "signature": "(value, other=none)", "endpoint": "post_content",
+                'binary_headers': None, 'no_auth': False, 'no_cors': True
             }
             assert routes["/contentannotated/<value>"]['POST'] == {
                 "doc": "Add content.", "signature": "(value:<class 'int'>, other:<class 'str'>=none)",
-                'binary': False, 'no_auth': False, 'no_cors': True
+                'endpoint': "post_contentannotated",
+                'binary_headers': None, 'no_auth': False, 'no_cors': True
             }
             assert routes["/admin/route"]['GET']['signature'] == "(prefix=None, blueprint=None)"
+            assert routes["/admin/route"]['GET']['endpoint'] == "admin.get_route"
             assert routes["/list/<values>"]['GET'] == {
-                "signature": "(values:[<class 'int'>])",
-                'binary': False, 'no_auth': True, 'no_cors': True
+                "signature": "(values:[<class 'int'>])", 'endpoint': 'get_list',
+                'binary_headers': None, 'no_auth': True, 'no_cors': True
             }
 
             response = c.get('/admin/route', headers={'Authorization': 'token'})

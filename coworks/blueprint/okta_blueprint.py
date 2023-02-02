@@ -1,9 +1,11 @@
 import os
 
 from aws_xray_sdk.core import xray_recorder
+from coworks.extension.xray import XRay
 from flask import request
 from okta.client import Client
 from okta.okta_object import OktaObject
+from werkzeug.exceptions import InternalServerError
 
 from coworks import Blueprint
 from coworks import entry
@@ -79,7 +81,6 @@ class Okta(Blueprint):
                  env_url_var_name: str = '', env_token_var_name: str = '',
                  env_var_prefix: str = "OKTA", **kwargs):
         super().__init__(name=name, **kwargs)
-        self.org_url = self.okta_client = None
         if env_var_prefix:
             self.env_url_var_name = f"{env_var_prefix}_URL"
             self.env_token_var_name = f"{env_var_prefix}_TOKEN"
@@ -87,9 +88,9 @@ class Okta(Blueprint):
             self.env_url_var_name = env_url_var_name
             self.env_token_var_name = env_token_var_name
 
-    def init_app(self, app):
         self.org_url = os.getenv(self.env_url_var_name)
-        assert self.org_url, f"Environment var {self.env_url_var_name} undefined."
+        if not self.org_url:
+            raise InternalServerError(f"Environment var {self.env_url_var_name} undefined.")
         config = {
             'orgUrl': self.org_url,
             'token': os.getenv(self.env_token_var_name)

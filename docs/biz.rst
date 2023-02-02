@@ -1,7 +1,7 @@
 .. _biz:
 
-BizMS
-=====
+BizMicroservices
+================
 
 BizMicroService is the orchestration of TechMicroServices. This orchestration is defined with the
 `Airflow <https://github.com/apache/airflow>`_ plateform.

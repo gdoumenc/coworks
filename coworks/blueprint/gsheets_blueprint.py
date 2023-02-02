@@ -26,13 +26,13 @@ class GoogleSheets(Blueprint):
     def init_app(self, app):
         client_id = os.getenv(self.client_id_var_name)
         if not client_id:
-            raise EnvironmentError(f'{self.client_id_var_name} not defined in environment.')
+            raise RuntimeError(f'{self.client_id_var_name} not defined in environment.')
         private_key = os.getenv(self.private_key_var_name)
         if not private_key:
-            raise EnvironmentError(f'{self.private_key_var_name} not defined in environment.')
+            raise RuntimeError(f'{self.private_key_var_name} not defined in environment.')
         private_key_id = os.getenv(self.private_key_id_var_name)
         if not private_key_id:
-            raise EnvironmentError(f'{self.private_key_id_var_name} not defined in environment.')
+            raise RuntimeError(f'{self.private_key_id_var_name} not defined in environment.')
 
         credentials = {
             "type": "service_account",

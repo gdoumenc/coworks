@@ -8,11 +8,9 @@ from coworks import entry
 
 class Profiler(Blueprint):
 
-    def __init__(self, **kwargs):
+    def __init__(self, app, output=None, **kwargs):
         super().__init__(**kwargs)
-        self.output = io.StringIO()
-
-    def init_app(self, app):
+        self.output = output or io.StringIO()
         app.wsgi_app = ProfilerMiddleware(app.wsgi_app, stream=self.output)
 
     @entry

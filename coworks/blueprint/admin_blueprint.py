@@ -1,10 +1,13 @@
 import inspect
+import os
 import sys
 from collections import defaultdict
 from inspect import Parameter
+from textwrap import dedent
 
 import markdown
 from flask import current_app
+from flask import render_template_string
 from jinja2 import Environment
 from jinja2 import PackageLoader
 from jinja2 import select_autoescape
@@ -12,7 +15,6 @@ from werkzeug.exceptions import NotFound
 
 from coworks import Blueprint
 from coworks import entry
-from coworks import request
 
 
 class Admin(Blueprint):
@@ -22,20 +24,47 @@ class Admin(Blueprint):
     def __init__(self, name: str = 'admin', **kwargs):
         super().__init__(name=name, **kwargs)
 
-    @entry(no_auth=True, no_cors=True, content_type='text/html; charset=utf-8')
+    @entry(no_auth=True, no_cors=True)
     def get(self):
         """Returns the markdown documentation associated to this microservice.
         """
+        title = f"<span style=\"font-size:xx-large;font-weight:bold\">{current_app.__class__.__name__}</span>"
+        header = f"""<div style=\"display:flex;justify-content:space-between;\">{title}
+            <img style=\"margin-bottom:auto;width:100px;\" src=\"https://neorezo.io/assets/img/logo_neorezo.png\"/>
+            </div>"""
+
+        deployed = os.getenv("CWS_DATETIME", None)
+        if deployed:
+            lambda_name = os.getenv("CWS_LAMBDA", None)
+            header += f"""<div style=\"display:flex;flex-direction:row-reverse;font-size:small;margin-top:5px;\">
+                      {lambda_name} deployed {deployed}</div>"""
+
         md = getattr(current_app, 'doc_md', None)
         if not md:
             md = getattr(current_app.__class__, 'DOC_MD', None)
-        if md:
-            return markdown.markdown(md, extensions=['fenced_code'])
+        if not md and current_app.__class__.__doc__:
+            md = current_app.__class__.__doc__.replace('\n', ' ').strip()
+        content = markdown.markdown(md, extensions=['fenced_code']) if md else ""
 
-        if current_app.__class__.__doc__:
-            return current_app.__class__.__doc__.replace('\n', ' ').strip()
+        template = dedent(
+            """<style type="text/css">ul.nobull {list-style-type: none;}</style>
+            <ul class="nobull">{% for entry,route in routes.items() %}
+                <li>{{ entry }} : <ul>{% for method,info in route.items() %}
+                    <li><i>{{ method }}{{ info.signature }}[endpoint: {{info.endpoint}}]</i> : {{ info.doc }}
+                    <ul class="nobull">{% for param in info.params %}<li><i>{{ param }}</i>{% endfor %}</ul>
+                {% endfor %}</li></ul></li>
+            {% endfor %}</ul>"""
+        )
+        routes = dict(sorted(self.get_route(blueprint="__all__").items()))
+        bottom = render_template_string(template, routes=routes)
+        content = header + '<hr/>' + content + '<hr/>' + bottom + '\n'
 
-    @entry
+        headers = {
+            "Content-Type": 'text/html; charset=utf-8'
+        }
+        return content, 200, headers
+
+    @entry(stage="dev")
     def get_route(self, prefix=None, blueprint=None):
         """Returns the list of entrypoints with signature.
 
@@ -49,7 +78,7 @@ class Admin(Blueprint):
 
         for rule in current_app.url_map.iter_rules():
 
-            # If must return only prefixed routes
+            # Must return only prefixed routes
             if prefix:
                 if rule.rule.startswith(prefix):
                     self.add_route_from_rule(routes, rule)
@@ -59,7 +88,7 @@ class Admin(Blueprint):
             function_called = current_app.view_functions[rule.endpoint]
             from_blueprint = getattr(function_called, '__CWS_FROM_BLUEPRINT')
 
-            # If must return only blueprint routes
+            # Must return only blueprint routes
             if blueprint:
                 if blueprint == '__all__' or from_blueprint == blueprint:
                     self.add_route_from_rule(routes, rule)
@@ -70,11 +99,6 @@ class Admin(Blueprint):
                 self.add_route_from_rule(routes, rule)
 
         return routes
-
-    @entry
-    def get_event(self):
-        """Returns the calling event."""
-        return request.aws_event
 
     def get_proxy(self):
         """Returns the calling context."""
@@ -99,7 +123,8 @@ class Admin(Blueprint):
                 function_called = current_app.view_functions[rule.endpoint]
                 route[http_method] = {
                     'signature': get_signature(function_called),
-                    'binary': getattr(function_called, '__CWS_BINARY'),
+                    'endpoint': rule.endpoint,
+                    'binary_headers': getattr(function_called, '__CWS_BINARY_HEADERS'),
                     'no_auth': getattr(function_called, '__CWS_NO_AUTH'),
                     'no_cors': getattr(function_called, '__CWS_NO_CORS'),
                 }
@@ -107,10 +132,6 @@ class Admin(Blueprint):
                 from_blueprint = getattr(function_called, '__CWS_FROM_BLUEPRINT')
                 if from_blueprint:
                     route[http_method]['blueprint'] = from_blueprint
-
-                content_type = getattr(function_called, '__CWS_CONTENT_TYPE')
-                if content_type:
-                    route[http_method]['content_type'] = content_type
 
                 doc = inspect.getdoc(function_called)
                 if doc:

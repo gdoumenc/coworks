@@ -1,0 +1,47 @@
+{% extends "base.j2" %}
+
+{% block header %}
+  <div class="text-center">
+    <h2 class="text-3xl font-bold tracking-tight text-gray-900 sm:text-5xl m-6">Sign In</h2>
+    <p class="mt-4 mb-10 text-lg leading-6 text-gray-500">
+      Example of a form calling a CWS Microservices.</p>
+  </div>
+{% endblock header %}
+
+{% block content %}
+  <div class="bg-white p-4 sm:px-6 lg:col-span-3 lg:py-12 lg:px-8 xl:pl-8">
+    <div class="mx-auto max-w-lg lg:max-w-none">
+      <form action="#" method="POST" class="grid grid-cols-2 gap-6">
+        {{ form.csrf_token }}
+        <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+        <div>
+          {{ form.email.label }}
+          <input id="{{ form.email.name }}" name="{{ form.email.name }}" type="email"
+                 autocomplete="{{ form.email.name }}"
+                 class="block w-full rounded-md border-gray-300 py-3 px-4 placeholder-gray-500 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                 placeholder="{{ form.email.name }}">
+        </div>
+        <div>
+          {{ form.password.label }}
+          <input id="{{ form.password.name }}" name="{{ form.password.name }}" type="{{ form.password.name }}"
+                 autocomplete="{{ form.password.name }}"
+                 class="block w-full rounded-md border-gray-300 py-3 px-4 placeholder-gray-500 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                 placeholder="{{ form.password.name }}">
+        </div>
+        <div class="flex flex-row-reverse col-span-2 lg:mt-6 sm:mt-0 gap-6">
+          <a href="{{ url_for("get") }}"
+             class="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-3 px-6 text-base font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+            Back to Home</a>
+          <button type="submit"
+                  class="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-3 px-6 text-base font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+            Sign In
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock content %}
+
+{% block news %}
+  {% include "news.j2" %}
+{% endblock news %}

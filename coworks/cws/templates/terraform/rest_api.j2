@@ -3,7 +3,8 @@ locals {
   {{ resource_name }}_api_arn = join("", aws_api_gateway_rest_api.{{ resource_name }}.*.arn, data.aws_api_gateway_rest_api.{{ resource_name }}.*.arn)
   {{ resource_name }}_api_id = join("", aws_api_gateway_rest_api.{{ resource_name }}.*.id, data.aws_api_gateway_rest_api.{{ resource_name }}.*.id)
   {{ resource_name }}_api_root_id = join("", aws_api_gateway_rest_api.{{ resource_name }}.*.root_resource_id, data.aws_api_gateway_rest_api.{{ resource_name }}.*.root_resource_id)
-  {{ resource_name }}_api_binary_media_types = ["multipart/form-data", "application/octet-stream", "application/pdf", "image/*"]
+  {{ resource_name }}_api_binary_media_types = ["multipart/form-data", "application/octet-stream", "application/pdf", "image/*"
+    {%- if binary_types -%}{%- for type in binary_types -%},"{{ type }}"{%- endfor -%}{%- endif -%}]
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -15,11 +16,7 @@ resource "aws_api_gateway_rest_api" "{{ resource_name }}" {
   count = local.{{ resource_name }}_when_default
   name = "{{ resource_name }}"
   description = "{{ description | replace("\n", "\\n") }}"
-  {%- if binary_media_types %}
-  binary_media_types = concat(local.{{ resource_name }}_api_binary_media_types, {{ binary_media_types | tojson }})
-  {%- else %}
   binary_media_types = local.{{ resource_name }}_api_binary_media_types
-  {%- endif %}
   endpoint_configuration {
     types = ["REGIONAL"]
   }
@@ -107,19 +104,6 @@ resource "aws_api_gateway_integration" "{{ resource_name }}_{{ uid }}_{{ method 
   }
   depends_on = [aws_api_gateway_method.{{ resource_name }}_{{ uid }}_{{ method }}]
 }
-resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_{{ method }}_response_200" {
-  provider = aws.{{ resource_name }}
-  count = {{ "local.{}_when_default".format(resource_name) }}
-  rest_api_id = local.{{ resource_name }}_api_id
-  {%- if resource.is_root %}
-  resource_id = local.{{ resource_name }}_api_root_id
-  {%- else %}
-  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
-  {%- endif %}
-  http_method = "{{ method }}"
-  status_code = "200"
-  depends_on = [aws_api_gateway_method.{{ resource_name }}_{{ uid }}_{{ method }}]
-}
 resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_{{ method }}_response_200" {
   provider = aws.{{ resource_name }}
   count = {{ "local.{}_when_default".format(resource_name) }}
@@ -131,25 +115,39 @@ resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_{
   {%- endif %}
   http_method = join("", aws_api_gateway_method.{{ resource_name }}_{{ uid }}_{{ method }}.*.http_method)
   status_code = "200"
-  {%- if not rule.cws_binary %}
-
-  # Transforms the backend JSON response
+  {%- if rule.cws_binary_headers %}
+  response_parameters = {
+  {%- for k, v in rule.cws_binary_headers.items() %}
+  "method.response.header.{{ k }}" = "'{{ v }}'",
+  {%- endfor %}
+  }
+  {%- endif %}
+  {%- if not rule.cws_binary_headers %}
   response_templates = {
-    "application/json" = <<-EOF
-      #set($inputRoot = $input.path('$'))
-      #set($context.responseOverride.status=$inputRoot.statusCode)
-      #set($context.responseOverride.header=$inputRoot.headers)
-      $input.json('$.body')
-    EOF
-    "text/html" = <<-EOF
-      #set($inputRoot = $input.path('$'))
-      #set($context.responseOverride.status=$inputRoot.statusCode)
-      #set($context.responseOverride.header=$inputRoot.headers)
-      $inputRoot.body
-    EOF
+  {% include "terraform/response_templates.j2" %}
   }
   {%- endif %}
   depends_on = [aws_api_gateway_method_response.{{ resource_name }}_{{ uid }}_{{ method }}_response_200]
+}
+resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_{{ method }}_response_200" {
+  provider = aws.{{ resource_name }}
+  count = {{ "local.{}_when_default".format(resource_name) }}
+  rest_api_id = local.{{ resource_name }}_api_id
+  {%- if resource.is_root %}
+  resource_id = local.{{ resource_name }}_api_root_id
+  {%- else %}
+  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
+  {%- endif %}
+  http_method = "{{ method }}"
+  status_code = "200"
+  {%- if rule.cws_binary_headers %}
+  response_parameters = {
+    {%- for k in rule.cws_binary_headers.keys() %}
+    "method.response.header.{{ k }}" = true,
+    {%- endfor %}
+  }
+  {%- endif %}
+  depends_on = [aws_api_gateway_method.{{ resource_name }}_{{ uid }}_{{ method }}]
 }
 {%- endfor %}
 {%- endfor %}
@@ -205,7 +203,7 @@ resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_O
       })
     EOF
   }
-  depends_on = [aws_api_gateway_integration.{{ resource_name }}_{{ uid }}_OPTIONS]
+  depends_on = [aws_api_gateway_method_response.{{ resource_name }}_{{ uid }}_OPTIONS]
 }
 resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_OPTIONS" {
   provider = aws.{{ resource_name }}
@@ -225,6 +223,7 @@ resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_OPTION
     "method.response.header.Access-Control-Allow-Headers" = true,
     "method.response.header.Access-Control-Allow-Methods" = true,
     "method.response.header.Access-Control-Allow-Origin" = true,
+    "method.response.header.Access-Control-Allow-Credentials" = true,
   }
   depends_on = [aws_api_gateway_method.{{ resource_name }}_{{ uid }}_OPTIONS]
 }

@@ -1,0 +1,9 @@
+GET https://2kb9hn4bs4.execute-api.eu-west-1.amazonaws.com/v1/admin
+Accept: text/html
+
+###
+
+GET https://2kb9hn4bs4.execute-api.eu-west-1.amazonaws.com/v1
+Accept: application/json
+
+###

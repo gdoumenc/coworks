@@ -1,5 +1,4 @@
 import base64
-import logging
 import typing as t
 from json import JSONDecodeError
 from json import loads
@@ -42,18 +41,18 @@ class TechMicroServiceOperator(BaseOperator):
     """
     template_fields = ["cws_name", "entry", "query_params", "json", "data"]
 
-    def __init__(self, *, cws_name: str = None, entry: str = None, method: str = None, no_auth: bool = False,
+    def __init__(self, *, cws_name: str = None, entry: str = '/', method: str = 'get', no_auth: bool = False,
                  query_params: t.Union[dict, str] = None, json: t.Union[dict, str] = None,
                  data: t.Union[dict, str] = None,
                  stage: str = None, api_id: str = None, token: str = None,
                  directory_conn_id: str = 'coworks_directory', asynchronous: bool = False,
-                 xcom_push=True, json_result=True, raise_400_errors: bool = True, accept='application/json',
-                 headers=None, log_response: bool = False,
+                 xcom_push: bool = True, json_result: bool = True, raise_400_errors: bool = True,
+                 accept: str = 'application/json', headers: dict = None, log_response: bool = False,
                  **kwargs) -> None:
         super().__init__(**kwargs)
         self.cws_name = cws_name
         self.entry = entry.lstrip('/')
-        self.method = method.lower() if method else 'get'
+        self.method = method.lower()
         self.no_auth = no_auth
         self.log_response = log_response
         self.query_params = query_params
@@ -86,13 +85,17 @@ class TechMicroServiceOperator(BaseOperator):
         """Gets url and token from name or parameters.
         Done only before execution not on DAG loading.
         """
+        dag_run = context['dag_run']
+        start_date = dag_run.start_date.timestamp()
+        trace_id = f"Root=1-{hex(int(start_date))[2:]}-{f'cws{dag_run.id:0>9}'.encode().hex()}"
+        self.headers['x-amzn-trace-id'] = trace_id
+        self.log.info(f"Cws trace: {trace_id}")
+
         if self.cws_name:
             http = HttpHook('get', http_conn_id=self.directory_conn_id)
             self.log.info("Calling CoWorks directory")
             data = {'stage': self.stage} if self.stage else {}
             response = http.run(self.cws_name, data=data)
-            if self.log_response:
-                self.log.info(response.text)
             coworks_data = loads(response.text)
             self.token = coworks_data['token']
             self._url = f"{coworks_data['url']}/{self.entry}"
@@ -100,13 +103,14 @@ class TechMicroServiceOperator(BaseOperator):
             self._url = f'https://{self.api_id}.execute-api.eu-west-1.amazonaws.com/{self.stage}/{self.entry}'
 
         if self.asynchronous:
+            ti = context['ti']
             self._bucket = 'coworks-airflow'
-            self._key = f"s3/{context['ti'].dag_id}/{context['ti'].task_id}/{context['ti'].job_id}"
+            self._key = f"s3/{dag_run.dag_id}/{ti.task_id}/{ti.job_id}"
 
             self.headers['InvocationType'] = 'Event'
             self.headers['X-CWS-S3Bucket'] = self._bucket
             self.headers['X-CWS-S3Key'] = self._key
-            logging.info(f"Result stored in 's3://{self._bucket}/{self._key}'")
+            self.log.info(f"Result stored in 's3://{self._bucket}/{self._key}'")
 
         if not self.no_auth:
             self.headers['Authorization'] = self.token
@@ -114,46 +118,50 @@ class TechMicroServiceOperator(BaseOperator):
     def execute(self, context):
         """Call TechMicroService.
         """
-        self._call_cws(context)
+        resp = self._call_cws(context)
+        if self.xcom_push_flag:
+            self._push_response(context, resp)
 
     def _call_cws(self, context):
-        logging.info(f"Calling {self.method.upper()} method to {self._url}")
-        res = requests.request(
+        """Method used by operator and sensor."""
+        self.log.info(f"Calling {self.method.upper()} method to {self._url}")
+        resp = requests.request(
             self.method.upper(), self._url, headers=self.headers,
             params=self.query_params, json=self.json, data=self.data
         )
-        logging.info(f"Resulting status code : {res.status_code}")
+        self.log.info(f"Resulting status code : {resp.status_code}")
 
         # Manages status
-        if self.raise_400_errors and res.status_code >= 400:
-            logging.error(f"Bad request: {res.text}'")
-            raise AirflowFailException(f"The TechMicroService {self.cws_name} had a client error {res.status_code}!")
-        if res.status_code >= 500:
-            logging.error(f"Internal error: {res.text}'")
-            raise AirflowFailException(f"The TechMicroService {self.cws_name} had an internal error {res.status_code}!")
+        if self.raise_400_errors and resp.status_code >= 400:
+            self.log.error(f"Bad request: {resp.text}'")
+            raise AirflowFailException(f"The TechMicroService {self.cws_name} had a client error {resp.status_code}!")
+        if resp.status_code >= 500:
+            self.log.error(f"Internal error: {resp.text}'")
+            raise AirflowFailException(
+                f"The TechMicroService {self.cws_name} had an internal error {resp.status_code}!")
+        return resp
 
+    def _push_response(self, context, resp):
         # Return values or store file information
-        if self.xcom_push_flag:
-            self.xcom_push(context, XCOM_CWS_NAME, self.cws_name or self.api_id)
-            if self.asynchronous:
-                self.xcom_push(context, XCOM_CWS_BUCKET, self._bucket)
-                self.xcom_push(context, XCOM_CWS_KEY, self._key)
+        self.xcom_push(context, XCOM_CWS_NAME, self.cws_name or self.api_id)
+        if self.asynchronous:
+            self.xcom_push(context, XCOM_CWS_BUCKET, self._bucket)
+            self.xcom_push(context, XCOM_CWS_KEY, self._key)
+        else:
+            if self.json_result:
+                try:
+                    returned_value = resp.json() if resp.content else {}
+                except JSONDecodeError:
+                    self.log.error(f"Not a JSON value: {resp.text}'")
+                    returned_value = resp.text
             else:
-                if self.json_result:
-                    try:
-                        returned_value = res.json() if res.content else {}
-                    except JSONDecodeError:
-                        logging.error(f"Not a JSON value: {res.text}'")
-                        returned_value = res.text
-                else:
-                    returned_value = res.text
+                returned_value = resp.text
 
-                if self.log_response:
-                    logging.info(returned_value)
+            if self.log_response:
+                self.log.info(returned_value)
 
-                self.xcom_push(context, XCOM_STATUS_CODE, res.status_code)
-                self.xcom_push(context, 'return_value', returned_value)
-                return returned_value
+            self.xcom_push(context, XCOM_STATUS_CODE, resp.status_code)
+            self.xcom_push(context, 'return_value', returned_value)
 
 
 class AsyncTechServicePullOperator(BaseOperator):
@@ -161,6 +169,7 @@ class AsyncTechServicePullOperator(BaseOperator):
 
     :param cws_task_id: the tech microservice called asynchronously.
     :param aws_conn_id: aws connection (default 'aws_s3').
+    :param raise_errors: raises error if the called microserrvice did (default True).
     """
 
     def __init__(self, *, cws_task_id: str = None, aws_conn_id: str = 'aws_s3',
@@ -204,9 +213,9 @@ class BranchTechMicroServiceOperator(BaseBranchOperator):
     :param on_success: the task_ids in case of status code returned == 200 and on check branch not selected.
     """
 
-    def __init__(self, *, cws_task_id: str = None, on_success: str = None, on_failure: str = None,
-                 on_no_content: str = None, response_check: t.Optional[t.Callable[..., bool]] = None,
-                 on_check: str = None, **kwargs) -> None:
+    def __init__(self, *, cws_task_id: str = None, on_success: t.Union[str, t.Iterable[str]] = None,
+                 on_failure: t.Union[str, t.Iterable[str]] = None, on_no_content: t.Union[str, t.Iterable[str]] = None,
+                 response_check: t.Optional[t.Callable[..., bool]] = None, on_check: str = None, **kwargs) -> None:
         super().__init__(**kwargs)
         self.cws_task_id = cws_task_id
         self.on_success = on_success
@@ -217,7 +226,7 @@ class BranchTechMicroServiceOperator(BaseBranchOperator):
 
     def choose_branch(self, context):
         status_code = int(context['ti'].xcom_pull(task_ids=self.cws_task_id, key=XCOM_STATUS_CODE))
-        logging.info(f"TechMS {self.cws_task_id} returned code : {status_code}")
+        self.log.info(f"TechMS {self.cws_task_id} returned code : {status_code}")
         if self.on_failure and status_code >= 400:
             return self.on_failure
         if self.on_no_content and status_code == 204:

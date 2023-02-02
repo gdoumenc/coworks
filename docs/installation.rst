@@ -13,8 +13,8 @@ Install Coworks
 
 Use a virtual environment to install CoWorks. We recommend using ``pipenv``::
 
-	$ mkdir project
-	$ cd project
+	$ mkdir project && cd "$_"
+	$ touch Pipfile
 	$ pipenv install coworks
 	$ pipenv shell
 
@@ -30,9 +30,10 @@ Create a project
 
 To create a new project, enter::
 
-	(project) $ cws new
+	(project) $ cws -p . new
+	New project created.
 
-You now have everything you need to create your first micro-service by following :ref:`tech_quickstart`
+You now have everything you need to create your first micro-service by following :ref:`tech_quickstart`.
 
 Other tools
 -----------

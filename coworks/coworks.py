@@ -1,7 +1,9 @@
 import base64
 import io
+import itertools
 import logging
 import os
+import traceback
 import typing as t
 from functools import partial
 from http.cookiejar import CookieJar
@@ -11,32 +13,28 @@ from pathlib import Path
 import boto3
 from flask import Blueprint as FlaskBlueprint
 from flask import Flask
-from flask import Response
 from flask import current_app
-from flask import g
 from flask import json
 from flask.blueprints import BlueprintSetupState
-from flask.ctx import RequestContext
 from flask.testing import FlaskClient
 from werkzeug.datastructures import ImmutableDict
+from werkzeug.datastructures import MultiDict
 from werkzeug.datastructures import WWWAuthenticate
 from werkzeug.exceptions import Forbidden
-from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import Unauthorized
 from werkzeug.routing import Rule
 
-from .config import Config
-from .config import DEFAULT_LOCAL_WORKSPACE
-from .config import DevConfig
-from .config import LocalConfig
-from .config import ProdConfig
 from .globals import request
+from .utils import BIZ_BUCKET_HEADER_KEY
+from .utils import BIZ_KEY_HEADER_KEY
+from .utils import DEFAULT_LOCAL_STAGE
 from .utils import HTTP_METHODS
 from .utils import add_coworks_routes
-from .utils import get_app_workspace
-from .utils import is_json
+from .utils import get_app_stage
+from .utils import load_dotenv
 from .utils import trim_underscores
+from .wrappers import CoworksMapAdapter
 from .wrappers import CoworksRequest
 from .wrappers import CoworksResponse
 from .wrappers import TokenResponse
@@ -47,19 +45,19 @@ from .wrappers import TokenResponse
 #
 
 
-def entry(fun: t.Callable = None, binary: bool = False, content_type: str = None,
+def entry(fun: t.Callable = None, binary_headers: t.Dict[str, str] = None,
+          stage: t.Union[str, t.Iterable[str]] = None,
           no_auth: bool = False, no_cors: bool = True) -> t.Callable:
     """Decorator to create a microservice entry point from function name.
+
     :param fun: the entry function.
-    :param binary: allow payload without transformation.
-    :param content_type: force default content-type.
+    :param binary_headers: force default content-type.
+    :param stage: entry defined only for this stage(s).
     :param no_auth: set authorizer by default.
     :param no_cors: set CORS by default.
     """
     if fun is None:
-        if binary and not content_type:
-            content_type = 'application/octet-stream'
-        return partial(entry, binary=binary, content_type=content_type, no_auth=no_auth, no_cors=no_cors)
+        return partial(entry, binary_headers=binary_headers, stage=stage, no_auth=no_auth, no_cors=no_cors)
 
     def get_path(start):
         name_ = fun.__name__[start:]
@@ -78,11 +76,13 @@ def entry(fun: t.Callable = None, binary: bool = False, content_type: str = None
         method = 'POST'
         path = get_path(0)
 
+    stage = [] if stage is None else stage
+
     fun.__CWS_METHOD = method
     fun.__CWS_PATH = path
-    fun.__CWS_BINARY = binary
-    fun.__CWS_CONTENT_TYPE = content_type
+    fun.__CWS_BINARY_HEADERS = binary_headers
     fun.__CWS_NO_AUTH = no_auth
+    fun.__CWS_STAGES = stage if type(stage) == list else [stage]
     fun.__CWS_NO_CORS = no_cors
 
     return fun
@@ -117,15 +117,48 @@ class CoworksClient(FlaskClient):
 
     def __init__(self, *args: t.Any, aws_event=None, aws_context=None, **kwargs: t.Any) -> None:
         super().__init__(*args, **kwargs)
-        self.environ_base.update({
-            "aws_event": aws_event,
-            "aws_context": aws_context,
-        })
 
-        # Complete request content from lambda event
-        if aws_event and 'headers' in aws_event:
-            headers = aws_event['headers']
-            self.cookie_jar = CoworksCookieJar(headers.get('cookie'))
+        path_info = aws_event['path']
+        headers = aws_event['headers']
+        request_context = aws_event['requestContext']
+
+        method = request_context['httpMethod']
+        scheme = headers['x-forwarded-proto']
+        host_name = headers['x-forwarded-host'] if 'x-forwarded-host' in headers else request_context['domainName']
+        entry_path = request_context['entryPath']
+        stage = request_context['stage']
+        entry_path_parameters = aws_event['entryPathParameters']
+        query_string = MultiDict(aws_event['multiValueQueryStringParameters'])
+
+        is_encoded = aws_event.get('isBase64Encoded', False)
+        body = aws_event['body']
+        if body and is_encoded:
+            body = base64.b64decode(body)
+
+        self.aws_environ = {
+            "wsgi.input": io.BytesIO(b""),
+            "wsgi.url_scheme": scheme,
+            "REQUEST_SCHEME": scheme,
+            "REQUEST_METHOD": method,
+            "SERVER_NAME": host_name,
+            "PATH_INFO": entry_path,
+
+            'aws_event': aws_event,
+            'aws_context': aws_context,
+            'aws_stage': stage,
+            "aws_entry_path": entry_path,
+            "aws_entry_path_parameters": entry_path_parameters,
+            'aws_query_string': query_string,
+            'aws_body': body,
+        }
+        self.cookie_jar = CoworksCookieJar(headers.get('cookie'))
+
+    def open(self, *args, **kwargs) -> CoworksResponse:
+        req = CoworksRequest(self.aws_environ, populate_request=False, shallow=True)
+        return t.cast(CoworksResponse, super().open(req))
+
+    def _copy_environ(self, other) -> dict:
+        return {**other}
 
 
 class Blueprint(FlaskBlueprint):
@@ -138,15 +171,16 @@ class Blueprint(FlaskBlueprint):
         """Initialize a blueprint.
 
         :param kwargs: Other Flask blueprint parameters.
-
         """
         import_name = self.__class__.__name__.lower()
         super().__init__(name or import_name, import_name, **kwargs)
 
     def init_app(self, app):
+        """".. deprecated:: 0.8.0"""
         ...
 
     def init_cli(self, app):
+        """.. deprecated:: 0.8.0"""
         ...
 
     @property
@@ -159,42 +193,49 @@ class Blueprint(FlaskBlueprint):
 
         # Defer blueprint route initialization.
         if not options.get('hide_routes', False):
-            app.deferred_init_routes_functions.append(partial(add_coworks_routes, state.app, state))
+            func = partial(add_coworks_routes, state.app, state)
+            app.deferred_init_routes_functions = itertools.chain(app.deferred_init_routes_functions, (func,))
 
         return state
 
 
 class TechMicroService(Flask):
     """Simple tech microservice.
-    
+
     See :ref:`tech` for more information.
+
+    .. versionadded:: 0.8.0
+       The `stage_prefixed` parameter was added.
     """
 
-    def __init__(self, name: str = None, *, configs: t.Union[Config, t.List[Config]] = None, **kwargs) -> None:
+    # Maximume content length for writing response content in debug
+    size_max_for_debug = 2000
+
+    def __init__(self, name: str = None, stage_prefixed: bool = True, **kwargs) -> None:
         """ Initialize a technical microservice.
         :param name: Name used to identify the microservice.
-        :param configs: Deployment configurations.
-        :param kwargs: Other Chalice parameters.
+        :param stage_prefixed: if accessed with stage or not.
+        :param kwargs: Other Flask parameters.
         """
+        stage = get_app_stage()
+        load_dotenv(stage)
+
         self.default_config = ImmutableDict({
             **self.default_config,
-            "JSON_SORT_KEYS": False,
+            "FLASK_SKIP_DOTENV": True,
         })
-
-        self.configs = configs or [LocalConfig(), DevConfig(), ProdConfig()]
-        if type(self.configs) is not list:
-            self.configs = [configs]
 
         name = name or self.__class__.__name__.lower()
         super().__init__(import_name=name, static_folder=None, **kwargs)
 
-        self.test_client_class = CoworksClient
         self.request_class = CoworksRequest
         self.response_class = CoworksResponse
 
-        self.deferred_init_routes_functions: t.List[t.Callable] = []
+        self.deferred_init_routes_functions: t.Iterable[t.Callable] = []
         self._cws_app_initialized = False
         self._cws_conf_updated = False
+        self.__aws_url_map = None
+        self.__stage_prefixed = stage_prefixed
 
         @self.before_request
         def before():
@@ -203,57 +244,51 @@ class TechMicroService(Flask):
     def init_app(self):
         """Called to finalize the application initialization.
         Mainly to get external variables defined specifically for a workspace.
+
+        .. deprecated:: 0.8.0
         """
 
     def init_cli(self):
         """Called only on cli command.
         Mainly externalized to allow specific import not needed on deployed implementation.
+
+        .. deprecated:: 0.8.0
         """
-        ...
 
     def app_context(self):
         """Override to initialize coworks microservice.
         """
         self._init_app(False)
-
-        if os.environ.get("FLASK_RUN_FROM_CLI") == "true":
-            self.init_cli()
-            for bp in self.blueprints.values():
-                if isinstance(bp, Blueprint):
-                    t.cast(Blueprint, bp).init_cli(self)
-
         return super().app_context()
 
-    def cws_client(self, event, context):
-        """CoWorks client with new globals.
-        """
-        return super().test_client(aws_event=event, aws_context=context)
+    def create_url_adapter(self, _request: t.Optional[CoworksRequest]):
+        if _request and _request.aws_event:
+            self.subdomain_matching = True
+            return CoworksMapAdapter(_request.environ, self.url_map, self.aws_url_map, self.__stage_prefixed)
+        return super().create_url_adapter(_request)
 
-    def test_client(self, *args, **kwargs):
-        """This client must be used only for testing.
+    def cws_client(self, aws_event, aws_context):
+        """CoWorks client used by the lambda call.
         """
-        self.testing = True
-        self._init_app(False)
-
-        return super().test_client(*args, **kwargs)
+        return CoworksClient(self, CoworksResponse, use_cookies=True, aws_event=aws_event, aws_context=aws_context)
 
     @property
-    def ms_type(self) -> str:
-        return 'tech'
+    def aws_url_map(self) -> t.Dict[str, t.List[Rule]]:
+        if self.__aws_url_map is None:
+            self.__aws_url_map = {}
+            for rule in self.url_map.iter_rules():
+                entry_path = rule.rule.replace('<', '{').replace('>', '}')
+                if entry_path in self.__aws_url_map:
+                    self.__aws_url_map[entry_path].append(rule)
+                else:
+                    self.__aws_url_map[entry_path] = [rule]
+        return self.__aws_url_map
 
     @property
-    def routes(self) -> t.List[Rule]:
+    def routes(self) -> t.List[str]:
         """Returns the list of routes defined in the microservice.
         """
-        return [r.rule for r in self.url_map.iter_rules()]
-
-    def get_config(self, workspace) -> Config:
-        """Returns the configuration corresponding to the workspace.
-        """
-        for conf in self.configs:
-            if conf.is_valid_for(workspace):
-                return conf
-        return Config()
+        return [k for k in self.aws_url_map]
 
     def token_authorizer(self, token: str) -> t.Union[bool, str]:
         """Defined the authorization process.
@@ -265,26 +300,7 @@ class TechMicroService(Flask):
         By default, no entry are accepted for security reason.
         """
 
-        if get_app_workspace() == DEFAULT_LOCAL_WORKSPACE:
-            return True
         return token == os.getenv('TOKEN')
-
-    def base64decode(self, data):
-        """Base64 decode function used for lambda interaction.
-        """
-        if not isinstance(data, bytes):
-            data = data.encode('ascii')
-        output = base64.b64decode(data)
-        return output
-
-    def base64encode(self, data):
-        """Base64 encode function used for lambda interaction.
-        """
-        if not isinstance(data, bytes):
-            msg = f'Expected bytes type for body with binary Content-Type. Got {type(data)} type body instead.'
-            raise ValueError(msg)
-        data = base64.b64encode(data).decode('ascii')
-        return data
 
     def auto_find_instance_path(self):
         """Instance path may be redefined by an environment variable.
@@ -293,7 +309,7 @@ class TechMicroService(Flask):
         path = Path(self.root_path) / instance_relative_path
         return path.as_posix()
 
-    def store_response(self, resp, headers):
+    def store_response(self, resp: t.Union[dict, bytes], request_headers):
         """Store microservice response in S3 for biz task sequence.
 
         May be redefined for another storage in asynchronous call.
@@ -301,16 +317,17 @@ class TechMicroService(Flask):
 
         bucket = key = ''
         try:
-            bucket = headers.get(self.config['X-CWS-S3Bucket'].lower())
-            key = headers.get(self.config['X-CWS-S3Key'].lower())
+            bucket = request_headers.get(self.config['X-CWS-S3Bucket'].lower())
+            key = request_headers.get(self.config['X-CWS-S3Key'].lower())
             if bucket and key:
-                aws_s3_session = boto3.session.Session()
-                content = json.dumps(resp) if type(resp) is dict else resp
-                buffer = io.BytesIO(content.encode())
+                content = json.dumps(resp).encode() if type(resp) is dict else resp
+                buffer = io.BytesIO(content)
                 buffer.seek(0)
-                self.logger.debug(f"Store response in s3://{bucket}/{key}")
+                aws_s3_session = boto3.session.Session()
                 aws_s3_session.client('s3').upload_fileobj(buffer, bucket, key)
-                self.logger.debug(f"Storing response in {bucket}/{key}")
+                self.logger.debug(f"Response stored in {bucket}/{key}")
+            else:
+                self.logger.error("Cannot store response as no bucket or key")
         except Exception as e:
             self.logger.error(f"Exception when storing response in {bucket}/{key} : {str(e)}")
 
@@ -323,10 +340,9 @@ class TechMicroService(Flask):
             for fun in self.deferred_init_routes_functions:
                 fun()
 
-            self.init_app()
-            for bp in self.blueprints.values():
-                if isinstance(bp, Blueprint):
-                    t.cast(Blueprint, bp).init_app(self)
+            if os.getenv("FLASK_RUN_FROM_CLI"):
+                self.init_cli()
+
             self._cws_app_initialized = True
 
     def __call__(self, arg1, arg2) -> dict:
@@ -350,92 +366,83 @@ class TechMicroService(Flask):
             return self._token_handler(event, context)
         return self._api_handler(event, context)
 
-    def _token_handler(self, event: t.Dict[str, t.Any], context: t.Dict[str, t.Any]) -> dict:
+    def _token_handler(self, aws_event: t.Dict[str, t.Any], aws_context: t.Dict[str, t.Any]) -> dict:
         """Authorization token handler.
         """
-        self.logger.warning(f"Calling {self.name} for authorization : {event}")
+        self.logger.warning(f"Calling {self.name} for authorization : {aws_event}")
 
         try:
-            res = self.token_authorizer(event['authorizationToken'])
-            self.logger.debug(f"Token authorizer return is : {res}")
-            return TokenResponse(res, event['methodArn']).json
+            res = self.token_authorizer(aws_event['authorizationToken'])
+            self.logger.warning(f"Token authorizer return is : {res}")
+            return TokenResponse(res, aws_event['methodArn']).json
         except Exception as e:
             self.logger.error(f"Error in token handler for {self.name} : {e}")
-            return TokenResponse(False, event['methodArn']).json
+            self.logger.error(''.join(traceback.format_exception(None, e, e.__traceback__)))
+            return TokenResponse(False, aws_event['methodArn']).json
 
-    def _api_handler(self, event: t.Dict[str, t.Any], context: t.Dict[str, t.Any]) -> dict:
+    def _api_handler(self, aws_event: t.Dict[str, t.Any], aws_context: t.Dict[str, t.Any]) -> t.Union[dict, str]:
         """API handler.
         """
-        self.logger.warning(f"Calling {self.name} by api : {event}")
-
-        def full_path():
-            url = event['path']
-
-            # Replaces route parameters
-            url = url.format(url, **event['params']['path'])
-
-            # Adds query parameters
-            params = event['multiValueQueryStringParameters']
-            if params:
-                url += '?'
-                for i, (k, v) in enumerate(params.items()):
-                    if i:
-                        url += '&'
-                    for j, vl in enumerate(v):
-                        if j:
-                            url += '&'
-                        url += f"{k}={vl}"
-            return url
+        self.logger.warning(f"Calling {self.name} by api : {aws_event}")
 
         # Transforms as simple client call and manage exception if needed
         try:
-            with self.cws_client(event, context) as c:
-                method = event['httpMethod']
-                kwargs = self._get_kwargs(event)
-                resp = getattr(c, method.lower())(full_path(), **kwargs)
-                resp = self._convert_to_lambda_response(resp)
+            with self.cws_client(aws_event, aws_context) as c:
+
+                # Get Flask return as dict or binary content
+                resp = self._convert_to_lambda_response(c.open())
 
                 # Strores response in S3 if asynchronous call
-                invocation_type = event['headers'].get('invocationtype')
+                invocation_type = aws_event['headers'].get('invocationtype')
                 if invocation_type == 'Event':
-                    self.store_response(resp, event['headers'])
+                    self.store_response(resp, aws_event['headers'])
+
+                # Encodes binary content
+                if type(resp) is not dict:
+                    resp = base64.b64encode(resp).decode('ascii')
+                    content_length = len(resp) if self.logger.getEffectiveLevel() == logging.DEBUG else "N/A"
+                    self.logger.debug(f"API returns binary content [length: {content_length}]")
+                    return resp
+
+                # Adds trace
+                if 'headers' in resp:
+                    content_length = int(resp['headers'].get('content_length', self.size_max_for_debug))
+                else:
+                    content_length = self.size_max_for_debug
+
+                if self.logger.getEffectiveLevel() == logging.DEBUG and content_length < self.size_max_for_debug:
+                    self.logger.debug(f"API returns {resp}")
+                    return resp
+                self.logger.debug(f"API returns code {resp.get('statusCode')} and headers {resp.get('headers')}")
+                return resp
+
         except Exception as e:
-            if isinstance(e, HTTPException):
-                resp = self._structured_error(e)
-            else:
-                self.logger.error(f"Error in api handler for {self.name} : {e}")
-                resp = self._structured_error(InternalServerError(original_exception=e))
-            self.logger.debug(f"Status code returned by api : {resp.get('statusCode')}")
-        else:
-            if isinstance(resp, Response):
-                self.logger.debug(f"Status code returned by api : {resp.status_code}")
-        self.logger.debug("api returns")
-        return resp
+            self.logger.error(f"Exception in api handler for {self.name} : {e}")
+            self.logger.error(''.join(traceback.format_exception(None, e, e.__traceback__)))
+            headers = {'content_type': "application/json"}
+            return self._aws_payload(str(e), InternalServerError.code, headers)
 
     def _flask_handler(self, environ: t.Dict[str, t.Any], start_response: t.Callable[[t.Any], None]):
         """Flask handler.
         """
-
         return self.wsgi_app(environ, start_response)
 
     def _update_config(self, *, in_lambda: bool):
         if not self._cws_conf_updated:
-            workspace = get_app_workspace()
-            config = self.get_config(workspace)
-
-            if not in_lambda:
-                import click
-                click.echo(f" * Workspace: {workspace}")
-                config.load_environment_variables(self)
+            workspace = get_app_stage()
 
             # Set predefined environment variables
-            self.config['X-CWS-S3Bucket'] = config.bizz_bucket_header_key
-            self.config['X-CWS-S3Key'] = config.bizz_key_header_key
+            self.config['X-CWS-S3Bucket'] = BIZ_BUCKET_HEADER_KEY
+            self.config['X-CWS-S3Key'] = BIZ_KEY_HEADER_KEY
 
             self._cws_conf_updated = True
 
     def _check_token(self):
         if not request.in_lambda_context:
+
+            # No token check on local
+            if get_app_stage() == DEFAULT_LOCAL_STAGE:
+                return
 
             # Get no_auth option for this entry
             no_auth = False
@@ -453,56 +460,34 @@ class TechMicroService(Flask):
                 if not valid:
                     raise Forbidden()
 
-    def _get_kwargs(self, event):
-        kwargs = {}
-        content_type = event['headers'].get('content-type')
-        if content_type:
-            kwargs['content_type'] = content_type
-
-        method = event['httpMethod']
-        if method not in ['PUT', 'POST']:
-            return kwargs
-
-        is_encoded = event.get('isBase64Encoded', False)
-        body = event['body']
-        if body and is_encoded:
-            body = self.base64decode(body)
-        self.logger.debug(f"Body: {body} {type(body)}")
-
-        if is_json(content_type):
-            kwargs['json'] = body
-            return kwargs
-        kwargs['data'] = body
-        return kwargs
-
-    def _convert_to_lambda_response(self, resp):
-        """Convert Lambda response."""
+    def _convert_to_lambda_response(self, resp: CoworksResponse) -> t.Union[dict, bytes]:
+        """Convert Lambda response (dict for JSON or text result, bytes for binary content)."""
 
         # returns JSON structure
         if resp.is_json:
             try:
-                return self._structured_payload(resp.json, resp.status_code, resp.headers)
+                return self._aws_payload(resp.json, resp.status_code, resp.headers)
             except (Exception,):
                 resp.mimetype = "text/plain"
 
         # returns simple string JSON structure
-        if resp.mimetype.startswith('text'):
+        if resp.mimetype and resp.mimetype.startswith('text'):
             try:
-                return self._structured_payload(resp.get_data(True), resp.status_code, resp.headers)
+                return self._aws_payload(resp.get_data(True), resp.status_code, resp.headers)
             except ValueError:
                 pass
 
         # returns direct payload
-        return self.base64encode(resp.get_data())
+        data = resp.get_data()
+        if not isinstance(data, bytes):
+            msg = f'Expected bytes type for body with binary Content-Type. Got {type(data)} type body instead.'
+            raise ValueError(msg)
+        return data
 
-    def _structured_payload(self, body, status_code, headers):
+    def _aws_payload(self, body, status_code, headers):
         return {
             "statusCode": status_code,
             "headers": {k: v for k, v in headers.items()},
             "body": body,
             "isBase64Encoded": False,
         }
-
-    def _structured_error(self, e: HTTPException):
-        headers = {'content_type': "application/json"}
-        return self._structured_payload(e.description, e.code, headers)

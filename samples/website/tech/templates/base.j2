@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html class="h-full bg-white" lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CoWorks Website Sample</title>
+  <link rel="icon" type="image/png" href="{{ url_for("get_assets_img", filename="coworks.ico") }}"/>
+  <link href="{{ url_for("get_assets_css", filename="output.css") }}" rel="stylesheet">
+  <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+</head>
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-JQE93DBT66"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-JQE93DBT66');
+</script>
+
+<body class="h-full">
+<div class="min-h-full">
+  <header class="bg-gradient-to-l from-sky-500 to-white pb-24">
+    <div class="mx-auto max-w-3xl mt-50px px-4 sm:px-6 lg:max-w-7xl lg:px-8">
+      <div class="relative flex flex-wrap items-center justify-center lg:justify-between">
+        <!-- Logo -->
+        <div class="absolute left-0 flex-shrink-0 py-5 lg:static">
+          <a href="#">
+            <span class="sr-only">CoWorks</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+  <main class="-mt-24 pb-8">
+    <div class="mx-auto max-w-3xl px-4 sm:px-6 lg:max-w-7xl lg:px-8">
+      <!-- Main 3 column grid -->
+      <div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-3 lg:gap-8">
+        <!-- Left column -->
+        <div class="grid grid-cols-1 gap-4 lg:col-span-2">
+
+          {% with messages = get_flashed_messages(with_categories=true) %}
+            {#  category in "message", "error", and "warning"#}
+            {% if messages %}
+              <div>
+                <div class="info_toaster flex w-full justify-center align-middle text-center flex-col mt-6">
+                  <ul class="flashes" x-data="{show_notice: false, fade_notice: false}">
+
+                    {% for category, message in messages %}
+                      <li style="pointer-events:all" class="mb-1">
+                        <div class="inline-flex mx-auto items-center bg-white rounded-lg px-2 py-1 shadow-lg">
+                          <span class="inline-flex px-4 text-md tracking-wide">{{ message }}</span>
+                        </div>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                </div>
+              </div>
+            {% endif %}
+          {% endwith %}
+
+          <!-- Welcome panel -->
+          <section aria-labelledby="profile-overview-title">
+            <div class="overflow-hidden rounded-lg bg-white shadow">
+              {% block header %}
+                <h2 class="sr-only" id="profile-overview-title">Profile Overview</h2>
+                <div class="bg-white p-6">
+                  <div class="sm:flex sm:items-center sm:justify-between">
+                    <div class="sm:flex sm:space-x-5">
+                      <div class="flex-shrink-0">
+                        <img class="mx-auto h-16 w-auto"
+                             src="{{ url_for("get_assets_img", filename="coworks.png") }}" alt="CoWorks">
+                      </div>
+                      <div class="mt-4 text-center sm:mt-0 sm:pt-1 sm:text-left">
+                        <p class="text-sm font-medium text-gray-600">Welcome {{ current_user.email }} and enjoy</p>
+                        <p class="text-xl font-bold text-gray-900 sm:text-2xl">CoWorks framework</p>
+                        <p class="text-sm font-medium text-gray-600">Serverless Microservices Solution</p>
+                      </div>
+                    </div>
+                    <div class="mt-5 flex justify-center sm:mt-0">
+                      {% if current_user.is_authenticated %}
+                        <a href="{{ url_for("account.get_logout") }}"
+                           class="flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
+                          Sign Out</a>
+                      {% else %}
+                        <a href="{{ url_for("account.get_login") }}"
+                           class="flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
+                          Sign In</a>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+                <div
+                    class="grid grid-cols-1 divide-y divide-gray-200 border-t border-gray-200 bg-gray-50 sm:grid-cols-3 sm:divide-y-0 sm:divide-x">
+                  <div class="px-6 py-5 text-center text-sm font-medium">
+                    <span class="text-gray-600">Last version:</span>
+                    <span class="text-gray-900">{{ version }}</span>
+                  </div>
+
+                  <div class="px-6 py-5 text-center text-sm font-medium">
+                    <span class="text-gray-600">Github stars: </span>
+                    <span class="text-gray-900">{{ stargazers_count }}
+                    <svg aria-hidden="true" viewBox="0 0 16 16" data-view-component="true"
+                         class="inline-block h-4 w-4 fill-amber-400">
+                         <path fill-rule="evenodd"
+                               d="M8 .25a.75.75 0 01.673.418l1.882 3.815 4.21.612a.75.75 0 01.416 1.279l-3.046 2.97.719 4.192a.75.75 0 01-1.088.791L8 12.347l-3.766 1.98a.75.75 0 01-1.088-.79l.72-4.194L.818 6.374a.75.75 0 01.416-1.28l4.21-.611L7.327.668A.75.75 0 018 .25z"></path>
+                    </svg>
+                  </span>
+                  </div>
+
+                  <div class="px-6 py-5 text-center text-sm font-medium">
+                    <span class="text-gray-900">In use: </span>
+                    <span class="text-gray-600">{{ tech_in_use }}</span>
+                  </div>
+                </div>
+              {% endblock header %}
+            </div>
+          </section>
+
+          {% block content %}
+          {% endblock content %}
+        </div>
+
+        <!-- Right column -->
+        <div class="grid grid-cols-1 gap-4">
+          <!-- Announcements -->
+          <section aria-labelledby="announcements-title">
+            <div class="overflow-hidden rounded-lg bg-white shadow">
+              <div class="p-6">
+                <h2 class="text-base font-medium text-gray-900" id="announcements-title">Announcements</h2>
+                <div class="mt-6 flow-root">
+                  {% block news %}
+                  {% endblock news %}
+                </div>
+              </div>
+            </div>
+          </section>
+
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+
+</body>
+</html>
