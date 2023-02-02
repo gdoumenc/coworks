@@ -18,6 +18,7 @@ class TechMicroServiceSensor(BaseSensorOperator, TechMicroServiceOperator):
         super().__init__(asynchronous=False, raise_400_errors=False, poke_interval=poke_interval, **kwargs)
 
     def poke(self, context):
+        """Set microservice context and execute it eache time."""
         self.pre_execute(context)
         res = self._call_cws(context)
         return res.ok

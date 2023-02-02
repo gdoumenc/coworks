@@ -1,7 +1,7 @@
 .. _biz_quickstart:
 
-BizMicroService Quickstart
-==========================
+Biz Quickstart
+==============
 
 This page gives a quick and partial introduction to CoWorks Business Microservices.
 

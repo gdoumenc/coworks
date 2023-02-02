@@ -1,29 +1,26 @@
 import contextlib
 import os
 import socket
-import sys
-from contextlib import contextmanager
 from unittest.mock import MagicMock
 
 import pytest
 
-
-def fixture_example_dir():
-    return os.getenv('EXAMPLE_DIR', 'tests/cws/src')
-
-
-def fixture_samples_docs_dir():
-    return os.getenv('SAMPLES_DOCS_DIR', 'samples/docs/tech')
+fixture_example_dir = os.getenv('EXAMPLE_DIR', 'tests/cws/src')
+fixture_samples_docs_dir = os.getenv('SAMPLES_DOCS_DIR', 'samples/docs')
 
 
 @pytest.fixture
-def example_dir():
-    yield fixture_example_dir()
+def example_dir(monkeypatch):
+    monkeypatch.syspath_prepend(fixture_example_dir)
+    monkeypatch.chdir(fixture_example_dir)
+    yield fixture_example_dir
 
 
 @pytest.fixture
-def samples_docs_dir():
-    yield fixture_samples_docs_dir()
+def samples_docs_dir(monkeypatch):
+    monkeypatch.syspath_prepend(fixture_example_dir)
+    monkeypatch.chdir(fixture_samples_docs_dir)
+    yield fixture_samples_docs_dir
 
 
 @pytest.fixture
@@ -46,27 +43,14 @@ def auth_headers():
 
 
 @pytest.fixture
-def empty_context():
-    return LambdaContextTest()
-
-
-@contextmanager
-def project_dir_context(project_dir):
-    sys.path.insert(0, project_dir)
-    try:
-        yield
-    finally:
-        sys.path.remove(project_dir)
-
-
-class LambdaContextTest:
-    ...
+def empty_aws_context():
+    return object()
 
 
 def pytest_sessionstart():
-    if not os.path.exists(fixture_samples_docs_dir()):
+    if not os.path.exists(fixture_samples_docs_dir):
         msg = "Undefined samples folder: (environment variable 'SAMPLES_DOCS_DIR' must be redefined)."
         raise pytest.UsageError(msg)
-    if not os.path.exists(fixture_example_dir()):
+    if not os.path.exists(fixture_example_dir):
         msg = "Undefined example folder: (environment variable 'EXAMPLE_DIR' must be redefined)."
         raise pytest.UsageError(msg)

@@ -1,13 +1,13 @@
 version: 3
 commands:
-  zip:
-    class: coworks.cws.zip.zip_command
-    bucket: coworks-microservice
-    profile_name: fpr-customer
   deploy:
-    class: coworks.cws.deploy.deploy_command
-    project_name: coworks
-    profile_name: fpr-customer
     bucket: coworks-microservice
-    customer: adz
-    layers: [arn:aws:lambda:eu-west-1:935392763270:layer:coworks-dev]
+    profile_name: fpr-customer
+    layers:
+      - arn:aws:lambda:eu-west-1:935392763270:layer:coworks-0_8_0
+workspaces:
+  dev:
+    commands:
+      deploy:
+        layers:
+          - arn:aws:lambda:eu-west-1:935392763270:layer:coworks-dev1

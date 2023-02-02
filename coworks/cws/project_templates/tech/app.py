@@ -2,17 +2,15 @@ import os
 
 from flask import request
 
-from config import DevConfig
-from config import LocalConfig
-from config import ProdConfig
 from coworks import TechMicroService
 from coworks import entry
 from coworks.blueprint.admin_blueprint import Admin
 from coworks.blueprint.profiler_blueprint import Profiler
+from coworks.utils import get_app_stage
 
 
 # from aws_xray_sdk.core import xray_recorder
-# from coworks.middleware.xray import XRayMiddleware
+# from coworks.extension.xray import XRay
 
 
 class MyMicroService(TechMicroService):
@@ -22,15 +20,10 @@ class MyMicroService(TechMicroService):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
         self.register_blueprint(Admin(), url_prefix='/admin')
-        self.register_blueprint(Profiler(), url_prefix='/profiler')
-
-        # For this middleware you need to install 'aws_xray_sdk'.
-        # XRayMiddleware(self, xray_recorder)
-
-        @self.before_first_request
-        def first():
-            ...
+        if get_app_stage() == "dev":
+            self.register_blueprint(Profiler(self), url_prefix='/profiler')
 
         @self.before_request
         def before():
@@ -40,8 +33,11 @@ class MyMicroService(TechMicroService):
         def handle(e):
             ...
 
-    def init_app(self):
-        user_key = os.getenv("USER_KEY")
+    def init_cli(self):
+        """
+        from flask_migrate import Migrate
+        Migrate(app, db)
+        """
 
     def token_authorizer(self, token):
         # Redefined to allow specific verification
@@ -53,11 +49,7 @@ class MyMicroService(TechMicroService):
         return 'project ready!\n'
 
 
-local = LocalConfig()
-local.environment_variables = {
-    'LOCAL': 'my_value',
-}
-test = DevConfig('test')
-dev = DevConfig()
-prod = ProdConfig()
-app = MyMicroService(configs=[local, test, dev, prod])
+app = MyMicroService()
+
+# For this extension you need to install 'aws_xray_sdk'.
+# XRay(app, xray_recorder)

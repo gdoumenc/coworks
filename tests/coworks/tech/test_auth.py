@@ -38,26 +38,27 @@ class AuthorizedMS(AuthorizeAll):
 
 
 class TestClass:
-    def test_authorize_all(self, empty_context):
+
+    def test_authorize_all(self, empty_aws_context):
         app = AuthorizeAll()
         with app.app_context() as c:
-            response = app(get_event('token'), empty_context)
+            response = app(get_event('/token'), empty_aws_context)
             assert response['principalId'] == 'user'
             assert response['policyDocument']['Statement'][0]['Effect'] == 'Allow'
 
-    def test_authorize_nothing(self, empty_context):
+    def test_authorize_nothing(self, empty_aws_context):
         app = AuthorizeNothing()
         with app.app_context() as c:
-            response = app(get_event('token'), empty_context)
+            response = app(get_event('token'), empty_aws_context)
             assert response['principalId'] == 'user'
             assert response['policyDocument']['Statement'][0]['Effect'] == 'Deny'
 
-    def test_authorized(self, empty_context):
+    def test_authorized(self, empty_aws_context):
         app = AuthorizedMS()
         with app.app_context() as c:
-            response = app(get_event('wrong'), empty_context)
+            response = app(get_event('wrong'), empty_aws_context)
             assert response['principalId'] == 'user'
             assert response['policyDocument']['Statement'][0]['Effect'] == 'Deny'
-            response = app(get_event('token'), empty_context)
+            response = app(get_event('token'), empty_aws_context)
             assert response['principalId'] == 'user'
             assert response['policyDocument']['Statement'][0]['Effect'] == 'Allow'

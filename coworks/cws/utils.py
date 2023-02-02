@@ -35,15 +35,28 @@ class ProgressBar:
             self.echo(msg)
 
 
+class DebugProgressBar():
+
+    def echo(self, msg):
+        if msg:
+            click.echo("==> " + msg)
+
+    def update(self, msg=None):
+        self.echo(msg)
+
+    def terminate(self, msg=None):
+        self.echo(msg)
+
+
 @contextmanager
 def progressbar(length=200, *, threaded=False, label: str = None) -> t.ContextManager[ProgressBar]:
     """Spinner progress bar.
     Creates it with a task label and updates it with progress messages using the 'update' function.
     """
-    try:
-        with click.progressbar(range(length - 1), label=label.ljust(40), show_eta=False) as bar:
-            pb = ProgressBar(bar)
-            if threaded:
+    if threaded:
+        try:
+            with click.progressbar(range(length - 1), label=label.ljust(40), show_eta=False) as bar:
+                pb = ProgressBar(bar)
 
                 def display_spinning_cursor():
                     while not pb.stop:
@@ -54,10 +67,12 @@ def progressbar(length=200, *, threaded=False, label: str = None) -> t.ContextMa
                 spin_thread = Thread(target=display_spinning_cursor)
                 spin_thread.start()
                 pb.spin_thread = spin_thread
-            yield pb
-            if not pb.stop:
-                pb.terminate()
-    except (Exception,) as e:
-        print(f"{type(e).__name__}: {str(e)}")
-    finally:
-        pb.stop = True
+                yield pb
+                if not pb.stop:
+                    pb.terminate()
+        except (Exception,) as e:
+            print(f"{type(e).__name__}: {str(e)}")
+        finally:
+            pb.stop = True
+    else:
+        yield DebugProgressBar()

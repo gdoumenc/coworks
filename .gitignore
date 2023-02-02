@@ -2,15 +2,18 @@
 coworks.egg-info/
 build/
 dist/
+**/node_modules
 **/.terraform
 **/*.tfstate*
 Pipfile.lock
-.env
+**/.env*
+**/http-client.private.env.json
 
 # Samples
 **/*.secret.json
 samples/*/terraform
-samples/*/Pipfile.lock
+samples/Pipfile.lock
+samples/*/node_modules/
 
 # Tests example
 tests/example/*.zip
@@ -21,9 +24,6 @@ coworks/cattr.py
 # Dev tools
 .idea/
 **/__pycache__/
-**/*.http
 docs/_build/
 .pytest_cache/
 **/*.log
-
-

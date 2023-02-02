@@ -1,7 +1,5 @@
 from unittest.mock import Mock
 
-from flask import g
-
 from coworks import Blueprint
 from coworks import entry
 
@@ -26,7 +24,7 @@ class InitBP(BP):
 
         @self.before_app_request
         def before_activation():
-            self.do_before_activation(g.get('aws_event'), g.get('aws_context'))
+            self.do_before_activation()
 
         @self.after_app_request
         def after_activation(response):

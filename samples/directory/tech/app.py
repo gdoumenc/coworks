@@ -1,8 +1,5 @@
-from config import DevConfig
-from config import ProdConfig
+from coworks.blueprint.admin_blueprint import Admin
 from coworks.tech.directory import DirectoryMicroService
 
-dev = DevConfig()
-prod = ProdConfig()
-
-app = DirectoryMicroService(configs=[dev, prod])
+app = DirectoryMicroService()
+app.register_blueprint(Admin(), url_prefix='/admin')

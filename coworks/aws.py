@@ -20,14 +20,14 @@ class Boto3Mixin:
     def aws_access_key(self):
         value = os.getenv(self.__env_var_access_key)
         if not value:
-            raise EnvironmentError(f"{self.__env_var_access_key} not defined in environment")
+            raise RuntimeError(f"{self.__env_var_access_key} not defined in environment")
         return value
 
     @property
     def aws_secret_access_key(self):
         value = os.getenv(self.__env_var_secret_key)
         if not value:
-            raise EnvironmentError(f"{self.__env_var_secret_key} not defined in environment")
+            raise RuntimeError(f"{self.__env_var_secret_key} not defined in environment")
         return value
 
     @property
@@ -37,7 +37,7 @@ class Boto3Mixin:
 
         value = os.getenv(self.__env_var_region)
         if not value and self.aws_access_key and self.aws_secret_access_key:
-            raise EnvironmentError(f"{self.__env_var_region} not defined in environment")
+            raise RuntimeError(f"{self.__env_var_region} not defined in environment")
         return value
 
     @property

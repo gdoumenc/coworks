@@ -1,56 +1,97 @@
 import os
 import sys
+import types
 import typing as t
-from logging import WARNING, getLogger
+from contextlib import contextmanager
+from logging import WARNING
+from logging import getLogger
 from pathlib import Path
 
 import anyconfig
 import click
-from flask.cli import FlaskGroup
+import flask
+from click import UsageError
 from flask.cli import ScriptInfo
 
 from coworks import __version__
-from coworks.config import DEFAULT_PROJECT_DIR
-from coworks.utils import get_app_workspace
+from coworks.utils import DEFAULT_DEV_STAGE
+from coworks.utils import DEFAULT_PROJECT_DIR
+from coworks.utils import PROJECT_CONFIG_VERSION
+from coworks.utils import get_app_stage
 from coworks.utils import get_system_info
 from coworks.utils import import_attr
+from coworks.utils import load_dotenv
+from coworks.utils import show_stage_banner
 from .deploy import deploy_command
-from .deploy import destroy_command
 from .deploy import deployed_command
+from .deploy import destroy_command
 from .new import new_command
 from .zip import zip_command
 
-PROJECT_CONFIG_VERSION = 3
 
+class CwsScriptInfo(ScriptInfo):
 
-class CwsContext(click.Context):
-
-    def __init__(self, *args, **kwargs):
+    def __init__(self, project_dir=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.__project_dir = None
-        self.__project_dir_added = False
+        self.project_dir = project_dir
+        self.__dotenv_loaded = False
 
-    def add_project_dir(self, project_dir):
-        self.__project_dir = project_dir
+    @property
+    def project_dir(self):
+        return self.__project_dir
 
-    def __enter__(self):
-        if self.__project_dir not in sys.path:
-            sys.path.insert(0, self.__project_dir)
-            self.__project_dir_added = True
-        return super().__enter__()
+    @project_dir.setter
+    def project_dir(self, project_dir):
+        self.__project_dir = Path(project_dir).absolute().as_posix() if project_dir else None
 
-    def __exit__(self, *args):
-        if self.__project_dir_added:
-            sys.path.remove(self.__project_dir)
-            self.__project_dir_added = False
-        super().__exit__(*args)
+    @contextmanager
+    def project_context(self, ctx=None):
+        if not self.__dotenv_loaded:
+            workspace = get_app_stage()
+            load_dotenv(workspace)
+            self.__dotenv_loaded = True
+
+        old_dir = os.getcwd()
+        try:
+            os.chdir(self.project_dir)
+        except OSError as e:
+            if not ctx:
+                raise UsageError(f"Project dir {self.project_dir} not found.")
+        finally:
+            yield
+            os.chdir(old_dir)
+
+    def load_app(self):
+        with self.project_context():
+            return super().load_app()
 
 
-class CoWorksGroup(FlaskGroup):
+def _set_stage(ctx, param, value):
+    if value is not None:
+        os.environ["CWS_STAGE"] = value
+        return value
 
-    def __init__(self, add_default_commands=True, **kwargs):
-        super().__init__(add_version_option=False, **kwargs)
-        self.context_class = CwsContext
+
+_stage_option = click.Option(
+    ["-S", "--stage"],
+    help=(
+        f"The CoWorks stage (default {DEFAULT_DEV_STAGE})."
+    ),
+    is_eager=True,
+    expose_value=False,
+    callback=_set_stage,
+)
+
+
+class CwsGroup(flask.cli.FlaskGroup):
+
+    def __init__(self, add_default_commands=True, **extra):
+        params = list(extra.pop("params", None) or ())
+        params.append(_stage_option)
+        extra["add_version_option"] = False
+        extra["load_dotenv"] = False
+        super().__init__(params=params, **extra)
+
         if add_default_commands:
             self.add_command(t.cast("Command", new_command))
             self.add_command(t.cast("Command", deploy_command))
@@ -59,59 +100,61 @@ class CoWorksGroup(FlaskGroup):
             self.add_command(t.cast("Command", zip_command))
 
     def make_context(self, info_name, args, parent=None, **kwargs):
-        ctx: CwsContext = t.cast(CwsContext, super().make_context(info_name, args, **kwargs))
 
-        # Warning for deprecated options
-        if ctx.params.get('workspace'):
-            click.echo("Option debug deprecated! Will not be used (set FLASK_ENV).")
+        # Warning for deprecated options and echo stage
+        if "FLASK_ENV" in os.environ:
+            print(
+                "\x1b[1m\x1b[31m'FLASK_ENV' is deprecated. Use 'CWS_STAGE' or '-S' option instead.\x1b[0m",
+                file=sys.stderr,
+            )
 
         # Get project infos
+        script_info = CwsScriptInfo(create_app=self.create_app, set_debug_flag=self.set_debug_flag)
+        if 'obj' not in kwargs:
+            ctx = super().make_context(info_name, args, obj=script_info, **kwargs)
+        else:
+            ctx = super().make_context(info_name, args, **kwargs)
         config_file = ctx.params.get('config_file')
         config_file_suffix = ctx.params.get('config_file_suffix')
         project_dir = ctx.params.get('project_dir')
         if project_dir:
-            ctx.add_project_dir(project_dir)
-            os.environ['INSTANCE_RELATIVE_PATH'] = os.getcwd()
+            script_info.project_dir = project_dir
 
-        # Adds defined commands from project file
-        with ctx:
-            project_config = ProjectConfig(project_dir, config_file, config_file_suffix)
-            commands = project_config.get_commands(get_app_workspace())
+        # Adds environment variables and defined commands from project file
+        project_config = ProjectConfig(project_dir, config_file, config_file_suffix)
+        with script_info.project_context(ctx):
+            commands = project_config.get_commands(get_app_stage())
             if commands:
                 for name, options in commands.items():
                     cmd_class_name = options.pop('class', None)
                     if cmd_class_name:
-                        splitted = cmd_class_name.split('.')
-                        cmd = import_attr('.'.join(splitted[:-1]), splitted[-1])
+                        cmd_module, cmd_class = cmd_class_name.rsplit('.', 1)
+                        try:
+                            cmd = import_attr(cmd_module, cmd_class)
+                        except ModuleNotFoundError as e:
+                            raise click.UsageError(f"Cannot load command {cmd_class!r} in module {cmd_module!r}.")
+                    elif name in self.commands:
+                        cmd = self.commands[name]
+                    else:
+                        raise click.UsageError(f"The command {name} is undefined or the class option is missing.")
 
-                        # Sets option's value as default command param
-                        # (may then be forced in command line or defined by default)
-                        for param in cmd.params:
-                            if param.name in options:
-                                param.default = options.get(param.name)
+                    # Sets option's value as default command param
+                    # (may then be forced in command line or defined by default)
+                    for param in cmd.params:
+                        if param.name in options:
+                            param.default = options.get(param.name)
 
-                        self.add_command(cmd, name)
+                    self.add_command(cmd, name)
 
         return ctx
 
-    def get_command(self, ctx, name):
-        """Wrapper to help debug import error."""
-        try:
-            info = ctx.ensure_object(ScriptInfo)
-            info.load_app()
-        except Exception as e:
-            if getattr(e, '__cause__'):
-                print(e.__cause__)
-        return super().get_command(ctx, name)
 
-
-@click.group(cls=CoWorksGroup)
+@click.group(cls=CwsGroup)
 @click.version_option(version=__version__, message=f'%(prog)s %(version)s, {get_system_info()}')
 @click.option('-p', '--project-dir', default=DEFAULT_PROJECT_DIR,
               help=f"The project directory path (absolute or relative) [default to '{DEFAULT_PROJECT_DIR}'].")
 @click.option('-c', '--config-file', default='project', help="Configuration file path [relative from project dir].")
 @click.option('--config-file-suffix', default='.cws.yml', help="Configuration file suffix.")
-@click.pass_context
 def client(*args, **kwargs):
     ...
 
@@ -122,7 +165,10 @@ class ProjectConfig:
     def __init__(self, project_dir, file_name, file_suffix):
         getLogger('anyconfig').setLevel(WARNING)
         self.project_dir = project_dir
-        self.params = self._load_config(project_dir, file_name, file_suffix)
+        try:
+            self.params = self._load_config(project_dir, file_name, file_suffix)
+        except TypeError:
+            raise RuntimeError(f"Cannot find project coniguration file in {project_dir}")
         if self.params and self.params.get('version', PROJECT_CONFIG_VERSION) != PROJECT_CONFIG_VERSION:
             raise RuntimeError(f"Wrong project file version (should be {PROJECT_CONFIG_VERSION}).\n")
 
@@ -153,3 +199,22 @@ class ProjectConfig:
             params = load('.')
 
         return params
+
+
+def overriden_run_banner():
+    """Copy the original function and add stage banner."""
+    show_server_banner_copy = types.FunctionType(flask.cli.show_server_banner.__code__,
+                                                 flask.cli.show_server_banner.__globals__,
+                                                 name=flask.cli.show_server_banner.__name__,
+                                                 argdefs=flask.cli.show_server_banner.__defaults__,
+                                                 closure=flask.cli.show_server_banner.__closure__)
+
+    def show_banner_with_stage(*args):
+        show_stage_banner()
+        show_server_banner_copy(*args)
+
+    return show_banner_with_stage
+
+
+# Overrides run banner function to add stage value
+flask.cli.show_server_banner = overriden_run_banner()
