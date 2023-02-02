@@ -41,18 +41,18 @@ class TechMicroServiceOperator(BaseOperator):
     """
     template_fields = ["cws_name", "entry", "query_params", "json", "data"]
 
-    def __init__(self, *, cws_name: str = None, entry: str = None, method: str = None, no_auth: bool = False,
+    def __init__(self, *, cws_name: str = None, entry: str = '/', method: str = 'get', no_auth: bool = False,
                  query_params: t.Union[dict, str] = None, json: t.Union[dict, str] = None,
                  data: t.Union[dict, str] = None,
                  stage: str = None, api_id: str = None, token: str = None,
                  directory_conn_id: str = 'coworks_directory', asynchronous: bool = False,
-                 xcom_push=True, json_result=True, raise_400_errors: bool = True, accept='application/json',
-                 headers=None, log_response: bool = False,
+                 xcom_push: bool = True, json_result: bool = True, raise_400_errors: bool = True,
+                 accept: str = 'application/json', headers: dict = None, log_response: bool = False,
                  **kwargs) -> None:
         super().__init__(**kwargs)
         self.cws_name = cws_name
         self.entry = entry.lstrip('/')
-        self.method = method.lower() if method else 'get'
+        self.method = method.lower()
         self.no_auth = no_auth
         self.log_response = log_response
         self.query_params = query_params
