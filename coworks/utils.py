@@ -120,7 +120,7 @@ def create_cws_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
                     kwargs = dict(**kwargs, **as_fun_params(data))
 
                 # Adds parameters from body parameter
-                elif request.method in ['POST', 'PUT']:
+                elif request.method in ['POST', 'PUT', 'DELETE']:
                     try:
                         if request.is_json:
                             data = request.get_data()
