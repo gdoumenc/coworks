@@ -380,7 +380,9 @@ class TechMicroService(Flask):
             self.logger.error(''.join(traceback.format_exception(None, e, e.__traceback__)))
             return TokenResponse(False, aws_event['methodArn']).json
 
-    def _api_handler(self, aws_event: t.Dict[str, t.Any], aws_context: t.Dict[str, t.Any]) -> t.Union[dict, str]:
+    def _api_handler(
+            self, aws_event: t.Dict[str, t.Any], aws_context: t.Dict[str, t.Any]
+    ) -> t.Optional[t.Union[dict, str]]:
         """API handler.
         """
         self.logger.warning(f"Calling {self.name} by api : {aws_event}")
@@ -396,6 +398,7 @@ class TechMicroService(Flask):
                 invocation_type = aws_event['headers'].get('invocationtype')
                 if invocation_type == 'Event':
                     self.store_response(resp, aws_event['headers'])
+                    return
 
                 # Encodes binary content
                 if type(resp) is not dict:
