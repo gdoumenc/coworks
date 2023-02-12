@@ -108,12 +108,15 @@ class Mail(Blueprint):
             msg.set_content(body, subtype=body_type)
 
             if attachments:
+                current_app.logger.info("Attachments defined")
                 if not isinstance(attachments, list):
                     attachments = [attachments]
                 for attachment in attachments:
                     msg.add_attachment(attachment.stream.read(), maintype='multipart', subtype=attachment.content_type)
+                    current_app.logger.info(f"Add attachment {attachment}")
 
             if attachment_urls:
+                current_app.logger.info("Attachments urls defined")
                 for attachment_name, attachment_url in attachment_urls.items():
                     response = requests.get(attachment_url)
                     if response.status_code == 200:
@@ -121,7 +124,7 @@ class Mail(Blueprint):
                         maintype, subtype = response.headers['Content-Type'].split('/')
                         msg.add_attachment(attachment, maintype=maintype, subtype=subtype,
                                            filename=attachment_name)
-                        current_app.logger.debug(f"Add attachment {attachment_name} - size {len(attachment)}")
+                        current_app.logger.info(f"Add attachment {attachment_name} - size {len(attachment)}")
                     else:
                         return f"Failed to download attachment, error {response.status_code}.", 400
 
@@ -137,7 +140,7 @@ class Mail(Blueprint):
                 server.send_message(msg)
 
             resp = f"Mail sent to {msg['To']}"
-            current_app.logger.debug(resp)
+            current_app.logger.info(resp)
             return resp
         except smtplib.SMTPAuthenticationError:
             raise ConnectionError("Wrong username/password : cannot connect.")

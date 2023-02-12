@@ -14,7 +14,7 @@ from coworks import entry
 class OktaClient(Client):
     """Okta client extended to allow next call event on new client defined."""
 
-    @xray_recorder.capture()
+    @XRay.capture(xray_recorder)
     async def next(self, next):
         req, error = await self._request_executor.create_request("GET", next, {}, {})
         if error:
@@ -50,7 +50,7 @@ class OktaResponse:
     def __init__(self):
         self.api_resp = self.next_url = self.error = None
 
-    @xray_recorder.capture()
+    @XRay.capture(xray_recorder)
     def set(self, await_result, fields=None):
         """Set the values from the result. Keep only specific fieds if defined."""
 
