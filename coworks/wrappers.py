@@ -1,6 +1,6 @@
 import json
 import typing as t
-from io import StringIO
+from io import BytesIO
 
 from flask import Request as FlaskRequest
 from flask import Response as FlaskResponse
@@ -86,7 +86,6 @@ class CoworksRequest(FlaskRequest):
         self.aws_context = environ.get('aws_context')
         self.aws_query_string = environ.get('aws_query_string')
         self.aws_body = environ.get('aws_body')
-        self.__form = None
         self._in_lambda_context: bool = self.aws_event is not None
 
         super().__init__(environ, **kwargs)
@@ -129,21 +128,25 @@ class CoworksRequest(FlaskRequest):
         return self.aws_query_string
 
     @property
-    def form(self):
+    def stream(self):
         if not self.in_lambda_context:
-            return super().form
+            return super().stream
 
-        if self.__form is None:
-            parser = self.make_form_data_parser()
-            data = parser.parse(
-                StringIO(self.aws_body),
-                self.mimetype,
-                self.content_length,
-                self.mimetype_params,
-            )
-            # d["stream"], d["form"], d["files"] = data
-            self.__form = data[1]
-        return self.__form
+        return BytesIO(self.aws_body)
+
+    def _load_form_data(self):
+        if not self.in_lambda_context:
+            return super()._load_form_data
+
+        parser = self.make_form_data_parser()
+        data = parser.parse(
+            BytesIO(self.aws_body),
+            self.mimetype,
+            self.content_length,
+            self.mimetype_params,
+        )
+        d = self.__dict__
+        d["stream"], d["form"], d["files"] = data
 
     def get_data(self, **kwargs):
         if not self.in_lambda_context:

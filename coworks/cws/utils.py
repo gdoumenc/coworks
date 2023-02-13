@@ -71,7 +71,7 @@ def progressbar(length=200, *, threaded=False, label: str = None) -> t.ContextMa
                 if not pb.stop:
                     pb.terminate()
         except (Exception,) as e:
-            print(f"{type(e).__name__}: {str(e)}")
+            click.echo(f"{type(e).__name__}: {str(e)}")
         finally:
             pb.stop = True
     else:

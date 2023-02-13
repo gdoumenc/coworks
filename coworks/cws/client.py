@@ -103,7 +103,7 @@ class CwsGroup(flask.cli.FlaskGroup):
 
         # Warning for deprecated options and echo stage
         if "FLASK_ENV" in os.environ:
-            print(
+            click.echo(
                 "\x1b[1m\x1b[31m'FLASK_ENV' is deprecated. Use 'CWS_STAGE' or '-S' option instead.\x1b[0m",
                 file=sys.stderr,
             )
