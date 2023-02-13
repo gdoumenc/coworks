@@ -61,8 +61,8 @@ class XRay:
                 aws_context = request.aws_context
                 subsegment = self._recorder.current_subsegment()
 
-                try:
-                    if subsegment:
+                if subsegment:
+                    try:
                         subsegment.put_metadata('context', lambda_context_to_json(aws_context), LAMBDA_NAMESPACE)
                         metadata = {
                             'service': self._app.name,
@@ -82,10 +82,19 @@ class XRay:
                         else:
                             metadata['values'] = request.values.to_dict(False)
                         subsegment.put_metadata('request', metadata, COWORKS_NAMESPACE)
+                    except (Exception,) as e:
+                        pass
 
+                try:
                     response: CoworksResponse = _view_function(*args, **kwargs)
-
+                except Exception as e:
                     if subsegment:
+                        metadata = {'traceback': traceback.format_exc()}
+                        subsegment.put_metadata('exception', metadata, COWORKS_NAMESPACE)
+                    raise
+
+                if subsegment:
+                    try:
                         metadata = {
                             'status_code': response.status_code,
                             'headers': response.headers,
@@ -93,14 +102,10 @@ class XRay:
                         if response.status_code >= 300:
                             metadata['error'] = response.get_data(as_text=True)
                         subsegment.put_metadata('response', metadata, COWORKS_NAMESPACE)
+                    except (Exception,) as e:
+                        pass
 
-                    return response
-
-                except Exception as e:
-                    if subsegment:
-                        metadata = {'traceback': traceback.format_exc()}
-                        subsegment.put_metadata('exception', metadata, COWORKS_NAMESPACE)
-                    raise
+                return response
 
             wrapped_fun = update_wrapper(partial(route_captured, view_function), view_function)
             self._app.view_functions[rule.endpoint] = self._recorder.capture(name=wrapped_fun.__name__)(wrapped_fun)

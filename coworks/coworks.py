@@ -398,7 +398,6 @@ class TechMicroService(Flask):
                 invocation_type = aws_event['headers'].get('invocationtype')
                 if invocation_type == 'Event':
                     self.store_response(resp, aws_event['headers'])
-                    return
 
                 # Encodes binary content
                 if type(resp) is not dict:
@@ -416,6 +415,7 @@ class TechMicroService(Flask):
                 if self.logger.getEffectiveLevel() == logging.DEBUG and content_length < self.size_max_for_debug:
                     self.logger.debug(f"API returns {resp}")
                     return resp
+
                 self.logger.debug(f"API returns code {resp.get('statusCode')} and headers {resp.get('headers')}")
                 return resp
 
