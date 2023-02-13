@@ -380,7 +380,9 @@ class TechMicroService(Flask):
             self.logger.error(''.join(traceback.format_exception(None, e, e.__traceback__)))
             return TokenResponse(False, aws_event['methodArn']).json
 
-    def _api_handler(self, aws_event: t.Dict[str, t.Any], aws_context: t.Dict[str, t.Any]) -> t.Union[dict, str]:
+    def _api_handler(
+            self, aws_event: t.Dict[str, t.Any], aws_context: t.Dict[str, t.Any]
+    ) -> t.Optional[t.Union[dict, str]]:
         """API handler.
         """
         self.logger.warning(f"Calling {self.name} by api : {aws_event}")
@@ -413,6 +415,7 @@ class TechMicroService(Flask):
                 if self.logger.getEffectiveLevel() == logging.DEBUG and content_length < self.size_max_for_debug:
                     self.logger.debug(f"API returns {resp}")
                     return resp
+
                 self.logger.debug(f"API returns code {resp.get('statusCode')} and headers {resp.get('headers')}")
                 return resp
 

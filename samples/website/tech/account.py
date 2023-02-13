@@ -58,11 +58,7 @@ class AccountBlueprint(Blueprint):
         """Sign in."""
         try:
             form = LoginForm()
-            print(f"Submitted {form.is_submitted()}")
-            print(f"Form {request.form}")
-            print(f"Validate {form.validate()}")
             if not form.validate_on_submit():
-                print(form.errors)
                 flash('Connexion refusée.', 'error')
                 return render_html_template('account/login.j2', form=form)
 

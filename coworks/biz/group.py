@@ -62,14 +62,13 @@ def TechMicroServiceAsyncGroup(group_id: str, transformer: t.Callable = None,
     with CoworksTaskGroup(group_id=group_id) as tg:
         if transformer:
             transformer_task = PythonOperator(
-                task_id='transformer',
+                task_id=transformer.__name__,
                 python_callable=transformer,
                 op_args = op_args,
                 op_kwargs = op_kwargs
             )
 
-            method = tech_kwargs.get('method', 'get').lower()
-            if method == 'get':
+            if method.lower() == 'get':
                 if 'query_params' in tech_kwargs:
                     transformer_task.log.warning(f"Calling transformer method with already query_params parameter call")
                 tech_kwargs['query_params'] = transformer_task.output
