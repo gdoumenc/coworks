@@ -194,6 +194,7 @@ class AsyncTechServicePullOperator(BaseOperator):
         status_code = payload['statusCode']
 
         if self.raise_errors and status_code >= 300:
+            self.log.error(f"Error: {payload['body']}'")
             raise AirflowFailException(f"TechMicroService doesn't complete successfully: {status_code}")
 
         self.xcom_push(context, XCOM_STATUS_CODE, status_code)

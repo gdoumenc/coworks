@@ -1,13 +1,14 @@
+import base64
+import io
 import json
 import typing as t
-from io import BytesIO
 
 from flask import Request as FlaskRequest
 from flask import Response as FlaskResponse
 from flask import current_app
 from werkzeug.datastructures import ETags
 from werkzeug.datastructures import Headers
-from werkzeug.exceptions import HTTPException
+from werkzeug.exceptions import HTTPException, BadRequest
 from werkzeug.exceptions import MethodNotAllowed
 from werkzeug.exceptions import NotFound
 from werkzeug.routing import MapAdapter
@@ -132,21 +133,30 @@ class CoworksRequest(FlaskRequest):
         if not self.in_lambda_context:
             return super().stream
 
-        return BytesIO(self.aws_body)
+        print(self.is_multipart)
+        print(self.is_form_urlencoded)
 
-    def _load_form_data(self):
+        if self.is_multipart:
+            return io.BytesIO(base64.b64decode(self.aws_body))
+        if self.is_form_urlencoded:
+            return io.BytesIO(self.aws_body.encode('ascii'))
+        raise BadRequest(f'Undefined mime-type: {self.mimetype}')
+
+    @property
+    def form(self):
         if not self.in_lambda_context:
-            return super()._load_form_data
+            return super().form
 
         parser = self.make_form_data_parser()
         data = parser.parse(
-            BytesIO(self.aws_body),
+            self.stream,
             self.mimetype,
             self.content_length,
             self.mimetype_params,
         )
         d = self.__dict__
         d["stream"], d["form"], d["files"] = data
+        return d["form"]
 
     def get_data(self, **kwargs):
         if not self.in_lambda_context:
