@@ -3,6 +3,7 @@ import typing as t
 from airflow.models import BaseOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.task_group import TaskGroup
+from airflow.utils.trigger_rule import TriggerRule
 
 from coworks.biz.operators import AsyncTechServicePullOperator
 from coworks.biz.operators import TechMicroServiceOperator
@@ -42,6 +43,7 @@ def TechMicroServiceAsyncGroup(group_id: str, transformer: t.Callable = None,
                                op_kwargs: t.Optional[t.Mapping[str, t.Any]] = None,
                                method: str = 'get',
                                raise_errors: bool = True, timeout: int = 900, xcom_push: bool = True,
+                               trigger_rule=TriggerRule.ALL_SUCCESS,
                                **tech_kwargs):
     """Task group to allow asynchronous call of a TechMicroService.
 
@@ -54,8 +56,11 @@ def TechMicroServiceAsyncGroup(group_id: str, transformer: t.Callable = None,
     :param method: microservice method called.
     :param raise_errors: raises error if microservice call raised one.
     :param timeout: asynchronous call timeout.
+    :param trigger_rule: trigger rule to be set on first task.
     :param xcom_push:  Pushes result in XCom (default True).
 
+    .. versionchanged:: 0.8.4
+        Added the ``trigger_rule`` parameter.
     .. versionchanged:: 0.8.0
         Added the ``transformer`` parameter.
     """
@@ -64,8 +69,9 @@ def TechMicroServiceAsyncGroup(group_id: str, transformer: t.Callable = None,
             transformer_task = PythonOperator(
                 task_id=transformer.__name__,
                 python_callable=transformer,
-                op_args = op_args,
-                op_kwargs = op_kwargs
+                op_args=op_args,
+                op_kwargs=op_kwargs,
+                trigger_rule=trigger_rule
             )
 
             if method.lower() == 'get':
@@ -81,6 +87,7 @@ def TechMicroServiceAsyncGroup(group_id: str, transformer: t.Callable = None,
             task_id="call",
             asynchronous=True,
             method=method,
+            trigger_rule=trigger_rule if not transformer else TriggerRule.ALL_SUCCESS,
             **tech_kwargs,
         )
         wait = AsyncTechMicroServiceSensor(
