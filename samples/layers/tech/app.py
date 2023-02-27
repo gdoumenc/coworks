@@ -1,4 +1,5 @@
 import os
+import re
 from datetime import datetime
 
 import boto3
@@ -41,8 +42,9 @@ Microservice to get all available CoWorks layers.
     @entry(no_auth=True)
     def get(self, full: bool = False):
         """Layers in json or text format."""
+        version_pattern = re.compile(r"coworks-[_\d]*")
         res = self.lambda_client.list_layers()
-        layers = {x['LayerName']: x for x in filter(lambda x: x['LayerName'].startswith('coworks'), res['Layers'])}
+        layers = {x['LayerName']: x for x in filter(lambda x: version_pattern.fullmatch(x['LayerName']), res['Layers'])}
         if full:
             return layers
         versions = [*filter(lambda x: 'dev' not in x, map(lambda x: x[8:].replace('_', '.'), layers))]
