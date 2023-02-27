@@ -36,7 +36,7 @@ class MyMicroService(TechMicroService):
     def init_cli(self):
         """
         from flask_migrate import Migrate
-        Migrate(app, db)
+        Migrate(self, db)
         """
 
     def token_authorizer(self, token):
