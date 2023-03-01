@@ -1,4 +1,5 @@
 import logging
+import os
 import traceback
 import typing as t
 from functools import partial
@@ -7,6 +8,8 @@ from functools import update_wrapper
 from aws_xray_sdk import global_sdk_config
 from aws_xray_sdk.core import patch_all
 from aws_xray_sdk.core.exceptions.exceptions import SegmentNotFoundException
+from aws_xray_sdk.core.recorder import TRACING_NAME_KEY
+from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
 
 from coworks.globals import request
 from coworks.wrappers import CoworksResponse
@@ -51,6 +54,12 @@ class XRay:
 
             self._app.logger.debug("Skipped capture routes because the SDK is currently disabled.")
 
+        if os.getenv(TRACING_NAME_KEY):
+            XRayMiddleware(app, self._recorder)
+        else:
+            msg = f"Flask XRayMiddleware not installed because environment variable {TRACING_NAME_KEY} not defined."
+            app.logger.info(msg)
+
         app.before_first_request_funcs = [first, *app.before_first_request_funcs]
 
     def capture_routes(self):
@@ -66,7 +75,7 @@ class XRay:
                         subsegment.put_metadata('context', lambda_context_to_json(aws_context), LAMBDA_NAMESPACE)
                         metadata = {
                             'service': self._app.name,
-                            'environ': request_environ(request),
+                            'environ': request_environ_to_json(request),
                         }
                         if request.is_json:
                             try:
@@ -170,7 +179,7 @@ def lambda_context_to_json(context):
     }
 
 
-def request_environ(_request):
+def request_environ_to_json(_request):
     return {
         'in_lambda_context': _request.in_lambda_context,
         'is_multipart': _request.is_multipart,
