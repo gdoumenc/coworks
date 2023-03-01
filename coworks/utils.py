@@ -36,6 +36,7 @@ BIZ_KEY_HEADER_KEY: str = 'X-CWS-S3Key'
 
 def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
     """ Creates all routes for a microservice.
+
     :param app the app microservice
     :param bp_state the blueprint state
     """
