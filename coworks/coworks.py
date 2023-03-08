@@ -402,12 +402,12 @@ class TechMicroService(Flask):
                 if type(resp) is not dict:
                     resp = base64.b64encode(resp).decode('ascii')
                     content_length = len(resp) if self.logger.getEffectiveLevel() == logging.DEBUG else "N/A"
-                    self.logger.debug(f"API returns binary content [length: {content_length}]")
+                    self.logger.warning(f"API returns binary content [length: {content_length}]")
                     return resp
 
                 # Adds trace
-                self.logger.debug(f"API returns code {resp.get('statusCode')} and headers {resp.get('headers')}")
-                self.logger.debug(f"API body: {resp.get('body')[:self.size_max_for_debug]}")
+                self.logger.warning(f"API returns code {resp.get('statusCode')} and headers {resp.get('headers')}")
+                self.logger.warning(f"API body: {resp.get('body')[:self.size_max_for_debug]}")
 
                 return resp
 

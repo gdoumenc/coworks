@@ -196,13 +196,9 @@ class CoworksRequest(FlaskRequest):
         self.__files = MultiDict()
         if self.is_multipart:
             multipart_data = MultipartDecoder(self.aws_body, self.content_type)
-            print('trace1')
             for part in multipart_data.parts:
-                print('trace2')
                 if b'content-disposition' in part.headers:
-                    print('trace3')
                     content_disposition = part.headers.get(b'content-disposition').decode("utf-8")
-                    print(content_disposition)
                     filename_regexp = "filename=\"(?P<filename>[^\"]+)\""
                     match = re.search(filename_regexp, content_disposition)
                     filename = match.group('filename') if match else None
