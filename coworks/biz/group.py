@@ -11,6 +11,11 @@ from coworks.biz.sensors import AsyncTechMicroServiceSensor
 
 
 class CoworksTaskGroup(TaskGroup):
+    """ Asynchronous tasks group.
+
+    .. versionchanged:: 0.8.4
+        Added the ``start_id`` property.
+    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -18,6 +23,10 @@ class CoworksTaskGroup(TaskGroup):
         self.call_task: t.Optional[BaseOperator] = None
         self.wait_task: t.Optional[BaseOperator] = None
         self.read_task: t.Optional[BaseOperator] = None
+
+    @property
+    def start_id(self):
+        return f'{self._group_id}.transformer' if self.transformer_task else f'{self._group_id}.call'
 
     @property
     def output(self):
