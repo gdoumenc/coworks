@@ -3,7 +3,6 @@ import io
 import itertools
 import logging
 import os
-import traceback
 import typing as t
 from functools import partial
 from http.cookiejar import CookieJar
@@ -377,7 +376,7 @@ class TechMicroService(Flask):
             return TokenResponse(res, aws_event['methodArn']).json
         except Exception as e:
             self.logger.error(f"Error in token handler for {self.name} : {e}")
-            self.logger.error(''.join(traceback.format_exception(None, e, e.__traceback__)))
+            self.logger.error(getattr(e, '__traceback__'))
             return TokenResponse(False, aws_event['methodArn']).json
 
     def _api_handler(
@@ -407,21 +406,14 @@ class TechMicroService(Flask):
                     return resp
 
                 # Adds trace
-                if 'headers' in resp:
-                    content_length = int(resp['headers'].get('content_length', self.size_max_for_debug))
-                else:
-                    content_length = self.size_max_for_debug
-
-                if self.logger.getEffectiveLevel() == logging.DEBUG and content_length < self.size_max_for_debug:
-                    self.logger.debug(f"API returns {resp}")
-                    return resp
-
                 self.logger.debug(f"API returns code {resp.get('statusCode')} and headers {resp.get('headers')}")
+                self.logger.debug(f"API body: {resp.get('body')[:self.size_max_for_debug]}")
+
                 return resp
 
         except Exception as e:
             self.logger.error(f"Exception in api handler for {self.name} : {e}")
-            self.logger.error(''.join(traceback.format_exception(None, e, e.__traceback__)))
+            self.logger.error(getattr(e, '__traceback__'))
             headers = {'content_type': "application/json"}
             return self._aws_payload(str(e), InternalServerError.code, headers)
 
