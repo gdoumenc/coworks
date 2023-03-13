@@ -3,6 +3,8 @@ import io
 import itertools
 import logging
 import os
+import sys
+import traceback
 import typing as t
 from functools import partial
 from http.cookiejar import CookieJar
@@ -407,13 +409,16 @@ class TechMicroService(Flask):
 
                 # Adds trace
                 self.logger.warning(f"API returns code {resp.get('statusCode')} and headers {resp.get('headers')}")
-                self.logger.warning(f"API body: {resp.get('body')[:self.size_max_for_debug]}")
+                self.logger.warning(f"API body: {str(resp.get('body'))[:self.size_max_for_debug]}")
 
                 return resp
 
         except Exception as e:
             self.logger.error(f"Exception in api handler for {self.name} : {e}")
-            self.logger.error(getattr(e, '__traceback__'))
+            parts = ["Traceback (most recent call last):\n"]
+            parts.extend(traceback.format_stack(limit=15)[:-2])
+            parts.extend(traceback.format_exception(*sys.exc_info())[1:])
+            self.logger.error(f"Traceback: {parts}")
             headers = {'content_type': "application/json"}
             return self._aws_payload(str(e), InternalServerError.code, headers)
 
