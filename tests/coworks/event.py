@@ -1,3 +1,6 @@
+import json
+
+
 def get_event(entry_path, method, entry_path_parameters=None, params=None, body=None, headers=None):
     headers = headers or {
         'accept': '*/*',
@@ -33,7 +36,7 @@ def get_event(entry_path, method, entry_path_parameters=None, params=None, body=
             **headers
         },
         'multiValueHeaders': {},
-        'body': body or {},
+        'body': json.dumps(body or {}),
         'queryStringParameters': {},
         'multiValueQueryStringParameters': params or {},
         'pathParameters': {},

@@ -3,6 +3,8 @@ import io
 import json
 import re
 import typing as t
+import urllib
+import urllib.parse
 
 from flask import Request as FlaskRequest
 from flask import Response as FlaskResponse
@@ -87,10 +89,10 @@ class CoworksResponse(FlaskResponse):
 class CoworksRequest(FlaskRequest):
 
     def __init__(self, environ, **kwargs):
-        self.aws_event = environ.get('aws_event')
+        self.aws_event: dict = environ.get('aws_event')
         self.aws_context = environ.get('aws_context')
-        self.aws_query_string = environ.get('aws_query_string')
-        self.aws_body = environ.get('aws_body')
+        self.aws_query_string: MultiDict = environ.get('aws_query_string')
+        self.aws_body: t.Union[str, bytes] = environ.get('aws_body')
         self._in_lambda_context: bool = self.aws_event is not None
         self.__stream = self.__form = self.__files = None
 
@@ -168,7 +170,7 @@ class CoworksRequest(FlaskRequest):
     def get_json(self, **kwargs):
         if not self.in_lambda_context:
             return super().get_json(**kwargs)
-        return self.aws_body
+        return json.loads(self.aws_body)
 
     @property
     def if_match(self):  # No cache
@@ -192,11 +194,13 @@ class CoworksRequest(FlaskRequest):
         else:
             raise BadRequest(f'Undefined mime-type for stream body: {self.mimetype}')
 
-        # Files part
-        self.__files = MultiDict()
         if self.is_multipart:
+            self.__files = MultiDict()
+            self.__form = MultiDict()
             multipart_data = MultipartDecoder(self.aws_body, self.content_type)
             for part in multipart_data.parts:
+
+                # Files part
                 if b'content-disposition' in part.headers:
                     content_disposition = part.headers.get(b'content-disposition').decode("utf-8")
                     filename_regexp = "filename=\"(?P<filename>[^\"]+)\""
@@ -224,5 +228,9 @@ class CoworksRequest(FlaskRequest):
                         content_type=content_type,
                         content_length=content_length,
                     )
-        # Form part
-        self.__form = MultiDict()
+
+                # Form part
+
+        elif self.is_form_urlencoded:
+            self.__files = MultiDict()
+            self.__form = MultiDict(urllib.parse.parse_qs(self.aws_body))

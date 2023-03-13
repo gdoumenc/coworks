@@ -128,6 +128,11 @@ class TestClass:
             response = app(get_event('/extended/content', 'get'), empty_aws_context)
             assert response['statusCode'] == 200
             assert response['body'] == "hello world"
+            event = get_event('/dir/content', 'get')
+            del event['headers']['content-type']
+            response = app(event, empty_aws_context)
+            assert response['statusCode'] == 200
+            assert response['body'] == {'msg': 'hello world'}
 
     def test_request_globals(self, empty_aws_context):
         app = GlobalMS()
