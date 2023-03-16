@@ -95,6 +95,7 @@ class CoworksRequest(FlaskRequest):
         self.aws_body: t.Union[str, bytes] = environ.get('aws_body')
         self._in_lambda_context: bool = self.aws_event is not None
         self.__stream = self.__form = self.__files = None
+        self.__data = self.__json = None
 
         super().__init__(environ, **kwargs)
 
@@ -165,12 +166,20 @@ class CoworksRequest(FlaskRequest):
     def get_data(self, **kwargs):
         if not self.in_lambda_context:
             return super().get_data(**kwargs)
-        return json.dumps(self.aws_body) if kwargs.get('as_text', False) else self.aws_body
+
+        if self.__data is None:
+            if kwargs.get('as_text', False):
+                self.__data = json.dumps(self.aws_body) if self._body_is_dict else self.aws_body
+            self.__data = self.aws_body if self._body_is_dict else json.loads(self.aws_body)
+        return self.__data
 
     def get_json(self, **kwargs):
         if not self.in_lambda_context:
             return super().get_json(**kwargs)
-        return json.loads(self.aws_body)
+
+        if self.__json is None:
+            self.__json = self.aws_body if self._body_is_dict else json.loads(self.aws_body)
+        return self.__json
 
     @property
     def if_match(self):  # No cache
@@ -183,6 +192,10 @@ class CoworksRequest(FlaskRequest):
     @property
     def if_modified_since(self):  # No cache
         return None
+
+    @property
+    def _body_is_dict(self) -> bool:
+        return type(self.aws_body) is dict
 
     def _load_stream_form_files(self) -> None:
 
