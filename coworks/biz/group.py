@@ -14,7 +14,7 @@ class CoworksTaskGroup(TaskGroup):
     """ Asynchronous tasks group.
 
     .. versionchanged:: 0.8.4
-        Added the ``start_id`` property.
+        Added the ``start_id``, ``end_id`` properties.
     """
 
     def __init__(self, *args, **kwargs):
@@ -27,6 +27,10 @@ class CoworksTaskGroup(TaskGroup):
     @property
     def start_id(self):
         return f'{self._group_id}.transformer' if self.transformer_task else f'{self._group_id}.call'
+
+    @property
+    def end_id(self):
+        return f'{self._group_id}.read' if self.read_task else f'{self._group_id}.wait'
 
     @property
     def output(self):
