@@ -40,7 +40,7 @@ class MyMicroService(TechMicroService):
     def token_authorizer(self, token):
         # Simple authorization process.
         # If you want to access AWS event or context for a more complex case, override the function _token_handler.
-        return token == os.getenv('USER_KEYS').split(',')
+        return token in os.getenv('USER_KEYS').split(',')
 
     @entry
     def get(self):
