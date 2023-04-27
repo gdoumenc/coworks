@@ -10,6 +10,7 @@ from airflow.operators.branch import BaseBranchOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.http.hooks.http import HttpHook
 
+XCOM_DEFAULT_KEY = 'return_value'
 XCOM_CWS_BUCKET = 'bucket'  # the AWS S3 bucket where the coworks techmicroservice result is stored
 XCOM_CWS_KEY = 'key'  # the AWS S3 key where the coworks techmicroservice result is stored
 XCOM_CWS_NAME = 'cws_name'
@@ -17,38 +18,45 @@ XCOM_STATUS_CODE = 'status_code'
 
 
 class TechMicroServiceOperator(BaseOperator):
-    """Microservice operator.
-    The tech microservice may be called from its name or from it api_id, stage and token.
-
-    :param cws_name: the tech microservice name.
-    :param entry: the route entry.
-    :param method: the route method ('GET', 'POST').
-    :param no_auth: set to 'True' if no authorization is needded (default 'False').
-    :param query_params: query parameters for GET method.
-    :param json: dict data for POST method.
-    :param data: object to send in the body for POST method
-    :param stage: the microservice stage (default 'dev' if 'cws_name' not defined).
-    :param api_id: APIGateway id (must be defined if no 'cws_name').
-    :param token: Authorization token (must be defined if auth and no 'cws_name').
-    :param directory_conn_id: Connection defined for the directory service (default 'coworks_directory').
-    :param asynchronous: Asynchronous call (default False).
-    :param xcom_push: Pushes result in XCom (default True).
-    :param json_result: Returns a JSON value in 'return_value' (default True).
-    :param raise_400_errors: raise error on client 400 errors (default True).
-    :param accept: accept header value (default 'application/json').
-    :param headers: specific header values forced (default {}).
-    :param log_response: Trace result content (default False).
-    """
     template_fields = ["cws_name", "entry", "query_params", "json", "data"]
 
     def __init__(self, *, cws_name: str = None, entry: str = '/', method: str = 'get', no_auth: bool = False,
                  query_params: t.Union[dict, str] = None, json: t.Union[dict, str] = None,
                  data: t.Union[dict, str] = None,
                  stage: str = None, api_id: str = None, token: str = None,
-                 directory_conn_id: str = 'coworks_directory', asynchronous: bool = False,
-                 xcom_push: bool = True, json_result: bool = True, raise_400_errors: bool = True,
+                 raise_errors: bool = True, raise_400_errors: bool = True,
                  accept: str = 'application/json', headers: dict = None, log_response: bool = False,
+                 directory_conn_id: str = 'coworks_directory', asynchronous: bool = False,
+                 xcom_push: bool = True, json_result: bool = True,
+                 multiple_outputs_transformer: t.Callable[[dict], dict] = None,
                  **kwargs) -> None:
+        """Microservice operator.
+        The tech microservice may be called from its name or from it api_id, stage and token.
+
+        :param cws_name: the tech microservice name.
+        :param entry: the route entry.
+        :param method: the route method ('GET', 'POST').
+        :param no_auth: set to 'True' if no authorization is needded (default 'False').
+        :param query_params: query parameters for GET method.
+        :param json: dict data for POST method.
+        :param data: object to send in the body for POST method
+        :param stage: the microservice stage (default 'dev' if 'cws_name' not defined).
+        :param api_id: APIGateway id (must be defined if no 'cws_name').
+        :param token: Authorization token (must be defined if auth and no 'cws_name').
+        :param directory_conn_id: connection defined for the directory service (default 'coworks_directory').
+        :param asynchronous: asynchronous call (default False).
+        :param xcom_push: pushes result in XCom (default True).
+        :param json_result: returns a JSON value in 'return_value' (default True).
+        :param raise_errors: raise error on client errors (default True).
+        :param raise_400_errors: raise error on client 400 errors (default True).
+        :param accept: accept header value (default 'application/json').
+        :param headers: specific header values forced (default {}).
+        :param log_response: trace result content (default False).
+        :param multiple_outputs_transformer: if defined, return a multi-output XCOM after tranformation.
+
+         .. versionchanged:: 0.8.4
+            Added the ``multiple_outputs_transformer`` parameter.
+        """
         super().__init__(**kwargs)
         self.cws_name = cws_name
         self.entry = entry.lstrip('/')
@@ -65,7 +73,9 @@ class TechMicroServiceOperator(BaseOperator):
         self.asynchronous = asynchronous
         self.xcom_push_flag = xcom_push
         self.json_result = json_result
+        self.raise_errors = raise_errors
         self.raise_400_errors = raise_400_errors
+        self.multiple_outputs_transformer = multiple_outputs_transformer
         self._url = self._bucket = self._key = None
 
         if not self.cws_name and not self.api_id:
@@ -83,6 +93,7 @@ class TechMicroServiceOperator(BaseOperator):
 
     def pre_execute(self, context):
         """Gets url and token from name or parameters.
+
         Done only before execution not on DAG loading.
         """
         dag_run = context['dag_run']
@@ -119,6 +130,16 @@ class TechMicroServiceOperator(BaseOperator):
         """Call TechMicroService.
         """
         resp = self._call_cws(context)
+
+        if self.raise_errors:
+            if (self.raise_400_errors and resp.status_code >= 400) or resp.status_code >= 500:
+                if self.xcom_push_flag:
+                    self._push_response(context, resp)
+
+                msg = f"The TechMicroService {self.cws_name} had an error {resp.status_code}!"
+                self.log.error(msg)
+                raise AirflowFailException(msg)
+
         if self.xcom_push_flag:
             self._push_response(context, resp)
 
@@ -130,15 +151,6 @@ class TechMicroServiceOperator(BaseOperator):
             params=self.query_params, json=self.json, data=self.data
         )
         self.log.info(f"Resulting status code : {resp.status_code}")
-
-        # Manages status
-        if self.raise_400_errors and resp.status_code >= 400:
-            self.log.error(f"Bad request: {resp.text}'")
-            raise AirflowFailException(f"The TechMicroService {self.cws_name} had a client error {resp.status_code}!")
-        if resp.status_code >= 500:
-            self.log.error(f"Internal error: {resp.text}'")
-            raise AirflowFailException(
-                f"The TechMicroService {self.cws_name} had an internal error {resp.status_code}!")
         return resp
 
     def _push_response(self, context, resp):
@@ -161,23 +173,36 @@ class TechMicroServiceOperator(BaseOperator):
                 self.log.info(returned_value)
 
             self.xcom_push(context, XCOM_STATUS_CODE, resp.status_code)
-            self.xcom_push(context, 'return_value', returned_value)
+            if self.multiple_outputs_transformer:
+                for key, value in self.multiple_outputs_transformer(returned_value):
+                    self.xcom_push(context, key, value)
+
+            self.xcom_push(context, XCOM_DEFAULT_KEY, returned_value)
 
 
 class AsyncTechServicePullOperator(BaseOperator):
-    """Pull in XCom a microservice result when its was called asynchronously.
-
-    :param cws_task_id: the tech microservice called asynchronously.
-    :param aws_conn_id: aws connection (default 'aws_s3').
-    :param raise_errors: raises error if the called microserrvice did (default True).
-    """
 
     def __init__(self, *, cws_task_id: str = None, aws_conn_id: str = 'aws_s3',
-                 raise_errors: bool = True, **kwargs) -> None:
+                 raise_errors: bool = True, raise_400_errors: bool = True,
+                 xcom_push: bool = True, **kwargs) -> None:
+        """Pull in XCom a microservice result when its was called asynchronously.
+
+        :param cws_task_id: the tech microservice called asynchronously.
+        :param aws_conn_id: aws connection (default 'aws_s3').
+        :param raise_errors: raise error on client errors (default True).
+        :param raise_400_errors: raise error on client 400 errors (default True).
+        :param xcom_push: pushes result in XCom (default True).
+
+        .. versionchanged:: 0.8.4
+            Added the ``xcom_push`` parameter.
+        """
+
         super().__init__(**kwargs)
         self.cws_task_id = cws_task_id
         self.aws_conn_id = aws_conn_id
         self.raise_errors = raise_errors
+        self.raise_400_errors = raise_400_errors
+        self.xcom_push_flag = xcom_push
 
     def execute(self, context):
         ti = context["ti"]
@@ -192,15 +217,19 @@ class AsyncTechServicePullOperator(BaseOperator):
         payload = loads(data)
 
         status_code = payload['statusCode']
-
-        if self.raise_errors and status_code >= 300:
-            self.log.error(f"Error: {payload['body']}'")
-            raise AirflowFailException(f"TechMicroService doesn't complete successfully: {status_code}")
-
         self.xcom_push(context, XCOM_STATUS_CODE, status_code)
-        if payload['isBase64Encoded']:
-            return base64.b64decode(payload['body'])
-        return payload['body']
+
+        if self.raise_errors:
+            if (self.raise_400_errors and status_code >= 400) or status_code >= 500:
+                if self.xcom_push_flag:
+                    self.xcom_push(context, XCOM_DEFAULT_KEY, payload.get('body'))
+                self.log.error(f"Error: {payload['body']}'")
+                raise AirflowFailException(f"TechMicroService doesn't complete successfully: {status_code}")
+
+        if self.xcom_push_flag:
+            if payload['isBase64Encoded']:
+                return base64.b64decode(payload['body'])
+            return payload['body']
 
 
 class BranchTechMicroServiceOperator(BaseBranchOperator):

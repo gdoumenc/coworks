@@ -77,6 +77,10 @@ class SimpleMS(TechMicroService):
     def get_extended_content(self):
         return "hello world"
 
+    @entry
+    def get_dir_content(self):
+        return {'msg': "hello world"}
+
 
 class GlobalMS(TechMicroService):
 

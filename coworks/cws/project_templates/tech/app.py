@@ -1,7 +1,5 @@
 import os
 
-from flask import request
-
 from coworks import TechMicroService
 from coworks import entry
 from coworks.blueprint.admin_blueprint import Admin
@@ -36,13 +34,13 @@ class MyMicroService(TechMicroService):
     def init_cli(self):
         """
         from flask_migrate import Migrate
-        Migrate(app, db)
+        Migrate(self, db)
         """
 
     def token_authorizer(self, token):
-        # Redefined to allow specific verification
-        user_key = request.headers.get("USER_KEY")
-        return token == os.getenv('TOKEN') and user_key is not None
+        # Simple authorization process.
+        # If you want to access AWS event or context for a more complex case, override the function _token_handler.
+        return token == os.getenv('USER_KEYS').split(',')
 
     @entry
     def get(self):

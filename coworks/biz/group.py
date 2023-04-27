@@ -3,6 +3,7 @@ import typing as t
 from airflow.models import BaseOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.task_group import TaskGroup
+from airflow.utils.trigger_rule import TriggerRule
 
 from coworks.biz.operators import AsyncTechServicePullOperator
 from coworks.biz.operators import TechMicroServiceOperator
@@ -10,38 +11,38 @@ from coworks.biz.sensors import AsyncTechMicroServiceSensor
 
 
 class CoworksTaskGroup(TaskGroup):
+    """ Asynchronous tasks group.
+
+    .. versionchanged:: 0.8.4
+        Added the ``start_id``, ``end_id`` properties.
+    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.__call_task: t.Optional[BaseOperator] = None
-        self.__read_task: t.Optional[BaseOperator] = None
+        self.transformer_task: t.Optional[BaseOperator] = None
+        self.call_task: t.Optional[BaseOperator] = None
+        self.wait_task: t.Optional[BaseOperator] = None
+        self.read_task: t.Optional[BaseOperator] = None
+
+    @property
+    def start_id(self):
+        return f'{self._group_id}.transformer' if self.transformer_task else f'{self._group_id}.call'
+
+    @property
+    def end_id(self):
+        return f'{self._group_id}.read' if self.read_task else f'{self._group_id}.wait'
 
     @property
     def output(self):
         return self.read_task.output
 
-    @property
-    def call_task(self):
-        return self.__call_task
 
-    @call_task.setter
-    def call_task(self, task):
-        self.__call_task = task
-
-    @property
-    def read_task(self):
-        return self.__read_task
-
-    @read_task.setter
-    def read_task(self, task):
-        self.__read_task = task
-
-
-def TechMicroServiceAsyncGroup(group_id: str, transformer: t.Callable = None,
+def TechMicroServiceAsyncGroup(group_id: str, transformer: t.Callable = None, read: bool = True,
                                op_args: t.Optional[t.Collection[t.Any]] = None,
                                op_kwargs: t.Optional[t.Mapping[str, t.Any]] = None,
-                               method: str = 'get',
-                               raise_errors: bool = True, timeout: int = 900, xcom_push: bool = True,
+                               method: str = 'get', timeout: int = 900,
+                               raise_errors: bool = True, raise_400_errors: bool = True,
+                               xcom_push: bool = True, trigger_rule=TriggerRule.ALL_SUCCESS,
                                **tech_kwargs):
     """Task group to allow asynchronous call of a TechMicroService.
 
@@ -49,61 +50,73 @@ def TechMicroServiceAsyncGroup(group_id: str, transformer: t.Callable = None,
 
     :param group_id: group id.
     :param transformer: python transformer function.
+    :param read: do read task.
     :param op_args: python transformer args.
     :param op_kwargs: python transformer kwargs.
     :param method: microservice method called.
-    :param raise_errors: raises error if microservice call raised one.
+    :param raise_errors: raise error on client errors (default True).
+    :param raise_400_errors: raise error on client 400 errors (default True).
     :param timeout: asynchronous call timeout.
-    :param xcom_push:  Pushes result in XCom (default True).
+    :param trigger_rule: trigger rule to be set on first task.
+    :param xcom_push:  pushes result in XCom (default True).
 
+    .. versionchanged:: 0.8.4
+        Added the ``read`` parameter.
+    .. versionchanged:: 0.8.4
+        Added the ``trigger_rule`` parameter.
     .. versionchanged:: 0.8.0
         Added the ``transformer`` parameter.
     """
     with CoworksTaskGroup(group_id=group_id) as tg:
         if transformer:
-            transformer_task = PythonOperator(
-                task_id=transformer.__name__,
+            tg.transformer_task = PythonOperator(
+                task_id='transformer',
                 python_callable=transformer,
-                op_args = op_args,
-                op_kwargs = op_kwargs
+                op_args=op_args,
+                op_kwargs=op_kwargs,
+                trigger_rule=trigger_rule
             )
 
             if method.lower() == 'get':
                 if 'query_params' in tech_kwargs:
-                    transformer_task.log.warning(f"Calling transformer method with already query_params parameter call")
-                tech_kwargs['query_params'] = transformer_task.output
+                    tg.transformer_task.log.warning(
+                        f"Calling transformer method with already query_params parameter call")
+                tech_kwargs['query_params'] = tg.transformer_task.output
             else:
                 if 'json' in tech_kwargs:
-                    transformer_task.log.warning("Calling transformer method with already json parameter call")
-                tech_kwargs['json'] = transformer_task.output
+                    tg.transformer_task.log.warning("Calling transformer method with already json parameter call")
+                tech_kwargs['json'] = tg.transformer_task.output
 
-        call = TechMicroServiceOperator(
+        tg.call_task = TechMicroServiceOperator(
             task_id="call",
             asynchronous=True,
             method=method,
+            raise_errors=raise_errors,
+            raise_400_errors=raise_400_errors,
+            trigger_rule=trigger_rule if not transformer else TriggerRule.ALL_SUCCESS,
             **tech_kwargs,
         )
-        wait = AsyncTechMicroServiceSensor(
+
+        tg.wait_task = AsyncTechMicroServiceSensor(
             task_id='wait',
             cws_task_id=f'{group_id}.call',
             timeout=timeout,
         )
 
-        if xcom_push:
-            read = AsyncTechServicePullOperator(
+        if read:
+            tg.read_task = AsyncTechServicePullOperator(
                 task_id='read',
                 cws_task_id=f'{group_id}.call',
                 raise_errors=raise_errors,
+                raise_400_errors=raise_400_errors,
+                xcom_push=xcom_push,
             )
 
-    tg.call_task = call
-    call >> wait
+    tg.call_task >> tg.wait_task
 
     if transformer:
-        tg.transformer_task = transformer_task
-        transformer_task >> call
-    if xcom_push:
-        tg.read_task = read
-        wait >> read
+        tg.transformer_task >> tg.call_task
+    if read:
+        tg.wait_task >> tg.read_task
 
     return tg

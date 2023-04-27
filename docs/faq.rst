@@ -3,16 +3,16 @@
 FAQ
 ===
 
-This is a list of Frequently Asked Questions about ``Coworks``.  Feel free to
+This is a list of Frequently Asked Questions about ``CoWorks``.  Feel free to
 suggest new entries!
 
-Is Coworks ...
+Is CoWorks ...
 --------------
 
 ... a complete unified approach?
 	The hardest part of using the microservice approach is to be able to control, deploy, maintain and debug composition
 	of many microservices. Having a compositional approach is the key for production usage.
-	CoWorks integrates all information and convention to simlplify such composition,.
+	CoWorks integrates all information and convention to simplify such composition.
 ... independant of any specific IaaS?
 	No, it relies only on AWS solutions. There are already performant solutions to abstract any cloud providers such as
 	`Zappa <https://github.com/Miserlou/Zappa>`_, `Serverless <https://serverless.com/>`_...
@@ -24,8 +24,8 @@ Is Coworks ...
 	* Simple atomic microservices called ``TechMicroservices``.
 	* Composed microservices called ``BizMicroservices``.
 
-	The model uses Lambda, Step Function, APIGateway and XRay but those complex but awesome technologies are hidden
-	for users.
+	The model uses mainly Lambda and Airflow technologies but those complex but awesome technologies are used
+	in asimplified manner for users.
 
 We welcome any contributions that improve the quality of our projects.
 

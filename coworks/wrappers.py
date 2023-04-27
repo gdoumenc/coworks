@@ -1,13 +1,19 @@
 import base64
 import io
 import json
+import re
 import typing as t
+import urllib
+import urllib.parse
 
 from flask import Request as FlaskRequest
 from flask import Response as FlaskResponse
 from flask import current_app
+from requests_toolbelt.multipart.decoder import MultipartDecoder
 from werkzeug.datastructures import ETags
+from werkzeug.datastructures import FileStorage
 from werkzeug.datastructures import Headers
+from werkzeug.datastructures import MultiDict
 from werkzeug.exceptions import HTTPException, BadRequest
 from werkzeug.exceptions import MethodNotAllowed
 from werkzeug.exceptions import NotFound
@@ -83,11 +89,13 @@ class CoworksResponse(FlaskResponse):
 class CoworksRequest(FlaskRequest):
 
     def __init__(self, environ, **kwargs):
-        self.aws_event = environ.get('aws_event')
+        self.aws_event: dict = environ.get('aws_event')
         self.aws_context = environ.get('aws_context')
-        self.aws_query_string = environ.get('aws_query_string')
-        self.aws_body = environ.get('aws_body')
+        self.aws_query_string: MultiDict = environ.get('aws_query_string')
+        self.aws_body: t.Union[str, bytes] = environ.get('aws_body')
         self._in_lambda_context: bool = self.aws_event is not None
+        self.__stream = self.__form = self.__files = None
+        self.__data = self.__json = None
 
         super().__init__(environ, **kwargs)
 
@@ -133,40 +141,45 @@ class CoworksRequest(FlaskRequest):
         if not self.in_lambda_context:
             return super().stream
 
-        print(self.is_multipart)
-        print(self.is_form_urlencoded)
-
-        if self.is_multipart:
-            return io.BytesIO(base64.b64decode(self.aws_body))
-        if self.is_form_urlencoded:
-            return io.BytesIO(self.aws_body.encode('ascii'))
-        raise BadRequest(f'Undefined mime-type: {self.mimetype}')
+        if self.__stream is None:
+            self._load_stream_form_files()
+        return self.__stream
 
     @property
     def form(self):
         if not self.in_lambda_context:
             return super().form
 
-        parser = self.make_form_data_parser()
-        data = parser.parse(
-            self.stream,
-            self.mimetype,
-            self.content_length,
-            self.mimetype_params,
-        )
-        d = self.__dict__
-        d["stream"], d["form"], d["files"] = data
-        return d["form"]
+        if self.__form is None:
+            self._load_stream_form_files()
+        return self.__form
+
+    @property
+    def files(self):
+        if not self.in_lambda_context:
+            return super().files
+
+        if self.__files is None:
+            self._load_stream_form_files()
+        return self.__files
 
     def get_data(self, **kwargs):
         if not self.in_lambda_context:
             return super().get_data(**kwargs)
-        return json.dumps(self.aws_body) if kwargs.get('as_text', False) else self.aws_body
+
+        if self.__data is None:
+            if kwargs.get('as_text', False):
+                self.__data = json.dumps(self.aws_body) if self._body_is_dict else self.aws_body
+            self.__data = self.aws_body if self._body_is_dict else json.loads(self.aws_body)
+        return self.__data
 
     def get_json(self, **kwargs):
         if not self.in_lambda_context:
             return super().get_json(**kwargs)
-        return self.aws_body
+
+        if self.__json is None:
+            self.__json = self.aws_body if self._body_is_dict else json.loads(self.aws_body)
+        return self.__json
 
     @property
     def if_match(self):  # No cache
@@ -179,3 +192,58 @@ class CoworksRequest(FlaskRequest):
     @property
     def if_modified_since(self):  # No cache
         return None
+
+    @property
+    def _body_is_dict(self) -> bool:
+        return type(self.aws_body) is dict
+
+    def _load_stream_form_files(self) -> None:
+
+        # Stream part
+        if self.is_multipart:
+            self.__stream = io.BytesIO(base64.b64decode(self.aws_body))
+        elif self.is_form_urlencoded:
+            self.__stream = io.BytesIO(self.aws_body.encode('ascii'))
+        else:
+            raise BadRequest(f'Undefined mime-type for stream body: {self.mimetype}')
+
+        if self.is_multipart:
+            self.__files = MultiDict()
+            self.__form = MultiDict()
+            multipart_data = MultipartDecoder(self.aws_body, self.content_type)
+            for part in multipart_data.parts:
+
+                # Files part
+                if b'content-disposition' in part.headers:
+                    content_disposition = part.headers.get(b'content-disposition').decode("utf-8")
+                    filename_regexp = "filename=\"(?P<filename>[^\"]+)\""
+                    match = re.search(filename_regexp, content_disposition)
+                    filename = match.group('filename') if match else None
+
+                    name_regexp = "name=\"(?P<name>[^\"]+)\""
+                    match = re.search(name_regexp, content_disposition)
+                    name = match.group('name') if match else None
+
+                    if b'content-type' in part.headers:
+                        content_type = part.headers.get(b'content-type').decode("utf-8")
+                    else:
+                        content_type = None
+
+                    if b'content-length' in part.headers:
+                        content_length = part.headers.get(b'content-length').decode("utf-8")
+                    else:
+                        content_length = None
+
+                    self.__files[filename] = FileStorage(
+                        stream=io.BytesIO(part.content),
+                        filename=filename,
+                        name=name,
+                        content_type=content_type,
+                        content_length=content_length,
+                    )
+
+                # Form part
+
+        elif self.is_form_urlencoded:
+            self.__files = MultiDict()
+            self.__form = MultiDict(urllib.parse.parse_qs(self.aws_body))

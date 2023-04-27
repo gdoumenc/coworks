@@ -36,6 +36,7 @@ BIZ_KEY_HEADER_KEY: str = 'X-CWS-S3Key'
 
 def add_coworks_routes(app, bp_state: BlueprintSetupState = None) -> None:
     """ Creates all routes for a microservice.
+
     :param app the app microservice
     :param bp_state the blueprint state
     """
@@ -124,18 +125,16 @@ def create_cws_proxy(scaffold: "Scaffold", func, kwarg_keys, args, varkw):
                     try:
                         if request.is_json:
                             data = request.get_data()
-                            if not data:
-                                kwargs = {**kwargs}
-                            else:
+                            if data:
                                 data = request.json
                                 if type(data) is dict:
-                                    kwargs = dict(**kwargs, **as_fun_params(data, False))
+                                    kwargs = {**kwargs, **as_fun_params(data, False)}
                                 else:
                                     kwargs[kwarg_keys[0]] = data
                         elif request.is_multipart:
                             data = request.form.to_dict(False)
                             files = request.files.to_dict(False)
-                            kwargs = dict(**kwargs, **as_fun_params(data), **as_fun_params(files))
+                            kwargs = {**kwargs, **as_fun_params(data), **as_fun_params(files)}
                         elif request.is_form_urlencoded:
                             data = request.form.to_dict(False)
                             kwargs = dict(**kwargs, **as_fun_params(data))

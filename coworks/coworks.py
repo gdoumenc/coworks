@@ -3,6 +3,7 @@ import io
 import itertools
 import logging
 import os
+import sys
 import traceback
 import typing as t
 from functools import partial
@@ -297,7 +298,7 @@ class TechMicroService(Flask):
         If the returned value is True, all routes for all stages are accepted.
         If the returned value is a string, then it must be a stage name and all routes are accepted for this stage.
 
-        By default, no entry are accepted for security reason.
+        By default, just using the token authentification process (defined from terraform template).
         """
 
         return token == os.getenv('TOKEN')
@@ -377,7 +378,7 @@ class TechMicroService(Flask):
             return TokenResponse(res, aws_event['methodArn']).json
         except Exception as e:
             self.logger.error(f"Error in token handler for {self.name} : {e}")
-            self.logger.error(''.join(traceback.format_exception(None, e, e.__traceback__)))
+            self.logger.error(getattr(e, '__traceback__'))
             return TokenResponse(False, aws_event['methodArn']).json
 
     def _api_handler(
@@ -403,25 +404,21 @@ class TechMicroService(Flask):
                 if type(resp) is not dict:
                     resp = base64.b64encode(resp).decode('ascii')
                     content_length = len(resp) if self.logger.getEffectiveLevel() == logging.DEBUG else "N/A"
-                    self.logger.debug(f"API returns binary content [length: {content_length}]")
+                    self.logger.warning(f"API returns binary content [length: {content_length}]")
                     return resp
 
                 # Adds trace
-                if 'headers' in resp:
-                    content_length = int(resp['headers'].get('content_length', self.size_max_for_debug))
-                else:
-                    content_length = self.size_max_for_debug
+                self.logger.warning(f"API returns code {resp.get('statusCode')} and headers {resp.get('headers')}")
+                self.logger.warning(f"API body: {str(resp.get('body'))[:self.size_max_for_debug]}")
 
-                if self.logger.getEffectiveLevel() == logging.DEBUG and content_length < self.size_max_for_debug:
-                    self.logger.debug(f"API returns {resp}")
-                    return resp
-
-                self.logger.debug(f"API returns code {resp.get('statusCode')} and headers {resp.get('headers')}")
                 return resp
 
         except Exception as e:
             self.logger.error(f"Exception in api handler for {self.name} : {e}")
-            self.logger.error(''.join(traceback.format_exception(None, e, e.__traceback__)))
+            parts = ["Traceback (most recent call last):\n"]
+            parts.extend(traceback.format_stack(limit=15)[:-2])
+            parts.extend(traceback.format_exception(*sys.exc_info())[1:])
+            self.logger.error(f"Traceback: {parts}")
             headers = {'content_type': "application/json"}
             return self._aws_payload(str(e), InternalServerError.code, headers)
 
@@ -441,6 +438,7 @@ class TechMicroService(Flask):
             self._cws_conf_updated = True
 
     def _check_token(self):
+        """Simulates the authorization process of lambda if not in lambda context."""
         if not request.in_lambda_context:
 
             # No token check on local
