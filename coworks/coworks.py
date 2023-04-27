@@ -298,7 +298,7 @@ class TechMicroService(Flask):
         If the returned value is True, all routes for all stages are accepted.
         If the returned value is a string, then it must be a stage name and all routes are accepted for this stage.
 
-        By default, no entry are accepted for security reason.
+        By default, just using the token authentification process (defined from terraform template).
         """
 
         return token == os.getenv('TOKEN')
@@ -438,6 +438,7 @@ class TechMicroService(Flask):
             self._cws_conf_updated = True
 
     def _check_token(self):
+        """Simulates the authorization process of lambda if not in lambda context."""
         if not request.in_lambda_context:
 
             # No token check on local
