@@ -7,7 +7,6 @@ import sys
 import traceback
 import typing as t
 from functools import partial
-from http.cookiejar import CookieJar
 from inspect import isfunction
 from pathlib import Path
 
@@ -93,25 +92,6 @@ def entry(fun: t.Callable = None, binary_headers: t.Dict[str, str] = None,
 # Classes
 #
 
-
-class CoworksCookieJar(CookieJar):
-    """A cookielib.CookieJar modified to inject cookie headers from event.
-    """
-
-    def __init__(self, cookies):
-        super().__init__()
-        self.cookies = cookies
-
-    def inject_wsgi(self, environ):
-        """Inject the cookies as client headers into the server's wsgi
-        environment.
-        """
-        environ["HTTP_COOKIE"] = self.cookies
-
-    def extract_wsgi(self, environ, headers):
-        pass
-
-
 class CoworksClient(FlaskClient):
     """Creates environment and complete request.
     """
@@ -152,7 +132,6 @@ class CoworksClient(FlaskClient):
             'aws_query_string': query_string,
             'aws_body': body,
         }
-        self.cookie_jar = CoworksCookieJar(headers.get('cookie'))
 
     def open(self, *args, **kwargs) -> CoworksResponse:
         req = CoworksRequest(self.aws_environ, populate_request=False, shallow=True)
