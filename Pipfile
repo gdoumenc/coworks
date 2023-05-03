@@ -6,7 +6,7 @@ verify_ssl = true
 [packages]
 anyconfig = ">=0.12"
 boto3 = ">=1.19"
-flask = "==2.2.2"
+flask = ">=2.2,<2.3"
 markdown = ">=3.3.6"
 pyyaml = ">=6.0"
 python-dotenv = ">=0.21.0"
