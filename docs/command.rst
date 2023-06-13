@@ -3,7 +3,7 @@
 Commands
 ========
 
-As for Flask, CoWorks allows you to extend the ``cws`` application with commands.
+As for Flask, CoWorks allows you to extend the ``cws`` application with ``click`` commands.
 This powerfull extension is very usefull for complex deployment, testing or documentation.
 
 As explained before, the microservice architecture needs to be completed by tools. The ``cws`` command line extends
@@ -19,7 +19,7 @@ features to help user to :
 
 * Get microservices informations,
 * Export microservices to another formats,
-* Update deployed microservices,
+* Deploy or update deployed microservices,
 * ...
 
 It is a generic client interface on which commands may be defined.
@@ -93,3 +93,28 @@ if you needed to enhance the deployment process.
 This command may be used to deal with complex deployments, mainly for staging or respecting infrastucture constraints
 or processes.
 
+How to change the deployment command?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This is done by simply creating a new click command.
+Find an example below::
+
+    from coworks.cws.client import client
+
+    # Get cws default deploy command
+    deploy = client.commands['deploy']
+
+    # Redefines new deploy command
+    @pass_script_info
+    @with_appcontext
+    def new_deploy_callback(info, *args, **kwargs):
+        app = info.load_app()
+        kwargs['key'] = f"tech/{app.__module__}-{app.name}/archive.zip"
+        kwargs['terraform_cloud'] = True
+        return deploy.callback(*args, terraform_class=FprTerraformCloud, **kwargs)
+
+
+    # Adds options
+    deploy = client.commands['deploy']
+    new_deploy = CwsCommand(deploy.name, callback=deploy_callback, params=deploy.params)
+    click.option('--vpc', is_flag=True, default=True, help="Set lambda in VPC.")(new_deploy)

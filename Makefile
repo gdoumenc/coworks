@@ -4,7 +4,7 @@ include .env
 export
 
 dist:
-	pipenv run python setup.py bdist_wheel
+	pipenv run python -m build
 	rm -rf build
 
 fury: clean dist

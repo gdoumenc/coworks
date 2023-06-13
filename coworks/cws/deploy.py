@@ -50,7 +50,7 @@ class TerraformContext:
 class TerraformResource:
     parent_uid: str
     path: str
-    rules: t.Iterable[Rule] = None
+    rules: t.List[Rule] = None
 
     @cached_property
     def uid(self) -> str:
@@ -83,7 +83,7 @@ class TerraformResource:
         return f"{self.uid}:{self.rules}"
 
 
-class TerraformLocal:
+class LocalTerraform:
     """Terraform class to manage local terraform deployements."""
     TIMEOUT = 600
 
@@ -274,7 +274,7 @@ class TerraformLocal:
         return self.app_context.app.logger
 
 
-class RemoteTerraform(TerraformLocal):
+class RemoteTerraform(LocalTerraform):
 
     def __init__(self, app_context: TerraformContext, bar, **options):
         super().__init__(app_context, bar, **options)
@@ -295,7 +295,7 @@ class RemoteTerraform(TerraformLocal):
         self._execute(cmd)
 
 
-class TerraformCloud(TerraformLocal):
+class TerraformCloud(LocalTerraform):
     """Terraform class to manage remote deployements. Two terraform interfaces are used:
     - One for the API,
     - One for the stage.
@@ -411,9 +411,10 @@ class TerraformCloud(TerraformLocal):
 @click.option('--security-groups', multiple=True, default=[], help="Security groups to be added [ids].")
 @click.option('--subnets', multiple=True, default=[], help="Subnets to be added [ids].")
 @click.option('--timeout', default=60, help="Lambda timeout (default 60s).Only for asynchronous call (API call 30s).")
-@click.option('--terraform-dir', default="terraform", help="Terraform folder (default terraform).")
-@click.option('--terraform-cloud', is_flag=True, help="Use cloud workspaces (default false).")
-@click.option('--terraform-refresh', is_flag=True, default=False, help="Forces terraform to refresh the state.")
+@click.option('--terraform-cloud', '-tc', is_flag=True, default=False, help="Use cloud workspaces (default false).")
+@click.option('--terraform-dir', '-td', default="terraform", help="Terraform folder (default terraform).")
+@click.option('--terraform-organization', '-to', help="Terraform organization needed if using cloud terraform.")
+@click.option('--terraform-refresh', '-tr', is_flag=True, default=False, help="Forces terraform to refresh the state.")
 @click.pass_context
 @pass_script_info
 @with_appcontext
@@ -422,6 +423,9 @@ def deploy_command(info, ctx, **options) -> None:
         Step 1. Create API and routes integrations
         Step 2. Deploy API and Lambda
     """
+
+    if options.get('terraform_cloud') and not options.get('terraform_organization'):
+        raise click.BadParameter('An organization must be defined if using cloud terraform')
     app_context = TerraformContext(info)
     app = app_context.app
     terraform = None
@@ -488,7 +492,7 @@ def pop_terraform_class(options):
     cloud = options.get('terraform_cloud')
     refresh = options.get('terraform_refresh')
     click.echo(f" * Using terraform {'cloud' if cloud else 'local'} (refresh={refresh})")
-    return options.pop('terraform_class', TerraformCloud if cloud else TerraformLocal)
+    return options.pop('terraform_class', TerraformCloud if cloud else LocalTerraform)
 
 
 def process_terraform(app_context, ctx, terraform_class, bar, command_template, deploy=True, **options):

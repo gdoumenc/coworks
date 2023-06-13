@@ -9,8 +9,9 @@ from flask.cli import ScriptInfo
 from coworks import Blueprint
 from coworks import TechMicroService
 from coworks import entry
+from coworks.cws.deploy import LocalTerraform
+from coworks.cws.deploy import RemoteTerraform
 from coworks.cws.deploy import TerraformContext
-from coworks.cws.deploy import TerraformLocal
 from cws.client import CwsScriptInfo
 
 
@@ -49,7 +50,7 @@ class TestClass:
         with app.test_request_context() as ctx:
             info = ScriptInfo(create_app=lambda: app)
             app_context = TerraformContext(info)
-            terraform = TerraformLocal(app_context, progressbar, terraform_dir="terraform")
+            terraform = LocalTerraform(app_context, progressbar, terraform_dir="terraform")
             ressources = terraform.api_resources
         assert len(ressources) == 7
         assert ressources[''].rules is not None
@@ -72,7 +73,7 @@ class TestClass:
         with app.test_request_context() as ctx:
             info = ScriptInfo(create_app=lambda: app)
             app_context = TerraformContext(info)
-            api_ressources = TerraformLocal(app_context, progressbar, terraform_dir='.').api_resources
+            api_ressources = LocalTerraform(app_context, progressbar, terraform_dir='.').api_resources
         assert len(api_ressources) == 5
         assert '' in api_ressources
         assert 'init' in api_ressources
@@ -85,7 +86,7 @@ class TestClass:
         assert len(ter_resource.rules) == 2
 
     @mock.patch.dict(os.environ, {"test": "local", "FLASK_RUN_FROM_CLI": "true"})
-    def test_deploy_cmd(self, monkeypatch, example_dir, progressbar, capsys):
+    def test_deploy_local_cmd(self, monkeypatch, example_dir, progressbar, capsys):
         info = CwsScriptInfo(project_dir='.')
         info.app_import_path = "command:app"
         app = info.load_app()
@@ -100,15 +101,44 @@ class TestClass:
             }
             info = ScriptInfo(create_app=lambda: app)
             app_context = TerraformContext(info)
-            terraform = TerraformLocal(app_context, progressbar, terraform_dir="terraform")
+            terraform = LocalTerraform(app_context, progressbar, terraform_dir="terraform")
             terraform.generate_files("deploy.j2", "test.tf", **options)
         with (Path("terraform") / "test.tf").open() as f:
             lines = f.readlines()
         assert len(lines) == 2280
-        print(lines[20:25])
         assert lines[1].strip() == 'alias = "envtechms"'
         assert lines[21].strip() == 'envtechms_when_default = terraform.workspace == "default" ? 1 : 0'
         assert lines[22].strip() == 'envtechms_when_stage = terraform.workspace != "default" ? 1 : 0'
+        (Path("terraform") / "test.tf").unlink()
+        Path("terraform").rmdir()
+
+    import pytest
+    @pytest.mark.wip
+    @mock.patch.dict(os.environ, {"test": "local", "FLASK_RUN_FROM_CLI": "true"})
+    def test_deploy_remote_cmd(self, monkeypatch, example_dir, progressbar, capsys):
+        info = CwsScriptInfo(project_dir='.')
+        info.app_import_path = "command:app"
+        app = info.load_app()
+        with app.test_request_context() as ctx:
+            options = {
+                'project_dir': example_dir,
+                'workspace': 'workspace',
+                'debug': False,
+                'timeout': 30,
+                'memory_size': 100,
+                'deploy': True,
+                'terraform_cloud': True,
+                'terraform_organization': "CoWorks",
+            }
+            info = ScriptInfo(create_app=lambda: app)
+            app_context = TerraformContext(info)
+            terraform = RemoteTerraform(app_context, progressbar, terraform_dir="terraform")
+            terraform.generate_files("terraform.j2", "test.tf", **options)
+        with (Path("terraform") / "test.tf").open() as f:
+            lines = f.readlines()
+        assert len(lines) == 46
+        assert "TERRAFORM ON CLOUD" in lines[2]
+        assert "CoWorks" in lines[7]
         (Path("terraform") / "test.tf").unlink()
         Path("terraform").rmdir()
 
@@ -129,12 +159,11 @@ class TestClass:
             }
             info = ScriptInfo(create_app=lambda: app)
             app_context = TerraformContext(info)
-            terraform = TerraformLocal(app_context, progressbar, terraform_dir="terraform")
+            terraform = LocalTerraform(app_context, progressbar, terraform_dir="terraform")
             terraform.generate_files("deploy.j2", "test.tf", **options)
         with (Path("terraform") / "test.tf").open() as f:
             lines = f.readlines()
         assert len(lines) == 2280
-        print(lines[20:25])
         assert lines[1].strip() == 'alias = "envtechms"'
         assert lines[21].strip() == 'envtechms_when_default = terraform.workspace == "default" ? 0 : 0'
         assert lines[22].strip() == 'envtechms_when_stage = terraform.workspace != "default" ? 0 : 0'

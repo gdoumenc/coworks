@@ -14,6 +14,7 @@ requests_toolbelt = ">=0.10"
 
 [dev-packages]
 aws_xray_sdk = "*"
+build = {extras = ["virtualenv"], version = "*"}
 codecov = "*"
 mock = "*"
 pytest = "*"
