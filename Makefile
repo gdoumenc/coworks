@@ -4,19 +4,17 @@ include .env
 export
 
 dist:
-	pipenv run python -m build
-	rm -rf build
+	flit build
 
 fury: clean dist
-	(export VERSION=`python -c "import coworks;print(coworks.version.__version__)"`;\
-	curl -F package=@dist/coworks-$$VERSION-py2.py3-none-any.whl https://$$FURY_TOKEN@push.fury.io/gdoumenc;\
-	unset VERSION)
+    flit build
+	fury push dist/coworks-0.8.7-py3-none-any.whl
 
 deploy: clean dist
-	pipenv run twine upload dist/*
+	flit publish --repository pypi
 
 deploy-test: clean dist
-	pipenv run twine upload --repository testpypi dist/*
+	flit publish --repository pypitest
 
 plugins.zip: clean coworks/operators.py coworks/sensors.py coworks/biz/*
 	mkdir -p dist

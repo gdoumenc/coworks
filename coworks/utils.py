@@ -334,4 +334,4 @@ def get_env_filenames(stage):
 
 
 def show_stage_banner():
-    click.echo(f" * Stage: {get_app_stage()}")
+    click.secho(f" * Stage: {get_app_stage()}", fg="green")

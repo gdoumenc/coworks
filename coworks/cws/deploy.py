@@ -491,7 +491,7 @@ def pop_terraform_class(options):
     """Removes and returns terrafom class to be used (defined by the terraform cloud parameter or default)."""
     cloud = options.get('terraform_cloud')
     refresh = options.get('terraform_refresh')
-    click.echo(f" * Using terraform {'cloud' if cloud else 'local'} (refresh={refresh})")
+    click.secho(f" * Using terraform {'cloud' if cloud else 'local'} (refresh={refresh})", fg="green")
     return options.pop('terraform_class', TerraformCloud if cloud else LocalTerraform)
 
 
