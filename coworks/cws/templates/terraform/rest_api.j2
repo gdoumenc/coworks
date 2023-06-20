@@ -104,7 +104,7 @@ resource "aws_api_gateway_integration" "{{ resource_name }}_{{ uid }}_{{ method 
   }
   depends_on = [aws_api_gateway_method.{{ resource_name }}_{{ uid }}_{{ method }}]
 }
-resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_{{ method }}_response_200" {
+resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_{{ method }}_200" {
   provider = aws.{{ resource_name }}
   count = {{ "local.{}_when_default".format(resource_name) }}
   rest_api_id = local.{{ resource_name }}_api_id
@@ -127,9 +127,9 @@ resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_{
   {% include "terraform/response_templates.j2" %}
   }
   {%- endif %}
-  depends_on = [aws_api_gateway_method_response.{{ resource_name }}_{{ uid }}_{{ method }}_response_200]
+  depends_on = [aws_api_gateway_method_response.{{ resource_name }}_{{ uid }}_{{ method }}_200]
 }
-resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_{{ method }}_response_200" {
+resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_{{ method }}_200" {
   provider = aws.{{ resource_name }}
   count = {{ "local.{}_when_default".format(resource_name) }}
   rest_api_id = local.{{ resource_name }}_api_id
