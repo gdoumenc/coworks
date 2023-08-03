@@ -436,8 +436,12 @@ class TechMicroService(Flask):
                 token = request.headers.get('Authorization', self.config.get('DEFAULT_TOKEN'))
                 if token is None:
                     raise Unauthorized(www_authenticate=WWWAuthenticate(auth_type="basic"))
-                valid = self.token_authorizer(token)
-                if not valid:
+                try:
+                    valid = self.token_authorizer(token)
+                    if not valid:
+                        raise Forbidden()
+                except Exception as e:
+                    current_app.logger.exception(e)
                     raise Forbidden()
 
     def _convert_to_lambda_response(self, resp: CoworksResponse) -> t.Union[dict, bytes]:

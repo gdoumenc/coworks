@@ -113,7 +113,6 @@ class TestClass:
         Path("terraform").rmdir()
 
     import pytest
-    @pytest.mark.wip
     @mock.patch.dict(os.environ, {"test": "local", "FLASK_RUN_FROM_CLI": "true"})
     def test_deploy_remote_cmd(self, monkeypatch, example_dir, progressbar, capsys):
         info = CwsScriptInfo(project_dir='.')
