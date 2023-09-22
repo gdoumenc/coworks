@@ -1,31 +1,31 @@
-import os
-import sys
-import types
-import typing as t
-from contextlib import contextmanager
 from logging import WARNING
 from logging import getLogger
-from pathlib import Path
 
 import anyconfig
 import click
 import flask
+import importlib
+import os
+import sys
+import types
+import typing as t
 from click import UsageError
+from contextlib import contextmanager
 from flask.cli import ScriptInfo
+from pathlib import Path
 
 from coworks import __version__
 from coworks.utils import DEFAULT_DEV_STAGE
 from coworks.utils import DEFAULT_PROJECT_DIR
 from coworks.utils import PROJECT_CONFIG_VERSION
 from coworks.utils import get_app_stage
-from coworks.utils import get_system_info
-from coworks.utils import import_attr
 from coworks.utils import load_dotenv
-from coworks.utils import show_stage_banner
 from .deploy import deploy_command
 from .deploy import deployed_command
 from .deploy import destroy_command
 from .new import new_command
+from .utils import get_system_info
+from .utils import show_stage_banner
 from .zip import zip_command
 
 
@@ -218,3 +218,12 @@ def overriden_run_banner():
 
 # Overrides run banner function to add stage value
 flask.cli.show_server_banner = overriden_run_banner()
+
+
+def import_attr(module, attr: str):
+    if type(attr) is not str:
+        raise AttributeError(f"{attr} is not a string.")
+    app_module = importlib.import_module(module)
+    if "PYTEST_CURRENT_TEST" in os.environ:
+        app_module = importlib.reload(app_module)
+    return getattr(app_module, attr)

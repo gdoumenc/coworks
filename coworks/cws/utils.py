@@ -1,9 +1,27 @@
+import click
+import platform
+import sys
 import typing as t
 from contextlib import contextmanager
 from threading import Thread
 from time import sleep
 
-import click
+from coworks.utils import get_app_stage
+
+
+def get_system_info():
+    from flask import __version__ as flask_version
+
+    flask_info = f"flask {flask_version}"
+    python_info = f"python {sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}"
+    platform_system = platform.system().lower()
+    platform_release = platform.release()
+    platform_info = f"{platform_system} {platform_release}"
+    return f"{flask_info}, {python_info}, {platform_info}"
+
+
+def show_stage_banner():
+    click.secho(f" * Stage: {get_app_stage()}", fg="green")
 
 
 class ProgressBar:
@@ -35,7 +53,7 @@ class ProgressBar:
             self.echo(msg)
 
 
-class DebugProgressBar():
+class DebugProgressBar:
 
     def echo(self, msg):
         if msg:

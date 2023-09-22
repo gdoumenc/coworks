@@ -1,33 +1,32 @@
+import boto3
+import click
+import dotenv
 import inspect
 import subprocess
 import sys
 import typing as t
 from dataclasses import dataclass
 from datetime import datetime
+from flask.cli import pass_script_info
+from flask.cli import with_appcontext
 from functools import cached_property
+from jinja2 import BaseLoader
+from jinja2 import Environment
+from jinja2 import PackageLoader
+from jinja2 import select_autoescape
 from pathlib import Path
 from shutil import ExecError
 from shutil import copy
 from subprocess import CalledProcessError
 from subprocess import CompletedProcess
-
-import boto3
-import click
-from flask.cli import pass_script_info
-from flask.cli import with_appcontext
-from jinja2 import BaseLoader
-from jinja2 import Environment
-from jinja2 import PackageLoader
-from jinja2 import select_autoescape
 from werkzeug.routing import Rule
 
-from coworks.utils import get_app_debug
 from coworks.utils import get_app_stage
-from coworks.utils import load_dotvalues
-from coworks.utils import show_stage_banner
+from coworks.utils import get_env_filenames
 from .command import CwsCommand
 from .exception import ExitCommand
 from .utils import progressbar
+from .utils import show_stage_banner
 from .zip import zip_command
 
 UID_SEP = '_'
@@ -198,7 +197,7 @@ class LocalTerraform:
             'ms_name': app.name,
             'resource_name': app.name,
             'workspace': workspace,
-            'debug': get_app_debug(),
+            'debug': app.debug,
             'now': datetime.now().isoformat(),
             **options
         }
@@ -223,12 +222,11 @@ class LocalTerraform:
 
     def generate_files(self, template_filename, output_filename, **options) -> None:
         """Generates workspace terraform files."""
+        app = self.app_context.app
         workspace = get_app_stage()
-        debug = get_app_debug()
 
-        if debug:
-            app_name = self.app_context.app.name
-            self.bar.update(msg=f"Generate terraform files for updating API routes and deploiement for {app_name}")
+        if app.debug:
+            self.bar.update(msg=f"Generate terraform files for updating API routes and deploiement for {app.name}")
 
         data = self.get_context_data(**options)
         template = self.jinja_env.get_template(template_filename)
@@ -348,14 +346,16 @@ class TerraformCloud(LocalTerraform):
         self.workspace_terraform.select_workspace(workspace)
 
     def generate_common_files(self, **options) -> None:
-        env_data = {'workspace': get_app_stage(), 'debug': get_app_debug()}
+        app = self.app_context.app
+        env_data = {'workspace': get_app_stage(), 'debug': app.debug}
         options_for_api = {**options, **env_data, **{'profile_name': '', 'stage': ''}}
         self._generate_common_file(self.api_terraform, **options_for_api)
         options_for_stage = {**options, **env_data, **{'profile_name': '', 'stage': f"_{self.workspace}"}}
         self._generate_common_file(self.workspace_terraform, **options_for_stage)
 
     def generate_files(self, template_filename, output_filename, **options) -> None:
-        env_data = {'workspace': get_app_stage(), 'debug': get_app_debug()}
+        app = self.app_context.app
+        env_data = {'workspace': get_app_stage(), 'debug': app.debug}
         options_for_api = {**options, **env_data, **{'profile_name': '', 'stage': ''}}
         self.api_terraform.generate_files(template_filename, output_filename, **options_for_api)
         options_for_stage = {**options, **env_data, **{'profile_name': '', 'stage': f"_{self.workspace}"}}
@@ -545,3 +545,12 @@ def echo_output(terraform):
             api_id = values[1].strip()[1:-1]  # remove quotes
             api_url = f"https://{api_id}.execute-api.eu-west-1.amazonaws.com/"
             click.echo(f"The microservice {cws_name} is deployed at {api_url}")
+
+
+def load_dotvalues(stage: str):
+    environment_variables = {}
+    for env_filename in get_env_filenames(stage):
+        path = dotenv.find_dotenv(env_filename, usecwd=True)
+        if path:
+            environment_variables.update(dotenv.dotenv_values(path))
+    return environment_variables

@@ -1,12 +1,12 @@
-import multiprocessing
-import os
-import time
 from unittest import mock
 
+import multiprocessing
+import os
 import requests
+import time
 
-from coworks.utils import import_attr
 from cws.client import CwsScriptInfo
+from cws.client import import_attr
 
 
 class TestClass:

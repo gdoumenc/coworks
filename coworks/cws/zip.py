@@ -1,21 +1,19 @@
 import base64
+import click
 import functools
 import hashlib
 import importlib
 import os
 import sysconfig
 import tempfile
+from flask.cli import pass_script_info
 from pathlib import Path
 from shutil import copyfile
 from shutil import copytree
 from shutil import ignore_patterns
 from shutil import make_archive
 
-import click
-from flask.cli import pass_script_info
-
 from coworks import aws
-from coworks.utils import get_app_debug
 from .command import CwsCommand
 from .utils import progressbar
 
@@ -35,14 +33,13 @@ def zip_command(info, ctx, bucket, dry, hash, ignore, module_name, key, profile_
     This command uploads project source folder as a zip file on a S3 bucket.
     Uploads also the hash code of this file to be able to determined code changes (used by terraform as a trigger).
     """
-    debug = get_app_debug()
     aws_s3_session = aws.AwsS3Session(profile_name=profile_name)
     module_name = module_name or []
 
     app = info.load_app()
     with progressbar(3, label='Copy files to S3', threaded=not app.debug) as bar:
         key = key if key else app.name
-        if debug:
+        if app.debug:
             where = f"{bucket}/{key}"
             bar.echo(f"Uploading zip sources of {app} at s3:{where} {'(not done)' if dry else ''}")
 
@@ -80,7 +77,7 @@ def zip_command(info, ctx, bucket, dry, hash, ignore, module_name, key, profile_
                     module_path = Path(mod.__file__).resolve().parent
                     copytree(module_path, str(tmp_path / f'filtered_dir/{name}'), ignore=full_ignore_patterns())
             module_archive = make_archive(str(tmp_path / 'sources'), 'zip', str(tmp_path / 'filtered_dir'))
-            bar.update(msg=f"Sources is {int(os.path.getsize(module_archive) / 1000)} Kb" if debug else "")
+            bar.update(msg=f"Sources is {int(os.path.getsize(module_archive) / 1000)} Kb" if app.debug else "")
 
             # Uploads archive on S3
             if not dry:
@@ -92,7 +89,7 @@ def zip_command(info, ctx, bucket, dry, hash, ignore, module_name, key, profile_
                     except Exception as e:
                         bar.echo(f"Failed to upload module sources on S3 : {e}")
                         raise e
-                bar.update(msg=f"Successfully uploaded sources at s3://{bucket}/{key}" if debug else "")
+                bar.update(msg=f"Successfully uploaded sources at s3://{bucket}/{key}" if app.debug else "")
 
             # Creates hash value
             if not dry:
@@ -110,4 +107,4 @@ def zip_command(info, ctx, bucket, dry, hash, ignore, module_name, key, profile_
                             raise e
 
                 msg = f"Successfully uploaded sources hash at s3://{bucket}/{key}.b64sha256"
-                bar.update(msg=msg if debug and not dry else "")
+                bar.update(msg=msg if app.debug and not dry else "")
