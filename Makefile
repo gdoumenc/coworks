@@ -7,7 +7,7 @@ dist:
 	flit build
 
 fury: clean dist
-	fury push dist/coworks-0.8.7-py3-none-any.whl
+	fury push dist/coworks-`awk -F'"' '{print $$2}' coworks/version.py`-py3-none-any.whl
 
 deploy: clean dist
 	flit publish --repository pypi

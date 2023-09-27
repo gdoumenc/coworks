@@ -1,4 +1,5 @@
 import base64
+import boto3
 import io
 import itertools
 import logging
@@ -6,17 +7,15 @@ import os
 import sys
 import traceback
 import typing as t
-from functools import partial
-from inspect import isfunction
-from pathlib import Path
-
-import boto3
 from flask import Blueprint as FlaskBlueprint
 from flask import Flask
 from flask import current_app
 from flask import json
 from flask.blueprints import BlueprintSetupState
 from flask.testing import FlaskClient
+from functools import partial
+from inspect import isfunction
+from pathlib import Path
 from werkzeug.datastructures import ImmutableDict
 from werkzeug.datastructures import MultiDict
 from werkzeug.datastructures import WWWAuthenticate

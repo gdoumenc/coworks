@@ -20,7 +20,7 @@ def get_system_info():
     return f"{flask_info}, {python_info}, {platform_info}"
 
 
-def show_stage_banner():
+def show_stage_banner(stage = 'dev'):
     click.secho(f" * Stage: {get_app_stage()}", fg="green")
 
 

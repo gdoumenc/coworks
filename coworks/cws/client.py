@@ -100,14 +100,6 @@ class CwsGroup(flask.cli.FlaskGroup):
             self.add_command(t.cast("Command", zip_command))
 
     def make_context(self, info_name, args, parent=None, **kwargs):
-
-        # Warning for deprecated options and echo stage
-        if "FLASK_ENV" in os.environ:
-            click.echo(
-                "\x1b[1m\x1b[31m'FLASK_ENV' is deprecated. Use 'CWS_STAGE' or '-S' option instead.\x1b[0m",
-                file=sys.stderr,
-            )
-
         # Get project infos
         script_info = CwsScriptInfo(create_app=self.create_app, set_debug_flag=self.set_debug_flag)
         if 'obj' not in kwargs:

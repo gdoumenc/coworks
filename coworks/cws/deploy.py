@@ -2,6 +2,7 @@ import boto3
 import click
 import dotenv
 import inspect
+import os
 import subprocess
 import sys
 import typing as t
@@ -401,24 +402,25 @@ class TerraformCloud(LocalTerraform):
 @click.option('--json-types', multiple=True,
               help="Add mime types for JSON response [at least application/json, text/x-json, "
                    "application/javascript, application/x-javascript].")
-@click.option('--text-types', multiple=True,
-              help="Add mime types for JSON response [at least text/plain, text/html].")
 @click.option('--layers', '-l', multiple=True, required=True,
               help="Add layer (full arn: aws:lambda:...). Must contains CoWorks at least.")
 @click.option('--memory-size', default=128, help="Lambda memory size (default 128).")
 @click.option('--python', '-p', type=click.Choice(['3.7', '3.8']), default='3.8',
               help="Python version for the lambda.")
 @click.option('--security-groups', multiple=True, default=[], help="Security groups to be added [ids].")
+@click.option('-s', '--stage', default='dev', help="Deploiement stage.")
 @click.option('--subnets', multiple=True, default=[], help="Subnets to be added [ids].")
 @click.option('--timeout', default=60, help="Lambda timeout (default 60s).Only for asynchronous call (API call 30s).")
 @click.option('--terraform-cloud', '-tc', is_flag=True, default=False, help="Use cloud workspaces (default false).")
 @click.option('--terraform-dir', '-td', default="terraform", help="Terraform folder (default terraform).")
 @click.option('--terraform-organization', '-to', help="Terraform organization needed if using cloud terraform.")
 @click.option('--terraform-refresh', '-tr', is_flag=True, default=False, help="Forces terraform to refresh the state.")
+@click.option('--text-types', multiple=True,
+              help="Add mime types for JSON response [at least text/plain, text/html].")
 @click.pass_context
 @pass_script_info
 @with_appcontext
-def deploy_command(info, ctx, **options) -> None:
+def deploy_command(info, ctx, stage, **options) -> None:
     """ Deploiement in 2 steps:
         Step 1. Create API and routes integrations
         Step 2. Deploy API and Lambda
@@ -426,12 +428,14 @@ def deploy_command(info, ctx, **options) -> None:
 
     if options.get('terraform_cloud') and not options.get('terraform_organization'):
         raise click.BadParameter('An organization must be defined if using cloud terraform')
+
     app_context = TerraformContext(info)
     app = app_context.app
+    os.environ['CWS_STAGE'] = stage
     terraform = None
 
     app.logger.debug(f"Start deploy command: {options}")
-    show_stage_banner()
+    show_stage_banner(stage)
     terraform_class = pop_terraform_class(options)
     with progressbar(label="Deploy microservice", threaded=not app.debug) as bar:
         app.logger.debug(f"Deploying {app} using {terraform_class}")
@@ -445,16 +449,18 @@ def deploy_command(info, ctx, **options) -> None:
 @click.option('--bucket', '-b', help="Bucket to upload sources zip file to", required=True)
 @click.option('--key', '-k', help="Sources zip file bucket's name.")
 @click.option('--profile-name', '-pn', required=True, help="AWS credential profile.")
+@click.option('-s', '--stage', default='dev', help="Deploiement stage.")
 @click.option('--terraform-dir', default="terraform", help="Terraform folder (default terraform).")
 @click.option('--terraform-cloud', is_flag=True, help="Use cloud workspaces (default false).")
 @click.pass_context
 @pass_script_info
 @with_appcontext
-def destroy_command(info, ctx, **options) -> None:
+def destroy_command(info, ctx, stage, **options) -> None:
     """ Destroy by setting counters to 0.
     """
     app_context = TerraformContext(info)
     app = app_context.app
+    os.environ['CWS_STAGE'] = stage
 
     app.logger.debug('Start destroy command')
     terraform_class = pop_terraform_class(options)
@@ -466,18 +472,20 @@ def destroy_command(info, ctx, **options) -> None:
 
 
 @click.command("deployed", CwsCommand, short_help="Retrieve the microservices deployed for this project.")
+@click.option('-s', '--stage', default='dev', help="Deploiement stage.")
 @click.option('--terraform-dir', default="terraform")
 @click.option('--terraform-cloud', is_flag=True, help="Use cloud workspaces (default false).")
 @click.pass_context
 @pass_script_info
 @with_appcontext
-def deployed_command(info, ctx, **options) -> None:
+def deployed_command(info, ctx, stage, **options) -> None:
     app_context = TerraformContext(info)
     app = app_context.app
+    os.environ['CWS_STAGE'] = stage
     terraform = None
 
     app.logger.debug('Start deployed command')
-    show_stage_banner()
+    show_stage_banner(stage)
     terraform_class = pop_terraform_class(options)
     with progressbar(label='Retrieving information', threaded=not app.debug) as bar:
         app.logger.debug(f'Get deployed informations {app} using {terraform_class}')
