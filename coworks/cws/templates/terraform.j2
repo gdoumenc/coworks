@@ -53,6 +53,15 @@ locals {
 # TERRAFORM ON LOCAL
 # ---------------------------------------------------------------------------------------------------------------------
 
+terraform {
+  required_version = ">= 1.2.0"
+  required_providers {
+    local = {
+      source  = "hashicorp/local"
+    }
+  }
+}
+
 locals {
   account_id = "{{ aws_account }}"
 {%- if profile_name %}
