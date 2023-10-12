@@ -39,7 +39,6 @@ To view a list of the available commands at any time, just run `cws` with no arg
       -c, --config-file TEXT     Configuration file path [relative from project
                                  dir].
       --config-file-suffix TEXT  Configuration file suffix.
-      -S, --stage TEXT           The CoWorks stage (default dev).
       -e, --env-file FILE        Load environment variables from this file.
                                  python-dotenv must be installed.
       -A, --app IMPORT           The Flask application or factory function to

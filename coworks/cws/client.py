@@ -6,7 +6,6 @@ import click
 import flask
 import importlib
 import os
-import sys
 import types
 import typing as t
 from click import UsageError
@@ -15,7 +14,6 @@ from flask.cli import ScriptInfo
 from pathlib import Path
 
 from coworks import __version__
-from coworks.utils import DEFAULT_DEV_STAGE
 from coworks.utils import DEFAULT_PROJECT_DIR
 from coworks.utils import PROJECT_CONFIG_VERSION
 from coworks.utils import get_app_stage
@@ -72,22 +70,10 @@ def _set_stage(ctx, param, value):
         return value
 
 
-_stage_option = click.Option(
-    ["-S", "--stage"],
-    help=(
-        f"The CoWorks stage (default {DEFAULT_DEV_STAGE})."
-    ),
-    is_eager=True,
-    expose_value=False,
-    callback=_set_stage,
-)
-
-
 class CwsGroup(flask.cli.FlaskGroup):
 
     def __init__(self, add_default_commands=True, **extra):
         params = list(extra.pop("params", None) or ())
-        params.append(_stage_option)
         extra["add_version_option"] = False
         extra["load_dotenv"] = False
         super().__init__(params=params, **extra)
