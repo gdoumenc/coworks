@@ -88,3 +88,11 @@ resource "aws_cloudwatch_log_group" "lambda_{{ resource_name }}" {
   name = "/aws/lambda/${local.{{ resource_name }}_lambda_name}"
   retention_in_days = 7
 }
+
+resource "aws_lambda_permission" "allow_api_gateway" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = local.{{ resource_name }}_lambda_name
+  principal     = "apigateway.amazonaws.com"
+}
+
