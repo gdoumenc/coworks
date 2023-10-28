@@ -98,12 +98,11 @@ resource "aws_api_gateway_authorizer" "{{ resource_name }}" {
   {% if resource.path %}
 resource "aws_api_gateway_resource" "{{ resource_name }}_{{ uid }}" {
   provider = aws.{{ resource_name }}
-  count = {{ "local.{}_when_default".format(resource_name) }}
   rest_api_id = local.{{ resource_name }}_api_id
   {%- if resource.parent_is_root %}
   parent_id = local.{{ resource_name }}_api_root_id
   {%- else %}
-  parent_id = aws_api_gateway_resource.{{ resource_name }}_{{ resource.parent_uid }}[0].id
+  parent_id = aws_api_gateway_resource.{{ resource_name }}_{{ resource.parent_uid }}.id
   {%- endif %}
   path_part = "{{ resource.path }}"
 }
@@ -113,12 +112,11 @@ resource "aws_api_gateway_resource" "{{ resource_name }}_{{ uid }}" {
     {%- for method in rule.methods if method not in ['HEAD', 'OPTIONS'] %}
 resource "aws_api_gateway_method" "{{ resource_name }}_{{ uid }}_{{ method }}" {
   provider = aws.{{ resource_name }}
-  count = {{ "local.{}_when_default".format(resource_name) }}
   rest_api_id = local.{{ resource_name }}_api_id
   {%- if resource.is_root %}
   resource_id = local.{{ resource_name }}_api_root_id
   {%- else %}
-  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
+  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}.id
   {%- endif %}
   http_method = "{{ method }}"
   {%- if rule.cws_no_auth %}
@@ -137,12 +135,11 @@ resource "aws_api_gateway_method" "{{ resource_name }}_{{ uid }}_{{ method }}" {
 }
 resource "aws_api_gateway_integration" "{{ resource_name }}_{{ uid }}_{{ method }}" {
   provider = aws.{{ resource_name }}
-  count = {{ "local.{}_when_default".format(resource_name) }}
   rest_api_id = local.{{ resource_name }}_api_id
   {%- if resource.is_root %}
   resource_id = local.{{ resource_name }}_api_root_id
   {%- else %}
-  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
+  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}.id
   {%- endif %}
   http_method = "{{ method }}"
   integration_http_method = "POST"
@@ -163,12 +160,11 @@ resource "aws_api_gateway_integration" "{{ resource_name }}_{{ uid }}_{{ method 
 }
 resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_{{ method }}_200" {
   provider = aws.{{ resource_name }}
-  count = {{ "local.{}_when_default".format(resource_name) }}
   rest_api_id = local.{{ resource_name }}_api_id
   {%- if resource.is_root %}
   resource_id = local.{{ resource_name }}_api_root_id
   {%- else %}
-  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
+  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}.id
   {%- endif %}
   http_method = join("", aws_api_gateway_method.{{ resource_name }}_{{ uid }}_{{ method }}.*.http_method)
   status_code = "200"
@@ -188,12 +184,11 @@ resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_{
 }
 resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_{{ method }}_200" {
   provider = aws.{{ resource_name }}
-  count = {{ "local.{}_when_default".format(resource_name) }}
   rest_api_id = local.{{ resource_name }}_api_id
   {%- if resource.is_root %}
   resource_id = local.{{ resource_name }}_api_root_id
   {%- else %}
-  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
+  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}.id
   {%- endif %}
   http_method = "{{ method }}"
   status_code = "200"
@@ -214,24 +209,22 @@ resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_{{ met
 {%- if not resource.no_cors_methods -%}
 resource "aws_api_gateway_method" "{{ resource_name }}_{{ uid }}_OPTIONS" {
   provider = aws.{{ resource_name }}
-  count = {{ "local.{}_when_default".format(resource_name) }}
   rest_api_id = local.{{ resource_name }}_api_id
   {%- if resource.is_root %}
   resource_id = local.{{ resource_name }}_api_root_id
   {%- else %}
-  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
+  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}.id
   {%- endif %}
   http_method = "OPTIONS"
   authorization = "NONE"
 }
 resource "aws_api_gateway_integration" "{{ resource_name }}_{{ uid }}_OPTIONS" {
   provider = aws.{{ resource_name }}
-  count = {{ "local.{}_when_default".format(resource_name) }}
   rest_api_id = local.{{ resource_name }}_api_id
   {%- if resource.is_root %}
   resource_id = local.{{ resource_name }}_api_root_id
   {% else %}
-  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
+  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}.id
   {% endif -%}
   http_method = "OPTIONS"
   type = "MOCK"
@@ -242,12 +235,11 @@ resource "aws_api_gateway_integration" "{{ resource_name }}_{{ uid }}_OPTIONS" {
 }
 resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_OPTIONS" {
   provider = aws.{{ resource_name }}
-  count = {{ "local.{}_when_default".format(resource_name) }}
   rest_api_id = local.{{ resource_name }}_api_id
   {%- if resource.is_root %}
   resource_id = local.{{ resource_name }}_api_root_id
   {%- else %}
-  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
+  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}.id
   {%- endif %}
   http_method = "OPTIONS"
   status_code = 200
@@ -264,12 +256,11 @@ resource "aws_api_gateway_integration_response" "{{ resource_name }}_{{ uid }}_O
 }
 resource "aws_api_gateway_method_response" "{{ resource_name }}_{{ uid }}_OPTIONS" {
   provider = aws.{{ resource_name }}
-  count = {{ "local.{}_when_default".format(resource_name) }}
   rest_api_id = local.{{ resource_name }}_api_id
   {%- if resource.is_root %}
   resource_id = local.{{ resource_name }}_api_root_id
   {%- else %}
-  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}[0].id
+  resource_id = aws_api_gateway_resource.{{ resource_name }}_{{ uid }}.id
   {%- endif %}
   http_method = "OPTIONS"
   status_code = 200
