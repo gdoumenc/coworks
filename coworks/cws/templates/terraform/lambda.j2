@@ -2,6 +2,7 @@
 # LAMBDA
 # ---------------------------------------------------------------------------------------------------------------------
 
+{% if stage -%}
 locals {
   {{ resource_name }}_lambda_name = "{{ resource_name }}-{{ workspace }}"
   {%- if environment_variable_files %}
@@ -34,7 +35,6 @@ data "local_file" "{{ resource_name }}_environment_variables_files" {
 
 resource "aws_lambda_function" "{{ resource_name }}" {
   provider = aws.{{ resource_name }}
-  count = local.{{ resource_name }}_when_stage
   function_name = local.{{ resource_name }}_lambda_name
   s3_bucket = "{{ bucket }}"
   s3_key = "{{ key }}"
@@ -73,26 +73,17 @@ resource "aws_lambda_function" "{{ resource_name }}" {
 
 resource "aws_lambda_permission" "{{ resource_name }}_allow_apigateway" {
   provider = aws.{{ resource_name }}
-  count = local.{{ resource_name }}_when_stage
-  statement_id = "{{ resource_name }}_AllowExecutionFromAPIGateway"
+  statement_id_prefix = "AllowExecutionFromAPIGateway"
   action = "lambda:InvokeFunction"
   function_name = local.{{ resource_name }}_lambda_name
   principal = "apigateway.amazonaws.com"
-  source_arn = "${join("", data.aws_api_gateway_rest_api.{{ resource_name }}.*.execution_arn)}/*/*"
+  source_arn = "${data.aws_api_gateway_rest_api.{{ resource_name }}.execution_arn}/*"
   depends_on = [aws_lambda_function.{{ resource_name }}]
 }
 
 resource "aws_cloudwatch_log_group" "lambda_{{ resource_name }}" {
   provider = aws.{{ resource_name }}
-  count = local.{{ resource_name }}_when_stage
   name = "/aws/lambda/${local.{{ resource_name }}_lambda_name}"
   retention_in_days = 7
 }
-
-resource "aws_lambda_permission" "allow_api_gateway" {
-  statement_id  = "AllowExecutionFromAPIGateway"
-  action        = "lambda:InvokeFunction"
-  function_name = local.{{ resource_name }}_lambda_name
-  principal     = "apigateway.amazonaws.com"
-}
-
+{%- endif %}
