@@ -30,7 +30,7 @@ class Admin(Blueprint):
         """
         title = f"<span style=\"font-size:xx-large;font-weight:bold\">{current_app.__class__.__name__}</span>"
         header = f"""<div style=\"display:flex;justify-content:space-between;\">{title}
-            <img style=\"margin-bottom:auto;width:100px;\" src=\"https://neorezo.io/assets/img/logo_neorezo.png\"/>
+            <img style=\"margin-bottom:auto;width:100px;\" src=\"https://neorezo.io/static/img/logo_neorezo.png\"/>
             </div>"""
 
         deployed = os.getenv("CWS_DATETIME", None)
