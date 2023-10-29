@@ -1,10 +1,11 @@
-import click
 import platform
 import sys
 import typing as t
 from contextlib import contextmanager
 from threading import Thread
 from time import sleep
+
+import click
 
 from coworks.utils import get_app_stage
 
@@ -20,7 +21,7 @@ def get_system_info():
     return f"{flask_info}, {python_info}, {platform_info}"
 
 
-def show_stage_banner(stage = 'dev'):
+def show_stage_banner(stage='dev'):
     click.secho(f" * Stage: {get_app_stage()}", fg="green")
 
 

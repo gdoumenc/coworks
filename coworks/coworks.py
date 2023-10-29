@@ -432,7 +432,7 @@ class TechMicroService(Flask):
 
             # Checks token if authorization needed
             if not no_auth:
-                token = request.headers.get('Authorization', self.config.get('DEFAULT_TOKEN'))
+                token = request.headers.get('Authorization')
                 if token is None:
                     raise Unauthorized(www_authenticate=WWWAuthenticate(auth_type="basic"))
                 try:

@@ -1,4 +1,4 @@
-{% if terraform_cloud %}
+{% if terraform_cloud -%}
 # ---------------------------------------------------------------------------------------------------------------------
 # TERRAFORM ON CLOUD
 # ---------------------------------------------------------------------------------------------------------------------
@@ -8,7 +8,7 @@ terraform {
     organization = "{{ terraform_organization }}"
 
     workspaces {
-      name = "{{ ms_name }}{{ stage }}"
+      name = "{{ ms_name }}_{{ stage }}"
     }
   }
   required_version = ">= 1.2.0"
@@ -22,7 +22,7 @@ terraform {
 
 variable "AWS_ACCESS_KEY_ID" {}
 variable "AWS_SECRET_ACCESS_KEY" {}
-variable "AWS_REGION" {}
+variable "AWS_REGION" {default="eu-west-1"}
 variable "TFC_WORKSPACE_NAME" {}
 
 provider "aws" {
@@ -41,17 +41,19 @@ provider "aws" {
 data "aws_caller_identity" "current" {}
 
 locals {
-  account_id = data.aws_caller_identity.current.account_id
 {%- if profile_name %}
-  region = "{{ aws_region }}"
+  profile = "{{ profile_name }}"
 {% else %}
-  region = var.AWS_REGION
+  account_id = data.aws_caller_identity.current.account_id
 {%- endif %}
+  region = {{ '"{}"'.format(aws_region) if aws_region else 'var.AWS_REGION'}}
 }
-{%  else  %}
+{%  else  -%}
 # ---------------------------------------------------------------------------------------------------------------------
 # TERRAFORM ON LOCAL
 # ---------------------------------------------------------------------------------------------------------------------
+
+variable "AWS_REGION" {default="eu-west-1"}
 
 terraform {
   required_version = ">= 1.2.0"
@@ -64,10 +66,6 @@ terraform {
 
 locals {
   account_id = "{{ aws_account }}"
-{%- if profile_name %}
-  region = "{{ aws_region }}"
-{%- else %}
-  region = var.AWS_REGION
-{%- endif %}
+  region = {{ '"{}"'.format(aws_region) if aws_region else 'var.AWS_REGION'}}
 }
 {%- endif %}

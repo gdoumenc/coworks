@@ -1,13 +1,12 @@
 provider "aws" {
   alias = "{{ resource_name }}"
-{% if profile_name %}
+{%- if profile_name %}
   profile = "{{ profile_name }}"
-  region = "{{ aws_region }}"
-{% else %}
+{%- else %}
   access_key = var.AWS_ACCESS_KEY_ID
   secret_key = var.AWS_SECRET_ACCESS_KEY
-  region = var.AWS_REGION
-{% endif %}
+{%- endif %}
+  region = {{ '"{}"'.format(aws_region) if aws_region else 'var.AWS_REGION'}}
 
   default_tags {
     tags = {
@@ -21,11 +20,11 @@ provider "aws" {
 data "aws_caller_identity" "current" {}
 
 locals {
-{% if terraform_cloud %}
-  {{ resource_name }}_when_default = var.TFC_WORKSPACE_NAME == "{{ ms_name }}{{ stage }}" ? {{ 1 if deploy else 0 }} : 0
-  {{ resource_name }}_when_stage = var.TFC_WORKSPACE_NAME != "{{ ms_name }}{{ stage }}" ? {{ 1 if deploy else 0 }} : 0
-{%  else  %}
+{%- if terraform_cloud %}
+  {{ resource_name }}_when_default = var.TFC_WORKSPACE_NAME == "{{ ms_name }}_{{ stage }}" ? {{ 1 if deploy else 0 }} : 0
+  {{ resource_name }}_when_stage = var.TFC_WORKSPACE_NAME != "{{ ms_name }}_{{ stage }}" ? {{ 1 if deploy else 0 }} : 0
+{%-  else  %}
   {{ resource_name }}_when_default = terraform.workspace == "default" ? {{ 1 if deploy else 0 }} : 0
   {{ resource_name }}_when_stage = terraform.workspace != "default" ? {{ 1 if deploy else 0 }} : 0
-{%  endif  %}
+{%- endif  %}
 }
