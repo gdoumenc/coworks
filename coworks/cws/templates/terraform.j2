@@ -50,12 +50,18 @@ locals {
 }
 {%  else  -%}
 # ---------------------------------------------------------------------------------------------------------------------
-# TERRAFORM ON LOCAL
+# TERRAFORM ON S3
 # ---------------------------------------------------------------------------------------------------------------------
 
 variable "AWS_REGION" {default="eu-west-1"}
 
 terraform {
+  backend "s3" {
+    bucket  = "neorezo-terraform"
+    key     = "{{ project }}/{{ stage }}/tfstate.json"
+    region  = {{ '"{}"'.format(aws_region) if aws_region else 'var.CUSTOMER_AWS_REGION'}}
+    profile = "{{ profile_name }}"
+  }
   required_version = ">= 1.2.0"
   required_providers {
     local = {

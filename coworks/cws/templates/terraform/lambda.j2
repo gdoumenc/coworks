@@ -2,42 +2,42 @@
 # LAMBDA
 # ---------------------------------------------------------------------------------------------------------------------
 
-{% if stage -%}
+{% if stage != "common"-%}
 locals {
-  {{ resource_name }}_lambda_name = "{{ resource_name }}-{{ workspace }}"
+  {{ ms_name }}_lambda_name = "{{ ms_name }}-{{ workspace }}"
   {%- if environment_variable_files %}
-  {{ resource_name }}_environment_variables = [
-    for envars_string in data.local_file.{{ resource_name }}_environment_variables_files: jsondecode(envars_string.content)
+  {{ ms_name }}_environment_variables = [
+    for envars_string in data.local_file.{{ ms_name }}_environment_variables_files: jsondecode(envars_string.content)
   ]
   {%- endif %}
 }
 
 {% if layers -%}
-data "aws_lambda_layer_version" "{{ resource_name }}" {
-  provider = aws.{{ resource_name }}
+data "aws_lambda_layer_version" "{{ ms_name }}" {
+  provider = aws.{{ ms_name }}
   for_each = toset([{% for layer in layers %}"{{ layer }}",{% endfor %}])
   layer_name = each.value
 }
 {%- endif %}
 
 {% if environment_variable_files -%}
-data "local_file" "{{ resource_name }}_environment_variables_files" {
-  for_each = local.{{ resource_name }}_when_stage == 1 ? {for envar_file in {{ environment_variable_files | tojson }}: envar_file => envar_file} : {}
+data "local_file" "{{ ms_name }}_environment_variables_files" {
+  for_each = local.{{ ms_name }}_when_stage == 1 ? {for envar_file in {{ environment_variable_files | tojson }}: envar_file => envar_file} : {}
   filename = each.value
 }
 {%- endif %}
 
-resource "aws_lambda_function" "{{ resource_name }}" {
-  provider = aws.{{ resource_name }}
-  function_name = local.{{ resource_name }}_lambda_name
+resource "aws_lambda_function" "{{ ms_name }}" {
+  provider = aws.{{ ms_name }}
+  function_name = local.{{ ms_name }}_lambda_name
   s3_bucket = "{{ bucket }}"
   s3_key = "{{ key }}"
   source_code_hash = "{{ source_code_hash }}"
-  role = local.{{ resource_name }}_role_arn
+  role = local.{{ ms_name }}_role_arn
   handler = "{{ app_import_path }}"
   description = "{{ description |truncate(256) | replace("\n", "\\n") }}"
   {%- if layers %}
-  layers = [for layer in data.aws_lambda_layer_version.{{ resource_name }} : layer.arn]
+  layers = [for layer in data.aws_lambda_layer_version.{{ ms_name }} : layer.arn]
   {%- endif %}
   runtime = "python{{ python }}"
   timeout = {{ timeout }}
@@ -47,7 +47,7 @@ resource "aws_lambda_function" "{{ resource_name }}" {
       {{ environment_variables | tojson }},
       {"FLASK_DEBUG":"{{ '1' if workspace == "dev" else '0' }}", "CWS_STAGE":"{{ workspace }}"},
       {"CWS_DATETIME": "{{ now }}"},
-      {"CWS_LAMBDA": "{{ resource_name }}"},
+      {"CWS_LAMBDA": "{{ ms_name }}"},
       {"CWS_BUCKET": "{{ bucket }}"},
       {"CWS_KEY": "{{ key }}"}
     )
@@ -56,28 +56,28 @@ resource "aws_lambda_function" "{{ resource_name }}" {
     mode = "Active"
   }
   vpc_config {
-    security_group_ids = local.{{ resource_name }}_security_group_ids
-    subnet_ids = local.{{ resource_name }}_subnet_ids
+    security_group_ids = local.{{ ms_name }}_security_group_ids
+    subnet_ids = local.{{ ms_name }}_subnet_ids
   }
 
   depends_on = [
-    aws_cloudwatch_log_group.lambda_{{ resource_name }},
+    aws_cloudwatch_log_group.lambda_{{ ms_name }},
   ]
 }
 
-resource "aws_lambda_permission" "{{ resource_name }}_allow_apigateway" {
-  provider = aws.{{ resource_name }}
+resource "aws_lambda_permission" "{{ ms_name }}_allow_apigateway" {
+  provider = aws.{{ ms_name }}
   statement_id_prefix = "AllowExecutionFromAPIGateway"
   action = "lambda:InvokeFunction"
-  function_name = local.{{ resource_name }}_lambda_name
+  function_name = local.{{ ms_name }}_lambda_name
   principal = "apigateway.amazonaws.com"
-  source_arn = "${data.aws_api_gateway_rest_api.{{ resource_name }}.execution_arn}/*"
-  depends_on = [aws_lambda_function.{{ resource_name }}]
+  source_arn = "${data.aws_api_gateway_rest_api.{{ ms_name }}.execution_arn}/*"
+  depends_on = [aws_lambda_function.{{ ms_name }}]
 }
 
-resource "aws_cloudwatch_log_group" "lambda_{{ resource_name }}" {
-  provider = aws.{{ resource_name }}
-  name = "/aws/lambda/${local.{{ resource_name }}_lambda_name}"
+resource "aws_cloudwatch_log_group" "lambda_{{ ms_name }}" {
+  provider = aws.{{ ms_name }}
+  name = "/aws/lambda/${local.{{ ms_name }}_lambda_name}"
   retention_in_days = 7
 }
 {%- endif %}

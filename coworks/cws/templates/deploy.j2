@@ -1,1 +1,11 @@
-{% include 'terraform/deploy.j2' with context %}
+{% include 'terraform/provider.j2' with context %}
+
+{% include 'terraform/local.j2' with context %}
+
+{% include 'terraform/role.j2' with context %}
+
+{% include 'terraform/rest_api.j2' with context %}
+
+{% include 'terraform/lambda.j2' with context %}
+
+{% include 'terraform/output.j2' with context %}

@@ -25,6 +25,10 @@ def show_stage_banner(stage='dev'):
     click.secho(f" * Stage: {get_app_stage()}", fg="green")
 
 
+def show_terraform_banner(cloud, refresh):
+    click.secho(f" * Using terraform backend {'cloud' if cloud else 's3'} (refresh={refresh})", fg="green")
+
+
 class ProgressBar:
 
     def __init__(self, bar):

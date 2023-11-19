@@ -37,6 +37,7 @@ from coworks.utils import get_env_filenames
 from .command import CwsCommand
 from .utils import progressbar
 from .utils import show_stage_banner
+from .utils import show_terraform_banner
 
 UID_SEP = '_'
 
@@ -95,7 +96,7 @@ class Terraform:
     """Terraform class to manage local terraform commands."""
     TIMEOUT = 600
 
-    def __init__(self, app_context: TerraformContext, bar, terraform_dir, refresh, stage=None):
+    def __init__(self, app_context: TerraformContext, bar, terraform_dir, refresh, stage="common"):
         self.app_context = app_context
         self.bar = bar
         self.terraform_dir = Path(terraform_dir)
@@ -191,7 +192,6 @@ class Terraform:
             'environment_variables': load_dotvalues(workspace),
             'ms_name': app.name,
             'now': datetime.now().isoformat(),
-            'resource_name': app.name,
             'workspace': workspace,
             **options
         }
@@ -211,7 +211,7 @@ class Terraform:
         return data
 
     def _execute(self, cmd_args: t.List[str]) -> CompletedProcess:
-        self.logger.debug(f"Terraform arguments : {' '.join(cmd_args)}")
+        self.logger.debug(f"Terraform arguments : ['-chdir={self.terraform_dir} {' '.join(cmd_args)}]")
         p = subprocess.run(["terraform", *cmd_args], capture_output=True, cwd=self.terraform_dir,
                            timeout=self.TIMEOUT)
         if p.returncode != 0:
@@ -232,7 +232,7 @@ class Terraform:
 class TerraformBackend:
     """Terraform class to manage remote deployements."""
 
-    def __init__(self, app_context, bar, terraform_dir, terraform_refresh, **options):
+    def __init__(self, app_context, bar, **options):
         """The remote terraform class correspond to the terraform command interface for workspaces.
         """
         self.app_context = app_context
@@ -240,18 +240,18 @@ class TerraformBackend:
         self.bar = bar
 
         # Creates terraform dir if needed
-        self.working_dir = Path(terraform_dir)
-        self.working_dir.mkdir(exist_ok=True)
+        self.working_dir = Path(options['terraform_dir'])
         self.stage = get_app_stage()
 
         self.terraform_class = Terraform
-        self.terraform_refresh = terraform_refresh
+        self.terraform_refresh = options['terraform_refresh']
         self._api_terraform = self._stage_terraform = None
 
     @property
     def api_terraform(self):
         if self._api_terraform is None:
             self.app.logger.debug(f"Create common terraform instance using {self.terraform_class}")
+            self.working_dir.mkdir(exist_ok=True)
             self._api_terraform = self.terraform_class(self.app_context, self.bar,
                                                        terraform_dir=self.working_dir,
                                                        refresh=self.terraform_refresh)
@@ -261,14 +261,15 @@ class TerraformBackend:
     def stage_terraform(self):
         if self._stage_terraform is None:
             self.app.logger.debug(f"Create {self.stage} terraform instance using {self.terraform_class}")
-            terraform_dir = f"{self.working_dir}_{self.stage}"
+            terraform_dir = Path(f"{self.working_dir}_{self.stage}")
+            terraform_dir.mkdir(exist_ok=True)
             self._stage_terraform = self.terraform_class(self.app_context, self.bar,
                                                          terraform_dir=terraform_dir,
                                                          refresh=self.terraform_refresh,
                                                          stage=self.stage)
         return self._stage_terraform
 
-    def process_terraform(self, ctx, command_template, dry, **options):
+    def process_terraform(self, ctx, command_template, terraform_init=True, **options):
         root_command_params = ctx.find_root().params
 
         # Set default options calculated value
@@ -276,16 +277,17 @@ class TerraformBackend:
 
         # Transfert zip file to S3
         self.bar.update(msg=f"Copy source files on S3")
-        b64sha256 = self.copy_sources_to_s3(ctx, dry, **options)
+        b64sha256 = self.copy_sources_to_s3(ctx, **options)
         options['source_code_hash'] = b64sha256
 
         self.bar.update(msg=f"Generates terraform files")
 
         # Generates common terraform files
-        output_filename = "terraform.tf"
-        self.app.logger.debug('Generate terraform global files')
-        self.api_terraform.generate_file("terraform.j2", output_filename, **root_command_params, **options)
-        self.stage_terraform.generate_file("terraform.j2", output_filename, **root_command_params, **options)
+        if terraform_init:
+            output_filename = "terraform.tf"
+            self.app.logger.debug('Generate terraform global files')
+            self.api_terraform.generate_file("terraform.j2", output_filename, **root_command_params, **options)
+            self.stage_terraform.generate_file("terraform.j2", output_filename, **root_command_params, **options)
 
         # Generates terraform files and copy environment variable files in terraform working dir for provisionning
         output_filename = f"{self.app.name}.tech.tf"
@@ -294,9 +296,14 @@ class TerraformBackend:
         self.stage_terraform.generate_file(command_template, output_filename, **root_command_params, **options)
 
         # Stops process if dry
-        if dry:
-            self.bar.update(msg=f"Nothing deployed (dry mode)")
+        if options['dry']:
+            self.bar.update(msg=f"Nothing deployed and destroyed (dry mode)")
             return
+
+        if terraform_init:
+            self.app.logger.debug("Init terraform")
+            self.api_terraform.init()
+            self._stage_terraform.init()
 
         # Apply to api terraform
         self.bar.update(msg="Create or update API")
@@ -308,7 +315,7 @@ class TerraformBackend:
         self.bar.update(msg=f"Deploy staged lambda ({self.stage})")
         self.stage_terraform.apply()
 
-        self.delete_sources_on_s3(dry, **options)
+        self.delete_sources_on_s3(**options)
 
         # Traces output
         self.bar.terminate()
@@ -379,14 +386,13 @@ class TerraformBackend:
 
             return b64sha256
 
-    def delete_sources_on_s3(self, dry, **options):
-        if not dry:
-            bucket = options.get('bucket')
-            key = options.get('key')
-            profile_name = options.get('profile_name')
-            aws_s3_session = aws.AwsS3Session(profile_name=profile_name)
-            aws_s3_session.client.delete_object(Bucket=bucket, Key=key)
-            self.bar.update(msg=f"Sources files deleted on s3")
+    def delete_sources_on_s3(self, **options):
+        bucket = options.get('bucket')
+        key = options.get('key')
+        profile_name = options.get('profile_name')
+        aws_s3_session = aws.AwsS3Session(profile_name=profile_name)
+        aws_s3_session.client.delete_object(Bucket=bucket, Key=key)
+        self.bar.update(msg=f"Sources files deleted on s3")
 
 
 @click.command("deploy", CwsCommand, short_help="Deploy the CoWorks microservice on AWS Lambda.")
@@ -456,19 +462,20 @@ def deploy_command(info, ctx, stage, **options) -> None:
     show_stage_banner(stage)
     cloud = options.get('terraform_cloud')
     refresh = options.get('terraform_refresh')
-    click.secho(f" * Using terraform backend {'cloud' if cloud else 's3'} (refresh={refresh})", fg="green")
+    show_terraform_banner(cloud, refresh)
     with progressbar(label="Deploy microservice", threaded=not app.debug) as bar:
         terraform_backend_class = options.pop('terraform_class', TerraformBackend)
         app.logger.debug(f"Deploying {app} using {terraform_backend_class}")
         backend = terraform_backend_class(app_context, bar, **options)
-        dry = options.pop('dry')
-        backend.process_terraform(ctx, 'deploy.j2', dry=dry, **options)
+        backend.process_terraform(ctx, 'deploy.j2', **options)
 
 
 @click.command("destroy", CwsCommand, short_help="Destroy the CoWorks microservice on AWS Lambda.")
 # Zip options (redefined)
 @click.option('--bucket', '-b', required=True,
               help="Bucket to upload sources zip file to")
+@click.option('--dry', is_flag=True,
+              help="Doesn't perform deploy [Global option only].")
 @click.option('--key', '-k',
               help="Sources zip file bucket's name.")
 @click.option('--profile-name', '-pn', required=True,
@@ -479,6 +486,12 @@ def deploy_command(info, ctx, stage, **options) -> None:
               help="Terraform folder (default terraform).")
 @click.option('--terraform-cloud', is_flag=True,
               help="Use cloud workspaces (default false).")
+@click.option('--terraform-dir', '-td', default="terraform",
+              help="Terraform files folder (default terraform).")
+@click.option('--terraform-organization', '-to',
+              help="Terraform organization needed if using cloud terraform.")
+@click.option('--terraform-refresh', '-tr', is_flag=True, default=False,
+              help="Forces terraform to refresh the state (default false).")
 @click.pass_context
 @pass_script_info
 @with_appcontext
@@ -489,13 +502,18 @@ def destroy_command(info, ctx, stage, **options) -> None:
     app = app_context.app
     os.environ['CWS_STAGE'] = stage
 
-    app.logger.debug('Start destroy command')
-    terraform_class = pop_terraform_class(options)
+    app.logger.debug(f"Start destroy command: {options}")
+    show_stage_banner(stage)
+    cloud = options.get('terraform_cloud')
+    refresh = options.get('terraform_refresh')
+    show_terraform_banner(cloud, refresh)
     with progressbar(label='Destroy microservice', threaded=not app.debug) as bar:
-        app.logger.debug(f'Destroying {app} using {terraform_class}')
-        process_terraform(app_context, ctx, terraform_class, bar, 'destroy.j2', memory_size=128, timeout=60,
-                          deploy=False, **options)
-    click.echo(f"You can now delete the terraform_{get_app_stage()} folder.")
+        terraform_backend_class = options.pop('terraform_class', TerraformBackend)
+        app.logger.debug(f'Destroying {app} using {terraform_backend_class}')
+        backend = terraform_backend_class(app_context, bar, **options)
+        backend.process_terraform(ctx, 'destroy.j2', terraform_init=False, **options)
+    if not options['dry']:
+        click.echo(f"You can now delete the terraform_{get_app_stage()} folder.")
 
 
 @click.command("deployed", CwsCommand, short_help="Retrieve the microservices deployed for this project.")
@@ -505,23 +523,26 @@ def destroy_command(info, ctx, stage, **options) -> None:
               help="Terraform folder (default terraform).")
 @click.option('--terraform-cloud', is_flag=True,
               help="Use cloud workspaces (default false).")
+@click.option('--terraform-refresh', '-tr', is_flag=True, default=False,
+              help="Forces terraform to refresh the state (default false).")
 @click.pass_context
 @pass_script_info
 @with_appcontext
 def deployed_command(info, ctx, stage, **options) -> None:
     app_context = TerraformContext(info)
     app = app_context.app
-    terraform = None
+    os.environ['CWS_STAGE'] = stage
 
-    app.logger.debug('Start deployed command')
+    app.logger.debug(f"Start destroy command: {options}")
     show_stage_banner(stage)
-    terraform_class = pop_terraform_class(options)
+    cloud = options.get('terraform_cloud')
+    refresh = options.get('terraform_refresh')
+    show_terraform_banner(cloud, refresh)
     with progressbar(label='Retrieving information', threaded=not app.debug) as bar:
-        app.logger.debug(f'Get deployed informations {app} using {terraform_class}')
-        root_command_params = ctx.find_root().params
-        terraform = terraform_class(app_context, bar, **root_command_params, **options)
-        if terraform:
-            echo_output(terraform)
+        terraform_backend_class = options.pop('terraform_class', TerraformBackend)
+        app.logger.debug(f'Destroying {app} using {terraform_backend_class}')
+        backend = terraform_backend_class(app_context, bar, **options)
+    echo_output(backend.api_terraform)
 
 
 def echo_output(terraform):
@@ -534,7 +555,7 @@ def echo_output(terraform):
             cws_name = values[0].strip()[:-3]  # remove last _id
             api_id = values[1].strip()[1:-1]  # remove quotes
             api_url = f"https://{api_id}.execute-api.eu-west-1.amazonaws.com/"
-            click.echo(f"The microservice {cws_name} is deployed at {api_url}")
+            click.secho(f"The microservice {cws_name} is deployed at {api_url}", fg='yellow')
 
 
 def load_dotvalues(stage: str):

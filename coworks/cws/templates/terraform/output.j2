@@ -2,12 +2,8 @@
 # OUTPUT
 # ---------------------------------------------------------------------------------------------------------------------
 
-{% if not stage -%}
-output "{{ resource_name }}_id" {
-{%- if terraform_cloud %}
-  value = var.TFC_WORKSPACE_NAME != "{{ ms_name }}_{{ stage }}" && local.{{ resource_name }}_create>0 ? aws_api_gateway_rest_api.{{ resource_name }}.id : ""
-{%- else %}
-  value = terraform.workspace == "default" && local.{{ resource_name }}_when_default != 0 ? aws_api_gateway_rest_api.{{ resource_name }}.id : ""
-{%- endif %}
+{% if stage == "common" -%}
+output "{{ ms_name }}_id" {
+  value = aws_api_gateway_rest_api.{{ ms_name }}.id
 }
 {% endif -%}

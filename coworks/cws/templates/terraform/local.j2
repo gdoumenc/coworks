@@ -2,7 +2,16 @@
 # LOCALS FOR THIS MICROSERVICE
 # ---------------------------------------------------------------------------------------------------------------------
 
+data "aws_caller_identity" "current" {}
+
 locals {
-  {{ resource_name }}_security_group_ids = {{ security_groups | list | replace("'", '"') }}
-  {{ resource_name }}_subnet_ids = {{ subnets | list | replace("'", '"')}}
+  {{ ms_name }}_security_group_ids = {{ security_groups | list | replace("'", '"') }}
+  {{ ms_name }}_subnet_ids = {{ subnets | list | replace("'", '"')}}
+{%- if terraform_cloud %}
+  {{ ms_name }}_when_default = var.TFC_WORKSPACE_NAME == "{{ ms_name }}_{{ stage }}" ? {{ 1 if deploy else 0 }} : 0
+  {{ ms_name }}_when_stage = var.TFC_WORKSPACE_NAME != "{{ ms_name }}_{{ stage }}" ? {{ 1 if deploy else 0 }} : 0
+{%-  else  %}
+  {{ ms_name }}_when_default = terraform.workspace == "default" ? {{ 1 if deploy else 0 }} : 0
+  {{ ms_name }}_when_stage = terraform.workspace != "default" ? {{ 1 if deploy else 0 }} : 0
+{%- endif  %}
 }
