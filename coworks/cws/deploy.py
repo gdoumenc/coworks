@@ -1,13 +1,23 @@
+import base64
+import hashlib
+import importlib
 import inspect
 import os
 import subprocess
 import sys
+import sysconfig
+import tempfile
 import typing as t
 from dataclasses import dataclass
 from datetime import datetime
 from functools import cached_property
+from functools import partial
 from pathlib import Path
 from shutil import ExecError
+from shutil import copyfile
+from shutil import copytree
+from shutil import ignore_patterns
+from shutil import make_archive
 from subprocess import CompletedProcess
 
 import boto3
@@ -21,12 +31,12 @@ from jinja2 import PackageLoader
 from jinja2 import select_autoescape
 from werkzeug.routing import Rule
 
+from coworks import aws
 from coworks.utils import get_app_stage
 from coworks.utils import get_env_filenames
 from .command import CwsCommand
 from .utils import progressbar
 from .utils import show_stage_banner
-from .zip import zip_command
 
 UID_SEP = '_'
 
@@ -226,6 +236,7 @@ class TerraformBackend:
         """The remote terraform class correspond to the terraform command interface for workspaces.
         """
         self.app_context = app_context
+        self.app = app_context.app
         self.bar = bar
 
         # Creates terraform dir if needed
@@ -237,58 +248,10 @@ class TerraformBackend:
         self.terraform_refresh = terraform_refresh
         self._api_terraform = self._stage_terraform = None
 
-    def process_terraform(self, ctx, command_template, deploy=True, **options):
-        root_command_params = ctx.find_root().params
-
-        # Set default options calculated value
-        app = self.app_context.app
-        options['hash'] = True
-        options['ignore'] = options.get('ignore') or ['.*', 'terraform']
-        options['key'] = options.get('key') or f"{app.__module__}-{app.name}/archive.zip"
-        dry = options.get('dry')
-
-        # Transfert zip file to S3 (to be done on each service)
-        options['deploy'] = deploy
-        if deploy:
-            self.bar.update(msg=f"Copy source files")
-            app.logger.debug('Call zip command')
-            zip_options = {zip_param.name: options[zip_param.name] for zip_param in zip_command.params}
-            ctx.invoke(zip_command, **zip_options)
-            click.secho("Source files on S3", fg="green")
-
-        # Generates common terraform files
-        app.logger.debug('Generate terraform common files')
-        self.api_terraform.generate_file("terraform.j2", "terraform.tf", **root_command_params, **options)
-        self.stage_terraform.generate_file("terraform.j2", "terraform.tf", **root_command_params, **options)
-
-        # Generates terraform files and copy environment variable files in terraform working dir for provisionning
-        output_filename = f"{app.name}.tech.tf"
-        app.logger.debug(f'Generate terraform {output_filename} file')
-        self.api_terraform.generate_file(command_template, output_filename, **root_command_params, **options)
-        self.stage_terraform.generate_file(command_template, output_filename, **root_command_params, **options)
-
-        # Apply to terraform if not dry
-        if not dry:
-            self.bar.update(msg="Create or update API")
-            self.api_terraform.apply()
-            if options.get('api'):
-                return
-
-            self.bar.update(msg=f"Deploy staged lambda ({self.stage})")
-            self.stage_terraform.apply()
-
-            # Traces output
-            self.bar.terminate()
-            click.echo()
-            echo_output(self.api_terraform)
-            click.secho("Microservice deployed", fg="green")
-        else:
-            self.bar.update(msg=f"Nothing deployed (dry mode)")
-
     @property
     def api_terraform(self):
         if self._api_terraform is None:
-            self.app_context.app.logger.debug(f"Create common terraform instance using {self.terraform_class}")
+            self.app.logger.debug(f"Create common terraform instance using {self.terraform_class}")
             self._api_terraform = self.terraform_class(self.app_context, self.bar,
                                                        terraform_dir=self.working_dir,
                                                        refresh=self.terraform_refresh)
@@ -297,7 +260,7 @@ class TerraformBackend:
     @property
     def stage_terraform(self):
         if self._stage_terraform is None:
-            self.app_context.app.logger.debug(f"Create {self.stage} terraform instance using {self.terraform_class}")
+            self.app.logger.debug(f"Create {self.stage} terraform instance using {self.terraform_class}")
             terraform_dir = f"{self.working_dir}_{self.stage}"
             self._stage_terraform = self.terraform_class(self.app_context, self.bar,
                                                          terraform_dir=terraform_dir,
@@ -305,9 +268,129 @@ class TerraformBackend:
                                                          stage=self.stage)
         return self._stage_terraform
 
+    def process_terraform(self, ctx, command_template, dry, **options):
+        root_command_params = ctx.find_root().params
+
+        # Set default options calculated value
+        options['key'] = options.get('key') or f"{self.app.__module__}-{self.app.name}/archive.zip"
+
+        # Transfert zip file to S3
+        self.bar.update(msg=f"Copy source files on S3")
+        b64sha256 = self.copy_sources_to_s3(ctx, dry, **options)
+        options['source_code_hash'] = b64sha256
+
+        self.bar.update(msg=f"Generates terraform files")
+
+        # Generates common terraform files
+        output_filename = "terraform.tf"
+        self.app.logger.debug('Generate terraform global files')
+        self.api_terraform.generate_file("terraform.j2", output_filename, **root_command_params, **options)
+        self.stage_terraform.generate_file("terraform.j2", output_filename, **root_command_params, **options)
+
+        # Generates terraform files and copy environment variable files in terraform working dir for provisionning
+        output_filename = f"{self.app.name}.tech.tf"
+        self.app.logger.debug(f'Generate terraform {output_filename} files')
+        self.api_terraform.generate_file(command_template, output_filename, **root_command_params, **options)
+        self.stage_terraform.generate_file(command_template, output_filename, **root_command_params, **options)
+
+        # Stops process if dry
+        if dry:
+            self.bar.update(msg=f"Nothing deployed (dry mode)")
+            return
+
+        # Apply to api terraform
+        self.bar.update(msg="Create or update API")
+        self.api_terraform.apply()
+        if options.get('api'):
+            return
+
+        # Apply to stage terraform
+        self.bar.update(msg=f"Deploy staged lambda ({self.stage})")
+        self.stage_terraform.apply()
+
+        self.delete_sources_on_s3(dry, **options)
+
+        # Traces output
+        self.bar.terminate()
+        click.echo()
+        echo_output(self.api_terraform)
+        click.secho("Microservice deployed", fg="green")
+
+    def copy_sources_to_s3(self, ctx, dry, **options):
+        module_name = options.get('module_name') or []
+        bucket = options.get('bucket')
+        key = options.get('key')
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+
+            # Defines ignore file paterns
+            ignore = options.get('ignore') or ['.*', 'terraform*']
+            if ignore and type(ignore) is not list:
+                if type(ignore) is tuple:
+                    ignore = [*ignore]
+                else:
+                    ignore = [ignore]
+            ignore = [*ignore, '*.pyc', '__pycache__']
+            ignore = [*ignore, 'Pipfile*', 'requirements.txt']
+            ignore = [*ignore, '*cws.yml', 'env_variables*']
+            full_ignore_patterns = partial(ignore_patterns, *ignore)
+
+            # Creates archive
+            project_dir = ctx.find_root().params.get('project_dir')
+            full_project_dir = Path(project_dir).resolve()
+            try:
+                if tmp_path.relative_to(full_project_dir):
+                    msg = f"Cannot deploy a project defined in tmp folder (project dir id {full_project_dir})"
+                    raise click.exceptions.UsageError(msg)
+            except (Exception,):
+                pass
+
+            tmp_sources_path = Path(tmp_path) / 'filtered_dir'
+            self.app.logger.debug(f"Copy source file in {tmp_sources_path}")
+            copytree(project_dir, tmp_sources_path, ignore=full_ignore_patterns())
+
+            for name in module_name:
+                if name.endswith(".py"):
+                    file_path = Path(sysconfig.get_path('purelib')) / name
+                    copyfile(file_path, tmp_sources_path / name)
+                else:
+                    mod = importlib.import_module(name)
+                    module_path = Path(mod.__file__).resolve().parent
+                    copytree(module_path, tmp_sources_path / name, ignore=full_ignore_patterns())
+            module_archive = make_archive(str(tmp_path / 'sources'), 'zip', tmp_sources_path)
+
+            # Uploads archive on S3
+            with open(module_archive, 'rb') as archive:
+                size = int(os.path.getsize(module_archive) / 1000)
+                b64sha256 = base64.b64encode(hashlib.sha256(archive.read()).digest()).decode()
+                if dry:
+                    self.bar.update(msg=f"Nothing copied (dry mode, {size} Kb)")
+                else:
+                    archive.seek(0)
+                    try:
+                        profile_name = options.get('profile_name')
+                        aws_s3_session = aws.AwsS3Session(profile_name=profile_name)
+                        aws_s3_session.client.upload_fileobj(archive, bucket, key)
+                    except Exception as e:
+                        raise e
+
+                    self.app.logger.debug(msg=f"Successfully uploaded sources at s3://{bucket}/{key}")
+                    self.bar.update(msg=f"Sources files copied ({size} Kb)")
+
+            return b64sha256
+
+    def delete_sources_on_s3(self, dry, **options):
+        if not dry:
+            bucket = options.get('bucket')
+            key = options.get('key')
+            profile_name = options.get('profile_name')
+            aws_s3_session = aws.AwsS3Session(profile_name=profile_name)
+            aws_s3_session.client.delete_object(Bucket=bucket, Key=key)
+            self.bar.update(msg=f"Sources files deleted on s3")
+
 
 @click.command("deploy", CwsCommand, short_help="Deploy the CoWorks microservice on AWS Lambda.")
-# Zip options (redefined)
+# Zip specific options
 @click.option('--api', is_flag=True,
               help="Stop after API create step (forces also dry mode).")
 @click.option('--bucket', '-b',
@@ -378,7 +461,8 @@ def deploy_command(info, ctx, stage, **options) -> None:
         terraform_backend_class = options.pop('terraform_class', TerraformBackend)
         app.logger.debug(f"Deploying {app} using {terraform_backend_class}")
         backend = terraform_backend_class(app_context, bar, **options)
-        backend.process_terraform(ctx, 'deploy.j2', **options)
+        dry = options.pop('dry')
+        backend.process_terraform(ctx, 'deploy.j2', dry=dry, **options)
 
 
 @click.command("destroy", CwsCommand, short_help="Destroy the CoWorks microservice on AWS Lambda.")
@@ -427,7 +511,6 @@ def destroy_command(info, ctx, stage, **options) -> None:
 def deployed_command(info, ctx, stage, **options) -> None:
     app_context = TerraformContext(info)
     app = app_context.app
-    os.environ['CWS_STAGE'] = stage
     terraform = None
 
     app.logger.debug('Start deployed command')

@@ -12,12 +12,6 @@ locals {
   {%- endif %}
 }
 
-data "aws_s3_object" "{{ resource_name }}-b64sha256" {
-  provider = aws.{{ resource_name }}
-  bucket = "{{ bucket }}"
-  key = "{{ key }}.b64sha256"
-}
-
 {% if layers -%}
 data "aws_lambda_layer_version" "{{ resource_name }}" {
   provider = aws.{{ resource_name }}
@@ -38,7 +32,7 @@ resource "aws_lambda_function" "{{ resource_name }}" {
   function_name = local.{{ resource_name }}_lambda_name
   s3_bucket = "{{ bucket }}"
   s3_key = "{{ key }}"
-  source_code_hash = local.{{ resource_name }}_when_stage > 0 ? data.aws_s3_object.{{ resource_name }}-b64sha256.body : ""
+  source_code_hash = "{{ source_code_hash }}"
   role = local.{{ resource_name }}_role_arn
   handler = "{{ app_import_path }}"
   description = "{{ description |truncate(256) | replace("\n", "\\n") }}"

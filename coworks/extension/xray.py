@@ -32,31 +32,31 @@ class XRay:
             self.init_app(app)
 
     def init_app(self, app):
-        if os.getenv(TRACING_NAME_KEY):
-            XRayMiddleware(app, self._recorder)
-            app.logger.debug(f"Initializing xray extension {self._name}")
 
-            if app.debug:
-                logging.getLogger('aws_xray_sdk').setLevel(logging.DEBUG)
+        # Not available in flask client
+        if os.getenv("FLASK_RUN_FROM_CLI") :
+            return
 
-            if global_sdk_config.sdk_enabled():
-                # Checks XRay is available
-                try:
-                    segment = self._recorder.current_segment()
-                except SegmentNotFoundException as e:
-                    pass
-                else:
-                    # Captures routes
-                    patch_all()
-                    app.errorhandler(500)(self.capture_exception)
-                    self.capture_routes()
-                    return
+        XRayMiddleware(app, self._recorder)
+        app.logger.debug(f"Initializing xray extension {self._name}")
 
-            self._app.logger.debug("Skipped capture routes because the SDK is currently disabled.")
+        if app.debug:
+            logging.getLogger('aws_xray_sdk').setLevel(logging.DEBUG)
 
-        else:
-            msg = f"Flask XRayMiddleware not installed because environment variable {TRACING_NAME_KEY} not defined."
-            app.logger.info(msg)
+        if global_sdk_config.sdk_enabled():
+            # Checks XRay is available
+            try:
+                segment = self._recorder.current_segment()
+            except SegmentNotFoundException as e:
+                pass
+            else:
+                # Captures routes
+                patch_all()
+                app.errorhandler(500)(self.capture_exception)
+                self.capture_routes()
+                return
+
+        self._app.logger.debug("Skipped capture routes because the SDK is currently disabled.")
 
     @staticmethod
     def capture(recorder):

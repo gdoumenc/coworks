@@ -24,7 +24,6 @@ from .deploy import destroy_command
 from .new import new_command
 from .utils import get_system_info
 from .utils import show_stage_banner
-from .zip import zip_command
 
 
 class CwsScriptInfo(ScriptInfo):
@@ -83,7 +82,6 @@ class CwsGroup(flask.cli.FlaskGroup):
             self.add_command(t.cast("Command", deploy_command))
             self.add_command(t.cast("Command", destroy_command))
             self.add_command(t.cast("Command", deployed_command))
-            self.add_command(t.cast("Command", zip_command))
 
     def make_context(self, info_name, args, parent=None, **kwargs):
         # Get project infos
