@@ -2,13 +2,14 @@ import logging
 import os
 import traceback
 import typing as t
+from functools import partial
+from functools import update_wrapper
+
 from aws_xray_sdk import global_sdk_config
 from aws_xray_sdk.core import patch_all
 from aws_xray_sdk.core.exceptions.exceptions import SegmentNotFoundException
 from aws_xray_sdk.core.recorder import TRACING_NAME_KEY
 from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
-from functools import partial
-from functools import update_wrapper
 
 from coworks.globals import request
 from coworks.wrappers import CoworksResponse
@@ -31,10 +32,14 @@ class XRay:
         if app is not None:
             self.init_app(app)
 
+        # Bug in aws_xray_sdk : service must be defined or exception will be raised in execution if no dynamic_naming
+        if not recorder.service:
+            recorder.configure(service=COWORKS_NAMESPACE)
+
     def init_app(self, app):
 
         # Not available in flask client
-        if os.getenv("FLASK_RUN_FROM_CLI") :
+        if os.getenv("FLASK_RUN_FROM_CLI"):
             return
 
         XRayMiddleware(app, self._recorder)

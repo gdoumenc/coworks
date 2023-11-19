@@ -14,6 +14,7 @@ from flask import json
 from flask.blueprints import BlueprintSetupState
 from flask.testing import FlaskClient
 from functools import partial
+from functools import reduce
 from inspect import isfunction
 from pathlib import Path
 from werkzeug.datastructures import ImmutableDict
@@ -396,7 +397,8 @@ class TechMicroService(Flask):
             parts = ["Traceback (most recent call last):\n"]
             parts.extend(traceback.format_stack(limit=15)[:-2])
             parts.extend(traceback.format_exception(*sys.exc_info())[1:])
-            self.logger.error(f"Traceback: {parts}")
+            trace = reduce(lambda x, y: x+y, parts, "")
+            self.logger.error(f"Traceback: {trace}")
             headers = {'content_type': "application/json"}
             return self._aws_payload(str(e), InternalServerError.code, headers)
 
