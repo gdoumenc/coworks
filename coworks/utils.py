@@ -244,7 +244,7 @@ def as_typed_kwargs(func, kwargs):
             arg = t.get_args(tp)[0]
             if type(val) is list:
                 return {arg(v) for v in val}
-            return [arg(val)]
+            return {arg(val)}
         if origin is t.Union:
             for arg in t.get_args(tp):
                 try:
