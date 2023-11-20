@@ -1,13 +1,14 @@
-import dotenv
 import inspect
 import os
 import traceback
 import typing as t
+from functools import update_wrapper
+from pathlib import Path
+
+import dotenv
 from flask import current_app
 from flask import make_response
 from flask.blueprints import BlueprintSetupState
-from functools import update_wrapper
-from pathlib import Path
 from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import UnprocessableEntity
@@ -114,7 +115,7 @@ def create_cws_proxy(scaffold: "Scaffold", func, kwarg_keys, func_args, func_kwa
         def as_fun_params(values: dict, flat=True):
             """Set parameters as simple value or list of values if multiple defined.
            :param values: Dict of values.
-           :param flat: If set to True the list values of lenth 1 is retrun as single value.
+           :param flat: If set to True the list values of lenth 1 is return as single value.
             """
             params = {}
             for k, v in values.items():
@@ -238,6 +239,11 @@ def as_typed_kwargs(func, kwargs):
             arg = t.get_args(tp)[0]
             if type(val) is list:
                 return [arg(v) for v in val]
+            return [arg(val)]
+        if origin is set:
+            arg = t.get_args(tp)[0]
+            if type(val) is list:
+                return {arg(v) for v in val}
             return [arg(val)]
         if origin is t.Union:
             for arg in t.get_args(tp):
