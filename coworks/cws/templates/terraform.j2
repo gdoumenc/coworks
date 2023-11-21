@@ -38,8 +38,6 @@ provider "aws" {
   }
 }
 
-data "aws_caller_identity" "current" {}
-
 locals {
 {%- if profile_name %}
   profile = "{{ profile_name }}"
@@ -75,3 +73,5 @@ locals {
   region = {{ '"{}"'.format(aws_region) if aws_region else 'var.AWS_REGION'}}
 }
 {%- endif %}
+
+data "aws_caller_identity" "current" {}
