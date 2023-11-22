@@ -7,8 +7,13 @@ from pathlib import Path
 
 import dotenv
 from flask import current_app
+from flask import json
 from flask import make_response
 from flask.blueprints import BlueprintSetupState
+from jsonapi_pydantic.v1_0 import Error
+from jsonapi_pydantic.v1_0 import TopLevel
+from pydantic import BaseModel
+from pydantic import ValidationError
 from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import UnprocessableEntity
@@ -178,21 +183,28 @@ def create_cws_proxy(scaffold: "Scaffold", func, kwarg_keys, func_args, func_kwa
 
             kwargs = as_typed_kwargs(func, kwargs)
             result = func(scaffold, **kwargs)
+
             resp = make_response(result) if result is not None else \
                 make_response("", 204, {'content-type': 'text/plain'})
 
             if func.__CWS_BINARY_HEADERS and not request.in_lambda_context:
                 resp.headers.update(func.__CWS_BINARY_HEADERS)
+
+            return resp
+
         except HTTPException as e:
             try:
                 return current_app.handle_user_exception(e)
             except (Exception,):
-                resp = make_response(e.description, e.code, {'content-type': 'text/plain'})
+                return make_response(e.description, e.code, {'content-type': 'text/plain'})
+        except ValidationError as e:
+            if 'application/vnd.api+json' in request.headers.getlist('accept'):
+                errors = [Error(id='0', detail=str(e), title="ValidationError", status='400') for error in e.errors()]
+                return make_response(TopLevel(data=None, errors=errors, included=None).dict(), 200)
+            return make_response(str(e), 400)
         except Exception as e:
             current_app.logger.error(''.join(traceback.format_exception(None, e, e.__traceback__)))
-            resp = make_response(str(e), InternalServerError.code, {'content-type': 'text/plain'})
-
-        return resp
+            return make_response(str(e), InternalServerError.code, {'content-type': 'text/plain'})
 
     return update_wrapper(proxy, func)
 
@@ -234,6 +246,10 @@ def as_typed_kwargs(func, kwargs):
         if origin is None:
             if tp is bool:
                 return val.lower() in ['true', '1', 'yes']
+            if tp is dict:
+                return json.loads(val)
+            if issubclass(tp, BaseModel):
+                return tp(**json.loads(val))
             return tp(val)
         if origin is list:
             arg = t.get_args(tp)[0]
@@ -249,6 +265,8 @@ def as_typed_kwargs(func, kwargs):
             for arg in t.get_args(tp):
                 try:
                     return get_typed_value(arg, val)
+                except ValidationError:
+                    raise
                 except (TypeError, ValueError):
                     pass
             raise TypeError()
@@ -259,8 +277,12 @@ def as_typed_kwargs(func, kwargs):
         for name, value in kwargs.items():
             try:
                 typed_kwargs[name] = get_typed_value(hints.get(name), value)
+            except ValidationError:
+                raise
             except (TypeError, ValueError):
                 pass
+    except ValidationError:
+        raise
     except (Exception,):
         pass
     return typed_kwargs

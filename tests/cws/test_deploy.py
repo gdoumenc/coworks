@@ -9,8 +9,7 @@ from flask.cli import ScriptInfo
 from coworks import Blueprint
 from coworks import TechMicroService
 from coworks import entry
-from coworks.cws.deploy import LocalTerraform
-from coworks.cws.deploy import RemoteTerraform
+from coworks.cws.deploy import Terraform
 from coworks.cws.deploy import TerraformContext
 from cws.client import CwsScriptInfo
 
@@ -50,7 +49,7 @@ class TestClass:
         with app.test_request_context() as ctx:
             info = ScriptInfo(create_app=lambda: app)
             app_context = TerraformContext(info)
-            terraform = LocalTerraform(app_context, progressbar, terraform_dir="terraform")
+            terraform = Terraform(app_context, progressbar, terraform_dir="terraform")
             ressources = terraform.api_resources
         assert len(ressources) == 7
         assert ressources[''].rules is not None
@@ -73,7 +72,7 @@ class TestClass:
         with app.test_request_context() as ctx:
             info = ScriptInfo(create_app=lambda: app)
             app_context = TerraformContext(info)
-            api_ressources = LocalTerraform(app_context, progressbar, terraform_dir='.').api_resources
+            api_ressources = Terraform(app_context, progressbar, terraform_dir='.').api_resources
         assert len(api_ressources) == 5
         assert '' in api_ressources
         assert 'init' in api_ressources
@@ -101,7 +100,7 @@ class TestClass:
             }
             info = ScriptInfo(create_app=lambda: app)
             app_context = TerraformContext(info)
-            terraform = LocalTerraform(app_context, progressbar, terraform_dir="terraform")
+            terraform = Terraform(app_context, progressbar, terraform_dir="terraform")
             terraform.generate_files("deploy.j2", "test.tf", **options)
         with (Path("terraform") / "test.tf").open() as f:
             lines = f.readlines()
@@ -112,7 +111,6 @@ class TestClass:
         (Path("terraform") / "test.tf").unlink()
         Path("terraform").rmdir()
 
-    import pytest
     @mock.patch.dict(os.environ, {"test": "local", "FLASK_RUN_FROM_CLI": "true"})
     def test_deploy_remote_cmd(self, monkeypatch, example_dir, progressbar, capsys):
         info = CwsScriptInfo(project_dir='.')
@@ -131,7 +129,7 @@ class TestClass:
             }
             info = ScriptInfo(create_app=lambda: app)
             app_context = TerraformContext(info)
-            terraform = RemoteTerraform(app_context, progressbar, terraform_dir="terraform")
+            terraform = Terraform(app_context, progressbar, terraform_dir="terraform")
             terraform.generate_files("terraform.j2", "test.tf", **options)
         with (Path("terraform") / "test.tf").open() as f:
             lines = f.readlines()
@@ -158,7 +156,7 @@ class TestClass:
             }
             info = ScriptInfo(create_app=lambda: app)
             app_context = TerraformContext(info)
-            terraform = LocalTerraform(app_context, progressbar, terraform_dir="terraform")
+            terraform = Terraform(app_context, progressbar, terraform_dir="terraform")
             terraform.generate_files("deploy.j2", "test.tf", **options)
         with (Path("terraform") / "test.tf").open() as f:
             lines = f.readlines()

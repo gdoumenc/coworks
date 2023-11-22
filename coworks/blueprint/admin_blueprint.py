@@ -1,16 +1,19 @@
 import inspect
 import os
 import sys
+import typing as t
 from collections import defaultdict
 from inspect import Parameter
 from textwrap import dedent
 
 import markdown
+from flask import abort
 from flask import current_app
 from flask import render_template_string
 from jinja2 import Environment
 from jinja2 import PackageLoader
 from jinja2 import select_autoescape
+from pydantic import BaseModel
 from werkzeug.exceptions import NotFound
 
 from coworks import Blueprint
@@ -21,8 +24,9 @@ class Admin(Blueprint):
     """Administration blueprint to get details on the microservice containing it.
     """
 
-    def __init__(self, name: str = 'admin', **kwargs):
+    def __init__(self, name: str = 'admin', models: t.Optional[t.List[BaseModel]] = None, **kwargs):
         super().__init__(name=name, **kwargs)
+        self.models = {model.__name__: model for model in models}
 
     @entry(no_auth=True, no_cors=True)
     def get(self):
@@ -63,6 +67,22 @@ class Admin(Blueprint):
             "Content-Type": 'text/html; charset=utf-8'
         }
         return content, 200, headers
+
+    @entry(no_auth=True, no_cors=True)
+    def get_schema(self):
+        """Returns the list of schemas defined in the microservices.
+        """
+        return [*{model for model in self.models}] if self.models else []
+
+    @entry(no_auth=True, no_cors=True)
+    def get__schema(self, model):
+        """Returns the JSON schemas of the model.
+
+        :param model: Model's name.
+       """
+        if model in self.models:
+            return self.models[model].schema()
+        abort(404)
 
     @entry(stage="dev")
     def get_route(self, prefix=None, blueprint=None):

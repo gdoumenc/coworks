@@ -27,6 +27,7 @@
   {{ json_response("text/x-json") }}
   {{ json_response("application/javascript") }}
   {{ json_response("application/x-javascript") }}
+  {{ json_response("application/vnd.api+json") }}
 {% for type in json_types %}
   {{ json_response(type) }}
 {%- endfor %}

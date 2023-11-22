@@ -1,6 +1,5 @@
 import base64
 import io
-import json
 import re
 import typing as t
 import urllib
@@ -9,6 +8,7 @@ import urllib.parse
 from flask import Request as FlaskRequest
 from flask import Response as FlaskResponse
 from flask import current_app
+from flask import json
 from requests_toolbelt.multipart.decoder import MultipartDecoder
 from werkzeug.datastructures import ETags
 from werkzeug.datastructures import FileStorage

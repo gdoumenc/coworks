@@ -1,4 +1,4 @@
-import json
+from flask import json
 
 
 def get_event(entry_path, method, entry_path_parameters=None, params=None, body=None, headers=None):

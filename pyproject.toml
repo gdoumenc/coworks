@@ -28,11 +28,13 @@ classifiers = [
 dependencies = [
     "anyconfig>=0.12",
     "boto3>=1.19",
-    "flask>=2.2,<2.3",
+    "flask>=3.0.0",
+    "jsonapi-pydantic>=0.2.2",
     "markdown>=3.3.6",
+    "pydantic>=2.5.1",
     "pyyaml>=6.0",
     "python-dotenv>=0.21.0",
-    "requests_toolbelt>=0.10",
+    "requests-toolbelt>=0.10",
 ]
 
 [project.urls]

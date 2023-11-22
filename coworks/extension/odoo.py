@@ -1,5 +1,4 @@
 import base64
-import json
 import os
 import typing as t
 import xmlrpc.client
@@ -8,6 +7,7 @@ from dataclasses import field
 
 import requests
 from aws_xray_sdk.core import xray_recorder
+from flask import json
 from werkzeug.exceptions import BadRequest
 from werkzeug.exceptions import Forbidden
 from werkzeug.exceptions import NotFound
@@ -79,7 +79,8 @@ class Odoo:
 
     @XRay.capture(xray_recorder)
     def kw(self, model: str, method: str = "search_read", id: int = None, fields: t.Iterator[str] = None,
-           order: str = None, domain: t.Iterator[t.Tuple[str, str, t.Any]] = None, limit: int = None, page_size: int = None,
+           order: str = None, domain: t.Iterator[t.Tuple[str, str, t.Any]] = None, limit: int = None,
+           page_size: int = None,
            page: int = 0, ensure_one: bool = False, bind: str = None):
         """Searches with API for records based on the args.
         
