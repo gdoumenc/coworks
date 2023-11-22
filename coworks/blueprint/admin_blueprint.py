@@ -24,7 +24,7 @@ class Admin(Blueprint):
     """Administration blueprint to get details on the microservice containing it.
     """
 
-    def __init__(self, name: str = 'admin', models: t.Optional[t.List[BaseModel]] = None, **kwargs):
+    def __init__(self, name: str = 'admin', models: t.Optional[t.List[t.Type[BaseModel]]] = None, **kwargs):
         super().__init__(name=name, **kwargs)
         self.models = {model.__name__: model for model in models} if models else {}
 
