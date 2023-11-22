@@ -26,7 +26,7 @@ class Admin(Blueprint):
 
     def __init__(self, name: str = 'admin', models: t.Optional[t.List[BaseModel]] = None, **kwargs):
         super().__init__(name=name, **kwargs)
-        self.models = {model.__name__: model for model in models}
+        self.models = {model.__name__: model for model in models} if models else {}
 
     @entry(no_auth=True, no_cors=True)
     def get(self):
@@ -72,7 +72,7 @@ class Admin(Blueprint):
     def get_schema(self):
         """Returns the list of schemas defined in the microservices.
         """
-        return [*{model for model in self.models}] if self.models else []
+        return [*{model for model in self.models}]
 
     @entry(no_auth=True, no_cors=True)
     def get__schema(self, model):

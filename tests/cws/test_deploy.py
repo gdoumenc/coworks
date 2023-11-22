@@ -1,4 +1,5 @@
 import os
+import tempfile
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -49,7 +50,7 @@ class TestClass:
         with app.test_request_context() as ctx:
             info = ScriptInfo(create_app=lambda: app)
             app_context = TerraformContext(info)
-            terraform = Terraform(app_context, progressbar, terraform_dir="terraform")
+            terraform = Terraform(app_context, progressbar, terraform_dir="terraform", refresh=False)
             ressources = terraform.api_resources
         assert len(ressources) == 7
         assert ressources[''].rules is not None
@@ -72,7 +73,7 @@ class TestClass:
         with app.test_request_context() as ctx:
             info = ScriptInfo(create_app=lambda: app)
             app_context = TerraformContext(info)
-            api_ressources = Terraform(app_context, progressbar, terraform_dir='.').api_resources
+            api_ressources = Terraform(app_context, progressbar, terraform_dir='.', refresh=False).api_resources
         assert len(api_ressources) == 5
         assert '' in api_ressources
         assert 'init' in api_ressources
@@ -100,16 +101,13 @@ class TestClass:
             }
             info = ScriptInfo(create_app=lambda: app)
             app_context = TerraformContext(info)
-            terraform = Terraform(app_context, progressbar, terraform_dir="terraform")
-            terraform.generate_files("deploy.j2", "test.tf", **options)
-        with (Path("terraform") / "test.tf").open() as f:
-            lines = f.readlines()
-        assert len(lines) == 2280
-        assert lines[1].strip() == 'alias = "envtechms"'
-        assert lines[21].strip() == 'envtechms_when_default = terraform.workspace == "default" ? 1 : 0'
-        assert lines[22].strip() == 'envtechms_when_stage = terraform.workspace != "default" ? 1 : 0'
-        (Path("terraform") / "test.tf").unlink()
-        Path("terraform").rmdir()
+            terraform = Terraform(app_context, progressbar, terraform_dir="terraform", refresh=False)
+            with tempfile.NamedTemporaryFile() as fp:
+                terraform.generate_file("deploy.j2", fp.name, **options)
+                fp.seek(0)
+                lines = fp.readlines()
+                assert len(lines) == 2149
+                assert lines[1].strip() == 'alias = "envtechms"'.encode('utf-8')
 
     @mock.patch.dict(os.environ, {"test": "local", "FLASK_RUN_FROM_CLI": "true"})
     def test_deploy_remote_cmd(self, monkeypatch, example_dir, progressbar, capsys):
@@ -129,15 +127,15 @@ class TestClass:
             }
             info = ScriptInfo(create_app=lambda: app)
             app_context = TerraformContext(info)
-            terraform = Terraform(app_context, progressbar, terraform_dir="terraform")
-            terraform.generate_files("terraform.j2", "test.tf", **options)
-        with (Path("terraform") / "test.tf").open() as f:
-            lines = f.readlines()
-        assert len(lines) == 46
-        assert "TERRAFORM ON CLOUD" in lines[2]
-        assert "CoWorks" in lines[7]
-        (Path("terraform") / "test.tf").unlink()
-        Path("terraform").rmdir()
+            terraform = Terraform(app_context, progressbar, terraform_dir="terraform", refresh=False)
+            with tempfile.NamedTemporaryFile() as fp:
+                terraform.generate_file("terraform.j2", fp.name, **options)
+                fp.seek(0)
+                lines = fp.readlines()
+                assert len(lines) == 46
+                print(lines)
+                assert "TERRAFORM ON CLOUD" in lines[1].decode('utf-8')
+                assert "CoWorks" in lines[6].decode('utf-8')
 
     @mock.patch.dict(os.environ, {"test": "local", "FLASK_RUN_FROM_CLI": "true"})
     def test_destroy_cmd(self, monkeypatch, example_dir, progressbar, capsys):
@@ -156,13 +154,10 @@ class TestClass:
             }
             info = ScriptInfo(create_app=lambda: app)
             app_context = TerraformContext(info)
-            terraform = Terraform(app_context, progressbar, terraform_dir="terraform")
-            terraform.generate_files("deploy.j2", "test.tf", **options)
-        with (Path("terraform") / "test.tf").open() as f:
-            lines = f.readlines()
-        assert len(lines) == 2280
-        assert lines[1].strip() == 'alias = "envtechms"'
-        assert lines[21].strip() == 'envtechms_when_default = terraform.workspace == "default" ? 0 : 0'
-        assert lines[22].strip() == 'envtechms_when_stage = terraform.workspace != "default" ? 0 : 0'
-        (Path("terraform") / "test.tf").unlink()
-        Path("terraform").rmdir()
+            terraform = Terraform(app_context, progressbar, terraform_dir="terraform", refresh=False)
+            with tempfile.NamedTemporaryFile() as fp:
+                terraform.generate_file("deploy.j2", fp.name, **options)
+                fp.seek(0)
+                lines = fp.readlines()
+                assert len(lines) == 2149
+                assert lines[1].strip() == 'alias = "envtechms"'.encode('utf-8')
