@@ -7,12 +7,12 @@ verify_ssl = true
 anyconfig = ">=0.12"
 boto3 = ">=1.19"
 flask = ">=2.3"
-jsonapi-pydantic = "*"
+jsonapi-pydantic = ">=0.1.5"
 markdown = ">=3.3.6"
 pyyaml = ">=6.0"
 python-dotenv = ">=0.21.0"
-pydantic = "*"
-requests-toolbelt = "*"
+pydantic = ">=1.10.0"
+requests-toolbelt = ">=0.10"
 
 [dev-packages]
 aws_xray_sdk = "*"
