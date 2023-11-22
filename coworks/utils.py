@@ -194,14 +194,29 @@ def create_cws_proxy(scaffold: "Scaffold", func, kwarg_keys, func_args, func_kwa
 
         except HTTPException as e:
             try:
-                return current_app.handle_user_exception(e)
+                resp = current_app.handle_user_exception(e)
+
+                # If the exception is not managed by the application
+                if resp == e and 'application/vnd.api+json' in request.headers.getlist('accept'):
+                    errors = [Error(id='0', detail=str(e), status=e.code)]
+                    return make_response(TopLevel(data=None, errors=errors, included=None).dict(), e.code)
+                return resp
+
             except (Exception,):
+                if 'application/vnd.api+json' in request.headers.getlist('accept'):
+                    errors = [Error(id='0', detail=str(e), status=e.code)]
+                    return make_response(TopLevel(data=None, errors=errors, included=None).dict(), e.code)
                 return make_response(e.description, e.code, {'content-type': 'text/plain'})
+
+        # Validation exception in request
         except ValidationError as e:
             if 'application/vnd.api+json' in request.headers.getlist('accept'):
                 errors = [Error(id='0', detail=str(e), title="ValidationError", status='400') for error in e.errors()]
-                return make_response(TopLevel(data=None, errors=errors, included=None).dict(), 200)
-            return make_response(str(e), 400)
+                return make_response(TopLevel(data=None, errors=errors, included=None).dict(), 422)
+
+            return make_response(str(e), 422)
+
+        # Should not occur
         except Exception as e:
             current_app.logger.error(''.join(traceback.format_exception(None, e, e.__traceback__)))
             return make_response(str(e), InternalServerError.code, {'content-type': 'text/plain'})
