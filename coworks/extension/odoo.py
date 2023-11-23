@@ -51,7 +51,7 @@ class OdooConfig:
 
 
 class Odoo:
-    """Odoo extension.
+    """Flask's extension for Odoo.
     This extension uses the external API of ODOO.
 
     .. versionchanged:: 0.7.3
@@ -79,9 +79,8 @@ class Odoo:
 
     @XRay.capture(xray_recorder)
     def kw(self, model: str, method: str = "search_read", id: int = None, fields: t.Iterator[str] = None,
-           order: str = None, domain: t.Iterator[t.Tuple[str, str, t.Any]] = None, limit: int = None,
-           page_size: int = None,
-           page: int = 0, ensure_one: bool = False, bind: str = None):
+           order: str = None, domain: t.Iterator[t.Tuple[str, str, t.Any]] = None, limit: t.Optional[int] = None,
+           page: t.Optional[int] = None, ensure_one: bool = False, bind: str = None):
         """Searches with API for records based on the args.
         
         See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.search
@@ -102,6 +101,10 @@ class Odoo:
        """
         if id and domain:
             raise BadRequest("Domain and Id parameters cannot be defined tin same time")
+        if page is not None and limit is None:
+            raise BadRequest("Pagination needs limit as page size.")
+
+
         if id:
             domain = [[('id', '=', id)]]
         else:
@@ -115,8 +118,7 @@ class Odoo:
         if limit:
             params.update({'limit': limit})
         if page:
-            page_size = page_size or limit
-            params.update({'offset': page * page_size})
+            params.update({'offset': page * limit})
 
         res = self.odoo_execute_kw(bind, model, method, domain, params)
 

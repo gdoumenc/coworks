@@ -1,5 +1,4 @@
 import base64
-import boto3
 import io
 import itertools
 import logging
@@ -7,19 +6,24 @@ import os
 import sys
 import traceback
 import typing as t
-from flask import Blueprint as FlaskBlueprint
-from flask import Flask
-from flask import current_app
-from flask import json
-from flask.blueprints import BlueprintSetupState
-from flask.testing import FlaskClient
 from functools import partial
 from functools import reduce
 from inspect import isfunction
 from pathlib import Path
+
+import boto3
+from flask import Blueprint as FlaskBlueprint
+from flask import Flask
+from flask import current_app
+from flask import json
+from flask import make_response
+from flask.blueprints import BlueprintSetupState
+from flask.testing import FlaskClient
+from pydantic import ValidationError
 from werkzeug.datastructures import ImmutableDict
 from werkzeug.datastructures import MultiDict
 from werkzeug.datastructures import WWWAuthenticate
+from werkzeug.exceptions import BadRequest
 from werkzeug.exceptions import Forbidden
 from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import Unauthorized
@@ -397,7 +401,7 @@ class TechMicroService(Flask):
             parts = ["Traceback (most recent call last):\n"]
             parts.extend(traceback.format_stack(limit=15)[:-2])
             parts.extend(traceback.format_exception(*sys.exc_info())[1:])
-            trace = reduce(lambda x, y: x+y, parts, "")
+            trace = reduce(lambda x, y: x + y, parts, "")
             self.logger.error(f"Traceback: {trace}")
             headers = {'content_type': "application/json"}
             return self._aws_payload(str(e), InternalServerError.code, headers)

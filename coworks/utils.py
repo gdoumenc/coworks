@@ -1,6 +1,5 @@
 import inspect
 import os
-import traceback
 import typing as t
 from functools import update_wrapper
 from pathlib import Path
@@ -10,12 +9,8 @@ from flask import current_app
 from flask import json
 from flask import make_response
 from flask.blueprints import BlueprintSetupState
-from jsonapi_pydantic.v1_0 import Error
-from jsonapi_pydantic.v1_0 import TopLevel
 from pydantic import BaseModel
 from pydantic import ValidationError
-from werkzeug.exceptions import HTTPException
-from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import UnprocessableEntity
 
 from .globals import request
@@ -128,98 +123,68 @@ def create_cws_proxy(scaffold: "Scaffold", func, kwarg_keys, func_args, func_kwa
                 params[k] = v[0] if flat and len(v) == 1 else v
             return params
 
-        try:
-            # Get keyword arguments from request
-            if kwarg_keys or func_kwargs:
+        # Get keyword arguments from request
+        if kwarg_keys or func_kwargs:
 
-                # adds parameters from query parameters
-                if request.method == 'GET':
-                    data = request.values.to_dict(False)
-                    kwargs = dict(**kwargs, **as_fun_params(data))
+            # adds parameters from query parameters
+            if request.method == 'GET':
+                data = request.values.to_dict(False)
+                kwargs = dict(**kwargs, **as_fun_params(data))
 
-                # Adds parameters from body parameter
-                elif request.method in ['POST', 'PUT', 'DELETE']:
-                    try:
-                        if request.is_json:
-                            data = request.get_data()
-                            if data:
-                                data = request.json
-                                if type(data) is dict:
-                                    kwargs = {**kwargs, **as_fun_params(data, False)}
-                                else:
-                                    kwargs[kwarg_keys[0]] = data
-                        elif request.is_multipart:
-                            data = request.form.to_dict(False)
-                            files = request.files.to_dict(False)
-                            kwargs = {**kwargs, **as_fun_params(data), **as_fun_params(files)}
-                        elif request.is_form_urlencoded:
-                            data = request.form.to_dict(False)
-                            kwargs = dict(**kwargs, **as_fun_params(data))
-                        else:
-                            data = request.values.to_dict(False)
-                            kwargs = dict(**kwargs, **as_fun_params(data))
-                    except Exception as e:
-                        raise UnprocessableEntity(str(e))
-
-                else:
-                    err_msg = f"Keyword arguments are not permitted for {request.method} method."
-                    raise UnprocessableEntity(err_msg)
+            # Adds parameters from body parameter
+            elif request.method in ['POST', 'PUT', 'DELETE']:
+                try:
+                    if request.is_json:
+                        data = request.get_data()
+                        if data:
+                            data = request.json
+                            if type(data) is dict:
+                                kwargs = {**kwargs, **as_fun_params(data, False)}
+                            else:
+                                kwargs[kwarg_keys[0]] = data
+                    elif request.is_multipart:
+                        data = request.form.to_dict(False)
+                        files = request.files.to_dict(False)
+                        kwargs = {**kwargs, **as_fun_params(data), **as_fun_params(files)}
+                    elif request.is_form_urlencoded:
+                        data = request.form.to_dict(False)
+                        kwargs = dict(**kwargs, **as_fun_params(data))
+                    else:
+                        data = request.values.to_dict(False)
+                        kwargs = dict(**kwargs, **as_fun_params(data))
+                except Exception as e:
+                    raise UnprocessableEntity(str(e))
 
             else:
-                if not func_args:
-                    try:
-                        if request.content_length:
-                            if request.is_json and request.json:
-                                err_msg = f"TypeError: got an unexpected arguments (body: {request.json})"
-                                raise UnprocessableEntity(err_msg)
-                        if request.query_string:
-                            err_msg = f"TypeError: got an unexpected arguments (query: {request.query_string})"
+                err_msg = f"Keyword arguments are not permitted for {request.method} method."
+                raise UnprocessableEntity(err_msg)
+
+        else:
+            if not func_args:
+                try:
+                    if request.content_length:
+                        if request.is_json and request.json:
+                            err_msg = f"TypeError: got an unexpected arguments (body: {request.json})"
                             raise UnprocessableEntity(err_msg)
-                    except Exception as e:
-                        current_app.logger.error(f"Should not go here (1) : {str(e)}")
-                        current_app.logger.error(f"Should not go here (2) : {request.get_data()}")
-                        current_app.logger.error(f"Should not go here (3) : {kwargs}")
-                        raise
+                    if request.query_string:
+                        err_msg = f"TypeError: got an unexpected arguments (query: {request.query_string})"
+                        raise UnprocessableEntity(err_msg)
+                except Exception as e:
+                    current_app.logger.error(f"Should not go here (1) : {str(e)}")
+                    current_app.logger.error(f"Should not go here (2) : {request.get_data()}")
+                    current_app.logger.error(f"Should not go here (3) : {kwargs}")
+                    raise
 
-            kwargs = as_typed_kwargs(func, kwargs)
-            result = func(scaffold, **kwargs)
+        kwargs = as_typed_kwargs(func, kwargs)
+        result = func(scaffold, **kwargs)
 
-            resp = make_response(result) if result is not None else \
-                make_response("", 204, {'content-type': 'text/plain'})
+        resp = make_response(result) if result is not None else \
+            make_response("", 204, {'content-type': 'text/plain'})
 
-            if func.__CWS_BINARY_HEADERS and not request.in_lambda_context:
-                resp.headers.update(func.__CWS_BINARY_HEADERS)
+        if func.__CWS_BINARY_HEADERS and not request.in_lambda_context:
+            resp.headers.update(func.__CWS_BINARY_HEADERS)
 
-            return resp
-
-        except HTTPException as e:
-            try:
-                resp = current_app.handle_user_exception(e)
-
-                # If the exception is not managed by the application
-                if resp == e and 'application/vnd.api+json' in request.headers.getlist('accept'):
-                    errors = [Error(id='0', detail=str(e), status=e.code)]
-                    return make_response(TopLevel(data=None, errors=errors, included=None).dict(), e.code)
-                return resp
-
-            except (Exception,):
-                if 'application/vnd.api+json' in request.headers.getlist('accept'):
-                    errors = [Error(id='0', detail=str(e), status=e.code)]
-                    return make_response(TopLevel(data=None, errors=errors, included=None).dict(), e.code)
-                return make_response(e.description, e.code, {'content-type': 'text/plain'})
-
-        # Validation exception in request
-        except ValidationError as e:
-            if 'application/vnd.api+json' in request.headers.getlist('accept'):
-                errors = [Error(id='0', detail=str(e), title="ValidationError", status='400') for error in e.errors()]
-                return make_response(TopLevel(data=None, errors=errors, included=None).dict(), 422)
-
-            return make_response(str(e), 422)
-
-        # Should not occur
-        except Exception as e:
-            current_app.logger.error(''.join(traceback.format_exception(None, e, e.__traceback__)))
-            return make_response(str(e), InternalServerError.code, {'content-type': 'text/plain'})
+        return resp
 
     return update_wrapper(proxy, func)
 
