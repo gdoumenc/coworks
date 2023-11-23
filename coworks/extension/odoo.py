@@ -2,12 +2,12 @@ import base64
 import os
 import typing as t
 import xmlrpc.client
-from dataclasses import dataclass
-from dataclasses import field
 
 import requests
 from aws_xray_sdk.core import xray_recorder
 from flask import json
+from pydantic import BaseModel
+from pydantic import Field
 from werkzeug.exceptions import BadRequest
 from werkzeug.exceptions import Forbidden
 from werkzeug.exceptions import NotFound
@@ -15,13 +15,12 @@ from werkzeug.exceptions import NotFound
 from coworks.extension.xray import XRay
 
 
-@dataclass
-class OdooConfig:
+class OdooConfig(BaseModel):
     url: str
     dbname: str
     user: str
     passwd: str
-    const: t.Dict[str, t.Any] = field(default_factory=dict)
+    const: t.Dict[str, t.Any] = Field(default_factory=dict)
 
     @classmethod
     def from_env_var_prefix(cls, env_var_prefix):
@@ -103,7 +102,6 @@ class Odoo:
             raise BadRequest("Domain and Id parameters cannot be defined tin same time")
         if page is not None and limit is None:
             raise BadRequest("Pagination needs limit as page size.")
-
 
         if id:
             domain = [[('id', '=', id)]]
