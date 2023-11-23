@@ -421,7 +421,7 @@ class TerraformBackend:
               help="Add layer (full arn: aws:lambda:...). Must contains CoWorks at least.")
 @click.option('--memory-size', default=128,
               help="Lambda memory size (default 128).")
-@click.option('--python', '-p', type=click.Choice(['3.7', '3.8']), default='3.8',
+@click.option('--python', '-p', type=click.Choice(['3.7', '3.8', '3.9', '3.10']), default='3.10',
               help="Python version for the lambda.")
 @click.option('--security-groups', multiple=True, default=[],
               help="Security groups to be added [ids].")
