@@ -22,7 +22,7 @@ data "aws_lambda_layer_version" "{{ ms_name }}" {
 
 {% if environment_variable_files -%}
 data "local_file" "{{ ms_name }}_environment_variables_files" {
-  for_each = local.{{ ms_name }}_when_stage == 1 ? {for envar_file in {{ environment_variable_files | tojson }}: envar_file => envar_file} : {}
+  for_each = {for envar_file in {{ environment_variable_files | tojson }}: envar_file => envar_file}
   filename = each.value
 }
 {%- endif %}

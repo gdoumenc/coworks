@@ -44,8 +44,9 @@ UID_SEP = '_'
 
 class TerraformContext:
 
-    def __init__(self, info):
+    def __init__(self, info, ctx):
         self.app = info.load_app()
+        self.ctx = ctx
 
         # Transform flask app import path into module import path
         if info.app_import_path and '/' in info.app_import_path:
@@ -96,12 +97,14 @@ class Terraform:
     """Terraform class to manage local terraform commands."""
     TIMEOUT = 600
 
-    def __init__(self, app_context: TerraformContext, bar, terraform_dir, refresh, stage="common"):
-        self.app_context = app_context
-        self.bar = bar
-        self.terraform_dir = Path(terraform_dir)
-        self.refresh = refresh
+    def __init__(self, backend: 'TerraformBackend', terraform_dir, stage):
+        self.terraform_context = backend.terraform_context
+        self.app_context = backend.terraform_context
+        self.bar = backend.bar
+        self.terraform_dir = terraform_dir
+        self.refresh = backend.terraform_refresh
         self.stage = stage
+        self.working_dir = Path(backend.terraform_context.ctx.find_root().params.get('project_dir'))
 
     def init(self):
         self._execute(['init', '-input=false'])
@@ -189,7 +192,7 @@ class Terraform:
             'app_import_path': self.app_context.app_import_path,
             'debug': app.debug,
             'description': inspect.getdoc(app) or "",
-            'environment_variables': load_dotvalues(workspace),
+            'environment_variables': load_dotvalues(self.working_dir, workspace),
             'ms_name': app.name,
             'now': datetime.now().isoformat(),
             'workspace': workspace,
@@ -232,15 +235,15 @@ class Terraform:
 class TerraformBackend:
     """Terraform class to manage remote deployements."""
 
-    def __init__(self, app_context, bar, **options):
+    def __init__(self, terraform_context, bar, **options):
         """The remote terraform class correspond to the terraform command interface for workspaces.
         """
-        self.app_context = app_context
-        self.app = app_context.app
+        self.terraform_context = terraform_context
+        self.app = terraform_context.app
         self.bar = bar
 
         # Creates terraform dir if needed
-        self.working_dir = Path(options['terraform_dir'])
+        self.terraform_dir = Path(options['terraform_dir'])
         self.stage = get_app_stage()
 
         self.terraform_class = Terraform
@@ -251,33 +254,28 @@ class TerraformBackend:
     def api_terraform(self):
         if self._api_terraform is None:
             self.app.logger.debug(f"Create common terraform instance using {self.terraform_class}")
-            self.working_dir.mkdir(exist_ok=True)
-            self._api_terraform = self.terraform_class(self.app_context, self.bar,
-                                                       terraform_dir=self.working_dir,
-                                                       refresh=self.terraform_refresh)
+            self.terraform_dir.mkdir(exist_ok=True)
+            self._api_terraform = self.terraform_class(self, terraform_dir=self.terraform_dir, stage="common")
         return self._api_terraform
 
     @property
     def stage_terraform(self):
         if self._stage_terraform is None:
             self.app.logger.debug(f"Create {self.stage} terraform instance using {self.terraform_class}")
-            terraform_dir = Path(f"{self.working_dir}_{self.stage}")
+            terraform_dir = Path(f"{self.terraform_dir}_{self.stage}")
             terraform_dir.mkdir(exist_ok=True)
-            self._stage_terraform = self.terraform_class(self.app_context, self.bar,
-                                                         terraform_dir=terraform_dir,
-                                                         refresh=self.terraform_refresh,
-                                                         stage=self.stage)
+            self._stage_terraform = self.terraform_class(self, terraform_dir=terraform_dir, stage=self.stage)
         return self._stage_terraform
 
-    def process_terraform(self, ctx, command_template, terraform_init=True, **options):
-        root_command_params = ctx.find_root().params
+    def process_terraform(self, command_template, terraform_init=True, **options):
+        root_command_params = self.terraform_context.ctx.find_root().params
 
         # Set default options calculated value
         options['key'] = options.get('key') or f"{self.app.__module__}-{self.app.name}/archive.zip"
 
         # Transfert zip file to S3
         self.bar.update(msg=f"Copy source files on S3")
-        b64sha256 = self.copy_sources_to_s3(ctx, **options)
+        b64sha256 = self.copy_sources_to_s3(**options)
         options['source_code_hash'] = b64sha256
 
         self.bar.update(msg=f"Generates terraform files")
@@ -323,14 +321,14 @@ class TerraformBackend:
         echo_output(self.api_terraform)
         click.secho("Microservice deployed", fg="green")
 
-    def copy_sources_to_s3(self, ctx, dry, **options):
+    def copy_sources_to_s3(self, dry, **options):
         module_name = options.get('module_name') or []
         bucket = options.get('bucket')
         key = options.get('key')
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
 
-            # Defines ignore file paterns
+            # Defines ignore file paternsctx
             ignore = options.get('ignore') or ['.*', 'terraform*']
             if ignore and type(ignore) is not list:
                 if type(ignore) is tuple:
@@ -343,7 +341,7 @@ class TerraformBackend:
             full_ignore_patterns = partial(ignore_patterns, *ignore)
 
             # Creates archive
-            project_dir = ctx.find_root().params.get('project_dir')
+            project_dir = self.terraform_context.ctx.find_root().params.get('project_dir')
             full_project_dir = Path(project_dir).resolve()
             try:
                 if tmp_path.relative_to(full_project_dir):
@@ -453,9 +451,9 @@ def deploy_command(info, ctx, stage, **options) -> None:
     if options.get('terraform_cloud') and not options.get('terraform_organization'):
         raise click.BadParameter('An organization must be defined if using cloud terraform')
 
-    app_context = TerraformContext(info)
-    app = app_context.app
-    os.environ['CWS_STAGE'] = stage
+    terraform_context = TerraformContext(info, ctx)
+    app = terraform_context.app
+    os.environ['CWS_STAGE'] = stage  # TODO Should be removed
     terraform = None
 
     app.logger.debug(f"Start deploy command: {options}")
@@ -466,8 +464,8 @@ def deploy_command(info, ctx, stage, **options) -> None:
     with progressbar(label="Deploy microservice", threaded=not app.debug) as bar:
         terraform_backend_class = options.pop('terraform_class', TerraformBackend)
         app.logger.debug(f"Deploying {app} using {terraform_backend_class}")
-        backend = terraform_backend_class(app_context, bar, **options)
-        backend.process_terraform(ctx, 'deploy.j2', **options)
+        backend = terraform_backend_class(terraform_context, bar, **options)
+        backend.process_terraform('deploy.j2', **options)
 
 
 @click.command("destroy", CwsCommand, short_help="Destroy the CoWorks microservice on AWS Lambda.")
@@ -498,10 +496,10 @@ def deploy_command(info, ctx, stage, **options) -> None:
 def destroy_command(info, ctx, stage, **options) -> None:
     """ Destroy by setting counters to 0.
     """
-    app_context = TerraformContext(info)
-    app = app_context.app
-    os.environ['CWS_STAGE'] = stage
+    terraform_context = TerraformContext(info, ctx)
+    os.environ['CWS_STAGE'] = stage  # TODO Should be removed
 
+    app = terraform_context.app
     app.logger.debug(f"Start destroy command: {options}")
     show_stage_banner(stage)
     cloud = options.get('terraform_cloud')
@@ -510,8 +508,8 @@ def destroy_command(info, ctx, stage, **options) -> None:
     with progressbar(label='Destroy microservice', threaded=not app.debug) as bar:
         terraform_backend_class = options.pop('terraform_class', TerraformBackend)
         app.logger.debug(f'Destroying {app} using {terraform_backend_class}')
-        backend = terraform_backend_class(app_context, bar, **options)
-        backend.process_terraform(ctx, 'destroy.j2', terraform_init=False, **options)
+        backend = terraform_backend_class(terraform_context, bar, **options)
+        backend.process_terraform('destroy.j2', terraform_init=False, **options)
     if not options['dry']:
         click.echo(f"You can now delete the terraform_{get_app_stage()} folder.")
 
@@ -529,9 +527,9 @@ def destroy_command(info, ctx, stage, **options) -> None:
 @pass_script_info
 @with_appcontext
 def deployed_command(info, ctx, stage, **options) -> None:
-    app_context = TerraformContext(info)
-    app = app_context.app
-    os.environ['CWS_STAGE'] = stage
+    terraform_context = TerraformContext(info, ctx)
+    app = terraform_context.app
+    os.environ['CWS_STAGE'] = stage  # TODO Should be removed
 
     app.logger.debug(f"Start destroy command: {options}")
     show_stage_banner(stage)
@@ -541,7 +539,7 @@ def deployed_command(info, ctx, stage, **options) -> None:
     with progressbar(label='Retrieving information', threaded=not app.debug) as bar:
         terraform_backend_class = options.pop('terraform_class', TerraformBackend)
         app.logger.debug(f'Destroying {app} using {terraform_backend_class}')
-        backend = terraform_backend_class(app_context, bar, **options)
+        backend = terraform_backend_class(terraform_context, bar, **options)
     echo_output(backend.api_terraform)
 
 
@@ -558,10 +556,11 @@ def echo_output(terraform):
             click.secho(f"The microservice {cws_name} is deployed at {api_url}", fg='yellow')
 
 
-def load_dotvalues(stage: str):
+def load_dotvalues(working_dir, stage):
     environment_variables = {}
     for env_filename in get_env_filenames(stage):
-        path = dotenv.find_dotenv(env_filename, usecwd=True)
+        print(working_dir / env_filename)
+        path = dotenv.find_dotenv(working_dir / env_filename, usecwd=True)
         if path:
             environment_variables.update(dotenv.dotenv_values(path))
     return environment_variables
