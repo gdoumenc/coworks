@@ -13,6 +13,7 @@ from flask import render_template_string
 from jinja2 import Environment
 from jinja2 import PackageLoader
 from jinja2 import select_autoescape
+from jsonapi_pydantic.v1_0 import TopLevel, Resource
 from pydantic import BaseModel
 from werkzeug.exceptions import NotFound
 
@@ -72,16 +73,21 @@ class Admin(Blueprint):
     def get_schema(self):
         """Returns the list of schemas defined in the microservices.
         """
-        return [*{model for model in self.models}]
+        id = current_app.name
+        schemas = [*{model for model in self.models}]
+        return TopLevel(data=Resource(id=id, type="JsonApiSchema", attributes={"schemas": schemas}),
+                        included=None).dict()
 
     @entry(no_auth=True, no_cors=True)
+    # @jsonapi(type)
     def get__schema(self, model):
         """Returns the JSON schemas of the model.
 
         :param model: Model's name.
        """
         if model in self.models:
-            return self.models[model].schema()
+            schema = self.models[model].schema()
+            return TopLevel(data=Resource(id="0", type="", attributes={"schemas": schema}), included=None).dict()
         abort(404)
 
     @entry(stage="dev")
