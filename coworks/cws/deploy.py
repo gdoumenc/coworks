@@ -559,7 +559,6 @@ def echo_output(terraform):
 def load_dotvalues(working_dir, stage):
     environment_variables = {}
     for env_filename in get_env_filenames(stage):
-        print(working_dir / env_filename)
         path = dotenv.find_dotenv(working_dir / env_filename, usecwd=True)
         if path:
             environment_variables.update(dotenv.dotenv_values(path))
