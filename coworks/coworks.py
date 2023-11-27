@@ -222,6 +222,10 @@ class TechMicroService(Flask):
         def before():
             self._check_token()
 
+    @property
+    def authorizationToken(self) -> str:
+        return request.headers.get('Authorization')
+
     def init_app(self):
         """Called to finalize the application initialization.
         Mainly to get external variables defined specifically for a workspace.
@@ -435,7 +439,7 @@ class TechMicroService(Flask):
 
             # Checks token if authorization needed
             if not no_auth:
-                token = request.headers.get('Authorization')
+                token = self.authorizationToken
                 if token is None:
                     raise Unauthorized(www_authenticate=WWWAuthenticate(auth_type="basic"))
                 try:
