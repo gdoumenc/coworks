@@ -1,34 +1,35 @@
+{% if stage != "common" %}
 # ---------------------------------------------------------------------------------------------------------------------
 # LAMBDA
 # ---------------------------------------------------------------------------------------------------------------------
 
-{% if stage != "common"-%}
 locals {
   {{ ms_name }}_lambda_name = "{{ ms_name }}-{{ workspace }}"
-  {%- if environment_variable_files %}
+  {% if environment_variable_files %}
   {{ ms_name }}_environment_variables = [
     for envars_string in data.local_file.{{ ms_name }}_environment_variables_files: jsondecode(envars_string.content)
   ]
-  {%- endif %}
+  {% endif %}
 }
 
-{% if layers -%}
+{% if layers %}
 data "aws_lambda_layer_version" "{{ ms_name }}" {
   provider = aws.{{ ms_name }}
   for_each = toset([{% for layer in layers %}"{{ layer }}",{% endfor %}])
   layer_name = each.value
 }
-{%- endif %}
+{% endif %}
 
-{% if environment_variable_files -%}
+{% if environment_variable_files %}
 data "local_file" "{{ ms_name }}_environment_variables_files" {
   for_each = {for envar_file in {{ environment_variable_files | tojson }}: envar_file => envar_file}
   filename = each.value
 }
-{%- endif %}
+{% endif %}
 
 resource "aws_lambda_function" "{{ ms_name }}" {
   provider = aws.{{ ms_name }}
+  {% block aws_lambda_function %}
   function_name = local.{{ ms_name }}_lambda_name
   s3_bucket = "{{ bucket }}"
   s3_key = "{{ key }}"
@@ -36,9 +37,9 @@ resource "aws_lambda_function" "{{ ms_name }}" {
   role = local.{{ ms_name }}_role_arn
   handler = "{{ app_import_path }}"
   description = "{{ description |truncate(256) | replace("\n", "\\n") }}"
-  {%- if layers %}
+  {% if layers %}
   layers = [for layer in data.aws_lambda_layer_version.{{ ms_name }} : layer.arn]
-  {%- endif %}
+  {% endif %}
   runtime = "python{{ python }}"
   timeout = {{ timeout }}
   memory_size = {{ memory_size }}
@@ -59,25 +60,29 @@ resource "aws_lambda_function" "{{ ms_name }}" {
     security_group_ids = local.{{ ms_name }}_security_group_ids
     subnet_ids = local.{{ ms_name }}_subnet_ids
   }
-
   depends_on = [
     aws_cloudwatch_log_group.lambda_{{ ms_name }},
   ]
+  {% endblock %}
 }
 
 resource "aws_lambda_permission" "{{ ms_name }}_allow_apigateway" {
   provider = aws.{{ ms_name }}
+  {% block aws_lambda_permission %}
   statement_id_prefix = "AllowExecutionFromAPIGateway"
   action = "lambda:InvokeFunction"
   function_name = local.{{ ms_name }}_lambda_name
   principal = "apigateway.amazonaws.com"
   source_arn = "${data.aws_api_gateway_rest_api.{{ ms_name }}.execution_arn}/*"
   depends_on = [aws_lambda_function.{{ ms_name }}]
+  {% endblock %}
 }
 
 resource "aws_cloudwatch_log_group" "lambda_{{ ms_name }}" {
   provider = aws.{{ ms_name }}
+  {% block aws_cloudwatch_log_group %}
   name = "/aws/lambda/${local.{{ ms_name }}_lambda_name}"
   retention_in_days = 7
+  {% endblock %}
 }
-{%- endif %}
+{% endif %}

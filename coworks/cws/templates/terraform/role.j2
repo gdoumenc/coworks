@@ -1,9 +1,9 @@
 locals {
-{%- if stage != "common" %}
+{% if stage != "common" %}
   {{ ms_name }}_role_arn = data.aws_iam_role.{{ ms_name }}_cws.arn
-{%- else %}
+{% else %}
   {{ ms_name }}_role_arn = aws_iam_role.{{ ms_name }}_cws.arn
-{%- endif %}
+{% endif %}
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -15,7 +15,7 @@ data "aws_iam_role" "{{ ms_name }}_cws" {
   provider = aws.{{ ms_name }}
   name = "{{ ms_name }}_cws_role"
 }
-{%- else %}
+{% else %}
 resource "aws_iam_role" "{{ ms_name }}_cws" {
   provider = aws.{{ ms_name }}
   name = "{{ ms_name }}_cws_role"

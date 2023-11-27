@@ -179,7 +179,8 @@ class Terraform:
 
     @property
     def jinja_env(self) -> Environment:
-        return Environment(loader=self.template_loader, autoescape=select_autoescape(['html', 'xml']))
+        return Environment(loader=self.template_loader, autoescape=select_autoescape(['html', 'xml']),
+                           trim_blocks=True, lstrip_blocks=True)
 
     def get_context_data(self, **options) -> dict:
         workspace = get_app_stage()
@@ -394,9 +395,6 @@ class TerraformBackend:
 
 
 @click.command("deploy", CwsCommand, short_help="Deploy the CoWorks microservice on AWS Lambda.")
-# Zip specific options
-@click.option('--api', is_flag=True,
-              help="Stop after API create step (forces also dry mode).")
 @click.option('--bucket', '-b',
               help="Bucket to upload sources zip file to", required=True)
 @click.option('--dry', is_flag=True,
@@ -409,7 +407,6 @@ class TerraformBackend:
               help="Python module added from current pyenv (module or file.py).")
 @click.option('--profile-name', '-pn', required=True,
               help="AWS credential profile.")
-# Deploy specific options
 @click.option('--binary-types', multiple=True,
               help="Content types defined as binary contents (no encoding).")
 @click.option('--json-types', multiple=True,
