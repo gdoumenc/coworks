@@ -120,7 +120,7 @@ class TestClass:
                 terraform.generate_file("deploy.j2", fp.name, **options)
                 fp.seek(0)
                 lines = fp.readlines()
-                assert len(lines) == 2149
+                assert len(lines) == 2069
                 assert lines[1].strip() == 'alias = "envtechms"'.encode('utf-8')
 
     @mock.patch.dict(os.environ, {"test": "local", "FLASK_RUN_FROM_CLI": "true"})
@@ -147,7 +147,7 @@ class TestClass:
                 terraform.generate_file("terraform.j2", fp.name, **options)
                 fp.seek(0)
                 lines = fp.readlines()
-                assert len(lines) == 46
+                assert len(lines) == 43
                 print(lines)
                 assert "TERRAFORM ON CLOUD" in lines[1].decode('utf-8')
                 assert "CoWorks" in lines[6].decode('utf-8')
@@ -175,5 +175,5 @@ class TestClass:
                 terraform.generate_file("deploy.j2", fp.name, **options)
                 fp.seek(0)
                 lines = fp.readlines()
-                assert len(lines) == 2149
+                assert len(lines) == 2069
                 assert lines[1].strip() == 'alias = "envtechms"'.encode('utf-8')
