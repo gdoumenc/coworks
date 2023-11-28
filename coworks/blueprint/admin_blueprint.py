@@ -33,17 +33,6 @@ class Admin(Blueprint):
     def get(self):
         """Returns the markdown documentation associated to this microservice.
         """
-        title = f"<span style=\"font-size:xx-large;font-weight:bold\">{current_app.__class__.__name__}</span>"
-        header = f"""<div style=\"display:flex;justify-content:space-between;\">{title}
-            <img style=\"margin-bottom:auto;width:100px;\" src=\"https://neorezo.io/static/img/logo_neorezo.png\"/>
-            </div>"""
-
-        deployed = os.getenv("CWS_DATETIME", None)
-        if deployed:
-            lambda_name = os.getenv("CWS_LAMBDA", None)
-            header += f"""<div style=\"display:flex;flex-direction:row-reverse;font-size:small;margin-top:5px;\">
-                      {lambda_name} deployed {deployed}</div>"""
-
         md = getattr(current_app, 'doc_md', None)
         if not md:
             md = getattr(current_app.__class__, 'DOC_MD', None)
@@ -51,22 +40,13 @@ class Admin(Blueprint):
             md = current_app.__class__.__doc__.replace('\n', ' ').strip()
         content = markdown.markdown(md, extensions=['fenced_code']) if md else ""
 
-        template = dedent(
-            """<style type="text/css">ul.nobull {list-style-type: none;}</style>
-            <ul class="nobull">{% for entry,route in routes.items() %}
-                <li>{{ entry }} : <ul>{% for method,info in route.items() %}
-                    <li><i>{{ method }}{{ info.signature }}[endpoint: {{info.endpoint}}]</i> : {{ info.doc }}
-                    <ul class="nobull">{% for param in info.params %}<li><i>{{ param }}</i>{% endfor %}</ul>
-                {% endfor %}</li></ul></li>
-            {% endfor %}</ul>"""
-        )
         routes = dict(sorted(self.get_route(blueprint="__all__").items()))
-        bottom = render_template_string(template, routes=routes)
-        content = header + '<hr/>' + content + '<hr/>' + bottom + '\n'
+        bottom = render_template_string(self.routes_template, routes=routes)
 
         headers = {
             "Content-Type": 'text/html; charset=utf-8'
         }
+        content = self.header_template + '<hr/>' + content + '<hr/>' + bottom + '\n'
         return content, 200, headers
 
     @entry(no_auth=True, no_cors=True)
@@ -168,6 +148,32 @@ class Admin(Blueprint):
                         route[http_method]['params'] = docstring[1:]
 
         routes[rule.rule].update(route)
+
+    @property
+    def header_template(self):
+        deployed = os.getenv("CWS_DATETIME", None)
+        description = current_app.name
+        if deployed:
+            lambda_name = os.getenv("CWS_LAMBDA", description)
+            description = f"{lambda_name} deployed {deployed}"
+        return dedent(f"""<div style=\"display:flex;justify-content:space-between;\">
+            <span style=\"font-size:xx-large;font-weight:bold\">{current_app.__class__.__name__}</span>
+            <img style=\"margin-bottom:auto;width:100px;\"
+            src=\"https://github.com/gdoumenc/coworks/raw/dev/docs/img/coworks.png\"/>
+            </div><div style=\"display:flex;flex-direction:row-reverse;font-size:small;margin-top:5px;\">
+            {description}</div>""")
+
+    @property
+    def routes_template(self):
+        return dedent(
+            """<style type="text/css">ul.nobull {list-style-type: none;}</style>
+            <ul class="nobull">{% for entry,route in routes.items() %}
+                <li>{{ entry }} : <ul>{% for method,info in route.items() %}
+                    <li><i>{{ method }}{{ info.signature }}[endpoint: {{info.endpoint}}]</i> : {{ info.doc }}
+                    <ul class="nobull">{% for param in info.params %}<li><i>{{ param }}</i>{% endfor %}</ul>
+                {% endfor %}</li></ul></li>
+            {% endfor %}</ul>"""
+        )
 
 
 def get_signature(func):
