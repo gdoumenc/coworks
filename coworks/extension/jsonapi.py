@@ -69,11 +69,11 @@ class JsonApi:
                 if isinstance(rv, HTTPException):
                     errors = [Error(id='0', title=rv.name, detail=rv.description, status=rv.code)]
                     return self._top_level_error_response(errors, status_code=rv.code)
+                if isinstance(e, JsonApiError):
+                    return self._top_level_error_response(e.errors)
             except (Exception,):
-                pass
-
-            if isinstance(e, JsonApiError):
-                return self._top_level_error_response(e.errors)
+                if self.app.debug:
+                    raise
 
             errors = [Error(id='0', title=e.__class__.__name__, detail=str(e), status=InternalServerError.code)]
             return self._top_level_error_response(errors, status_code=InternalServerError.code)

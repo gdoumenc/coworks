@@ -20,7 +20,7 @@ class OdooConfig(BaseModel):
     dbname: str
     user: str
     passwd: str
-    const: t.Dict[str, t.Any] = Field(default_factory=dict)
+    const: t.Optional[t.Dict[str, t.Any]] = Field(default_factory=dict)
 
     @classmethod
     def from_env_var_prefix(cls, env_var_prefix):
@@ -46,7 +46,7 @@ class OdooConfig(BaseModel):
         if not passwd:
             raise RuntimeError(f'{env_passwd_var_name} not defined in environment.')
 
-        return OdooConfig(url, dbname, user, passwd)
+        return OdooConfig(url=url, dbname=dbname, user=user, passwd=passwd)
 
 
 class Odoo:
@@ -90,7 +90,6 @@ class Odoo:
         @param order: oder of result.
         @param domain: domain for records.
         @param limit: maximum number of records to return from odoo (default: all).
-        @param page_size: pagination done by the microservice.
         @param page: current page searched.
         @param ensure_one: raise error if result is not one (404) and only one (400) object.
         @param bind: bind configuration to be used.

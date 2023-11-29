@@ -361,7 +361,7 @@ class TechMicroService(Flask):
             self.logger.warning(f"Token authorizer return is : {res}")
             return TokenResponse(res, aws_event['methodArn']).json
         except Exception as e:
-            self.logger.error(f"Error in token handler for {self.name} : {e}")
+            self.logger.error(f"Exception in token handler for {self.name} : {e}")
             self.logger.error(getattr(e, '__traceback__'))
             return TokenResponse(False, aws_event['methodArn']).json
 
