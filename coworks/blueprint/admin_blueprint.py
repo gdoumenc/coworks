@@ -55,8 +55,7 @@ class Admin(Blueprint):
         """
         id = current_app.name
         schemas = [*{model for model in self.models}]
-        return TopLevel(data=Resource(id=id, type="JsonApiSchema", attributes={"schemas": schemas}),
-                        included=None).dict()
+        return TopLevel(data=Resource(id=id, type="JsonApiSchema", attributes={"schemas": schemas})).model_dump_json()
 
     @entry(no_auth=True, no_cors=True)
     # @jsonapi(type)
@@ -67,7 +66,7 @@ class Admin(Blueprint):
        """
         if model in self.models:
             schema = self.models[model].schema()
-            return TopLevel(data=Resource(id="0", type="", attributes={"schemas": schema}), included=None).dict()
+            return TopLevel(data=Resource(id="0", type="", attributes={"schemas": schema})).model_dump_json()
         abort(404)
 
     @entry(stage="dev")
