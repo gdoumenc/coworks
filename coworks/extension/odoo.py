@@ -16,6 +16,7 @@ from coworks.extension.xray import XRay
 
 
 class OdooConfig(BaseModel):
+    ref: t.Optional[str] = "default"
     url: str
     dbname: str
     user: str
@@ -77,8 +78,8 @@ class Odoo:
         self.app = app
 
     @XRay.capture(xray_recorder)
-    def kw(self, model: str, method: str = "search_read", id: int = None, fields: t.Iterator[str] = None,
-           order: str = None, domain: t.Iterator[t.Tuple[str, str, t.Any]] = None, limit: t.Optional[int] = None,
+    def kw(self, model: str, method: str = "search_read", id: int = None, fields: t.List[str] = None,
+           order: str = None, domain: t.List[t.Tuple[str, str, t.Any]] = None, limit: t.Optional[int] = None,
            page: t.Optional[int] = None, ensure_one: bool = False, bind: str = None):
         """Searches with API for records based on the args.
         
