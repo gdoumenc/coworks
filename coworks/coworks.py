@@ -29,7 +29,6 @@ from werkzeug.routing import Rule
 from .globals import request
 from .utils import BIZ_BUCKET_HEADER_KEY
 from .utils import BIZ_KEY_HEADER_KEY
-from .utils import DEFAULT_LOCAL_STAGE
 from .utils import HTTP_METHODS
 from .utils import add_coworks_routes
 from .utils import get_app_stage
@@ -254,6 +253,12 @@ class TechMicroService(Flask):
         return CoworksClient(self, CoworksResponse, use_cookies=True, aws_event=aws_event, aws_context=aws_context)
 
     @property
+    def autorizer_identity_source(self):
+        """The identity source for which authorization is requested.
+        Usually defined in API GAateway Authorizer resource."""
+        return request.headers.get('Authorization')
+
+    @property
     def in_lambda_context(self):
         """Defined as a property to be read only."""
         return self._in_lambda_context
@@ -428,11 +433,7 @@ class TechMicroService(Flask):
 
     def _check_token(self):
         """Simulates the authorization process of lambda if not in lambda context."""
-        if not request.in_lambda_context:
-
-            # No token check on local
-            if get_app_stage() == DEFAULT_LOCAL_STAGE:
-                return
+        if not self.in_lambda_context:
 
             # Get no_auth option for this entry
             no_auth = False
@@ -443,7 +444,7 @@ class TechMicroService(Flask):
 
             # Checks token if authorization needed
             if not no_auth:
-                token = request.headers.get('Authorization')
+                token = self.autorizer_identity_source
                 if token is None:
                     raise Unauthorized(www_authenticate=WWWAuthenticate(auth_type="basic"))
                 try:
