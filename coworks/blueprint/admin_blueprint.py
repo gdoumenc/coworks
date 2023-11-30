@@ -50,12 +50,19 @@ class Admin(Blueprint):
         return content, 200, headers
 
     @entry(no_auth=True, no_cors=True)
-    def get_schema(self):
+    def get_schema(self, included: bool = False):
         """Returns the list of schemas defined in the microservices.
         """
         id = current_app.name
-        schemas = [*{model for model in self.models}]
-        return TopLevel(data=Resource(id=id, type="JsonApiSchema", attributes={"schemas": schemas})).model_dump_json()
+        schemas = [model for model in self.models]
+        attributes = {"schemas": schemas}
+        if included:
+            included = [Resource(id=name, type="JsonApiSchema", attributes={"schema": model.schema()})
+                        for name, model in self.models.items()]
+        else:
+            included = []
+        return TopLevel(data=Resource(id=id, type="JsonApiSchemas", attributes=attributes),
+                        included=included).model_dump_json()
 
     @entry(no_auth=True, no_cors=True)
     # @jsonapi(type)
@@ -66,7 +73,8 @@ class Admin(Blueprint):
        """
         if model in self.models:
             schema = self.models[model].schema()
-            return TopLevel(data=Resource(id="0", type="", attributes={"schemas": schema})).model_dump_json()
+            return TopLevel(
+                data=Resource(id=model, type="JsonApiSchema", attributes={"schema": schema})).model_dump_json()
         abort(404)
 
     @entry(stage="dev")

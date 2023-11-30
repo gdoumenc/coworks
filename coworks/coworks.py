@@ -222,10 +222,6 @@ class TechMicroService(Flask):
         def before():
             self._check_token()
 
-    @property
-    def authorizationToken(self) -> str:
-        return request.headers.get('Authorization')
-
     def init_app(self):
         """Called to finalize the application initialization.
         Mainly to get external variables defined specifically for a workspace.
@@ -256,6 +252,11 @@ class TechMicroService(Flask):
         """CoWorks client used by the lambda call.
         """
         return CoworksClient(self, CoworksResponse, use_cookies=True, aws_event=aws_event, aws_context=aws_context)
+
+    @property
+    def in_lambda_context(self):
+        """Defined as a property to be read only."""
+        return self._in_lambda_context
 
     @property
     def aws_url_map(self) -> t.Dict[str, t.List[Rule]]:
@@ -320,6 +321,7 @@ class TechMicroService(Flask):
         """Finalize the app initialization.
         """
         if not self._cws_app_initialized:
+            self._in_lambda_context = in_lambda
             self._update_config(in_lambda=in_lambda)
             add_coworks_routes(self)
             for fun in self.deferred_init_routes_functions:
@@ -362,7 +364,11 @@ class TechMicroService(Flask):
             return TokenResponse(res, aws_event['methodArn']).json
         except Exception as e:
             self.logger.error(f"Exception in token handler for {self.name} : {e}")
-            self.logger.error(getattr(e, '__traceback__'))
+            parts = ["Traceback (most recent call last):\n"]
+            parts.extend(traceback.format_stack(limit=15)[:-2])
+            parts.extend(traceback.format_exception(*sys.exc_info())[1:])
+            trace = reduce(lambda x, y: x + y, parts, "")
+            self.logger.error(f"Traceback: {trace}")
             return TokenResponse(False, aws_event['methodArn']).json
 
     def _api_handler(
@@ -414,8 +420,6 @@ class TechMicroService(Flask):
 
     def _update_config(self, *, in_lambda: bool):
         if not self._cws_conf_updated:
-            workspace = get_app_stage()
-
             # Set predefined environment variables
             self.config['X-CWS-S3Bucket'] = BIZ_BUCKET_HEADER_KEY
             self.config['X-CWS-S3Key'] = BIZ_KEY_HEADER_KEY
@@ -439,7 +443,7 @@ class TechMicroService(Flask):
 
             # Checks token if authorization needed
             if not no_auth:
-                token = self.authorizationToken
+                token = request.headers.get('Authorization')
                 if token is None:
                     raise Unauthorized(www_authenticate=WWWAuthenticate(auth_type="basic"))
                 try:
