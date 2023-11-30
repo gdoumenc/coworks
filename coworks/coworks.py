@@ -254,7 +254,7 @@ class TechMicroService(Flask):
 
     @property
     def autorizer_identity_source(self):
-        """The identity source for which authorization is requested.
+        """The identity source for which authorization is requested usefull only on local.
         Usually defined in API GAateway Authorizer resource."""
         return request.headers.get('Authorization')
 

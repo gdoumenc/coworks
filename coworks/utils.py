@@ -176,7 +176,7 @@ def create_cws_proxy(scaffold: "Scaffold", func, kwarg_keys, func_args, func_kwa
                     raise
 
         kwargs = as_typed_kwargs(func, kwargs)
-        result = func(scaffold, **kwargs)
+        result = current_app.ensure_sync(func)(scaffold, **kwargs)
 
         resp = make_response(result) if result is not None else \
             make_response("", 204, {'content-type': 'text/plain'})
