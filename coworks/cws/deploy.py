@@ -410,13 +410,12 @@ class TerraformBackend:
 @click.option('--binary-types', multiple=True,
               help="Content types defined as binary contents (no encoding).")
 @click.option('--json-types', multiple=True,
-              help="Add mime types for JSON response [at least application/json, text/x-json, "
-                   "application/javascript, application/x-javascript].")
+              help="Add mime types for JSON response.")
 @click.option('--layers', '-l', multiple=True, required=True,
               help="Add layer (full arn: aws:lambda:...). Must contains CoWorks at least.")
 @click.option('--memory-size', default=128,
               help="Lambda memory size (default 128).")
-@click.option('--python', '-p', type=click.Choice(['3.7', '3.8', '3.9', '3.10']), default='3.10',
+@click.option('--python', '-p', type=click.Choice(['3.7', '3.8', '3.9', '3.10', '3.11']), default='3.11',
               help="Python version for the lambda.")
 @click.option('--security-groups', multiple=True, default=[],
               help="Security groups to be added [ids].")
@@ -444,7 +443,6 @@ def deploy_command(info, ctx, stage, **options) -> None:
         Step 1. Create API and routes integrations
         Step 2. Deploy API and Lambda
     """
-
     if options.get('terraform_cloud') and not options.get('terraform_organization'):
         raise click.BadParameter('An organization must be defined if using cloud terraform')
 
