@@ -1,7 +1,9 @@
 import inspect
 import os
+import types
 import typing as t
 from functools import update_wrapper
+from inspect import signature
 from pathlib import Path
 
 import dotenv
@@ -54,20 +56,13 @@ def add_coworks_routes(app: "Flask", bp_state: BlueprintSetupState = None) -> No
         entry_path = path_join(getattr(fun, '__CWS_PATH'))
 
         # Get parameters
-        args = inspect.getfullargspec(fun).args[1:]
-        defaults = inspect.getfullargspec(fun).defaults
-        varkw = inspect.getfullargspec(fun).varkw
-        if defaults:
-            len_defaults = len(defaults)
-            for index, arg in enumerate(args[:-len_defaults]):
-                entry_path = path_join(entry_path, f"/<{arg}>")
-            kwarg_keys = args[-len_defaults:]
-        else:
-            for index, arg in enumerate(args):
-                entry_path = path_join(entry_path, f"/<{arg}>")
-            kwarg_keys = {}
+        sig = inspect.signature(fun)
+        args = [n for n, p in sig.parameters.items() if p.default == inspect.Parameter.empty and n != 'self']
+        for index, arg in enumerate(args):
+            entry_path = path_join(entry_path, f"/<{arg}>")
+        kwargs = {n: p for n, p in sig.parameters.items() if p.default != inspect.Parameter.empty and n != 'self'}
 
-        proxy = create_cws_proxy(scaffold, fun, kwarg_keys, args, varkw)
+        proxy = create_cws_proxy(scaffold, fun, args, kwargs)
         proxy.__CWS_BINARY_HEADERS = getattr(fun, '__CWS_BINARY_HEADERS')
         proxy.__CWS_NO_AUTH = getattr(fun, '__CWS_NO_AUTH')
         proxy.__CWS_NO_CORS = getattr(fun, '__CWS_NO_CORS')
@@ -89,26 +84,25 @@ def add_coworks_routes(app: "Flask", bp_state: BlueprintSetupState = None) -> No
             raise
 
 
-def create_cws_proxy(scaffold: "Scaffold", func, kwarg_keys, func_args, func_kwargs):
+def create_cws_proxy(scaffold: "Scaffold", func, func_args, func_kwargs):
     """Creates the AWS Lambda proxy function.
 
     :param scaffold: The Flask or Blueprint object.
     :param func: The initial function proxied.
-    :param kwarg_keys: Request parameters.
-    :param func_args: The initial function args.
-    :param func_kwargs: The initial function kwargs.
+    :param func_args: The declared function args.
+    :param func_kwargs: The declared function kwargs.
     """
 
-    def proxy(**kwargs):
+    def proxy(**view_args):
         """
         Adds kwargs parameters to the proxied function.
 
-        :param kwargs: Request path parameters.
+        :param view_args: Request path parameters.
         """
 
-        def check_keyword_expected_in_lambda(param_name):
+        def check_keyword_expected(param_name):
             """Alerts when more parameters than expected are defined in request."""
-            if param_name not in kwarg_keys and func_kwargs is None:
+            if func_kwargs and param_name not in func_kwargs:
                 _err_msg = f"TypeError: got an unexpected keyword argument '{param_name}'"
                 raise UnprocessableEntity(_err_msg)
 
@@ -119,19 +113,19 @@ def create_cws_proxy(scaffold: "Scaffold", func, kwarg_keys, func_args, func_kwa
             """
             params = {}
             for k, v in values.items():
-                check_keyword_expected_in_lambda(k)
+                check_keyword_expected(k)
                 params[k] = v[0] if flat and len(v) == 1 else v
             return params
 
-        # Get keyword arguments from request
-        if kwarg_keys or func_kwargs:
+        # Get keyword arguments from request parameters or body
+        if func_kwargs:
 
             # adds parameters from query parameters
             if request.method == 'GET':
                 data = request.values.to_dict(False)
-                kwargs = dict(**kwargs, **as_fun_params(data))
+                view_args = dict(**view_args, **as_fun_params(data))
 
-            # Adds parameters from body parameter
+            # Adds parameters from body
             elif request.method in ['POST', 'PUT', 'DELETE']:
                 try:
                     if request.is_json:
@@ -139,19 +133,19 @@ def create_cws_proxy(scaffold: "Scaffold", func, kwarg_keys, func_args, func_kwa
                         if data:
                             data = request.json
                             if type(data) is dict:
-                                kwargs = {**kwargs, **as_fun_params(data, False)}
+                                view_args = {**view_args, **as_fun_params(data, False)}
                             else:
-                                kwargs[kwarg_keys[0]] = data
+                                view_args[parameters[0]] = data
                     elif request.is_multipart:
                         data = request.form.to_dict(False)
                         files = request.files.to_dict(False)
-                        kwargs = {**kwargs, **as_fun_params(data), **as_fun_params(files)}
+                        view_args = {**view_args, **as_fun_params(data), **as_fun_params(files)}
                     elif request.is_form_urlencoded:
                         data = request.form.to_dict(False)
-                        kwargs = dict(**kwargs, **as_fun_params(data))
+                        view_args = dict(**view_args, **as_fun_params(data))
                     else:
                         data = request.values.to_dict(False)
-                        kwargs = dict(**kwargs, **as_fun_params(data))
+                        view_args = dict(**view_args, **as_fun_params(data))
                 except Exception as e:
                     raise UnprocessableEntity(str(e))
 
@@ -172,11 +166,11 @@ def create_cws_proxy(scaffold: "Scaffold", func, kwarg_keys, func_args, func_kwa
                 except Exception as e:
                     current_app.logger.error(f"Should not go here (1) : {str(e)}")
                     current_app.logger.error(f"Should not go here (2) : {request.get_data()}")
-                    current_app.logger.error(f"Should not go here (3) : {kwargs}")
+                    current_app.logger.error(f"Should not go here (3) : {view_args}")
                     raise
 
-        kwargs = as_typed_kwargs(func, kwargs)
-        result = current_app.ensure_sync(func)(scaffold, **kwargs)
+        view_args = as_typed_kwargs(func, view_args)
+        result = current_app.ensure_sync(func)(scaffold, **view_args)
 
         resp = make_response(result) if result is not None else \
             make_response("", 204, {'content-type': 'text/plain'})
@@ -222,6 +216,15 @@ def trim_underscores(name: str) -> str:
 
 def as_typed_kwargs(func, kwargs):
     def get_typed_value(tp, val):
+        if isinstance(tp, types.UnionType):
+            for arg in t.get_args(tp):
+                try:
+                    return get_typed_value(arg, val)
+                except ValidationError:
+                    raise
+                except (TypeError, ValueError):
+                    pass
+            raise TypeError()
         origin = t.get_origin(tp)
         if origin is None:
             if tp is bool:
@@ -253,10 +256,10 @@ def as_typed_kwargs(func, kwargs):
 
     typed_kwargs = {**kwargs}
     try:
-        hints = t.get_type_hints(func)
+        parameters = signature(func).parameters
         for name, value in kwargs.items():
             try:
-                typed_kwargs[name] = get_typed_value(hints.get(name), value)
+                typed_kwargs[name] = get_typed_value(parameters.get(name).annotation, value)
             except ValidationError:
                 raise
             except (TypeError, ValueError):
