@@ -37,6 +37,7 @@ resource "aws_api_gateway_authorizer" "{{ ms_name }}" {
   rest_api_id = local.{{ ms_name }}_api_id
   authorizer_uri = local.{{ ms_name }}_authorizer_uri
   authorizer_result_ttl_in_seconds = 0
+  identity_source = "method.request.header.{{ token_key if token_key else 'Authorization' }}"
   {% endblock %}
 }
 

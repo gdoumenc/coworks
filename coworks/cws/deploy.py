@@ -110,10 +110,18 @@ class Terraform:
         self._execute(['init', '-input=false'])
 
     def apply(self) -> None:
-        cmd = ['apply', '-auto-approve', '-parallelism=1']
-        if not self.refresh:
-            cmd.append('-refresh=false')
-        self._execute(cmd)
+        """Executes terraform apply command."""
+        try:
+            cmd = ['apply', '-auto-approve', '-parallelism=1']
+            if not self.refresh:
+                cmd.append('-refresh=false')
+            self._execute(cmd)
+        except ExecError:
+            # on cloud parallelism options is not available
+            cmd = ['apply', '-auto-approve']
+            if not self.refresh:
+                cmd.append('-refresh=false')
+            self._execute(cmd)
 
     def output(self):
         values = self._execute(['output']).stdout
@@ -231,6 +239,7 @@ class Terraform:
         with (self.terraform_dir / output_filename).open("w") as f:
             data = self.get_context_data(**options)
             f.write(template.render(**data))
+            self.logger.debug(f"Terraform file {self.terraform_dir / output_filename} generated")
 
 
 class TerraformBackend:
@@ -423,8 +432,6 @@ class TerraformBackend:
               help="Deploiement stage.")
 @click.option('--subnets', multiple=True, default=[],
               help="Subnets to be added [ids].")
-@click.option('--timeout', default=60,
-              help="Lambda timeout (default 60s).Only for asynchronous call (API call 30s).")
 @click.option('--terraform-cloud', '-tc', is_flag=True, default=False,
               help="Use cloud workspaces (default false).")
 @click.option('--terraform-dir', '-td', default="terraform",
@@ -435,6 +442,10 @@ class TerraformBackend:
               help="Forces terraform to refresh the state (default false).")
 @click.option('--text-types', multiple=True,
               help="Add mime types for JSON response [at least text/plain, text/html].")
+@click.option('--timeout', default=60,
+              help="Lambda timeout (default 60s).Only for asynchronous call (API call 30s).")
+@click.option('--token-key',
+              help="Header token key.")
 @click.pass_context
 @pass_script_info
 @with_appcontext
