@@ -3,11 +3,16 @@ name = "pypi"
 url = "https://pypi.org/simple"
 verify_ssl = true
 
+[[source]]
+name = "fury"
+url = "https://pypi.fury.io/gdoumenc/"
+verify_ssl = true
+
 [packages]
 anyconfig = ">=0.12"
 boto3 = ">=1.19"
 flask = ">=2.3"
-jsonapi-pydantic = ">=0.1.5"
+jsonapi-pydantic = { version = "*", index = "fury" }
 markdown = ">=3.3.6"
 pyyaml = ">=6.0"
 python-dotenv = ">=0.21.0"
@@ -16,7 +21,7 @@ requests-toolbelt = ">=0.10"
 
 [dev-packages]
 aws_xray_sdk = "*"
-build = {extras = ["virtualenv"], version = "*"}
+build = { extras = ["virtualenv"], version = "*" }
 codecov = "*"
 mock = "*"
 pytest = "*"
