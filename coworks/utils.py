@@ -1,10 +1,15 @@
 import inspect
 import os
+import re
 import types
 import typing as t
 from functools import update_wrapper
 from inspect import signature
 from pathlib import Path
+from urllib.parse import parse_qs
+from urllib.parse import urlencode
+from urllib.parse import urlsplit as urllib_urlsplit
+from urllib.parse import urlunsplit as urllib_urlunsplit
 
 import dotenv
 from flask import current_app
@@ -31,6 +36,9 @@ DEFAULT_PROJECT_DIR = "tech"
 
 BIZ_BUCKET_HEADER_KEY: str = 'X-CWS-S3Bucket'
 BIZ_KEY_HEADER_KEY: str = 'X-CWS-S3Key'
+
+OPEN_SQUARE_BRACKETED_KWARG_PATTERN = re.compile(r'([a-zA-Z0-9]+)__')
+SQUARE_BRACKETED_KWARG_PATTERN = re.compile(r'([a-zA-Z0-9]+)__([a-zA-Z0-9._]+)__')
 
 
 def add_coworks_routes(app: "Flask", bp_state: BlueprintSetupState = None) -> None:
@@ -60,7 +68,8 @@ def add_coworks_routes(app: "Flask", bp_state: BlueprintSetupState = None) -> No
         args = [n for n, p in sig.parameters.items() if p.default == inspect.Parameter.empty and n != 'self']
         for index, arg in enumerate(args):
             entry_path = path_join(entry_path, f"/<{arg}>")
-        kwargs = {n: p for n, p in sig.parameters.items() if p.default != inspect.Parameter.empty and n != 'self'}
+        kwargs = {n: p for n, p in sig.parameters.items() if
+                  p.default != inspect.Parameter.empty and n != 'self'}
 
         proxy = create_cws_proxy(scaffold, fun, args, kwargs)
         proxy.__CWS_BINARY_HEADERS = getattr(fun, '__CWS_BINARY_HEADERS')
@@ -109,18 +118,36 @@ def create_cws_proxy(scaffold: "Scaffold", func, func_args, func_kwargs):
         def as_fun_params(values: dict, flat=True):
             """Set parameters as simple value or list of values if multiple defined.
            :param values: Dict of values.
-           :param flat: If set to True the list values of lenth 1 is return as single value.
+           :param flat: If true, the list values of lenth 1 is return as single value.
             """
             params = {}
             for k, v in values.items():
+                k = remove_brackets(k)
+
+                # if the parameter is a sparse fieldsets
+                if splitted := SQUARE_BRACKETED_KWARG_PATTERN.fullmatch(k):
+                    for kwarg in func_kwargs:
+                        if k.startswith(kwarg) and OPEN_SQUARE_BRACKETED_KWARG_PATTERN.fullmatch(kwarg):
+                            k = kwarg
+                            if k in params:
+                                v = {**params[k], **{splitted.group(2): v}}
+                            else:
+                                v = {splitted.group(2): v}
+                            break
+
                 check_keyword_expected(k)
-                params[k] = v[0] if flat and len(v) == 1 else v
+                params[k] = v
+
+            # Flatten single value
+            if flat:
+                params = {k: v[0] if isinstance(v, list) and len(v) == 1 else v for k, v in params.items()}
+
             return params
 
         # Get keyword arguments from request parameters or body
         if func_kwargs:
 
-            # adds parameters from query parameters
+            # Adds parameters from query parameters
             if request.method == 'GET':
                 data = request.values.to_dict(False)
                 view_args = dict(**view_args, **as_fun_params(data))
@@ -214,6 +241,12 @@ def trim_underscores(name: str) -> str:
     return name
 
 
+def remove_brackets(name):
+    """Removes brackets.
+    Parameter like page[number] is passed to the function as page__number__."""
+    return name.replace('[', '__').replace(']', '__')
+
+
 def as_typed_kwargs(func, kwargs):
     def get_typed_value(tp, val):
         if isinstance(tp, types.UnionType):
@@ -228,7 +261,7 @@ def as_typed_kwargs(func, kwargs):
         origin = t.get_origin(tp)
         if origin is None:
             if tp is bool:
-                return val.lower() in ['true', '1', 'yes']
+                return str_to_bool(val)
             if tp is dict:
                 return json.loads(val)
             if issubclass(tp, BaseModel):
@@ -282,6 +315,10 @@ def is_json(mt):
     )
 
 
+def str_to_bool(val: str) -> bool:
+    return val.lower() in ['true', '1', 'yes']
+
+
 def get_app_stage():
     return os.getenv('CWS_STAGE', DEFAULT_DEV_STAGE)
 
@@ -297,3 +334,34 @@ def load_dotenv(stage: str, as_dict: bool = False):
 
 def get_env_filenames(stage):
     return [".env", ".flaskenv", f".env.{stage}", f".flaskenv.{stage}"]
+
+
+def nr_url(path: str = '', query: dict | None = None, merge_query: bool = False):
+    """Combines the arguments into a complete URL as a string.
+
+    :param path: the new path .
+    :param query: the query parameters.
+    :param merge_query: adds the request query parameters.
+    """
+    if request.aws_event:
+        header = request.aws_event['params']['header']
+        if 'forwarded' in header:
+            forwarded = {val.split('=')[0]: val.split('=')[1] for val in header['forwarded'].split(';')}
+            proto = forwarded['proto']
+            host = forwarded['host']
+            path = header['x-forwarded-path'] + path
+        else:
+            proto = header.get('x-forwarded-proto', 'https')
+            host = header['host']
+    else:
+        proto, host, *_ = urllib_urlsplit(request.base_url)
+
+    if merge_query and query:
+        if request.aws_event:
+            query = {**request.aws_event['params']['querystring'], **query}
+        else:
+            *_, request_query, _ = urllib_urlsplit(request.url)
+            query = {**parse_qs(request_query), **query}
+
+    qs = urlencode(query, doseq=True) if query else ''
+    return urllib_urlunsplit([proto, host, path, qs, ''])

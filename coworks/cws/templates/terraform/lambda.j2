@@ -56,12 +56,12 @@ resource "aws_lambda_function" "{{ ms_name }}" {
   tracing_config {
     mode = "Active"
   }
-  {% if vpc %}
+  {% block vpc_config %}
   vpc_config {
     security_group_ids = local.{{ ms_name }}_security_group_ids
     subnet_ids = local.{{ ms_name }}_subnet_ids
   }
-  {% endif %}
+  {% endblock %}
   depends_on = [
     aws_cloudwatch_log_group.lambda_{{ ms_name }},
   ]

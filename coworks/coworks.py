@@ -104,7 +104,7 @@ class CoworksClient(FlaskClient):
         request_context = aws_event['requestContext']
 
         method = request_context['httpMethod']
-        scheme = headers['x-forwarded-proto']
+        scheme = headers.get('x-forwarded-proto', "https")
         host_name = headers['x-forwarded-host'] if 'x-forwarded-host' in headers else request_context['domainName']
         entry_path = request_context['entryPath']
         stage = request_context['stage']
@@ -208,8 +208,8 @@ class TechMicroService(Flask):
         name = name or self.__class__.__name__.lower()
         super().__init__(import_name=name, static_folder=None, **kwargs)
 
-        self.request_class = CoworksRequest
-        self.response_class = CoworksResponse
+        self.request_class: t.Type[CoworksRequest] = CoworksRequest
+        self.response_class: t.Type[CoworksResponse] = CoworksResponse
 
         self.deferred_init_routes_functions: t.Iterable[t.Callable] = []
         self._cws_app_initialized = False
@@ -368,12 +368,7 @@ class TechMicroService(Flask):
             self.logger.warning(f"Token authorizer return is : {res}")
             return TokenResponse(res, aws_event['methodArn']).json
         except Exception as e:
-            self.logger.error(f"Exception in token handler for {self.name} : {e}")
-            parts = ["Traceback (most recent call last):\n"]
-            parts.extend(traceback.format_stack(limit=15)[:-2])
-            parts.extend(traceback.format_exception(*sys.exc_info())[1:])
-            trace = reduce(lambda x, y: x + y, parts, "")
-            self.logger.error(f"Traceback: {trace}")
+            self.full_logger_error(e)
             return TokenResponse(False, aws_event['methodArn']).json
 
     def _api_handler(
@@ -409,12 +404,7 @@ class TechMicroService(Flask):
                 return resp
 
         except Exception as e:
-            self.logger.error(f"Exception in api handler for {self.name} : {e}")
-            parts = ["Traceback (most recent call last):\n"]
-            parts.extend(traceback.format_stack(limit=15)[:-2])
-            parts.extend(traceback.format_exception(*sys.exc_info())[1:])
-            trace = reduce(lambda x, y: x + y, parts, "")
-            self.logger.error(f"Traceback: {trace}")
+            self.full_logger_error(e)
             headers = {'content_type': "application/json"}
             return self._aws_payload(str(e), InternalServerError.code, headers)
 
@@ -486,3 +476,14 @@ class TechMicroService(Flask):
             "body": body,
             "isBase64Encoded": False,
         }
+
+    def full_logger_error(self, error):
+        if self.debug:
+            if not request.in_lambda_context:
+                raise
+            self.logger.error(f"Exception in {self.name} : {error}")
+            parts = ["Traceback (most recent call last):\n"]
+            parts.extend(traceback.format_stack(limit=15)[:-2])
+            parts.extend(traceback.format_exception(*sys.exc_info())[1:])
+            trace = reduce(lambda x, y: x + y, parts, "")
+            self.logger.error(f"Traceback: {trace}")
