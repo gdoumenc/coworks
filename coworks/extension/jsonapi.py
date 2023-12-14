@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import typing as t
 from functools import update_wrapper
 from inspect import signature
@@ -135,7 +136,7 @@ class FetchingContext:
         self.include = include if include is not None else []
         fields__ = fields__ if fields__ is not None else {}
         filters__ = filters__ if filters__ is not None else {}
-        self.sort = sort.split(',') if sort else []
+        self._sort = sort.split(',') if sort else []
         self.page = page__number__
         self.per_page = page__size__
         self.max_per_page = page__max__
@@ -148,6 +149,7 @@ class FetchingContext:
         for k, v in filters__.items():
             self._add_branch(self._filters, k.split('.'), v)
 
+        self.connection_manager = contextlib.nullcontext()
         self.all_resources = ResourcesSet()
 
     def field_names(self, jsonapi_type):
@@ -164,6 +166,16 @@ class FetchingContext:
             else:
                 sql_filters.append(column.in_(value))
         return sql_filters
+
+    def order_by(self, model):
+        sql_order_by = []
+        for key in self._sort:
+            if key.startswith('-'):
+                column = getattr(model, key[1:]).desc()
+            else:
+                column = getattr(model, key)
+            sql_order_by.append(column)
+        return sql_order_by
 
     def _add_branch(self, tree, vector, value):
         key = vector[0]
@@ -209,7 +221,7 @@ class JsonApiBaseModelMixin:
 
     @property
     def jsonapi_self_link(self):
-        return ""
+        return "https://monsite.com/missing_entry"
 
     def jsonapi_model_dump(self, context: FetchingContext) -> dict[str, t.Any]:
         fields = context.field_names(self.jsonapi_type)
@@ -249,13 +261,14 @@ def to_ressource_data(jsonapi_basemodel: JsonApiBaseModelMixin, context: Fetchin
         else:
             continue
 
+    link = Link(href=HttpUrl(jsonapi_basemodel.jsonapi_self_link))
     resource_data = {
         "type": _type,
         "id": _id,
         "lid": None,
         "attributes": data,
         "relationships": relationships,
-        "links": {"self": Link(href=HttpUrl(jsonapi_basemodel.jsonapi_self_link))}
+        "links": {"self": link}
     }
 
     return resource_data
@@ -316,12 +329,15 @@ def jsonapi(func):
                                   page__number__, page__size__, page__max__)
         query_params = {'fetching': context}
         query = func(*args, **query_params, **kwargs)
-        current_app.logger.debug(str(query))
-        if ensure_one:
-            toplevel = get_one_toplevel(query, context)
-        else:
-            toplevel = get_multi_toplevel(query, context)
-        _toplevel = asyncio.run(toplevel)
+        if not query:
+            return TopLevel(data=[]).model_dump_json(exclude_none=True)
+        with context.connection_manager:
+            current_app.logger.debug(str(query))
+            if ensure_one:
+                toplevel = get_one_toplevel(query, context)
+            else:
+                toplevel = get_multi_toplevel(query, context)
+            _toplevel = asyncio.run(toplevel)
         return _toplevel.model_dump_json(exclude_none=True)
 
     # Adds JSON:API query parameters
