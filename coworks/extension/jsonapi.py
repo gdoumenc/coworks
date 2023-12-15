@@ -149,8 +149,12 @@ class FetchingContext:
         self.connection_manager = contextlib.nullcontext()
         self.all_resources = ResourcesSet()
 
-    def field_names(self, jsonapi_type):
-        return self._fields.get(jsonapi_type)
+    def field_names(self, jsonapi_type) -> list[str]:
+        if jsonapi_type in self._fields:
+            fields = self._fields[jsonapi_type]
+            field = fields[0] if isinstance(fields, list) else fields
+            return field.split(',')
+        return []
 
     def filters(self, jsonapi_type, model):
         tenant_filters = self._filters.get(jsonapi_type, {})
