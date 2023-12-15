@@ -9,8 +9,10 @@ from flask import make_response
 from jsonapi_pydantic.v1_0 import Error
 from jsonapi_pydantic.v1_0 import ErrorLinks
 from jsonapi_pydantic.v1_0 import Link
+from jsonapi_pydantic.v1_0 import Relationship
 from jsonapi_pydantic.v1_0 import RelationshipLinks
 from jsonapi_pydantic.v1_0 import Resource
+from jsonapi_pydantic.v1_0 import ResourceIdentifier
 from jsonapi_pydantic.v1_0 import TopLevel
 from pydantic import ValidationError
 from pydantic.networks import HttpUrl
@@ -231,6 +233,8 @@ class JsonApiBaseModelMixin:
 def to_ressource_data(jsonapi_basemodel: JsonApiBaseModelMixin, context: FetchingContext, *,
                       toplevel_relationships=None) -> dict[str, t.Any]:
     """Transform a simple data into a pydantic ressource data.
+
+    We cannot create a Resource here, as the data is not completed at creation of the data.
     """
     toplevel_relationships = toplevel_relationships or {}
     # set resource data from basemodel
@@ -247,7 +251,7 @@ def to_ressource_data(jsonapi_basemodel: JsonApiBaseModelMixin, context: Fetchin
         _id = jsonapi_basemodel.jsonapi_id
 
     # get relationships
-    relationships: dict[str, dict | list[dict]] = {}
+    relationships: dict[str, list[dict[str, Relationship]]] = {}
     for key, value in {**data}.items():
         if isinstance(value, JsonApiBaseModelMixin):
             data.pop(key, None)
@@ -287,11 +291,11 @@ async def toplevel_from_basemodel(jsonapi_basemodel: JsonApiBaseModelMixin, cont
                 continue
 
             related = ressource_data['relationships'][key]
-            if isinstance(related['data'], list):
-                for rel in related['data']:
+            if isinstance(related.data, list):
+                for rel in related.data:
                     add_resource_to_included(rel, context.all_resources, included)
             else:
-                add_resource_to_included(related['data'], context.all_resources, included)
+                add_resource_to_included(related.data, context.all_resources, included)
 
     try:
         return TopLevel(data=Resource(**ressource_data), included=included if included else None)
@@ -380,8 +384,9 @@ def toplevel_to_resource(toplevel: TopLevel) -> Resource:
                     relationships=data.relationships, links=data.links)
 
 
-def add_relationship(key: str, related: JsonApiBaseModelMixin, relationships: dict[str, dict | list[dict]],
-                     toplevel_relationships: dict[JsonApiBaseModelMixin, dict], context: FetchingContext):
+def add_relationship(key: str, related: JsonApiBaseModelMixin, relationships: dict[str, list[dict[str, Relationship]]],
+                     toplevel_relationships: dict[JsonApiBaseModelMixin, dict[str, Relationship]],
+                     context: FetchingContext):
     """ Returns None if the resource is already referenced as a relationship.
     """
     if related in toplevel_relationships:
@@ -390,7 +395,7 @@ def add_relationship(key: str, related: JsonApiBaseModelMixin, relationships: di
         else:
             relationships[key] = [toplevel_relationships[related]]
     else:
-        relationship: dict[str, t.Any] = {}  # in process of creation so key is in list
+        relationship: dict[str, Relationship] = {}  # in process of creation so key is in list and dict will be updated
         toplevel_relationships[related] = relationship
         if key in relationships:
             relationships[key] = [*relationships[key], relationship]
@@ -404,13 +409,9 @@ def add_relationship(key: str, related: JsonApiBaseModelMixin, relationships: di
             if context.include and key in context.include:
                 context.all_resources[related] = related_resource
 
-        relationship.update({
-            "data": {
-                "id": related_resource['id'],
-                "type": related_resource['type'],
-            },
-            "links": RelationshipLinks(related=Link(href=HttpUrl(related.jsonapi_self_link))),
-        })
+        resource_identifier = ResourceIdentifier(id=related_resource['id'], type=related_resource['type'])
+        relationshio_link = RelationshipLinks(related=Link(href=HttpUrl(related.jsonapi_self_link)))
+        relationship.update(Relationship(data=resource_identifier, links=relationshio_link))
 
 
 def flatten_relationships(data):
@@ -422,14 +423,15 @@ def flatten_relationships(data):
         if len(rel_data) == 1:
             rel_data = {"data": rel_data[0], "links": rel_links[0]}
         else:
-            rel_data = {"data": rel_data, "links": rel_links}
-        data['relationships'][key] = rel_data
+            rel_data = {"data": rel_data}
+            # rel_data = {"data": rel_data, "links": rel_links}
+        data['relationships'][key] = Relationship(**rel_data)
 
 
 def add_resource_to_included(relationship, all_resources, included):
     """Adds a resource in the included list.
     The resource is in gloabal resources set except if itself."""
-    resource = all_resources.extract(**relationship)
+    resource = all_resources.extract(type=relationship.type, id=relationship.id)
     if resource:
         flatten_relationships(resource)
         included.append(Resource(**resource))
