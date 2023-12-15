@@ -4,6 +4,9 @@ import typing as t
 from functools import update_wrapper
 from inspect import signature
 
+from coworks import request
+from coworks.utils import nr_url
+from coworks.utils import str_to_bool
 from flask import current_app
 from flask import make_response
 from jsonapi_pydantic.v1_0 import Error
@@ -21,10 +24,6 @@ from werkzeug.exceptions import BadRequest
 from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import NotFound
-
-from coworks import request
-from coworks.utils import nr_url
-from coworks.utils import str_to_bool
 
 if t.TYPE_CHECKING:
     from flask_sqlalchemy.pagination import Pagination
@@ -136,16 +135,12 @@ class FetchingContext:
     def __init__(self, include: list[str], fields__: dict[str, str], filters__: dict[str, str], sort: str | None = None,
                  page__number__: int | None = None, page__size__: int | None = None, page__max__: int | None = None):
         self.include = include if include is not None else []
-        fields__ = fields__ if fields__ is not None else {}
+        self._fields = fields__ if fields__ is not None else {}
         filters__ = filters__ if filters__ is not None else {}
         self._sort = sort.split(',') if sort else []
         self.page = page__number__
         self.per_page = page__size__
         self.max_per_page = page__max__
-
-        self._fields = {}
-        for k, v in fields__.items():
-            self._add_branch(self._fields, k.split('.'), v)
 
         self._filters = {}
         for k, v in filters__.items():
@@ -182,8 +177,11 @@ class FetchingContext:
     def _add_branch(self, tree, vector, value):
         key = vector[0]
 
-        tree[key] = value if len(vector) == 1 \
-            else self._add_branch(tree[key] if key in tree else {}, vector[1:], value)
+        if len(vector) == 1:
+            tree[key] = value
+        else:
+            sub_tree = tree.get(key, {})
+            tree[key] = self._add_branch(sub_tree, vector[1:], value)
 
         return tree
 
