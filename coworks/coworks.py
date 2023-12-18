@@ -1,4 +1,5 @@
 import base64
+import inspect
 import io
 import itertools
 import logging
@@ -30,9 +31,13 @@ from .globals import request
 from .utils import BIZ_BUCKET_HEADER_KEY
 from .utils import BIZ_KEY_HEADER_KEY
 from .utils import HTTP_METHODS
-from .utils import add_coworks_routes
+from .utils import create_cws_proxy
 from .utils import get_app_stage
+from .utils import is_arg_parameter
+from .utils import is_kwarg_parameter
 from .utils import load_dotenv
+from .utils import make_absolute
+from .utils import path_join
 from .utils import trim_underscores
 from .wrappers import CoworksMapAdapter
 from .wrappers import CoworksRequest
@@ -82,7 +87,7 @@ def entry(fun: t.Callable = None, binary_headers: t.Dict[str, str] = None,
     fun.__CWS_PATH = path
     fun.__CWS_BINARY_HEADERS = binary_headers
     fun.__CWS_NO_AUTH = no_auth
-    fun.__CWS_STAGES = stage if type(stage) == list else [stage]
+    fun.__CWS_STAGES = stage if isinstance(stage, list) else [stage]
     fun.__CWS_NO_CORS = no_cors
 
     return fun
@@ -99,7 +104,6 @@ class CoworksClient(FlaskClient):
     def __init__(self, *args: t.Any, aws_event=None, aws_context=None, **kwargs: t.Any) -> None:
         super().__init__(*args, **kwargs)
 
-        path_info = aws_event['path']
         headers = aws_event['headers']
         request_context = aws_event['requestContext']
 
@@ -173,7 +177,7 @@ class Blueprint(FlaskBlueprint):
 
         # Defer blueprint route initialization.
         if not options.get('hide_routes', False):
-            func = partial(add_coworks_routes, state.app, state)
+            func = partial(TechMicroService.add_coworks_routes, state.app, state)
             app.deferred_init_routes_functions = itertools.chain(app.deferred_init_routes_functions, (func,))
 
         return state
@@ -311,7 +315,7 @@ class TechMicroService(Flask):
             bucket = request_headers.get(self.config['X-CWS-S3Bucket'].lower())
             key = request_headers.get(self.config['X-CWS-S3Key'].lower())
             if bucket and key:
-                content = json.dumps(resp).encode() if type(resp) is dict else resp
+                content = json.dumps(resp).encode() if isinstance(resp, dict) else resp
                 buffer = io.BytesIO(content)
                 buffer.seek(0)
                 aws_s3_session = boto3.session.Session()
@@ -328,7 +332,7 @@ class TechMicroService(Flask):
         if not self._cws_app_initialized:
             self._in_lambda_context = in_lambda
             self._update_config(in_lambda=in_lambda)
-            add_coworks_routes(self)
+            self.add_coworks_routes()
             for fun in self.deferred_init_routes_functions:
                 fun()
 
@@ -391,7 +395,7 @@ class TechMicroService(Flask):
                     self.store_response(resp, aws_event['headers'])
 
                 # Encodes binary content
-                if type(resp) is not dict:
+                if not isinstance(resp, dict):
                     resp = base64.b64encode(resp).decode('ascii')
                     content_length = len(resp) if self.logger.getEffectiveLevel() == logging.DEBUG else "N/A"
                     self.logger.warning(f"API returns binary content [length: {content_length}]")
@@ -487,3 +491,60 @@ class TechMicroService(Flask):
             parts.extend(traceback.format_exception(*sys.exc_info())[1:])
             trace = reduce(lambda x, y: x + y, parts, "")
             self.logger.error(f"Traceback: {trace}")
+
+    def add_coworks_routes(self, bp_state: BlueprintSetupState | None = None) -> None:
+        """ Creates all routes for a microservice.
+
+        :param app: The app microservice.
+        :param bp_state: The blueprint state.
+        """
+
+        # Adds entrypoints
+        stage = get_app_stage()
+        scaffold = bp_state.blueprint if bp_state else self
+        method_members = inspect.getmembers(scaffold.__class__, lambda x: inspect.isfunction(x))
+        methods = [fun for _, fun in method_members if hasattr(fun, '__CWS_METHOD')]
+        for fun in methods:
+
+            # the entry is not defined for this stage
+            stages = getattr(fun, '__CWS_STAGES')
+            if stages and stage not in stages:
+                continue
+
+            method = getattr(fun, '__CWS_METHOD')
+            entry_path = path_join(getattr(fun, '__CWS_PATH'))
+
+            # Get parameters
+            sig = inspect.signature(fun)
+            param_names = list(sig.parameters.keys())[1:]  # skip self parameter
+            generic_kwargs = None
+            if len(param_names) > 0:
+                last_param_name = param_names[-1]
+                last_param = sig.parameters[param_names[-1]]
+                if last_param.annotation is dict:
+                    generic_kwargs = last_param_name
+                    param_names = param_names[:-1]
+            args = [n for n in param_names if is_arg_parameter(sig.parameters[n])]
+            for index, arg in enumerate(args):
+                entry_path = path_join(entry_path, f"/<{arg}>")
+            kwargs = {n: sig.parameters[n] for n in param_names if is_kwarg_parameter(sig.parameters[n])}
+
+            proxy = create_cws_proxy(scaffold, fun, args, kwargs, generic_kwargs)
+            proxy.__CWS_BINARY_HEADERS = getattr(fun, '__CWS_BINARY_HEADERS')
+            proxy.__CWS_NO_AUTH = getattr(fun, '__CWS_NO_AUTH')
+            proxy.__CWS_NO_CORS = getattr(fun, '__CWS_NO_CORS')
+            proxy.__CWS_FROM_BLUEPRINT = bp_state.blueprint.name if bp_state else None
+
+            prefix = f"{bp_state.blueprint.name}." if bp_state else ''
+            endpoint = f"{prefix}{fun.__name__}"
+
+            # Creates the entry
+            url_prefix = bp_state.url_prefix if bp_state else None
+            rule = make_absolute(entry_path, url_prefix)
+            for r in self.url_map.iter_rules():
+                if r.rule == rule and method in (r.methods or []):
+                    raise AssertionError(f"Duplicate route {rule}")
+            try:
+                self.add_url_rule(rule=rule, view_func=proxy, methods=[method], endpoint=endpoint, strict_slashes=False)
+            except AssertionError:
+                raise

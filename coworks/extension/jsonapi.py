@@ -19,11 +19,14 @@ from jsonapi_pydantic.v1_0 import ResourceIdentifier
 from jsonapi_pydantic.v1_0 import TopLevel
 from pydantic import ValidationError
 from pydantic.networks import HttpUrl
-from pydantic_core import ValidationError
+from sqlalchemy.orm import ColumnProperty
+from sqlalchemy.orm import RelationshipProperty
+from sqlalchemy.sql import or_
 from werkzeug.exceptions import BadRequest
 from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import NotFound
+from werkzeug.exceptions import UnprocessableEntity
 
 if t.TYPE_CHECKING:
     from flask_sqlalchemy.pagination import Pagination
@@ -132,12 +135,12 @@ class ResourcesSet(dict["JsonApiBaseModelMixin", dict]):
 
 class FetchingContext:
 
-    def __init__(self, include: list[str], fields__: dict[str, str], filters__: dict[str, str], sort: str | None = None,
+    def __init__(self, include: str, fields__: dict[str, str], filters__: dict[str, str], sort: str | None = None,
                  page__number__: int | None = None, page__size__: int | None = None, page__max__: int | None = None):
-        self.include = include if include is not None else []
+        self.include = include.split(',') if include else []
         self._fields = fields__ if fields__ is not None else {}
         filters__ = filters__ if filters__ is not None else {}
-        self._sort = sort.split(',') if sort else []
+        self._sort = list(map(str.strip, sort.split(','))) if sort else []
         self.page = page__number__
         self.per_page = page__size__
         self.max_per_page = page__max__
@@ -152,20 +155,45 @@ class FetchingContext:
     def field_names(self, jsonapi_type) -> list[str]:
         if jsonapi_type in self._fields:
             fields = self._fields[jsonapi_type]
-            field = fields[0] if isinstance(fields, list) else fields
-            return field.split(',')
+            if isinstance(fields, list):
+                if len(fields) != 1:
+                    msg = f"Wrong field value '{fields}' ; multiple fields parameter must be a comma-separated"
+                    raise UnprocessableEntity(msg)
+                field = fields[0]
+            else:
+                field = fields
+            return list(map(str.strip, field.split(',')))
         return []
 
     def filters(self, jsonapi_type, model):
-        tenant_filters = self._filters.get(jsonapi_type, {})
+        _filters = self._filters.get(jsonapi_type, {})
 
         sql_filters = []
-        for key, value in tenant_filters.items():
-            column = getattr(model, key)
-            if column.type.python_type is bool:
-                sql_filters.append(column == str_to_bool(value[0]))
-            else:
-                sql_filters.append(column.in_(value))
+        for key, value in _filters.items():
+            column = getattr(model, key, None)
+            if column is None:
+                msg = f"Wrong '{key}' property for model '{jsonapi_type}' in filters parameters"
+                raise UnprocessableEntity(msg)
+            if isinstance(column.property, ColumnProperty):
+                _type = getattr(column, 'type', None)
+                if _type and _type.python_type is bool:
+                    if len(value) != 1:
+                        msg = f"Multiple boolean values '{key}' property  for model '{jsonapi_type}' is not allowed"
+                        raise UnprocessableEntity(msg)
+                    sql_filters.append(column == str_to_bool(value[0]))
+                else:
+                    sql_filters.append(column.in_(value))
+            elif isinstance(column.property, RelationshipProperty):
+                if not isinstance(value, dict):
+                    msg = f"Wrong '{value}' value for model '{jsonapi_type}' in filters parameters (should be a dict)."
+                    raise UnprocessableEntity(msg)
+                for k, v in value.items():
+                    condition = column.has(**{k: v[0]})
+                    if len(v) > 1:
+                        for or_v in v[1:]:
+                            condition = or_(condition, column.has(**{k: or_v}))
+                    sql_filters.append(condition)
+
         return sql_filters
 
     def order_by(self, model):
@@ -313,7 +341,7 @@ def jsonapi(func):
     Must have Flask-SQLAlchemy extension installed.
     """
 
-    def _jsonapi(*args, ensure_one: bool = False, include: list[str] | None = None,
+    def _jsonapi(*args, ensure_one: bool = False, include: str | None = None,
                  fields__: dict | None = None, filters__: dict | None = None, sort: str | None = None,
                  page__number__: int | None = None, page__size__: int | None = None, page__max__: int | None = None,
                  **kwargs):
@@ -386,34 +414,43 @@ def toplevel_to_resource(toplevel: TopLevel) -> Resource:
                     relationships=data.relationships, links=data.links)
 
 
-def add_relationship(key: str, related: JsonApiBaseModelMixin, relationships: dict[str, list[dict[str, Relationship]]],
+def add_relationship(key: str, related_model: JsonApiBaseModelMixin,
+                     relationships: dict[str, list[dict[str, Relationship]]],
                      toplevel_relationships: dict[JsonApiBaseModelMixin, dict[str, Relationship]],
                      context: FetchingContext):
-    """ Returns None if the resource is already referenced as a relationship.
+    """ Adds a relationship in the list of relationships from the related model.
+    The relationship may not be complete for circular reference and will be completed after in construction.
     """
-    if related in toplevel_relationships:
-        if key in relationships:
-            relationships[key] = [*relationships[key], toplevel_relationships[related]]
-        else:
-            relationships[key] = [toplevel_relationships[related]]
-    else:
-        relationship: dict[str, Relationship] = {}  # in process of creation so key is in list and dict will be updated
-        toplevel_relationships[related] = relationship
+
+    def add_in_relationships(relationship):
         if key in relationships:
             relationships[key] = [*relationships[key], relationship]
         else:
             relationships[key] = [relationship]
 
-        if related in context.all_resources:
-            related_resource = context.all_resources[related]
-        else:
-            related_resource = to_ressource_data(related, context, toplevel_relationships=toplevel_relationships)
-            if context.include and key in context.include:
-                context.all_resources[related] = related_resource
+    # if the related model was already referenced, just adds the already created relationship
+    if related_model in toplevel_relationships:
+        add_in_relationships(toplevel_relationships[related_model])
 
+    # if the related model was not already referenced, creates a new relationssip
+    else:
+        relationship: dict[str, Relationship] = {}  # in process of creation so key is in list and dict will be updated
+        toplevel_relationships[related_model] = relationship
+        add_in_relationships(relationship)
+
+        # get the related resource associated to the related model
+        if related_model in context.all_resources:
+            related_resource = context.all_resources[related_model]
+        else:
+            # creates and adds the related resource to the global list of included resources
+            related_resource = to_ressource_data(related_model, context, toplevel_relationships=toplevel_relationships)
+            if context.include and key in context.include:
+                context.all_resources[related_model] = related_resource
+
+        # updates now the relationship once the process of creation is completed
         resource_identifier = ResourceIdentifier(id=related_resource['id'], type=related_resource['type'])
-        relationshio_link = RelationshipLinks(related=Link(href=HttpUrl(related.jsonapi_self_link)))
-        relationship.update(Relationship(data=resource_identifier, links=relationshio_link))
+        relationship_link = RelationshipLinks(related=Link(href=HttpUrl(related_model.jsonapi_self_link)))
+        relationship.update(Relationship(data=resource_identifier, links=relationship_link))
 
 
 def flatten_relationships(data):

@@ -4,6 +4,7 @@ import re
 import typing as t
 import urllib
 import urllib.parse
+from io import BytesIO
 
 from flask import Request as FlaskRequest
 from flask import Response as FlaskResponse
@@ -14,7 +15,8 @@ from werkzeug.datastructures import ETags
 from werkzeug.datastructures import FileStorage
 from werkzeug.datastructures import Headers
 from werkzeug.datastructures import MultiDict
-from werkzeug.exceptions import HTTPException, BadRequest
+from werkzeug.exceptions import BadRequest
+from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import MethodNotAllowed
 from werkzeug.exceptions import NotFound
 from werkzeug.routing import MapAdapter
@@ -89,12 +91,14 @@ class CoworksResponse(FlaskResponse):
 class CoworksRequest(FlaskRequest):
 
     def __init__(self, environ, **kwargs):
-        self.aws_event: dict = environ.get('aws_event')
+        self.aws_event: dict | None = environ.get('aws_event')
         self.aws_context = environ.get('aws_context')
-        self.aws_query_string: MultiDict = environ.get('aws_query_string')
-        self.aws_body: t.Union[str, bytes] = environ.get('aws_body')
+        self.aws_query_string: MultiDict | None = environ.get('aws_query_string')
+        self.aws_body: str | bytes | None = environ.get('aws_body')
         self._in_lambda_context: bool = self.aws_event is not None
-        self.__stream = self.__form = self.__files = None
+        self.__stream: BytesIO | None = None
+        self.__form: MultiDict[str, str] | None = None
+        self.__files: MultiDict | FileStorage | None = None
         self.__data = self.__json = None
 
         super().__init__(environ, **kwargs)
@@ -195,14 +199,14 @@ class CoworksRequest(FlaskRequest):
 
     @property
     def _body_is_dict(self) -> bool:
-        return type(self.aws_body) is dict
+        return isinstance(self.aws_body, dict)
 
     def _load_stream_form_files(self) -> None:
 
         # Stream part
-        if self.is_multipart:
+        if self.is_multipart and isinstance(self.aws_body, str):
             self.__stream = io.BytesIO(base64.b64decode(self.aws_body))
-        elif self.is_form_urlencoded:
+        elif self.is_form_urlencoded and isinstance(self.aws_body, str):
             self.__stream = io.BytesIO(self.aws_body.encode('ascii'))
         else:
             raise BadRequest(f'Undefined mime-type for stream body: {self.mimetype}')
@@ -246,4 +250,4 @@ class CoworksRequest(FlaskRequest):
 
         elif self.is_form_urlencoded:
             self.__files = MultiDict()
-            self.__form = MultiDict(urllib.parse.parse_qs(self.aws_body))
+            self.__form = MultiDict(urllib.parse.parse_qs(t.cast(str, self.aws_body)))

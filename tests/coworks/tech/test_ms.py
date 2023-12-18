@@ -72,7 +72,7 @@ class AmbiguousMS(TechMicroService):
         return {'value': 'ok'}, 200
 
 
-@mock.patch.dict(os.environ, {"CWS_STAGE": "local"})
+@mock.patch.dict(os.environ, {"TOKEN": "token"})
 class TestClass:
     def test_request_arg(self):
         app = SimpleMS()

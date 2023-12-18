@@ -1,6 +1,9 @@
+import os
+from unittest import mock
 from unittest.mock import Mock
 
-from flask import request, url_for
+from flask import request
+from flask import url_for
 from werkzeug.exceptions import Forbidden
 from werkzeug.exceptions import MethodNotAllowed
 from werkzeug.exceptions import NotFound
@@ -48,6 +51,7 @@ class ErrorMS(TechMicroService):
         raise Forbidden()
 
 
+@mock.patch.dict(os.environ, {"TOKEN": "token"})
 class TestClass:
     def test_request_arg(self, empty_aws_context):
         app = SimpleMS()
@@ -89,8 +93,7 @@ class TestClass:
             response = app(get_event(
                 '/content/{value}', 'post', entry_path_parameters={'value': 3}, body="other"),
                 empty_aws_context)
-            assert response['statusCode'] == 200
-            assert response['body'] == "post content with 3 and other"
+            assert response['statusCode'] == UnprocessableEntity.code
             response = app(
                 get_event('/content/{value}', 'post', entry_path_parameters={'value': 3},
                           body={"other": 'other', "value": 5}),

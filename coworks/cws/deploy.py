@@ -284,11 +284,11 @@ class TerraformBackend:
         options['key'] = options.get('key') or f"{self.app.__module__}-{self.app.name}/archive.zip"
 
         # Transfert zip file to S3
-        self.bar.update(msg=f"Copy source files on S3")
+        self.bar.update(msg="Copy source files on S3")
         b64sha256 = self.copy_sources_to_s3(**options)
         options['source_code_hash'] = b64sha256
 
-        self.bar.update(msg=f"Generates terraform files")
+        self.bar.update(msg="Generates terraform files")
 
         # Generates common terraform files
         if terraform_init:
@@ -305,7 +305,7 @@ class TerraformBackend:
 
         # Stops process if dry
         if options['dry']:
-            self.bar.update(msg=f"Nothing deployed and destroyed (dry mode)")
+            self.bar.update(msg="Nothing deployed and destroyed (dry mode)")
             return
 
         if terraform_init:
@@ -340,7 +340,7 @@ class TerraformBackend:
 
             # Defines ignore file paternsctx
             ignore = options.get('ignore') or ['.*', 'terraform*']
-            if ignore and type(ignore) is not list:
+            if ignore and not isinstance(ignore, list):
                 if type(ignore) is tuple:
                     ignore = [*ignore]
                 else:
@@ -400,7 +400,7 @@ class TerraformBackend:
         profile_name = options.get('profile_name')
         aws_s3_session = aws.AwsS3Session(profile_name=profile_name)
         aws_s3_session.client.delete_object(Bucket=bucket, Key=key)
-        self.bar.update(msg=f"Sources files deleted on s3")
+        self.bar.update(msg="Sources files deleted on s3")
 
 
 @click.command("deploy", CwsCommand, short_help="Deploy the CoWorks microservice on AWS Lambda.")
@@ -460,7 +460,6 @@ def deploy_command(info, ctx, stage, **options) -> None:
     terraform_context = TerraformContext(info, ctx)
     app = terraform_context.app
     os.environ['CWS_STAGE'] = stage  # TODO Should be removed
-    terraform = None
 
     app.logger.debug(f"Start deploy command: {options}")
     show_stage_banner(stage)

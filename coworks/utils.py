@@ -4,6 +4,8 @@ import re
 import types
 import typing as t
 from functools import update_wrapper
+from inspect import Parameter
+from inspect import Signature
 from inspect import signature
 from pathlib import Path
 from urllib.parse import parse_qs
@@ -15,7 +17,6 @@ import dotenv
 from flask import current_app
 from flask import json
 from flask import make_response
-from flask.blueprints import BlueprintSetupState
 from pydantic import BaseModel
 from pydantic import ValidationError
 from werkzeug.exceptions import UnprocessableEntity
@@ -23,8 +24,7 @@ from werkzeug.exceptions import UnprocessableEntity
 from .globals import request
 
 if t.TYPE_CHECKING:
-    from flask.scaffold import Scaffold
-    from flask import Flask
+    from flask.sansio.scaffold import Scaffold
 
 HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
 
@@ -41,65 +41,14 @@ OPEN_SQUARE_BRACKETED_KWARG_PATTERN = re.compile(r'([a-zA-Z0-9]+)__')
 SQUARE_BRACKETED_KWARG_PATTERN = re.compile(r'([a-zA-Z0-9]+)__([a-zA-Z0-9._]+)__')
 
 
-def add_coworks_routes(app: "Flask", bp_state: BlueprintSetupState = None) -> None:
-    """ Creates all routes for a microservice.
-
-    :param app: The app microservice.
-    :param bp_state: The blueprint state.
-    """
-
-    # Adds entrypoints
-    stage = get_app_stage()
-    scaffold = bp_state.blueprint if bp_state else app
-    method_members = inspect.getmembers(scaffold.__class__, lambda x: inspect.isfunction(x))
-    methods = [fun for _, fun in method_members if hasattr(fun, '__CWS_METHOD')]
-    for fun in methods:
-
-        # the entry is not defined for this stage
-        stages = getattr(fun, '__CWS_STAGES')
-        if stages and stage not in stages:
-            continue
-
-        method = getattr(fun, '__CWS_METHOD')
-        entry_path = path_join(getattr(fun, '__CWS_PATH'))
-
-        # Get parameters
-        sig = inspect.signature(fun)
-        args = [n for n, p in sig.parameters.items() if p.default == inspect.Parameter.empty and n != 'self']
-        for index, arg in enumerate(args):
-            entry_path = path_join(entry_path, f"/<{arg}>")
-        kwargs = {n: p for n, p in sig.parameters.items() if
-                  p.default != inspect.Parameter.empty and n != 'self'}
-
-        proxy = create_cws_proxy(scaffold, fun, args, kwargs)
-        proxy.__CWS_BINARY_HEADERS = getattr(fun, '__CWS_BINARY_HEADERS')
-        proxy.__CWS_NO_AUTH = getattr(fun, '__CWS_NO_AUTH')
-        proxy.__CWS_NO_CORS = getattr(fun, '__CWS_NO_CORS')
-        proxy.__CWS_FROM_BLUEPRINT = bp_state.blueprint.name if bp_state else None
-
-        prefix = f"{bp_state.blueprint.name}." if bp_state else ''
-        endpoint = f"{prefix}{fun.__name__}"
-
-        # Creates the entry
-        url_prefix = bp_state.url_prefix if bp_state else None
-        rule = make_absolute(entry_path, url_prefix)
-        for r in app.url_map.iter_rules():
-            if r.rule == rule and method in r.methods:
-                raise AssertionError(f"Duplicate route {rule}")
-
-        try:
-            app.add_url_rule(rule=rule, view_func=proxy, methods=[method], endpoint=endpoint, strict_slashes=False)
-        except AssertionError:
-            raise
-
-
-def create_cws_proxy(scaffold: "Scaffold", func, func_args, func_kwargs):
+def create_cws_proxy(scaffold: "Scaffold", func, func_args: list[str], func_kwargs: dict, func_generic_kwargs: str):
     """Creates the AWS Lambda proxy function.
 
     :param scaffold: The Flask or Blueprint object.
     :param func: The initial function proxied.
     :param func_args: The declared function args.
     :param func_kwargs: The declared function kwargs.
+    :param func_generic_kwargs: The function generic kwargs if defiend.
     """
 
     def proxy(**view_args):
@@ -120,7 +69,7 @@ def create_cws_proxy(scaffold: "Scaffold", func, func_args, func_kwargs):
            :param values: Dict of values.
            :param flat: If true, the list values of lenth 1 is return as single value.
             """
-            params = {}
+            params: dict[str, t.Any] = {}
             for k, v in values.items():
                 k = remove_brackets(k)
 
@@ -135,7 +84,11 @@ def create_cws_proxy(scaffold: "Scaffold", func, func_args, func_kwargs):
                                 v = {splitted.group(2): v}
                             break
 
-                check_keyword_expected(k)
+                try:
+                    check_keyword_expected(k)
+                except UnprocessableEntity:
+                    if not func_generic_kwargs:
+                        raise
                 params[k] = v
 
             # Flatten single value
@@ -159,10 +112,10 @@ def create_cws_proxy(scaffold: "Scaffold", func, func_args, func_kwargs):
                         data = request.get_data()
                         if data:
                             data = request.json
-                            if type(data) is dict:
-                                view_args = {**view_args, **as_fun_params(data, False)}
-                            else:
-                                view_args[parameters[0]] = data
+                            if not isinstance(data, dict):
+                                msg = f"Request payload must be a dict not {type(data)}"
+                                raise UnprocessableEntity(msg)
+                            view_args = {**view_args, **as_fun_params(data, False)}
                     elif request.is_multipart:
                         data = request.form.to_dict(False)
                         files = request.files.to_dict(False)
@@ -241,63 +194,78 @@ def trim_underscores(name: str) -> str:
     return name
 
 
+def is_arg_parameter(param: Parameter) -> bool:
+    """ Checks if the parameter is an arg (not a kwarg)."""
+    return param.default == inspect.Parameter.empty
+
+
+def is_kwarg_parameter(param: Parameter) -> bool:
+    """ Checks if the parameter is an arg (not a kwarg)."""
+    return param.default != inspect.Parameter.empty
+
+
 def remove_brackets(name):
     """Removes brackets.
     Parameter like page[number] is passed to the function as page__number__."""
     return name.replace('[', '__').replace(']', '__')
 
 
-def as_typed_kwargs(func, kwargs):
-    def get_typed_value(tp, val):
+def as_typed_kwargs(func: t.Callable, kwargs: dict):
+    def get_typed_value(name: str, tp, val):
         if isinstance(tp, types.UnionType):
             for arg in t.get_args(tp):
                 try:
-                    return get_typed_value(arg, val)
-                except ValidationError:
+                    return get_typed_value(name, arg, val)
+                except (UnprocessableEntity, ValidationError):
                     raise
                 except (TypeError, ValueError):
                     pass
             raise TypeError()
         origin = t.get_origin(tp)
-        if origin is None:
-            if tp is bool:
-                return str_to_bool(val)
-            if tp is dict:
-                return json.loads(val)
-            if issubclass(tp, BaseModel):
-                return tp(**json.loads(val))
-            return tp(val)
-        if origin is list:
-            arg = t.get_args(tp)[0]
-            if type(val) is list:
-                return [arg(v) for v in val]
-            return [arg(val)]
-        if origin is set:
-            arg = t.get_args(tp)[0]
-            if type(val) is list:
-                return {arg(v) for v in val}
-            return {arg(val)}
         if origin is t.Union:
             for arg in t.get_args(tp):
                 try:
-                    return get_typed_value(arg, val)
+                    return get_typed_value(name, arg, val)
                 except ValidationError:
                     raise
                 except (TypeError, ValueError):
                     pass
             raise TypeError()
+        if origin is list:
+            arg = t.get_args(tp)[0]
+            if isinstance(val, list):
+                return [arg(v) for v in val]
+            return [arg(val)]
+        if origin is set:
+            arg = t.get_args(tp)[0]
+            if isinstance(val, list):
+                return {arg(v) for v in val}
+            return {arg(val)}
+        if origin is None:
+            if isinstance(val, list):
+                msg = f"Multiple values for '{name}' query parameters are not allowed"
+                raise UnprocessableEntity(msg)
+            if tp is Signature.empty:
+                return val
+            if issubclass(tp, bool):
+                return str_to_bool(val)
+            if issubclass(tp, dict):
+                return json.loads(val)
+            if issubclass(tp, BaseModel):
+                return tp(**json.loads(val))
+            return tp(val)
 
     typed_kwargs = {**kwargs}
     try:
         parameters = signature(func).parameters
         for name, value in kwargs.items():
             try:
-                typed_kwargs[name] = get_typed_value(parameters.get(name).annotation, value)
-            except ValidationError:
+                typed_kwargs[name] = get_typed_value(name, t.cast(Parameter, parameters.get(name)).annotation, value)
+            except (UnprocessableEntity, ValidationError):
                 raise
             except (TypeError, ValueError):
                 pass
-    except ValidationError:
+    except (UnprocessableEntity, ValidationError):
         raise
     except (Exception,):
         pass
@@ -309,7 +277,7 @@ def is_json(mt):
     """
     return (
             mt == "application/json"
-            or type(mt) is str
+            or isinstance(mt, str)
             and mt.startswith("application/")
             and mt.endswith("+json")
     )

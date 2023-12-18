@@ -9,6 +9,10 @@ Pipfile.lock
 **/.env*
 **/http-client.private.env.json
 
+# pdm
+pdm.lock
+.pdm-python
+
 # Samples
 **/*.secret.json
 samples/*/terraform

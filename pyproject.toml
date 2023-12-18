@@ -7,7 +7,7 @@ name = "coworks"
 dynamic = ["version"]
 description = "Coworks is a unified compositional microservices framework using Flask/Airflow on AWS serverless technologies."
 readme = "README.rst"
-requires-python = ">= 3.7"
+requires-python = ">= 3.11"
 license = { "file" = "LICENSE.txt" }
 authors = [
     { name = "Guillaume Doumenc", email = "gdoumenc@fpr-coworks.com" }
@@ -43,6 +43,22 @@ Source = "https://github.com/gdoumenc/coworks"
 
 [project.scripts]
 cws = "coworks.cws.client:client"
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "boto3-stubs",
+    "mypy>=1.5.0",
+    "pytest>=7.4.0",
+    "ruff>=0.0.284",
+    "sphinx>=7.1.2",
+]
+
+[tool.pdm.scripts]
+lint = { cmd = "ruff coworks", help = "Linting using Ruff" }
+typecheck = { cmd = "mypy coworks", help = "Type checking using mypy" }
+pytest = { cmd = "pytest coworks", help = "Unit testing using pytest" }
+test = { composite = ["lint", "typecheck", "pytest"] }
+
 
 [bdist_wheel]
 universal = 1

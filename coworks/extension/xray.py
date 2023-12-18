@@ -51,8 +51,8 @@ class XRay:
         if global_sdk_config.sdk_enabled():
             # Checks XRay is available
             try:
-                segment = self._recorder.current_segment()
-            except SegmentNotFoundException as e:
+                self._recorder.current_segment()
+            except SegmentNotFoundException:
                 pass
             else:
                 # Captures routes
@@ -86,8 +86,8 @@ class XRay:
             if global_sdk_config.sdk_enabled():
                 # Checks XRay is available
                 try:
-                    segment = recorder.current_segment()
-                except SegmentNotFoundException as e:
+                    recorder.current_segment()
+                except SegmentNotFoundException:
                     pass
                 else:
                     # Captures function
@@ -127,12 +127,12 @@ class XRay:
                         else:
                             metadata['values'] = request.values.to_dict(False)
                         subsegment.put_metadata('request', metadata, COWORKS_NAMESPACE)
-                    except (Exception,) as e:
+                    except (Exception,):
                         pass
 
                 try:
                     response: CoworksResponse = _view_function(*args, **kwargs)
-                except Exception as e:
+                except Exception:
                     if subsegment:
                         metadata = {'traceback': traceback.format_exc()}
                         subsegment.put_metadata('exception', metadata, COWORKS_NAMESPACE)
@@ -147,7 +147,7 @@ class XRay:
                         if response.status_code >= 300:
                             metadata['error'] = response.get_data(as_text=True)
                         subsegment.put_metadata('response', metadata, COWORKS_NAMESPACE)
-                    except (Exception,) as e:
+                    except (Exception,):
                         pass
 
                 return response

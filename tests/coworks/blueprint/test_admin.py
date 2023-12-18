@@ -1,3 +1,6 @@
+import os
+from unittest import mock
+
 from flask import json
 
 from coworks import Blueprint
@@ -48,6 +51,7 @@ class HiddenBlueprint(Blueprint):
         return "ok"
 
 
+@mock.patch.dict(os.environ, {"TOKEN": "token"})
 class TestClass:
 
     def test_routes(self):

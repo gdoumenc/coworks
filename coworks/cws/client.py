@@ -1,17 +1,17 @@
-from logging import WARNING
-from logging import getLogger
-
-import anyconfig
-import click
-import flask
 import importlib
 import os
 import types
 import typing as t
-from click import UsageError
 from contextlib import contextmanager
-from flask.cli import ScriptInfo
+from logging import WARNING
+from logging import getLogger
 from pathlib import Path
+
+import anyconfig
+import click
+import flask
+from click import UsageError
+from flask.cli import ScriptInfo
 
 from coworks import __version__
 from coworks.utils import DEFAULT_PROJECT_DIR
@@ -51,7 +51,7 @@ class CwsScriptInfo(ScriptInfo):
         old_dir = os.getcwd()
         try:
             os.chdir(self.project_dir)
-        except OSError as e:
+        except OSError:
             if not ctx:
                 raise UsageError(f"Project dir {self.project_dir} not found.")
         finally:
@@ -78,10 +78,10 @@ class CwsGroup(flask.cli.FlaskGroup):
         super().__init__(params=params, **extra)
 
         if add_default_commands:
-            self.add_command(t.cast("Command", new_command))
-            self.add_command(t.cast("Command", deploy_command))
-            self.add_command(t.cast("Command", destroy_command))
-            self.add_command(t.cast("Command", deployed_command))
+            self.add_command(t.cast(click.Command, new_command))
+            self.add_command(t.cast(click.Command, deploy_command))
+            self.add_command(t.cast(click.Command, destroy_command))
+            self.add_command(t.cast(click.Command, deployed_command))
 
     def make_context(self, info_name, args, parent=None, **kwargs):
         # Get project infos
@@ -107,7 +107,7 @@ class CwsGroup(flask.cli.FlaskGroup):
                         cmd_module, cmd_class = cmd_class_name.rsplit('.', 1)
                         try:
                             cmd = import_attr(cmd_module, cmd_class)
-                        except ModuleNotFoundError as e:
+                        except ModuleNotFoundError:
                             raise click.UsageError(f"Cannot load command {cmd_class!r} in module {cmd_module!r}.")
                     elif name in self.commands:
                         cmd = self.commands[name]
@@ -197,7 +197,7 @@ flask.cli.show_server_banner = overriden_run_banner()
 
 
 def import_attr(module, attr: str):
-    if type(attr) is not str:
+    if not isinstance(attr, str):
         raise AttributeError(f"{attr} is not a string.")
     app_module = importlib.import_module(module)
     if "PYTEST_CURRENT_TEST" in os.environ:
