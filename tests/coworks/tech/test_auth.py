@@ -1,3 +1,5 @@
+import pytest
+
 from coworks import entry
 from tests.coworks.blueprint.blueprint import BP
 from tests.coworks.ms import SimpleMS
@@ -37,6 +39,12 @@ class AuthorizedMS(AuthorizeAll):
         return token == 'token'
 
 
+class AuthorizeExceptionMS(AuthorizeAll):
+
+    def token_authorizer(self, token):
+        raise Exception()
+
+
 class TestClass:
 
     def test_authorize_all(self, empty_aws_context):
@@ -62,3 +70,10 @@ class TestClass:
             response = app(get_event('token'), empty_aws_context)
             assert response['principalId'] == 'user'
             assert response['policyDocument']['Statement'][0]['Effect'] == 'Allow'
+
+    def test_authorize_exception(self, empty_aws_context):
+        app = AuthorizeExceptionMS()
+        with app.app_context() as c:
+            response = app(get_event('token'), empty_aws_context)
+            assert response['principalId'] == 'user'
+            assert response['policyDocument']['Statement'][0]['Effect'] == 'Deny'

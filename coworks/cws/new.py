@@ -1,4 +1,5 @@
 import sys
+import typing as t
 from distutils.dir_util import copy_tree
 from pathlib import Path
 
@@ -31,7 +32,7 @@ def new_command(force) -> None:
     Path('template.env').rename('.env')
 
     # Render project configuration file
-    template_loader = PackageLoader(sys.modules[__name__].__package__)
+    template_loader = PackageLoader(t.cast(str, sys.modules[__name__].__package__))
     jinja_env = Environment(loader=template_loader, autoescape=select_autoescape(['html', 'xml']))
     template = jinja_env.get_template('project.cws.yml')
     output = project_conf

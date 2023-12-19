@@ -1,28 +1,28 @@
-{% if terraform_cloud %}
+{% if terraform_cloud -%}
 # ---------------------------------------------------------------------------------------------------------------------
 # TERRAFORM ON CLOUD
 # ---------------------------------------------------------------------------------------------------------------------
 
 terraform {
   backend "remote" {
-    organization = "FPR"
+    organization = "{{ terraform_organization }}"
 
     workspaces {
-      name = "{{ ms_name }}{{ stage }}"
+      name = "{{ ms_name }}_{{ stage }}"
     }
   }
-  required_version = "= 1.2.0"
+  required_version = ">= 1.2.0"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = ">= 4.12.0"
+      version = ">= 5.2.0"
     }
   }
 }
 
 variable "AWS_ACCESS_KEY_ID" {}
 variable "AWS_SECRET_ACCESS_KEY" {}
-variable "AWS_REGION" {}
+variable "AWS_REGION" {default="eu-west-1"}
 variable "TFC_WORKSPACE_NAME" {}
 
 provider "aws" {
@@ -38,27 +38,40 @@ provider "aws" {
   }
 }
 
-data "aws_caller_identity" "current" {}
-
 locals {
-  account_id = data.aws_caller_identity.current.account_id
 {%- if profile_name %}
-  region = "{{ aws_region }}"
+  profile = "{{ profile_name }}"
 {% else %}
-  region = var.AWS_REGION
+  account_id = data.aws_caller_identity.current.account_id
 {%- endif %}
+  region = {{ '"{}"'.format(aws_region) if aws_region else 'var.AWS_REGION'}}
 }
-{%  else  %}
+{%  else  -%}
 # ---------------------------------------------------------------------------------------------------------------------
-# TERRAFORM ON LOCAL
+# TERRAFORM ON S3
 # ---------------------------------------------------------------------------------------------------------------------
+
+variable "AWS_REGION" {default="eu-west-1"}
+
+terraform {
+  backend "s3" {
+    bucket  = "neorezo-terraform"
+    key     = "{{ project }}/{{ stage }}/tfstate.json"
+    region  = {{ '"{}"'.format(aws_region) if aws_region else 'var.CUSTOMER_AWS_REGION'}}
+    profile = "{{ profile_name }}"
+  }
+  required_version = ">= 1.2.0"
+  required_providers {
+    local = {
+      source  = "hashicorp/local"
+    }
+  }
+}
 
 locals {
   account_id = "{{ aws_account }}"
-{%- if profile_name %}
-  region = "{{ aws_region }}"
-{%- else %}
-  region = var.AWS_REGION
-{%- endif %}
+  region = {{ '"{}"'.format(aws_region) if aws_region else 'var.AWS_REGION'}}
 }
 {%- endif %}
+
+data "aws_caller_identity" "current" {}

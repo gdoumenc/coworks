@@ -1,1 +1,6 @@
-__version__ = "0.8.6"
+import tomllib
+
+with open("pyproject.toml", "rb") as f:
+    _META = tomllib.load(f)
+
+__version__ = _META["project"]["version"]

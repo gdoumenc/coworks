@@ -20,7 +20,7 @@ class TestClass:
         monkeypatch.setattr(click, "echo", mclick)
         client.main(['routes'], 'cws', standalone_mode=False)
         mclick.assert_called()
-        assert len(mclick.mock_calls) == 7
+        assert len(mclick.mock_calls) == 9
         out = [call.args[0].split(' ')[0] for call in mclick.mock_calls]
         assert 'Endpoint' in out
         assert 'admin.get_route' in out

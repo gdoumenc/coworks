@@ -1,44 +1,39 @@
 import inspect
 import os
 import sys
+import typing as t
 from collections import defaultdict
 from inspect import Parameter
 from textwrap import dedent
 
 import markdown
+from flask import abort
 from flask import current_app
 from flask import render_template_string
 from jinja2 import Environment
 from jinja2 import PackageLoader
 from jinja2 import select_autoescape
+from jsonapi_pydantic.v1_0 import TopLevel, Resource
+from pydantic import BaseModel
 from werkzeug.exceptions import NotFound
 
 from coworks import Blueprint
 from coworks import entry
+from coworks.utils import get_cws_annotations
 
 
 class Admin(Blueprint):
     """Administration blueprint to get details on the microservice containing it.
     """
 
-    def __init__(self, name: str = 'admin', **kwargs):
+    def __init__(self, name: str = 'admin', models: t.Optional[t.List[t.Type[BaseModel]]] = None, **kwargs):
         super().__init__(name=name, **kwargs)
+        self.models = {model.__name__: model for model in models} if models else {}
 
     @entry(no_auth=True, no_cors=True)
     def get(self):
         """Returns the markdown documentation associated to this microservice.
         """
-        title = f"<span style=\"font-size:xx-large;font-weight:bold\">{current_app.__class__.__name__}</span>"
-        header = f"""<div style=\"display:flex;justify-content:space-between;\">{title}
-            <img style=\"margin-bottom:auto;width:100px;\" src=\"https://neorezo.io/assets/img/logo_neorezo.png\"/>
-            </div>"""
-
-        deployed = os.getenv("CWS_DATETIME", None)
-        if deployed:
-            lambda_name = os.getenv("CWS_LAMBDA", None)
-            header += f"""<div style=\"display:flex;flex-direction:row-reverse;font-size:small;margin-top:5px;\">
-                      {lambda_name} deployed {deployed}</div>"""
-
         md = getattr(current_app, 'doc_md', None)
         if not md:
             md = getattr(current_app.__class__, 'DOC_MD', None)
@@ -46,23 +41,42 @@ class Admin(Blueprint):
             md = current_app.__class__.__doc__.replace('\n', ' ').strip()
         content = markdown.markdown(md, extensions=['fenced_code']) if md else ""
 
-        template = dedent(
-            """<style type="text/css">ul.nobull {list-style-type: none;}</style>
-            <ul class="nobull">{% for entry,route in routes.items() %}
-                <li>{{ entry }} : <ul>{% for method,info in route.items() %}
-                    <li><i>{{ method }}{{ info.signature }}[endpoint: {{info.endpoint}}]</i> : {{ info.doc }}
-                    <ul class="nobull">{% for param in info.params %}<li><i>{{ param }}</i>{% endfor %}</ul>
-                {% endfor %}</li></ul></li>
-            {% endfor %}</ul>"""
-        )
         routes = dict(sorted(self.get_route(blueprint="__all__").items()))
-        bottom = render_template_string(template, routes=routes)
-        content = header + '<hr/>' + content + '<hr/>' + bottom + '\n'
+        bottom = render_template_string(self.routes_template, routes=routes)
 
         headers = {
             "Content-Type": 'text/html; charset=utf-8'
         }
+        content = self.header_template + '<hr/>' + content + '<hr/>' + bottom + '\n'
         return content, 200, headers
+
+    @entry(no_auth=True, no_cors=True)
+    def get_schema(self, included: bool = False):
+        """Returns the list of schemas defined in the microservices.
+        """
+        id = current_app.name
+        schemas = [model for model in self.models]
+        attributes = {"schemas": schemas}
+        if included:
+            included = [Resource(id=name, type="JsonApiSchema", attributes={"schema": model.schema()})
+                        for name, model in self.models.items()]
+        else:
+            included = []
+        return TopLevel(data=Resource(id=id, type="JsonApiSchemas", attributes=attributes),
+                        included=included).model_dump_json()
+
+    @entry(no_auth=True, no_cors=True)
+    # @jsonapi(type)
+    def get__schema(self, model):
+        """Returns the JSON schemas of the model.
+
+        :param model: Model's name.
+       """
+        if model in self.models:
+            schema = self.models[model].schema()
+            return TopLevel(
+                data=Resource(id=model, type="JsonApiSchema", attributes={"schema": schema})).model_dump_json()
+        abort(404)
 
     @entry(stage="dev")
     def get_route(self, prefix=None, blueprint=None):
@@ -86,7 +100,7 @@ class Admin(Blueprint):
                     continue
 
             function_called = current_app.view_functions[rule.endpoint]
-            from_blueprint = getattr(function_called, '__CWS_FROM_BLUEPRINT')
+            from_blueprint = get_cws_annotations(function_called, '__CWS_FROM_BLUEPRINT')
 
             # Must return only blueprint routes
             if blueprint:
@@ -124,12 +138,12 @@ class Admin(Blueprint):
                 route[http_method] = {
                     'signature': get_signature(function_called),
                     'endpoint': rule.endpoint,
-                    'binary_headers': getattr(function_called, '__CWS_BINARY_HEADERS'),
-                    'no_auth': getattr(function_called, '__CWS_NO_AUTH'),
-                    'no_cors': getattr(function_called, '__CWS_NO_CORS'),
+                    'binary_headers': get_cws_annotations(function_called, '__CWS_BINARY_HEADERS'),
+                    'no_auth': get_cws_annotations(function_called, '__CWS_NO_AUTH'),
+                    'no_cors': get_cws_annotations(function_called, '__CWS_NO_CORS'),
                 }
 
-                from_blueprint = getattr(function_called, '__CWS_FROM_BLUEPRINT')
+                from_blueprint = get_cws_annotations(function_called, '__CWS_FROM_BLUEPRINT', None)
                 if from_blueprint:
                     route[http_method]['blueprint'] = from_blueprint
 
@@ -142,6 +156,32 @@ class Admin(Blueprint):
                         route[http_method]['params'] = docstring[1:]
 
         routes[rule.rule].update(route)
+
+    @property
+    def header_template(self):
+        deployed = os.getenv("CWS_DATETIME", None)
+        description = current_app.name
+        if deployed:
+            lambda_name = os.getenv("CWS_LAMBDA", description)
+            description = f"{lambda_name} deployed {deployed}"
+        return dedent(f"""<div style=\"display:flex;justify-content:space-between;\">
+            <span style=\"font-size:xx-large;font-weight:bold\">{current_app.__class__.__name__}</span>
+            <img style=\"margin-bottom:auto;width:100px;\"
+            src=\"https://github.com/gdoumenc/coworks/raw/dev/docs/img/coworks.png\"/>
+            </div><div style=\"display:flex;flex-direction:row-reverse;font-size:small;margin-top:5px;\">
+            {description}</div>""")
+
+    @property
+    def routes_template(self):
+        return dedent(
+            """<style type="text/css">ul.nobull {list-style-type: none;}</style>
+            <ul class="nobull">{% for entry,route in routes.items() %}
+                <li>{{ entry }} : <ul>{% for method,info in route.items() %}
+                    <li><i>{{ method }}{{ info.signature }}[endpoint: {{info.endpoint}}]</i> : {{ info.doc }}
+                    <ul class="nobull">{% for param in info.params %}<li><i>{{ param }}</i>{% endfor %}</ul>
+                {% endfor %}</li></ul></li>
+            {% endfor %}</ul>"""
+        )
 
 
 def get_signature(func):

@@ -1,7 +1,11 @@
+import os
+from unittest import mock
 from unittest.mock import Mock
 
-from flask import request, url_for
-from werkzeug.exceptions import MethodNotAllowed, InternalServerError
+from flask import request
+from flask import url_for
+from werkzeug.exceptions import Forbidden
+from werkzeug.exceptions import MethodNotAllowed
 from werkzeug.exceptions import NotFound
 from werkzeug.exceptions import UnprocessableEntity
 
@@ -29,27 +33,25 @@ class ErrorMS(TechMicroService):
         super().__init__()
         self.err = Mock()
 
-        @self.errorhandler(500)
+        @self.errorhandler(Forbidden.code)
         def handle(e):
             self.err(e)
             return "ok"
 
     @entry
     def get(self):
-        """Root access."""
         return "Error 404", 404
 
     @entry
     def get_exception(self):
-        """Root access."""
         return int("a")
 
     @entry
     def get_http_exception(self):
-        """Root access."""
-        raise InternalServerError()
+        raise Forbidden()
 
 
+@mock.patch.dict(os.environ, {"TOKEN": "token"})
 class TestClass:
     def test_request_arg(self, empty_aws_context):
         app = SimpleMS()

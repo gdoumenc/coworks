@@ -60,8 +60,8 @@ To add more elements, complete your first try with the following content:
 
 We have added a dedicated function ``token_authorizer`` to define an authorizer
 (see :ref:`auth` for more details on authorizer).
-For this simple try, the authorizer validates the request only if a token is defined on header with the ``token``
-as value.
+For this simple try, the authorizer validates the request only if a token is defined on header :
+``Authorization`` key with ``token`` as value.
 
 Then we have defined two entries on same path : ``GET`` and ``POST`` on root path.
 These enable reading and writing of our attribute ``value``.
@@ -104,7 +104,10 @@ Then, enter the following content:
 *Note* : `aws_xray_sdk` must be installed in your python environment or you will get an ``ImportError``.
 If you receive this error, follow the step above to install.
 
-Install a dotenv file (``.env``) with the token value defined in it.
+By default the token value should be defined in the ``TOKEN`` environment variable ; the simpliest way to declare it
+is to create a dotenv file (``.env``) in the project folder with this token value defined in it::
+
+    TOKEN=mytoken
 
 The ``Admin`` blueprint `adds several routes <https://coworks.readthedocs.io/en/master/tech.html#admin>`_ but
 for the purposes of this example we're interested in the root one (``/admin`` as prefixed):
@@ -113,7 +116,7 @@ for the purposes of this example we're interested in the root one (``/admin`` as
 
 We have also a WSGI middleware ``ProfilerMiddleware`` to profile the last request::
 
-	(project) $ curl -H "Authorization:token" http://127.0.0.1:5000/profile
+	(project) $ curl -H "Authorization:mytoken" http://127.0.0.1:5000/profile
     --------------------------------------------------------------------------------
     PATH: '/profile'
              441 function calls (436 primitive calls) in 0.001 seconds
@@ -126,7 +129,8 @@ We have also a WSGI middleware ``ProfilerMiddleware`` to profile the last reques
            11    0.000    0.000    0.000    0.000 /home/gdo/.local/share/virtualenvs/samples-G9jKBMQA/lib/python3.10/site-packages/werkzeug/local.py:308(__get__)
         ...
 
-And at last we have a CoWorks middleware to add `XRay traces <https://docs.aws.amazon.com/xray/latest/devguide/aws-xray.html>`_ (available only for deployed microservices).
+And at last we have a CoWorks middleware to add `XRay traces <https://docs.aws.amazon.com/xray/latest/devguide/aws-xray.html>`_
+(available only for deployed microservices).
 
 Deploy
 ------
@@ -134,7 +138,7 @@ Deploy
 And now we can upload the sources files to AWS S3 and apply predefined terraform planifications (options may be defined
 in project file to avoid given then on command line see :ref:`configuration` )::
 
-	(project) $ cws --app first deploy --bucket XXX --profile-name YYY --layers arn:aws:lambda:eu-west-1:935392763270:layer:coworks-ZZZ
+	(project) $ cws deploy --bucket XXX --profile-name YYY --layers arn:aws:lambda:eu-west-1:935392763270:layer:coworks-ZZZ
 	Terraform apply (Create API routes)
 	Terraform apply (Deploy API and Lambda for the dev stage)
 	terraform output :
@@ -148,8 +152,11 @@ in project file to avoid given then on command line see :ref:`configuration` )::
 
 Now we can test our first deployed microservice::
 
-	(project) $ curl -H "Authorization:token" https://xxxxxxxx.execute-api.eu-west-1.amazonaws.com/dev
+	(project) $ curl -H "Authorization:mytoken" https://xxxxxxxx.execute-api.eu-west-1.amazonaws.com/dev
 	Stored value 0.
 
 **Notice**: The deploy parameters can be defined once in the project configuration file (``project.cws.yml``)
+
+**Notice**: You can set the debug option of Flask to get more information on the deploy process
+(``FLASK_DEBUG=1 cws deploy``)
 

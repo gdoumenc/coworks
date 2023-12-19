@@ -61,11 +61,11 @@ class SimpleMS(TechMicroService):
         return f"get **param with only {value}"
 
     @entry
-    def get_kwparam2(self, value=0, **kwargs):
+    def get_kwparam2(self, value=0, **kwargs: dict):
         return f"get **param with {value} and {list(kwargs.keys())}"
 
     @entry
-    def put_kwparam2_(self, value=0, **kwargs):
+    def put_kwparam2(self, value=0, **kwargs):
         return f"get **param with {value} and {list(kwargs.keys())}"
 
     @entry

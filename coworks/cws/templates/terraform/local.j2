@@ -3,6 +3,6 @@
 # ---------------------------------------------------------------------------------------------------------------------
 
 locals {
-  {{ resource_name }}_security_group_ids = {{ security_groups | list | replace("'", '"') }}
-  {{ resource_name }}_subnet_ids = {{ subnets | list | replace("'", '"')}}
+  {{ ms_name }}_security_group_ids = {{ security_groups | list | replace("'", '"') }}
+  {{ ms_name }}_subnet_ids = {{ subnets | list | replace("'", '"')}}
 }

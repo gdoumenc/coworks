@@ -1,6 +1,5 @@
 import base64
 import datetime
-import json
 import os
 import re
 import secrets
@@ -10,6 +9,7 @@ import typing as t
 import boto3
 import requests
 from Crypto.Cipher import AES
+from flask import json
 from flask import current_app, request
 from werkzeug.exceptions import BadRequest
 from werkzeug.exceptions import Forbidden

@@ -1,9 +1,32 @@
+import platform
+import sys
 import typing as t
 from contextlib import contextmanager
 from threading import Thread
 from time import sleep
 
 import click
+
+from coworks.utils import get_app_stage
+
+
+def get_system_info():
+    from flask import __version__ as flask_version
+
+    flask_info = f"flask {flask_version}"
+    python_info = f"python {sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}"
+    platform_system = platform.system().lower()
+    platform_release = platform.release()
+    platform_info = f"{platform_system} {platform_release}"
+    return f"{flask_info}, {python_info}, {platform_info}"
+
+
+def show_stage_banner(stage='dev'):
+    click.secho(f" * Stage: {get_app_stage()}", fg="green")
+
+
+def show_terraform_banner(cloud, refresh):
+    click.secho(f" * Using terraform backend {'cloud' if cloud else 's3'} (refresh={refresh})", fg="green")
 
 
 class ProgressBar:
@@ -20,12 +43,12 @@ class ProgressBar:
         click.echo()
         self.bar.format_progress_line = swap
 
-    def update(self, msg: str = None):
+    def update(self, msg: str | None = None):
         if msg:
             self.echo(msg)
         self.bar.update(1)
 
-    def terminate(self, msg=None):
+    def terminate(self, msg: str | None = None):
         self.stop = True
         if self.spin_thread:
             self.spin_thread.join()
@@ -35,21 +58,15 @@ class ProgressBar:
             self.echo(msg)
 
 
-class DebugProgressBar():
+class DebugProgressBar:
 
-    def echo(self, msg):
+    def echo(self, msg: str):
         if msg:
             click.echo("==> " + msg)
 
-    def update(self, msg=None):
-        self.echo(msg)
 
-    def terminate(self, msg=None):
-        self.echo(msg)
-
-
-@contextmanager
-def progressbar(length=200, *, threaded=False, label: str = None) -> t.ContextManager[ProgressBar]:
+@contextmanager  # type: ignore[arg-type]
+def progressbar(length=200, *, label: str, threaded: bool = False) -> t.ContextManager[ProgressBar]: # type: ignore
     """Spinner progress bar.
     Creates it with a task label and updates it with progress messages using the 'update' function.
     """

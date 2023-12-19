@@ -1,5 +1,5 @@
+import importlib
 import os
-import sys
 import types
 import typing as t
 from contextlib import contextmanager
@@ -14,19 +14,16 @@ from click import UsageError
 from flask.cli import ScriptInfo
 
 from coworks import __version__
-from coworks.utils import DEFAULT_DEV_STAGE
 from coworks.utils import DEFAULT_PROJECT_DIR
 from coworks.utils import PROJECT_CONFIG_VERSION
 from coworks.utils import get_app_stage
-from coworks.utils import get_system_info
-from coworks.utils import import_attr
 from coworks.utils import load_dotenv
-from coworks.utils import show_stage_banner
 from .deploy import deploy_command
 from .deploy import deployed_command
 from .deploy import destroy_command
 from .new import new_command
-from .zip import zip_command
+from .utils import get_system_info
+from .utils import show_stage_banner
 
 
 class CwsScriptInfo(ScriptInfo):
@@ -54,7 +51,7 @@ class CwsScriptInfo(ScriptInfo):
         old_dir = os.getcwd()
         try:
             os.chdir(self.project_dir)
-        except OSError as e:
+        except OSError:
             if not ctx:
                 raise UsageError(f"Project dir {self.project_dir} not found.")
         finally:
@@ -72,42 +69,21 @@ def _set_stage(ctx, param, value):
         return value
 
 
-_stage_option = click.Option(
-    ["-S", "--stage"],
-    help=(
-        f"The CoWorks stage (default {DEFAULT_DEV_STAGE})."
-    ),
-    is_eager=True,
-    expose_value=False,
-    callback=_set_stage,
-)
-
-
 class CwsGroup(flask.cli.FlaskGroup):
 
     def __init__(self, add_default_commands=True, **extra):
         params = list(extra.pop("params", None) or ())
-        params.append(_stage_option)
         extra["add_version_option"] = False
         extra["load_dotenv"] = False
         super().__init__(params=params, **extra)
 
         if add_default_commands:
-            self.add_command(t.cast("Command", new_command))
-            self.add_command(t.cast("Command", deploy_command))
-            self.add_command(t.cast("Command", destroy_command))
-            self.add_command(t.cast("Command", deployed_command))
-            self.add_command(t.cast("Command", zip_command))
+            self.add_command(t.cast(click.Command, new_command))
+            self.add_command(t.cast(click.Command, deploy_command))
+            self.add_command(t.cast(click.Command, destroy_command))
+            self.add_command(t.cast(click.Command, deployed_command))
 
     def make_context(self, info_name, args, parent=None, **kwargs):
-
-        # Warning for deprecated options and echo stage
-        if "FLASK_ENV" in os.environ:
-            click.echo(
-                "\x1b[1m\x1b[31m'FLASK_ENV' is deprecated. Use 'CWS_STAGE' or '-S' option instead.\x1b[0m",
-                file=sys.stderr,
-            )
-
         # Get project infos
         script_info = CwsScriptInfo(create_app=self.create_app, set_debug_flag=self.set_debug_flag)
         if 'obj' not in kwargs:
@@ -131,7 +107,7 @@ class CwsGroup(flask.cli.FlaskGroup):
                         cmd_module, cmd_class = cmd_class_name.rsplit('.', 1)
                         try:
                             cmd = import_attr(cmd_module, cmd_class)
-                        except ModuleNotFoundError as e:
+                        except ModuleNotFoundError:
                             raise click.UsageError(f"Cannot load command {cmd_class!r} in module {cmd_module!r}.")
                     elif name in self.commands:
                         cmd = self.commands[name]
@@ -218,3 +194,12 @@ def overriden_run_banner():
 
 # Overrides run banner function to add stage value
 flask.cli.show_server_banner = overriden_run_banner()
+
+
+def import_attr(module, attr: str):
+    if not isinstance(attr, str):
+        raise AttributeError(f"{attr} is not a string.")
+    app_module = importlib.import_module(module)
+    if "PYTEST_CURRENT_TEST" in os.environ:
+        app_module = importlib.reload(app_module)
+    return getattr(app_module, attr)

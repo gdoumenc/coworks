@@ -2,6 +2,8 @@
 # OUTPUT
 # ---------------------------------------------------------------------------------------------------------------------
 
-output "{{ resource_name }}_id" {
-  value = terraform.workspace == "default" && local.{{ resource_name }}_when_default != 0 ? aws_api_gateway_rest_api.{{ resource_name }}[0].id : ""
+{% if stage == "common" %}
+output "{{ ms_name }}_id" {
+  value = aws_api_gateway_rest_api.{{ ms_name }}.id
 }
+{% endif %}

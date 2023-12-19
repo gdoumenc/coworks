@@ -5,3 +5,5 @@ boto3 >=1.26.20
 apache-airflow >=2.2.4
 apache-airflow-providers-amazon >=3.0.0
 python-dotenv >=0.21.0
+coworks >= 0.9.0
+

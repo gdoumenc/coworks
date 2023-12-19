@@ -1,15 +1,24 @@
 locals {
-  {{ resource_name }}_role_arn = join("", aws_iam_role.{{ resource_name }}_cws.*.arn, data.aws_iam_role.{{ resource_name }}_cws.*.arn)
+{% if stage != "common" %}
+  {{ ms_name }}_role_arn = data.aws_iam_role.{{ ms_name }}_cws.arn
+{% else %}
+  {{ ms_name }}_role_arn = aws_iam_role.{{ ms_name }}_cws.arn
+{% endif %}
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
 # ROLE
 # ---------------------------------------------------------------------------------------------------------------------
 
-resource "aws_iam_role" "{{ resource_name }}_cws" {
-  provider = aws.{{ resource_name }}
-  count = local.{{ resource_name }}_when_default
-  name = "{{ resource_name }}_cws_role"
+{% if stage != "common" %}
+data "aws_iam_role" "{{ ms_name }}_cws" {
+  provider = aws.{{ ms_name }}
+  name = "{{ ms_name }}_cws_role"
+}
+{% else %}
+resource "aws_iam_role" "{{ ms_name }}_cws" {
+  provider = aws.{{ ms_name }}
+  name = "{{ ms_name }}_cws_role"
 
   assume_role_policy = jsonencode({
     Version: "2012-10-17",
@@ -25,38 +34,29 @@ resource "aws_iam_role" "{{ resource_name }}_cws" {
    ]
   })
 }
-data "aws_iam_role" "{{ resource_name }}_cws" {
-  provider = aws.{{ resource_name }}
-  count = local.{{ resource_name }}_when_stage
-  name = "{{ resource_name }}_cws_role"
-}
 
-resource "aws_iam_role_policy_attachment" "{{ resource_name }}_s3" {
-  provider = aws.{{ resource_name }}
-  count = local.{{ resource_name }}_when_default
-  role = join("", aws_iam_role.{{ resource_name }}_cws.*.name)
+resource "aws_iam_role_policy_attachment" "{{ ms_name }}_s3" {
+  provider = aws.{{ ms_name }}
+  role = aws_iam_role.{{ ms_name }}_cws.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
 }
 
-resource "aws_iam_role_policy_attachment" "{{ resource_name }}_cloud_watch" {
-  provider = aws.{{ resource_name }}
-  count = local.{{ resource_name }}_when_default
-  role = join("", aws_iam_role.{{ resource_name }}_cws.*.name)
+resource "aws_iam_role_policy_attachment" "{{ ms_name }}_cloud_watch" {
+  provider = aws.{{ ms_name }}
+  role = aws_iam_role.{{ ms_name }}_cws.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
 }
 
-resource "aws_iam_role_policy_attachment" "{{ resource_name }}_xray" {
-  provider = aws.{{ resource_name }}
-  count = local.{{ resource_name }}_when_default
-  role = join("", aws_iam_role.{{ resource_name }}_cws.*.name)
+resource "aws_iam_role_policy_attachment" "{{ ms_name }}_xray" {
+  provider = aws.{{ ms_name }}
+  role = aws_iam_role.{{ ms_name }}_cws.name
   policy_arn = "arn:aws:iam::aws:policy/AWSXrayFullAccess"
 }
 
-resource "aws_iam_role_policy" "{{ resource_name }}_vpc" {
-  provider = aws.{{ resource_name }}
-  count = local.{{ resource_name }}_when_default
-  name = "{{ resource_name }}_vpc"
-  role = join("", aws_iam_role.{{ resource_name }}_cws.*.name)
+resource "aws_iam_role_policy" "{{ ms_name }}_vpc" {
+  provider = aws.{{ ms_name }}
+  name = "{{ ms_name }}_vpc"
+  role = aws_iam_role.{{ ms_name }}_cws.name
   policy = jsonencode({
     Version: "2012-10-17",
     Statement: [
@@ -72,26 +72,5 @@ resource "aws_iam_role_policy" "{{ resource_name }}_vpc" {
     ]
   })
 }
+{% endif %}
 
-data "aws_sqs_queue" "{{ resource_name }}_destination" {
-  provider = aws.{{ resource_name }}
-  count = local.{{ resource_name }}_when_default
-  name = "microservice-error-destination"
-}
-
-resource "aws_iam_role_policy" "{{ resource_name }}_destination" {
-  provider = aws.{{ resource_name }}
-  count = local.{{ resource_name }}_when_default
-  name = "{{ resource_name }}_destination"
-  role = join("", aws_iam_role.{{ resource_name }}_cws.*.name)
-  policy = jsonencode({
-    Version: "2012-10-17",
-    Statement: [
-      {
-        Effect: "Allow",
-        Action: "sqs:SendMessage",
-        Resource: data.aws_sqs_queue.{{ resource_name }}_destination[0].arn
-      }
-    ]
-  })
-}
