@@ -1,9 +1,9 @@
 locals {
-{%- if stage != "common" %}
+{% if stage != "common" %}
   {{ ms_name }}_role_arn = data.aws_iam_role.{{ ms_name }}_cws.arn
-{%- else %}
+{% else %}
   {{ ms_name }}_role_arn = aws_iam_role.{{ ms_name }}_cws.arn
-{%- endif %}
+{% endif %}
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -15,7 +15,7 @@ data "aws_iam_role" "{{ ms_name }}_cws" {
   provider = aws.{{ ms_name }}
   name = "{{ ms_name }}_cws_role"
 }
-{%- else %}
+{% else %}
 resource "aws_iam_role" "{{ ms_name }}_cws" {
   provider = aws.{{ ms_name }}
   name = "{{ ms_name }}_cws_role"
@@ -71,27 +71,6 @@ resource "aws_iam_role_policy" "{{ ms_name }}_vpc" {
       }
     ]
   })
-}
-
-resource "aws_iam_role_policy" "{{ ms_name }}_destination" {
-  provider = aws.{{ ms_name }}
-  name = "{{ ms_name }}_destination"
-  role = aws_iam_role.{{ ms_name }}_cws.name
-  policy = jsonencode({
-    Version: "2012-10-17",
-    Statement: [
-      {
-        Effect: "Allow",
-        Action: "sqs:SendMessage",
-        Resource: data.aws_sqs_queue.{{ ms_name }}_destination.arn
-      }
-    ]
-  })
-}
-
-data "aws_sqs_queue" "{{ ms_name }}_destination" {
-  provider = aws.{{ ms_name }}
-  name = "microservice-error-destination"
 }
 {% endif %}
 

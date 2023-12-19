@@ -61,7 +61,7 @@ class TestClass:
             assert response.status_code == 200
 
             response = c.post('/', json={'i': 'abc'})
-            assert response.status_code == 400
+            assert response.status_code == 422
 
     def test_bool(self):
         app = TypedMS()
@@ -99,6 +99,7 @@ class TestClass:
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "false"
 
+
     def test_union_type(self):
         app = TypedMS()
 
@@ -107,10 +108,10 @@ class TestClass:
             assert response.status_code == 200
 
             response = c.get('/union?i=1&i=2')
-            assert response.status_code == 400
+            assert response.status_code == 422
 
             response = c.get('/union?i=abc')
-            assert response.status_code == 400
+            assert response.status_code == 422
 
     def test_list_type(self):
         app = TypedMS()
@@ -123,4 +124,4 @@ class TestClass:
             assert response.status_code == 200
 
             response = c.get('/list?i=abc')
-            assert response.status_code == 400
+            assert response.status_code == 422

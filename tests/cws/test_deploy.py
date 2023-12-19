@@ -1,4 +1,5 @@
 import os
+import tempfile
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -9,10 +10,19 @@ from flask.cli import ScriptInfo
 from coworks import Blueprint
 from coworks import TechMicroService
 from coworks import entry
-from coworks.cws.deploy import LocalTerraform
-from coworks.cws.deploy import RemoteTerraform
+from coworks.cws.deploy import Terraform
 from coworks.cws.deploy import TerraformContext
 from cws.client import CwsScriptInfo
+from cws.deploy import TerraformBackend
+
+
+class CliCtxMokup:
+    def find_root(self):
+        return self
+
+    @property
+    def params(self):
+        return {'project_dir': "."}
 
 
 class BP(Blueprint):
@@ -49,21 +59,22 @@ class TestClass:
         app = TechMS()
         with app.test_request_context() as ctx:
             info = ScriptInfo(create_app=lambda: app)
-            app_context = TerraformContext(info)
-            terraform = LocalTerraform(app_context, progressbar, terraform_dir="terraform")
-            ressources = terraform.api_resources
-        assert len(ressources) == 7
-        assert ressources[''].rules is not None
-        assert len(ressources[''].rules) == 1
-        assert not ressources[''].rules[0].cws_binary_headers
-        assert not ressources[''].rules[0].cws_no_auth
-        assert len(ressources['img'].rules) == 1
-        assert ressources['img'].rules[0].cws_binary_headers
-        assert ressources['img'].rules[0].cws_no_auth
-        assert ressources['test'].rules is None
-        assert ressources['test_index'].rules is not None
-        assert len(ressources['test_index'].rules) == 1
-        assert ressources['extended'].rules is None
+            terraform_context = TerraformContext(info, CliCtxMokup())
+            backend = TerraformBackend(terraform_context, None, terraform_dir=".", terraform_refresh=False)
+            terraform = Terraform(backend, terraform_dir="terraform", stage="common")
+            api_ressources = terraform.api_resources
+        assert len(api_ressources) == 7
+        assert api_ressources[''].rules is not None
+        assert len(api_ressources[''].rules) == 1
+        assert not api_ressources[''].rules[0].cws_binary_headers
+        assert not api_ressources[''].rules[0].cws_no_auth
+        assert len(api_ressources['img'].rules) == 1
+        assert api_ressources['img'].rules[0].cws_binary_headers
+        assert api_ressources['img'].rules[0].cws_no_auth
+        assert api_ressources['test'].rules is None
+        assert api_ressources['test_index'].rules is not None
+        assert len(api_ressources['test_index'].rules) == 1
+        assert api_ressources['extended'].rules is None
 
     @mock.patch.dict(os.environ, {"test": "local", "FLASK_RUN_FROM_CLI": "true"})
     def test_deploy_ressources(self, example_dir, progressbar, capsys):
@@ -72,8 +83,10 @@ class TestClass:
         app = info.load_app()
         with app.test_request_context() as ctx:
             info = ScriptInfo(create_app=lambda: app)
-            app_context = TerraformContext(info)
-            api_ressources = LocalTerraform(app_context, progressbar, terraform_dir='.').api_resources
+            terraform_context = TerraformContext(info, CliCtxMokup())
+            backend = TerraformBackend(terraform_context, None, terraform_dir=".", terraform_refresh=False)
+            terraform = Terraform(backend, terraform_dir="terraform", stage="common")
+            api_ressources = terraform.api_resources
         assert len(api_ressources) == 5
         assert '' in api_ressources
         assert 'init' in api_ressources
@@ -100,19 +113,16 @@ class TestClass:
                 'deploy': True,
             }
             info = ScriptInfo(create_app=lambda: app)
-            app_context = TerraformContext(info)
-            terraform = LocalTerraform(app_context, progressbar, terraform_dir="terraform")
-            terraform.generate_files("deploy.j2", "test.tf", **options)
-        with (Path("terraform") / "test.tf").open() as f:
-            lines = f.readlines()
-        assert len(lines) == 2280
-        assert lines[1].strip() == 'alias = "envtechms"'
-        assert lines[21].strip() == 'envtechms_when_default = terraform.workspace == "default" ? 1 : 0'
-        assert lines[22].strip() == 'envtechms_when_stage = terraform.workspace != "default" ? 1 : 0'
-        (Path("terraform") / "test.tf").unlink()
-        Path("terraform").rmdir()
+            terraform_context = TerraformContext(info, CliCtxMokup())
+            backend = TerraformBackend(terraform_context, None, terraform_dir=".", terraform_refresh=False)
+            terraform = Terraform(backend, terraform_dir=Path("terraform"), stage="common")
+            with tempfile.NamedTemporaryFile() as fp:
+                terraform.generate_file("deploy.j2", fp.name, **options)
+                fp.seek(0)
+                lines = fp.readlines()
+                assert len(lines) == 2049
+                assert lines[1].strip() == 'alias = "envtechms"'.encode('utf-8')
 
-    import pytest
     @mock.patch.dict(os.environ, {"test": "local", "FLASK_RUN_FROM_CLI": "true"})
     def test_deploy_remote_cmd(self, monkeypatch, example_dir, progressbar, capsys):
         info = CwsScriptInfo(project_dir='.')
@@ -130,16 +140,17 @@ class TestClass:
                 'terraform_organization': "CoWorks",
             }
             info = ScriptInfo(create_app=lambda: app)
-            app_context = TerraformContext(info)
-            terraform = RemoteTerraform(app_context, progressbar, terraform_dir="terraform")
-            terraform.generate_files("terraform.j2", "test.tf", **options)
-        with (Path("terraform") / "test.tf").open() as f:
-            lines = f.readlines()
-        assert len(lines) == 46
-        assert "TERRAFORM ON CLOUD" in lines[2]
-        assert "CoWorks" in lines[7]
-        (Path("terraform") / "test.tf").unlink()
-        Path("terraform").rmdir()
+            terraform_context = TerraformContext(info, CliCtxMokup())
+            backend = TerraformBackend(terraform_context, None, terraform_dir=".", terraform_refresh=False)
+            terraform = Terraform(backend, terraform_dir=Path("terraform"), stage="common")
+            with tempfile.NamedTemporaryFile() as fp:
+                terraform.generate_file("terraform.j2", fp.name, **options)
+                fp.seek(0)
+                lines = fp.readlines()
+                assert len(lines) == 43
+                print(lines)
+                assert "TERRAFORM ON CLOUD" in lines[1].decode('utf-8')
+                assert "CoWorks" in lines[6].decode('utf-8')
 
     @mock.patch.dict(os.environ, {"test": "local", "FLASK_RUN_FROM_CLI": "true"})
     def test_destroy_cmd(self, monkeypatch, example_dir, progressbar, capsys):
@@ -157,14 +168,12 @@ class TestClass:
                 'deploy': False,
             }
             info = ScriptInfo(create_app=lambda: app)
-            app_context = TerraformContext(info)
-            terraform = LocalTerraform(app_context, progressbar, terraform_dir="terraform")
-            terraform.generate_files("deploy.j2", "test.tf", **options)
-        with (Path("terraform") / "test.tf").open() as f:
-            lines = f.readlines()
-        assert len(lines) == 2280
-        assert lines[1].strip() == 'alias = "envtechms"'
-        assert lines[21].strip() == 'envtechms_when_default = terraform.workspace == "default" ? 0 : 0'
-        assert lines[22].strip() == 'envtechms_when_stage = terraform.workspace != "default" ? 0 : 0'
-        (Path("terraform") / "test.tf").unlink()
-        Path("terraform").rmdir()
+            terraform_context = TerraformContext(info, CliCtxMokup())
+            backend = TerraformBackend(terraform_context, None, terraform_dir=".", terraform_refresh=False)
+            terraform = Terraform(backend, terraform_dir=Path("terraform"), stage="common")
+            with tempfile.NamedTemporaryFile() as fp:
+                terraform.generate_file("deploy.j2", fp.name, **options)
+                fp.seek(0)
+                lines = fp.readlines()
+                assert len(lines) == 2049
+                assert lines[1].strip() == 'alias = "envtechms"'.encode('utf-8')

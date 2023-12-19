@@ -76,20 +76,13 @@ class TechMicroServiceOperator(BaseOperator):
         self.raise_errors = raise_errors
         self.raise_400_errors = raise_400_errors
         self.multiple_outputs_transformer = multiple_outputs_transformer
-        self._url = self._bucket = self._key = None
-
-        if not self.cws_name and not self.api_id:
-            raise AirflowFailException(f"The APIGateway id must be defined! (param 'api_id')")
-        if not no_auth and not self.cws_name and not self.token:
-            raise AirflowFailException(f"The authorization token id must be defined! (param 'token')")
+        self._accept = accept
+        self._url = self._bucket = self._key = self._headers = None
 
         # Creates header
-        self.headers = {
-            'Content-Type': "application/json",
-            'Accept': accept,
-        }
+        self._headers = self.headers
         if headers:
-            self.headers.update(headers)
+            self._headers.update(headers)
 
     def pre_execute(self, context):
         """Gets url and token from name or parameters.
@@ -99,7 +92,7 @@ class TechMicroServiceOperator(BaseOperator):
         dag_run = context['dag_run']
         start_date = dag_run.start_date.timestamp()
         trace_id = f"Root=1-{hex(int(start_date))[2:]}-{f'cws{dag_run.id:0>9}'.encode().hex()}"
-        self.headers['x-amzn-trace-id'] = trace_id
+        self._headers['x-amzn-trace-id'] = trace_id
         self.log.info(f"Cws trace: {trace_id}")
 
         if self.cws_name:
@@ -111,20 +104,20 @@ class TechMicroServiceOperator(BaseOperator):
             self.token = coworks_data['token']
             self._url = f"{coworks_data['url']}/{self.entry}"
         else:
-            self._url = f'https://{self.api_id}.execute-api.eu-west-1.amazonaws.com/{self.stage}/{self.entry}'
+            self._url = self.url
 
         if self.asynchronous:
             ti = context['ti']
             self._bucket = 'coworks-airflow'
             self._key = f"s3/{dag_run.dag_id}/{ti.task_id}/{ti.job_id}"
 
-            self.headers['InvocationType'] = 'Event'
-            self.headers['X-CWS-S3Bucket'] = self._bucket
-            self.headers['X-CWS-S3Key'] = self._key
+            self._headers['InvocationType'] = 'Event'
+            self._headers['X-CWS-S3Bucket'] = self._bucket
+            self._headers['X-CWS-S3Key'] = self._key
             self.log.info(f"Result stored in 's3://{self._bucket}/{self._key}'")
 
         if not self.no_auth:
-            self.headers['Authorization'] = self.token
+            self._headers['Authorization'] = self.token
 
     def execute(self, context):
         """Call TechMicroService.
@@ -143,11 +136,24 @@ class TechMicroServiceOperator(BaseOperator):
         if self.xcom_push_flag:
             self._push_response(context, resp)
 
+    @property
+    def url(self):
+        """Default url construction."""
+        return f'https://{self.api_id}.execute-api.eu-west-1.amazonaws.com/{self.stage}/{self.entry}'
+
+    @property
+    def headers(self):
+        """Default headers values."""
+        return {
+            'Content-Type': "application/json",
+            'Accept': self._accept,
+        }
+
     def _call_cws(self, context):
         """Method used by operator and sensor."""
         self.log.info(f"Calling {self.method.upper()} method to {self._url}")
         resp = requests.request(
-            self.method.upper(), self._url, headers=self.headers,
+            self.method.upper(), self._url, headers=self._headers,
             params=self.query_params, json=self.json, data=self.data
         )
         self.log.info(f"Resulting status code : {resp.status_code}")
@@ -266,3 +272,23 @@ class BranchTechMicroServiceOperator(BaseBranchOperator):
             if self.response_check(text):
                 return self.on_check
         return self.on_success
+
+
+class NeoRezoServiceOperator(TechMicroServiceOperator):
+
+    def __init__(self, *, module: str = None, service: str = None, accept: str = 'application/vnd.api+json', **kwargs):
+        super().__init__(accept=accept, **kwargs)
+        self._module = module
+        self._service = service
+
+    @property
+    def url(self):
+        return f'https://jsonapi.neorezo.io/{self._module}/{self._service}/{self.entry}'
+
+    @property
+    def headers(self):
+        return {
+            'Content-Type': "application/json",
+            'Accept': self._accept,
+            'X-JSONAPI-TOKEN': "notdefined"
+        }

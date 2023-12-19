@@ -1,4 +1,3 @@
-import base64
 import os
 from unittest import mock
 
@@ -40,7 +39,7 @@ class ContentMS(TechMicroService):
         return b"test"
 
 
-@mock.patch.dict(os.environ, {"CWS_STAGE": "local"})
+@mock.patch.dict(os.environ, {"TOKEN": "token"})
 class TestClass:
     def test_default_content_type(self):
         app = ContentMS()

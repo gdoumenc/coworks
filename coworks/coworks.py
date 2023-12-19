@@ -1,5 +1,5 @@
 import base64
-import boto3
+import inspect
 import io
 import itertools
 import logging
@@ -7,16 +7,18 @@ import os
 import sys
 import traceback
 import typing as t
+from functools import partial
+from functools import reduce
+from inspect import isfunction
+from pathlib import Path
+
+import boto3
 from flask import Blueprint as FlaskBlueprint
 from flask import Flask
 from flask import current_app
 from flask import json
 from flask.blueprints import BlueprintSetupState
 from flask.testing import FlaskClient
-from functools import partial
-from functools import reduce
-from inspect import isfunction
-from pathlib import Path
 from werkzeug.datastructures import ImmutableDict
 from werkzeug.datastructures import MultiDict
 from werkzeug.datastructures import WWWAuthenticate
@@ -28,11 +30,15 @@ from werkzeug.routing import Rule
 from .globals import request
 from .utils import BIZ_BUCKET_HEADER_KEY
 from .utils import BIZ_KEY_HEADER_KEY
-from .utils import DEFAULT_LOCAL_STAGE
 from .utils import HTTP_METHODS
-from .utils import add_coworks_routes
+from .utils import create_cws_proxy
 from .utils import get_app_stage
+from .utils import get_cws_annotations
+from .utils import is_arg_parameter
+from .utils import is_kwarg_parameter
 from .utils import load_dotenv
+from .utils import make_absolute
+from .utils import path_join
 from .utils import trim_underscores
 from .wrappers import CoworksMapAdapter
 from .wrappers import CoworksRequest
@@ -45,8 +51,8 @@ from .wrappers import TokenResponse
 #
 
 
-def entry(fun: t.Callable = None, binary_headers: t.Dict[str, str] = None,
-          stage: t.Union[str, t.Iterable[str]] = None,
+def entry(fun: t.Callable | None = None, binary_headers: t.Dict[str, str] | None = None,
+          stage: str | t.Iterable[str] | None = None,
           no_auth: bool = False, no_cors: bool = True) -> t.Callable:
     """Decorator to create a microservice entry point from function name.
 
@@ -78,12 +84,12 @@ def entry(fun: t.Callable = None, binary_headers: t.Dict[str, str] = None,
 
     stage = [] if stage is None else stage
 
-    fun.__CWS_METHOD = method
-    fun.__CWS_PATH = path
-    fun.__CWS_BINARY_HEADERS = binary_headers
-    fun.__CWS_NO_AUTH = no_auth
-    fun.__CWS_STAGES = stage if type(stage) == list else [stage]
-    fun.__CWS_NO_CORS = no_cors
+    fun.__CWS_METHOD = method  # type: ignore[attr-defined]
+    fun.__CWS_PATH = path  # type: ignore[attr-defined]
+    fun.__CWS_BINARY_HEADERS = binary_headers  # type: ignore[attr-defined]
+    fun.__CWS_NO_AUTH = no_auth  # type: ignore[attr-defined]
+    fun.__CWS_STAGES = stage if isinstance(stage, list) else [stage]  # type: ignore[attr-defined]
+    fun.__CWS_NO_CORS = no_cors  # type: ignore[attr-defined]
 
     return fun
 
@@ -99,19 +105,18 @@ class CoworksClient(FlaskClient):
     def __init__(self, *args: t.Any, aws_event=None, aws_context=None, **kwargs: t.Any) -> None:
         super().__init__(*args, **kwargs)
 
-        path_info = aws_event['path']
-        headers = aws_event['headers']
+        headers: dict = aws_event['headers']
         request_context = aws_event['requestContext']
 
-        method = request_context['httpMethod']
-        scheme = headers['x-forwarded-proto']
-        host_name = headers['x-forwarded-host'] if 'x-forwarded-host' in headers else request_context['domainName']
-        entry_path = request_context['entryPath']
-        stage = request_context['stage']
-        entry_path_parameters = aws_event['entryPathParameters']
-        query_string = MultiDict(aws_event['multiValueQueryStringParameters'])
+        method: str = request_context['httpMethod']
+        scheme: str = headers.get('x-forwarded-proto', "https")
+        host_name: str = headers['x-forwarded-host'] if 'x-forwarded-host' in headers else request_context['domainName']
+        entry_path: str = request_context['entryPath']
+        stage: str = request_context['stage']
+        entry_path_parameters: dict = aws_event['entryPathParameters']
+        query_string: dict = MultiDict(aws_event['multiValueQueryStringParameters'])
 
-        is_encoded = aws_event.get('isBase64Encoded', False)
+        is_encoded: bool = aws_event.get('isBase64Encoded', False)
         body = aws_event['body']
         if body and is_encoded:
             body = base64.b64decode(body)
@@ -133,7 +138,7 @@ class CoworksClient(FlaskClient):
             'aws_body': body,
         }
 
-    def open(self, *args, **kwargs) -> CoworksResponse:
+    def open(self, *args, **kwargs) -> CoworksResponse:  # type: ignore[override]
         req = CoworksRequest(self.aws_environ, populate_request=False, shallow=True)
         return t.cast(CoworksResponse, super().open(req))
 
@@ -147,7 +152,7 @@ class Blueprint(FlaskBlueprint):
     See :ref:`Blueprint <blueprint>` for more information.
     """
 
-    def __init__(self, name: str = None, **kwargs):
+    def __init__(self, name: str | None = None, **kwargs):
         """Initialize a blueprint.
 
         :param kwargs: Other Flask blueprint parameters.
@@ -173,7 +178,7 @@ class Blueprint(FlaskBlueprint):
 
         # Defer blueprint route initialization.
         if not options.get('hide_routes', False):
-            func = partial(add_coworks_routes, state.app, state)
+            func = partial(TechMicroService.add_coworks_routes, state.app, state)
             app.deferred_init_routes_functions = itertools.chain(app.deferred_init_routes_functions, (func,))
 
         return state
@@ -191,7 +196,7 @@ class TechMicroService(Flask):
     # Maximume content length for writing response content in debug
     size_max_for_debug = 2000
 
-    def __init__(self, name: str = None, stage_prefixed: bool = True, **kwargs) -> None:
+    def __init__(self, name: str | None = None, stage_prefixed: bool = True, **kwargs) -> None:
         """ Initialize a technical microservice.
         :param name: Name used to identify the microservice.
         :param stage_prefixed: if accessed with stage or not.
@@ -208,8 +213,8 @@ class TechMicroService(Flask):
         name = name or self.__class__.__name__.lower()
         super().__init__(import_name=name, static_folder=None, **kwargs)
 
-        self.request_class = CoworksRequest
-        self.response_class = CoworksResponse
+        self.request_class: t.Type[CoworksRequest] = CoworksRequest
+        self.response_class: t.Type[CoworksResponse] = CoworksResponse
 
         self.deferred_init_routes_functions: t.Iterable[t.Callable] = []
         self._cws_app_initialized = False
@@ -251,6 +256,17 @@ class TechMicroService(Flask):
         """CoWorks client used by the lambda call.
         """
         return CoworksClient(self, CoworksResponse, use_cookies=True, aws_event=aws_event, aws_context=aws_context)
+
+    @property
+    def autorizer_identity_source(self):
+        """The identity source for which authorization is requested usefull only on local.
+        Usually defined in API GAateway Authorizer resource."""
+        return request.headers.get('Authorization')
+
+    @property
+    def in_lambda_context(self):
+        """Defined as a property to be read only."""
+        return self._in_lambda_context
 
     @property
     def aws_url_map(self) -> t.Dict[str, t.List[Rule]]:
@@ -300,7 +316,7 @@ class TechMicroService(Flask):
             bucket = request_headers.get(self.config['X-CWS-S3Bucket'].lower())
             key = request_headers.get(self.config['X-CWS-S3Key'].lower())
             if bucket and key:
-                content = json.dumps(resp).encode() if type(resp) is dict else resp
+                content = json.dumps(resp).encode() if isinstance(resp, dict) else resp
                 buffer = io.BytesIO(content)
                 buffer.seek(0)
                 aws_s3_session = boto3.session.Session()
@@ -315,8 +331,9 @@ class TechMicroService(Flask):
         """Finalize the app initialization.
         """
         if not self._cws_app_initialized:
+            self._in_lambda_context = in_lambda
             self._update_config(in_lambda=in_lambda)
-            add_coworks_routes(self)
+            self.add_coworks_routes()
             for fun in self.deferred_init_routes_functions:
                 fun()
 
@@ -356,8 +373,7 @@ class TechMicroService(Flask):
             self.logger.warning(f"Token authorizer return is : {res}")
             return TokenResponse(res, aws_event['methodArn']).json
         except Exception as e:
-            self.logger.error(f"Error in token handler for {self.name} : {e}")
-            self.logger.error(getattr(e, '__traceback__'))
+            self.full_logger_error(e)
             return TokenResponse(False, aws_event['methodArn']).json
 
     def _api_handler(
@@ -380,7 +396,7 @@ class TechMicroService(Flask):
                     self.store_response(resp, aws_event['headers'])
 
                 # Encodes binary content
-                if type(resp) is not dict:
+                if not isinstance(resp, dict):
                     resp = base64.b64encode(resp).decode('ascii')
                     content_length = len(resp) if self.logger.getEffectiveLevel() == logging.DEBUG else "N/A"
                     self.logger.warning(f"API returns binary content [length: {content_length}]")
@@ -393,12 +409,7 @@ class TechMicroService(Flask):
                 return resp
 
         except Exception as e:
-            self.logger.error(f"Exception in api handler for {self.name} : {e}")
-            parts = ["Traceback (most recent call last):\n"]
-            parts.extend(traceback.format_stack(limit=15)[:-2])
-            parts.extend(traceback.format_exception(*sys.exc_info())[1:])
-            trace = reduce(lambda x, y: x+y, parts, "")
-            self.logger.error(f"Traceback: {trace}")
+            self.full_logger_error(e)
             headers = {'content_type': "application/json"}
             return self._aws_payload(str(e), InternalServerError.code, headers)
 
@@ -409,8 +420,6 @@ class TechMicroService(Flask):
 
     def _update_config(self, *, in_lambda: bool):
         if not self._cws_conf_updated:
-            workspace = get_app_stage()
-
             # Set predefined environment variables
             self.config['X-CWS-S3Bucket'] = BIZ_BUCKET_HEADER_KEY
             self.config['X-CWS-S3Key'] = BIZ_KEY_HEADER_KEY
@@ -419,22 +428,18 @@ class TechMicroService(Flask):
 
     def _check_token(self):
         """Simulates the authorization process of lambda if not in lambda context."""
-        if not request.in_lambda_context:
-
-            # No token check on local
-            if get_app_stage() == DEFAULT_LOCAL_STAGE:
-                return
+        if not self.in_lambda_context:
 
             # Get no_auth option for this entry
             no_auth = False
             if request.url_rule:
                 view_function = self.view_functions.get(request.url_rule.endpoint, None)
                 if view_function:
-                    no_auth = getattr(view_function, '__CWS_NO_AUTH', False)
+                    no_auth = get_cws_annotations(view_function, '__CWS_NO_AUTH', False)
 
             # Checks token if authorization needed
             if not no_auth:
-                token = request.headers.get('Authorization')
+                token = self.autorizer_identity_source
                 if token is None:
                     raise Unauthorized(www_authenticate=WWWAuthenticate(auth_type="basic"))
                 try:
@@ -476,3 +481,71 @@ class TechMicroService(Flask):
             "body": body,
             "isBase64Encoded": False,
         }
+
+    def full_logger_error(self, error):
+        if self.debug:
+            if not request.in_lambda_context:
+                raise
+            self.logger.error(f"Exception in {self.name} : {error}")
+            parts = ["Traceback (most recent call last):\n"]
+            parts.extend(traceback.format_stack(limit=15)[:-2])
+            parts.extend(traceback.format_exception(*sys.exc_info())[1:])
+            trace = reduce(lambda x, y: x + y, parts, "")
+            self.logger.error(f"Traceback: {trace}")
+
+    def add_coworks_routes(self, bp_state: BlueprintSetupState | None = None) -> None:
+        """ Creates all routes for a microservice.
+
+        :param app: The app microservice.
+        :param bp_state: The blueprint state.
+        """
+
+        # Adds entrypoints
+        stage = get_app_stage()
+        scaffold = bp_state.blueprint if bp_state else self
+        method_members = inspect.getmembers(scaffold.__class__, lambda x: inspect.isfunction(x))
+        methods = [fun for _, fun in method_members if get_cws_annotations(fun, '__CWS_METHOD')]
+        for fun in methods:
+
+            # the entry is not defined for this stage
+            stages = get_cws_annotations(fun, '__CWS_STAGES')
+            if stages and stage not in stages:
+                continue
+
+            method = get_cws_annotations(fun, '__CWS_METHOD')
+            entry_path = path_join(get_cws_annotations(fun, '__CWS_PATH'))
+
+            # Get parameters
+            sig = inspect.signature(fun)
+            param_names = list(sig.parameters.keys())[1:]  # skip self parameter
+            generic_kwargs = None
+            if len(param_names) > 0:
+                last_param_name = param_names[-1]
+                last_param = sig.parameters[param_names[-1]]
+                if last_param.kind == last_param.VAR_KEYWORD:
+                    generic_kwargs = last_param_name
+                    param_names = param_names[:-1]
+            args = [n for n in param_names if is_arg_parameter(sig.parameters[n])]
+            for index, arg in enumerate(args):
+                entry_path = path_join(entry_path, f"/<{arg}>")
+            kwargs = {n: sig.parameters[n] for n in param_names if is_kwarg_parameter(sig.parameters[n])}
+
+            proxy = create_cws_proxy(scaffold, fun, args, kwargs, generic_kwargs)
+            proxy.__CWS_BINARY_HEADERS = get_cws_annotations(fun, '__CWS_BINARY_HEADERS')
+            proxy.__CWS_NO_AUTH = get_cws_annotations(fun, '__CWS_NO_AUTH')
+            proxy.__CWS_NO_CORS = get_cws_annotations(fun, '__CWS_NO_CORS')
+            fun.__CWS_FROM_BLUEPRINT = bp_state.blueprint.name if bp_state else None
+
+            prefix = f"{bp_state.blueprint.name}." if bp_state else ''
+            endpoint = f"{prefix}{fun.__name__}"
+
+            # Creates the entry
+            url_prefix = bp_state.url_prefix if bp_state else None
+            rule = make_absolute(entry_path, url_prefix)
+            for r in self.url_map.iter_rules():
+                if r.rule == rule and method in (r.methods or []):
+                    raise AssertionError(f"Duplicate route {rule}")
+            try:
+                self.add_url_rule(rule=rule, view_func=proxy, methods=[method], endpoint=endpoint, strict_slashes=False)
+            except AssertionError:
+                raise

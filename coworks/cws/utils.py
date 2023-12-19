@@ -43,12 +43,12 @@ class ProgressBar:
         click.echo()
         self.bar.format_progress_line = swap
 
-    def update(self, msg: str = None):
+    def update(self, msg: str | None = None):
         if msg:
             self.echo(msg)
         self.bar.update(1)
 
-    def terminate(self, msg=None):
+    def terminate(self, msg: str | None = None):
         self.stop = True
         if self.spin_thread:
             self.spin_thread.join()
@@ -60,19 +60,13 @@ class ProgressBar:
 
 class DebugProgressBar:
 
-    def echo(self, msg):
+    def echo(self, msg: str):
         if msg:
             click.echo("==> " + msg)
 
-    def update(self, msg=None):
-        self.echo(msg)
 
-    def terminate(self, msg=None):
-        self.echo(msg)
-
-
-@contextmanager
-def progressbar(length=200, *, threaded=False, label: str = None) -> t.ContextManager[ProgressBar]:
+@contextmanager  # type: ignore[arg-type]
+def progressbar(length=200, *, label: str, threaded: bool = False) -> t.ContextManager[ProgressBar]: # type: ignore
     """Spinner progress bar.
     Creates it with a task label and updates it with progress messages using the 'update' function.
     """

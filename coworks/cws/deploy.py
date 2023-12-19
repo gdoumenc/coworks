@@ -34,6 +34,7 @@ from werkzeug.routing import Rule
 from coworks import aws
 from coworks.utils import get_app_stage
 from coworks.utils import get_env_filenames
+from coworks.utils import get_cws_annotations
 from .command import CwsCommand
 from .utils import progressbar
 from .utils import show_stage_banner
@@ -44,8 +45,9 @@ UID_SEP = '_'
 
 class TerraformContext:
 
-    def __init__(self, info):
+    def __init__(self, info, ctx):
         self.app = info.load_app()
+        self.ctx = ctx
 
         # Transform flask app import path into module import path
         if info.app_import_path and '/' in info.app_import_path:
@@ -96,21 +98,31 @@ class Terraform:
     """Terraform class to manage local terraform commands."""
     TIMEOUT = 600
 
-    def __init__(self, app_context: TerraformContext, bar, terraform_dir, refresh, stage="common"):
-        self.app_context = app_context
-        self.bar = bar
-        self.terraform_dir = Path(terraform_dir)
-        self.refresh = refresh
+    def __init__(self, backend: 'TerraformBackend', terraform_dir, stage):
+        self.terraform_context = backend.terraform_context
+        self.app_context = backend.terraform_context
+        self.bar = backend.bar
+        self.terraform_dir = terraform_dir
+        self.refresh = backend.terraform_refresh
         self.stage = stage
+        self.working_dir = Path(backend.terraform_context.ctx.find_root().params.get('project_dir'))
 
     def init(self):
         self._execute(['init', '-input=false'])
 
     def apply(self) -> None:
-        cmd = ['apply', '-auto-approve', '-parallelism=1']
-        if not self.refresh:
-            cmd.append('-refresh=false')
-        self._execute(cmd)
+        """Executes terraform apply command."""
+        try:
+            cmd = ['apply', '-auto-approve', '-parallelism=1']
+            if not self.refresh:
+                cmd.append('-refresh=false')
+            self._execute(cmd)
+        except ExecError:
+            # on cloud parallelism options is not available
+            cmd = ['apply', '-auto-approve']
+            if not self.refresh:
+                cmd.append('-refresh=false')
+            self._execute(cmd)
 
     def output(self):
         values = self._execute(['output']).stdout
@@ -128,9 +140,9 @@ class Terraform:
             resource = TerraformResource(previous, path)
             if rule_:
                 view_function = self.app_context.app.view_functions.get(rule_.endpoint)
-                rule_.cws_binary_headers = getattr(view_function, '__CWS_BINARY_HEADERS')
-                rule_.cws_no_auth = getattr(view_function, '__CWS_NO_AUTH')
-                rule_.cws_no_cors = getattr(view_function, '__CWS_NO_CORS')
+                rule_.cws_binary_headers = get_cws_annotations(view_function, '__CWS_BINARY_HEADERS')
+                rule_.cws_no_auth = get_cws_annotations(view_function, '__CWS_NO_AUTH')
+                rule_.cws_no_cors = get_cws_annotations(view_function, '__CWS_NO_CORS')
 
             # Creates terraform ressources if it doesn't exist.
             uid = resource.uid
@@ -176,7 +188,8 @@ class Terraform:
 
     @property
     def jinja_env(self) -> Environment:
-        return Environment(loader=self.template_loader, autoescape=select_autoescape(['html', 'xml']))
+        return Environment(loader=self.template_loader, autoescape=select_autoescape(['html', 'xml']),
+                           trim_blocks=True, lstrip_blocks=True)
 
     def get_context_data(self, **options) -> dict:
         workspace = get_app_stage()
@@ -189,7 +202,7 @@ class Terraform:
             'app_import_path': self.app_context.app_import_path,
             'debug': app.debug,
             'description': inspect.getdoc(app) or "",
-            'environment_variables': load_dotvalues(workspace),
+            'environment_variables': load_dotvalues(self.working_dir, workspace),
             'ms_name': app.name,
             'now': datetime.now().isoformat(),
             'workspace': workspace,
@@ -227,20 +240,21 @@ class Terraform:
         with (self.terraform_dir / output_filename).open("w") as f:
             data = self.get_context_data(**options)
             f.write(template.render(**data))
+            self.logger.debug(f"Terraform file {self.terraform_dir / output_filename} generated")
 
 
 class TerraformBackend:
     """Terraform class to manage remote deployements."""
 
-    def __init__(self, app_context, bar, **options):
+    def __init__(self, terraform_context, bar, **options):
         """The remote terraform class correspond to the terraform command interface for workspaces.
         """
-        self.app_context = app_context
-        self.app = app_context.app
+        self.terraform_context = terraform_context
+        self.app = terraform_context.app
         self.bar = bar
 
         # Creates terraform dir if needed
-        self.working_dir = Path(options['terraform_dir'])
+        self.terraform_dir = Path(options['terraform_dir'])
         self.stage = get_app_stage()
 
         self.terraform_class = Terraform
@@ -251,36 +265,31 @@ class TerraformBackend:
     def api_terraform(self):
         if self._api_terraform is None:
             self.app.logger.debug(f"Create common terraform instance using {self.terraform_class}")
-            self.working_dir.mkdir(exist_ok=True)
-            self._api_terraform = self.terraform_class(self.app_context, self.bar,
-                                                       terraform_dir=self.working_dir,
-                                                       refresh=self.terraform_refresh)
+            self.terraform_dir.mkdir(exist_ok=True)
+            self._api_terraform = self.terraform_class(self, terraform_dir=self.terraform_dir, stage="common")
         return self._api_terraform
 
     @property
     def stage_terraform(self):
         if self._stage_terraform is None:
             self.app.logger.debug(f"Create {self.stage} terraform instance using {self.terraform_class}")
-            terraform_dir = Path(f"{self.working_dir}_{self.stage}")
+            terraform_dir = Path(f"{self.terraform_dir}_{self.stage}")
             terraform_dir.mkdir(exist_ok=True)
-            self._stage_terraform = self.terraform_class(self.app_context, self.bar,
-                                                         terraform_dir=terraform_dir,
-                                                         refresh=self.terraform_refresh,
-                                                         stage=self.stage)
+            self._stage_terraform = self.terraform_class(self, terraform_dir=terraform_dir, stage=self.stage)
         return self._stage_terraform
 
-    def process_terraform(self, ctx, command_template, terraform_init=True, **options):
-        root_command_params = ctx.find_root().params
+    def process_terraform(self, command_template, terraform_init=True, **options):
+        root_command_params = self.terraform_context.ctx.find_root().params
 
         # Set default options calculated value
         options['key'] = options.get('key') or f"{self.app.__module__}-{self.app.name}/archive.zip"
 
         # Transfert zip file to S3
-        self.bar.update(msg=f"Copy source files on S3")
-        b64sha256 = self.copy_sources_to_s3(ctx, **options)
+        self.bar.update(msg="Copy source files on S3")
+        b64sha256 = self.copy_sources_to_s3(**options)
         options['source_code_hash'] = b64sha256
 
-        self.bar.update(msg=f"Generates terraform files")
+        self.bar.update(msg="Generates terraform files")
 
         # Generates common terraform files
         if terraform_init:
@@ -297,7 +306,7 @@ class TerraformBackend:
 
         # Stops process if dry
         if options['dry']:
-            self.bar.update(msg=f"Nothing deployed and destroyed (dry mode)")
+            self.bar.update(msg="Nothing deployed and destroyed (dry mode)")
             return
 
         if terraform_init:
@@ -323,16 +332,16 @@ class TerraformBackend:
         echo_output(self.api_terraform)
         click.secho("Microservice deployed", fg="green")
 
-    def copy_sources_to_s3(self, ctx, dry, **options):
+    def copy_sources_to_s3(self, dry, **options):
         module_name = options.get('module_name') or []
         bucket = options.get('bucket')
         key = options.get('key')
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
 
-            # Defines ignore file paterns
+            # Defines ignore file paternsctx
             ignore = options.get('ignore') or ['.*', 'terraform*']
-            if ignore and type(ignore) is not list:
+            if ignore and not isinstance(ignore, list):
                 if type(ignore) is tuple:
                     ignore = [*ignore]
                 else:
@@ -343,7 +352,7 @@ class TerraformBackend:
             full_ignore_patterns = partial(ignore_patterns, *ignore)
 
             # Creates archive
-            project_dir = ctx.find_root().params.get('project_dir')
+            project_dir = self.terraform_context.ctx.find_root().params.get('project_dir')
             full_project_dir = Path(project_dir).resolve()
             try:
                 if tmp_path.relative_to(full_project_dir):
@@ -392,13 +401,10 @@ class TerraformBackend:
         profile_name = options.get('profile_name')
         aws_s3_session = aws.AwsS3Session(profile_name=profile_name)
         aws_s3_session.client.delete_object(Bucket=bucket, Key=key)
-        self.bar.update(msg=f"Sources files deleted on s3")
+        self.bar.update(msg="Sources files deleted on s3")
 
 
 @click.command("deploy", CwsCommand, short_help="Deploy the CoWorks microservice on AWS Lambda.")
-# Zip specific options
-@click.option('--api', is_flag=True,
-              help="Stop after API create step (forces also dry mode).")
 @click.option('--bucket', '-b',
               help="Bucket to upload sources zip file to", required=True)
 @click.option('--dry', is_flag=True,
@@ -411,17 +417,15 @@ class TerraformBackend:
               help="Python module added from current pyenv (module or file.py).")
 @click.option('--profile-name', '-pn', required=True,
               help="AWS credential profile.")
-# Deploy specific options
 @click.option('--binary-types', multiple=True,
               help="Content types defined as binary contents (no encoding).")
 @click.option('--json-types', multiple=True,
-              help="Add mime types for JSON response [at least application/json, text/x-json, "
-                   "application/javascript, application/x-javascript].")
+              help="Add mime types for JSON response.")
 @click.option('--layers', '-l', multiple=True, required=True,
               help="Add layer (full arn: aws:lambda:...). Must contains CoWorks at least.")
 @click.option('--memory-size', default=128,
               help="Lambda memory size (default 128).")
-@click.option('--python', '-p', type=click.Choice(['3.7', '3.8']), default='3.8',
+@click.option('--python', '-p', type=click.Choice(['3.7', '3.8', '3.9', '3.10', '3.11']), default='3.11',
               help="Python version for the lambda.")
 @click.option('--security-groups', multiple=True, default=[],
               help="Security groups to be added [ids].")
@@ -429,8 +433,6 @@ class TerraformBackend:
               help="Deploiement stage.")
 @click.option('--subnets', multiple=True, default=[],
               help="Subnets to be added [ids].")
-@click.option('--timeout', default=60,
-              help="Lambda timeout (default 60s).Only for asynchronous call (API call 30s).")
 @click.option('--terraform-cloud', '-tc', is_flag=True, default=False,
               help="Use cloud workspaces (default false).")
 @click.option('--terraform-dir', '-td', default="terraform",
@@ -441,6 +443,10 @@ class TerraformBackend:
               help="Forces terraform to refresh the state (default false).")
 @click.option('--text-types', multiple=True,
               help="Add mime types for JSON response [at least text/plain, text/html].")
+@click.option('--timeout', default=60,
+              help="Lambda timeout (default 60s).Only for asynchronous call (API call 30s).")
+@click.option('--token-key',
+              help="Header token key.")
 @click.pass_context
 @pass_script_info
 @with_appcontext
@@ -449,14 +455,12 @@ def deploy_command(info, ctx, stage, **options) -> None:
         Step 1. Create API and routes integrations
         Step 2. Deploy API and Lambda
     """
-
     if options.get('terraform_cloud') and not options.get('terraform_organization'):
         raise click.BadParameter('An organization must be defined if using cloud terraform')
 
-    app_context = TerraformContext(info)
-    app = app_context.app
-    os.environ['CWS_STAGE'] = stage
-    terraform = None
+    terraform_context = TerraformContext(info, ctx)
+    app = terraform_context.app
+    os.environ['CWS_STAGE'] = stage  # TODO Should be removed
 
     app.logger.debug(f"Start deploy command: {options}")
     show_stage_banner(stage)
@@ -466,8 +470,8 @@ def deploy_command(info, ctx, stage, **options) -> None:
     with progressbar(label="Deploy microservice", threaded=not app.debug) as bar:
         terraform_backend_class = options.pop('terraform_class', TerraformBackend)
         app.logger.debug(f"Deploying {app} using {terraform_backend_class}")
-        backend = terraform_backend_class(app_context, bar, **options)
-        backend.process_terraform(ctx, 'deploy.j2', **options)
+        backend = terraform_backend_class(terraform_context, bar, **options)
+        backend.process_terraform('deploy.j2', **options)
 
 
 @click.command("destroy", CwsCommand, short_help="Destroy the CoWorks microservice on AWS Lambda.")
@@ -498,10 +502,10 @@ def deploy_command(info, ctx, stage, **options) -> None:
 def destroy_command(info, ctx, stage, **options) -> None:
     """ Destroy by setting counters to 0.
     """
-    app_context = TerraformContext(info)
-    app = app_context.app
-    os.environ['CWS_STAGE'] = stage
+    terraform_context = TerraformContext(info, ctx)
+    os.environ['CWS_STAGE'] = stage  # TODO Should be removed
 
+    app = terraform_context.app
     app.logger.debug(f"Start destroy command: {options}")
     show_stage_banner(stage)
     cloud = options.get('terraform_cloud')
@@ -510,8 +514,8 @@ def destroy_command(info, ctx, stage, **options) -> None:
     with progressbar(label='Destroy microservice', threaded=not app.debug) as bar:
         terraform_backend_class = options.pop('terraform_class', TerraformBackend)
         app.logger.debug(f'Destroying {app} using {terraform_backend_class}')
-        backend = terraform_backend_class(app_context, bar, **options)
-        backend.process_terraform(ctx, 'destroy.j2', terraform_init=False, **options)
+        backend = terraform_backend_class(terraform_context, bar, **options)
+        backend.process_terraform('destroy.j2', terraform_init=False, **options)
     if not options['dry']:
         click.echo(f"You can now delete the terraform_{get_app_stage()} folder.")
 
@@ -529,9 +533,9 @@ def destroy_command(info, ctx, stage, **options) -> None:
 @pass_script_info
 @with_appcontext
 def deployed_command(info, ctx, stage, **options) -> None:
-    app_context = TerraformContext(info)
-    app = app_context.app
-    os.environ['CWS_STAGE'] = stage
+    terraform_context = TerraformContext(info, ctx)
+    app = terraform_context.app
+    os.environ['CWS_STAGE'] = stage  # TODO Should be removed
 
     app.logger.debug(f"Start destroy command: {options}")
     show_stage_banner(stage)
@@ -541,7 +545,7 @@ def deployed_command(info, ctx, stage, **options) -> None:
     with progressbar(label='Retrieving information', threaded=not app.debug) as bar:
         terraform_backend_class = options.pop('terraform_class', TerraformBackend)
         app.logger.debug(f'Destroying {app} using {terraform_backend_class}')
-        backend = terraform_backend_class(app_context, bar, **options)
+        backend = terraform_backend_class(terraform_context, bar, **options)
     echo_output(backend.api_terraform)
 
 
@@ -558,10 +562,10 @@ def echo_output(terraform):
             click.secho(f"The microservice {cws_name} is deployed at {api_url}", fg='yellow')
 
 
-def load_dotvalues(stage: str):
+def load_dotvalues(working_dir, stage):
     environment_variables = {}
     for env_filename in get_env_filenames(stage):
-        path = dotenv.find_dotenv(env_filename, usecwd=True)
+        path = dotenv.find_dotenv(working_dir / env_filename, usecwd=True)
         if path:
             environment_variables.update(dotenv.dotenv_values(path))
     return environment_variables

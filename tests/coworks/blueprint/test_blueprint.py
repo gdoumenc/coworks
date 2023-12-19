@@ -7,8 +7,9 @@ from ..blueprint.blueprint import BP, InitBP
 from ..ms import SimpleMS
 
 
-@mock.patch.dict(os.environ, {"CWS_STAGE": "local"})
+@mock.patch.dict(os.environ, {"TOKEN": "token"})
 class TestClass:
+
     def test_request(self):
         app = SimpleMS()
         app.register_blueprint(BP())

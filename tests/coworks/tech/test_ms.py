@@ -33,7 +33,7 @@ class ParamMS(TechMicroService):
         return str1 + str(param1) + param2
 
     @entry
-    def post_params(self, **kwargs):
+    def post_params(self, **kwargs:dict):
         return {
             'keys': [k for k in kwargs.keys()],
         }
@@ -72,8 +72,9 @@ class AmbiguousMS(TechMicroService):
         return {'value': 'ok'}, 200
 
 
-@mock.patch.dict(os.environ, {"CWS_STAGE": "local"})
+@mock.patch.dict(os.environ, {"TOKEN": "token"})
 class TestClass:
+
     def test_request_arg(self):
         app = SimpleMS()
         with app.test_client() as c:
