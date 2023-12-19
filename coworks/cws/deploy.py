@@ -34,6 +34,7 @@ from werkzeug.routing import Rule
 from coworks import aws
 from coworks.utils import get_app_stage
 from coworks.utils import get_env_filenames
+from coworks.utils import get_cws_annotations
 from .command import CwsCommand
 from .utils import progressbar
 from .utils import show_stage_banner
@@ -139,9 +140,9 @@ class Terraform:
             resource = TerraformResource(previous, path)
             if rule_:
                 view_function = self.app_context.app.view_functions.get(rule_.endpoint)
-                rule_.cws_binary_headers = getattr(view_function, '__CWS_BINARY_HEADERS')
-                rule_.cws_no_auth = getattr(view_function, '__CWS_NO_AUTH')
-                rule_.cws_no_cors = getattr(view_function, '__CWS_NO_CORS')
+                rule_.cws_binary_headers = get_cws_annotations(view_function, '__CWS_BINARY_HEADERS')
+                rule_.cws_no_auth = get_cws_annotations(view_function, '__CWS_NO_AUTH')
+                rule_.cws_no_cors = get_cws_annotations(view_function, '__CWS_NO_CORS')
 
             # Creates terraform ressources if it doesn't exist.
             uid = resource.uid

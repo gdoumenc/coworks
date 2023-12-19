@@ -48,7 +48,7 @@ def create_cws_proxy(scaffold: "Scaffold", func, func_args: list[str], func_kwar
     :param func: The initial function proxied.
     :param func_args: The declared function args.
     :param func_kwargs: The declared function kwargs.
-    :param func_generic_kwargs: The function generic kwargs if defiend.
+    :param func_generic_kwargs: The function generic kwargs if defined (usually **kwargs).
     """
 
     def proxy(**view_args):
@@ -98,34 +98,34 @@ def create_cws_proxy(scaffold: "Scaffold", func, func_args: list[str], func_kwar
             return params
 
         # Get keyword arguments from request parameters or body
-        if func_kwargs:
+        if func_kwargs or func_generic_kwargs:
 
             # Adds parameters from query parameters
             if request.method == 'GET':
-                data = request.values.to_dict(False)
-                view_args = dict(**view_args, **as_fun_params(data))
+                get_data = request.values.to_dict(False)
+                view_args = dict(**view_args, **as_fun_params(get_data))
 
             # Adds parameters from body
             elif request.method in ['POST', 'PUT', 'DELETE']:
                 try:
                     if request.is_json:
-                        data = request.get_data()
-                        if data:
-                            data = request.json
-                            if not isinstance(data, dict):
-                                msg = f"Request payload must be a dict not {type(data)}"
+                        post_data = request.json
+                        if not isinstance(post_data, dict):
+                            if len(func_kwargs) != 1:
+                                msg = f"If request payload is not a dict, there must be only one kwarg {type(post_data)}"
                                 raise UnprocessableEntity(msg)
-                            view_args = {**view_args, **as_fun_params(data, False)}
+                            post_data = {next(iter(func_kwargs)): post_data}
+                        view_args = {**view_args, **as_fun_params(post_data, False)}
                     elif request.is_multipart:
-                        data = request.form.to_dict(False)
+                        post_data = request.form.to_dict(False)
                         files = request.files.to_dict(False)
-                        view_args = {**view_args, **as_fun_params(data), **as_fun_params(files)}
+                        view_args = {**view_args, **as_fun_params(post_data), **as_fun_params(files)}
                     elif request.is_form_urlencoded:
-                        data = request.form.to_dict(False)
-                        view_args = dict(**view_args, **as_fun_params(data))
+                        post_data = request.form.to_dict(False)
+                        view_args = dict(**view_args, **as_fun_params(post_data))
                     else:
-                        data = request.values.to_dict(False)
-                        view_args = dict(**view_args, **as_fun_params(data))
+                        post_data = request.values.to_dict(False)
+                        view_args = dict(**view_args, **as_fun_params(post_data))
                 except Exception as e:
                     raise UnprocessableEntity(str(e))
 
@@ -141,7 +141,7 @@ def create_cws_proxy(scaffold: "Scaffold", func, func_args: list[str], func_kwar
                             err_msg = f"TypeError: got an unexpected arguments (body: {request.json})"
                             raise UnprocessableEntity(err_msg)
                     if request.query_string:
-                        err_msg = f"TypeError: got an unexpected arguments (query: {request.query_string})"
+                        err_msg = f"TypeError: got an unexpected arguments (query: {request.query_string!r})"
                         raise UnprocessableEntity(err_msg)
                 except Exception as e:
                     current_app.logger.error(f"Should not go here (1) : {str(e)}")
@@ -155,8 +155,9 @@ def create_cws_proxy(scaffold: "Scaffold", func, func_args: list[str], func_kwar
         resp = make_response(result) if result is not None else \
             make_response("", 204, {'content-type': 'text/plain'})
 
-        if func.__CWS_BINARY_HEADERS and not request.in_lambda_context:
-            resp.headers.update(func.__CWS_BINARY_HEADERS)
+        binary_headers = get_cws_annotations(func, "__CWS_BINARY_HEADERS")
+        if binary_headers and not request.in_lambda_context:
+            resp.headers.update(binary_headers)
 
         return resp
 
@@ -211,9 +212,9 @@ def remove_brackets(name):
 
 
 def as_typed_kwargs(func: t.Callable, kwargs: dict):
-    def get_typed_value(name: str, tp, val):
-        if isinstance(tp, types.UnionType):
-            for arg in t.get_args(tp):
+    def get_typed_value(name: str, prameter_type, val):
+        if isinstance(prameter_type, types.UnionType):
+            for arg in t.get_args(prameter_type):
                 try:
                     return get_typed_value(name, arg, val)
                 except (UnprocessableEntity, ValidationError):
@@ -221,52 +222,44 @@ def as_typed_kwargs(func: t.Callable, kwargs: dict):
                 except (TypeError, ValueError):
                     pass
             raise TypeError()
-        origin = t.get_origin(tp)
+        origin = t.get_origin(prameter_type)
         if origin is t.Union:
-            for arg in t.get_args(tp):
-                try:
-                    return get_typed_value(name, arg, val)
-                except ValidationError:
-                    raise
-                except (TypeError, ValueError):
-                    pass
+            for arg in t.get_args(prameter_type):
+                return get_typed_value(name, arg, val)
             raise TypeError()
         if origin is list:
-            arg = t.get_args(tp)[0]
+            arg = t.get_args(prameter_type)[0]
             if isinstance(val, list):
                 return [arg(v) for v in val]
             return [arg(val)]
         if origin is set:
-            arg = t.get_args(tp)[0]
+            arg = t.get_args(prameter_type)[0]
             if isinstance(val, list):
                 return {arg(v) for v in val}
             return {arg(val)}
         if origin is None:
+            if prameter_type is Signature.empty:
+                return val
             if isinstance(val, list):
                 msg = f"Multiple values for '{name}' query parameters are not allowed"
                 raise UnprocessableEntity(msg)
-            if tp is Signature.empty:
-                return val
-            if issubclass(tp, bool):
+            if issubclass(prameter_type, bool):
                 return str_to_bool(val)
-            if issubclass(tp, dict):
+            if issubclass(prameter_type, dict):
                 return json.loads(val)
-            if issubclass(tp, BaseModel):
-                return tp(**json.loads(val))
-            return tp(val)
+            if issubclass(prameter_type, BaseModel):
+                return prameter_type(**json.loads(val))
+            return val if isinstance(val, prameter_type) else prameter_type(val)
 
     typed_kwargs = {**kwargs}
     try:
         parameters = signature(func).parameters
         for name, value in kwargs.items():
-            try:
-                typed_kwargs[name] = get_typed_value(name, t.cast(Parameter, parameters.get(name)).annotation, value)
-            except (UnprocessableEntity, ValidationError):
-                raise
-            except (TypeError, ValueError):
-                pass
+            typed_kwargs[name] = get_typed_value(name, t.cast(Parameter, parameters.get(name)).annotation, value)
     except (UnprocessableEntity, ValidationError):
         raise
+    except (TypeError, ValueError) as e:
+        raise UnprocessableEntity(str(e))
     except (Exception,):
         pass
     return typed_kwargs
@@ -333,3 +326,12 @@ def nr_url(path: str = '', query: dict | None = None, merge_query: bool = False)
 
     qs = urlencode(query, doseq=True) if query else ''
     return urllib_urlunsplit([proto, host, path, qs, ''])
+
+
+def get_cws_annotations(func, key, default=None):
+    """Entry function is at least annotated by __CWS_METHOD."""
+    if getattr(func, '__CWS_METHOD', None):
+        return getattr(func, key, default)
+    if getattr(func, '__wrapper__', None):
+        return get_cws_annotations(func.__wrapper__, key, default)
+    return None

@@ -65,11 +65,11 @@ class SimpleMS(TechMicroService):
         return f"get **param with {value} and {list(kwargs.keys())}"
 
     @entry
-    def put_kwparam2(self, value=0, **kwargs: dict):
+    def put_kwparam2(self, value=0, **kwargs):
         return f"get **param with {value} and {list(kwargs.keys())}"
 
     @entry
-    def post_kwparam2(self, value, **kwargs:dict):
+    def post_kwparam2(self, value, **kwargs):
         return f"get **param with {value} and {list(kwargs.keys())}"
 
     # composed path

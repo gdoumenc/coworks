@@ -33,6 +33,7 @@ from .utils import BIZ_KEY_HEADER_KEY
 from .utils import HTTP_METHODS
 from .utils import create_cws_proxy
 from .utils import get_app_stage
+from .utils import get_cws_annotations
 from .utils import is_arg_parameter
 from .utils import is_kwarg_parameter
 from .utils import load_dotenv
@@ -50,8 +51,8 @@ from .wrappers import TokenResponse
 #
 
 
-def entry(fun: t.Callable = None, binary_headers: t.Dict[str, str] = None,
-          stage: t.Union[str, t.Iterable[str]] = None,
+def entry(fun: t.Callable | None = None, binary_headers: t.Dict[str, str] | None = None,
+          stage: str | t.Iterable[str] | None = None,
           no_auth: bool = False, no_cors: bool = True) -> t.Callable:
     """Decorator to create a microservice entry point from function name.
 
@@ -83,12 +84,12 @@ def entry(fun: t.Callable = None, binary_headers: t.Dict[str, str] = None,
 
     stage = [] if stage is None else stage
 
-    fun.__CWS_METHOD = method
-    fun.__CWS_PATH = path
-    fun.__CWS_BINARY_HEADERS = binary_headers
-    fun.__CWS_NO_AUTH = no_auth
-    fun.__CWS_STAGES = stage if isinstance(stage, list) else [stage]
-    fun.__CWS_NO_CORS = no_cors
+    fun.__CWS_METHOD = method  # type: ignore[attr-defined]
+    fun.__CWS_PATH = path  # type: ignore[attr-defined]
+    fun.__CWS_BINARY_HEADERS = binary_headers  # type: ignore[attr-defined]
+    fun.__CWS_NO_AUTH = no_auth  # type: ignore[attr-defined]
+    fun.__CWS_STAGES = stage if isinstance(stage, list) else [stage]  # type: ignore[attr-defined]
+    fun.__CWS_NO_CORS = no_cors  # type: ignore[attr-defined]
 
     return fun
 
@@ -104,18 +105,18 @@ class CoworksClient(FlaskClient):
     def __init__(self, *args: t.Any, aws_event=None, aws_context=None, **kwargs: t.Any) -> None:
         super().__init__(*args, **kwargs)
 
-        headers = aws_event['headers']
+        headers: dict = aws_event['headers']
         request_context = aws_event['requestContext']
 
-        method = request_context['httpMethod']
-        scheme = headers.get('x-forwarded-proto', "https")
-        host_name = headers['x-forwarded-host'] if 'x-forwarded-host' in headers else request_context['domainName']
-        entry_path = request_context['entryPath']
-        stage = request_context['stage']
-        entry_path_parameters = aws_event['entryPathParameters']
-        query_string = MultiDict(aws_event['multiValueQueryStringParameters'])
+        method: str = request_context['httpMethod']
+        scheme: str = headers.get('x-forwarded-proto', "https")
+        host_name: str = headers['x-forwarded-host'] if 'x-forwarded-host' in headers else request_context['domainName']
+        entry_path: str = request_context['entryPath']
+        stage: str = request_context['stage']
+        entry_path_parameters: dict = aws_event['entryPathParameters']
+        query_string: dict = MultiDict(aws_event['multiValueQueryStringParameters'])
 
-        is_encoded = aws_event.get('isBase64Encoded', False)
+        is_encoded: bool = aws_event.get('isBase64Encoded', False)
         body = aws_event['body']
         if body and is_encoded:
             body = base64.b64decode(body)
@@ -137,7 +138,7 @@ class CoworksClient(FlaskClient):
             'aws_body': body,
         }
 
-    def open(self, *args, **kwargs) -> CoworksResponse:
+    def open(self, *args, **kwargs) -> CoworksResponse:  # type: ignore[override]
         req = CoworksRequest(self.aws_environ, populate_request=False, shallow=True)
         return t.cast(CoworksResponse, super().open(req))
 
@@ -151,7 +152,7 @@ class Blueprint(FlaskBlueprint):
     See :ref:`Blueprint <blueprint>` for more information.
     """
 
-    def __init__(self, name: str = None, **kwargs):
+    def __init__(self, name: str | None = None, **kwargs):
         """Initialize a blueprint.
 
         :param kwargs: Other Flask blueprint parameters.
@@ -195,7 +196,7 @@ class TechMicroService(Flask):
     # Maximume content length for writing response content in debug
     size_max_for_debug = 2000
 
-    def __init__(self, name: str = None, stage_prefixed: bool = True, **kwargs) -> None:
+    def __init__(self, name: str | None = None, stage_prefixed: bool = True, **kwargs) -> None:
         """ Initialize a technical microservice.
         :param name: Name used to identify the microservice.
         :param stage_prefixed: if accessed with stage or not.
@@ -434,7 +435,7 @@ class TechMicroService(Flask):
             if request.url_rule:
                 view_function = self.view_functions.get(request.url_rule.endpoint, None)
                 if view_function:
-                    no_auth = getattr(view_function, '__CWS_NO_AUTH', False)
+                    no_auth = get_cws_annotations(view_function, '__CWS_NO_AUTH', False)
 
             # Checks token if authorization needed
             if not no_auth:
@@ -503,16 +504,16 @@ class TechMicroService(Flask):
         stage = get_app_stage()
         scaffold = bp_state.blueprint if bp_state else self
         method_members = inspect.getmembers(scaffold.__class__, lambda x: inspect.isfunction(x))
-        methods = [fun for _, fun in method_members if hasattr(fun, '__CWS_METHOD')]
+        methods = [fun for _, fun in method_members if get_cws_annotations(fun, '__CWS_METHOD')]
         for fun in methods:
 
             # the entry is not defined for this stage
-            stages = getattr(fun, '__CWS_STAGES')
+            stages = get_cws_annotations(fun, '__CWS_STAGES')
             if stages and stage not in stages:
                 continue
 
-            method = getattr(fun, '__CWS_METHOD')
-            entry_path = path_join(getattr(fun, '__CWS_PATH'))
+            method = get_cws_annotations(fun, '__CWS_METHOD')
+            entry_path = path_join(get_cws_annotations(fun, '__CWS_PATH'))
 
             # Get parameters
             sig = inspect.signature(fun)
@@ -521,7 +522,7 @@ class TechMicroService(Flask):
             if len(param_names) > 0:
                 last_param_name = param_names[-1]
                 last_param = sig.parameters[param_names[-1]]
-                if last_param.annotation is dict:
+                if last_param.kind == last_param.VAR_KEYWORD:
                     generic_kwargs = last_param_name
                     param_names = param_names[:-1]
             args = [n for n in param_names if is_arg_parameter(sig.parameters[n])]
@@ -530,10 +531,10 @@ class TechMicroService(Flask):
             kwargs = {n: sig.parameters[n] for n in param_names if is_kwarg_parameter(sig.parameters[n])}
 
             proxy = create_cws_proxy(scaffold, fun, args, kwargs, generic_kwargs)
-            proxy.__CWS_BINARY_HEADERS = getattr(fun, '__CWS_BINARY_HEADERS')
-            proxy.__CWS_NO_AUTH = getattr(fun, '__CWS_NO_AUTH')
-            proxy.__CWS_NO_CORS = getattr(fun, '__CWS_NO_CORS')
-            proxy.__CWS_FROM_BLUEPRINT = bp_state.blueprint.name if bp_state else None
+            proxy.__CWS_BINARY_HEADERS = get_cws_annotations(fun, '__CWS_BINARY_HEADERS')
+            proxy.__CWS_NO_AUTH = get_cws_annotations(fun, '__CWS_NO_AUTH')
+            proxy.__CWS_NO_CORS = get_cws_annotations(fun, '__CWS_NO_CORS')
+            fun.__CWS_FROM_BLUEPRINT = bp_state.blueprint.name if bp_state else None
 
             prefix = f"{bp_state.blueprint.name}." if bp_state else ''
             endpoint = f"{prefix}{fun.__name__}"

@@ -103,7 +103,7 @@ class CoworksRequest(FlaskRequest):
 
         super().__init__(environ, **kwargs)
 
-        if self._in_lambda_context:
+        if self.aws_event and self._in_lambda_context:
             self.headers = Headers(self.aws_event.get('headers'))
 
     @property
@@ -174,14 +174,15 @@ class CoworksRequest(FlaskRequest):
         if self.__data is None:
             if kwargs.get('as_text', False):
                 self.__data = json.dumps(self.aws_body) if self._body_is_dict else self.aws_body
-            self.__data = self.aws_body if self._body_is_dict else json.loads(self.aws_body)
+            elif self.aws_body:
+                self.__data = self.aws_body if self._body_is_dict else json.loads(self.aws_body)
         return self.__data
 
     def get_json(self, **kwargs):
         if not self.in_lambda_context:
             return super().get_json(**kwargs)
 
-        if self.__json is None:
+        if self.__json is None and self.aws_body:
             self.__json = self.aws_body if self._body_is_dict else json.loads(self.aws_body)
         return self.__json
 

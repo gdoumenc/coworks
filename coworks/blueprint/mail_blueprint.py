@@ -34,8 +34,10 @@ class Mail(Blueprint):
     def __init__(self, name: str = "mail",
                  env_server_var_name: str = '', env_port_var_name: str = '',
                  env_login_var_name: str = '', env_passwd_var_name: str = '',
-                 env_var_prefix: str = '', **kwargs):
+                 env_var_prefix: str = '', **kwargs: dict):
         super().__init__(name=name, **kwargs)
+
+        # global prefixed veriables
         if env_var_prefix:
             env_server_var_name = f"{env_var_prefix}_SERVER"
             env_port_var_name = f"{env_var_prefix}_PORT"
@@ -54,11 +56,12 @@ class Mail(Blueprint):
             raise RuntimeError(f'{env_passwd_var_name} not defined in environment.')
 
     @entry
-    def post_send(self, subject: str = "", from_addr: str = None, from_name: str = '', reply_to: str = None,
-                  to_addrs: [str] = None, cc_addrs: [str] = None, bcc_addrs: [str] = None,
-                  body: str = "", body_template: str = None, body_type="plain",
-                  attachments: t.Union[FileStorage, t.Iterator[FileStorage]] = None, attachment_urls: dict = None,
-                  starttls=True, data: dict = None):
+    def post_send(self, subject: str = "", from_addr: str | None = None, from_name: str = '',
+                  reply_to: str | None = None, body: str = "", body_template: str | None = None, body_type="plain",
+                  to_addrs: list[str] | None = None, cc_addrs: list[str] | None = None,
+                  bcc_addrs: list[str] | None = None,
+                  attachments: FileStorage | t.Iterator[FileStorage] | None = None, attachment_urls: dict | None = None,
+                  starttls: bool = True, data: dict | None = None):
         """ Send mail.
         To send attachments, add files in the body of the request as multipart/form-data.
 

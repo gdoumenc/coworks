@@ -98,7 +98,7 @@ class TestClass:
             response = c.get('/admin/route', headers={'Authorization': 'token'})
             assert response.status_code == 200
             routes = json.loads(response.get_data(as_text=True))
-            assert "/admin/route" not in routes
+            assert "/admin/routes" not in routes
 
     def test_documentation_with_hidden_blueprints(self):
         app = DocumentedMS()

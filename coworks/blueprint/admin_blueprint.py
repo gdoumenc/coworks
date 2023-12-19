@@ -19,6 +19,7 @@ from werkzeug.exceptions import NotFound
 
 from coworks import Blueprint
 from coworks import entry
+from coworks.utils import get_cws_annotations
 
 
 class Admin(Blueprint):
@@ -99,7 +100,7 @@ class Admin(Blueprint):
                     continue
 
             function_called = current_app.view_functions[rule.endpoint]
-            from_blueprint = getattr(function_called, '__CWS_FROM_BLUEPRINT')
+            from_blueprint = get_cws_annotations(function_called, '__CWS_FROM_BLUEPRINT')
 
             # Must return only blueprint routes
             if blueprint:
@@ -137,12 +138,12 @@ class Admin(Blueprint):
                 route[http_method] = {
                     'signature': get_signature(function_called),
                     'endpoint': rule.endpoint,
-                    'binary_headers': getattr(function_called, '__CWS_BINARY_HEADERS'),
-                    'no_auth': getattr(function_called, '__CWS_NO_AUTH'),
-                    'no_cors': getattr(function_called, '__CWS_NO_CORS'),
+                    'binary_headers': get_cws_annotations(function_called, '__CWS_BINARY_HEADERS'),
+                    'no_auth': get_cws_annotations(function_called, '__CWS_NO_AUTH'),
+                    'no_cors': get_cws_annotations(function_called, '__CWS_NO_CORS'),
                 }
 
-                from_blueprint = getattr(function_called, '__CWS_FROM_BLUEPRINT')
+                from_blueprint = get_cws_annotations(function_called, '__CWS_FROM_BLUEPRINT', None)
                 if from_blueprint:
                     route[http_method]['blueprint'] = from_blueprint
 

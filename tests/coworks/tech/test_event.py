@@ -93,7 +93,8 @@ class TestClass:
             response = app(get_event(
                 '/content/{value}', 'post', entry_path_parameters={'value': 3}, body="other"),
                 empty_aws_context)
-            assert response['statusCode'] == UnprocessableEntity.code
+            assert response['statusCode'] == 200
+            assert response['body'] == "post content with 3 and other"
             response = app(
                 get_event('/content/{value}', 'post', entry_path_parameters={'value': 3},
                           body={"other": 'other', "value": 5}),

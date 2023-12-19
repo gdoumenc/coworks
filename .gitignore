@@ -2,16 +2,16 @@
 coworks.egg-info/
 build/
 dist/
-**/node_modules
 **/.terraform
 **/*.tfstate*
-Pipfile.lock
-**/.env*
+.venv
+.env*
 **/http-client.private.env.json
 
 # pdm
 pdm.lock
 .pdm-python
+.pdm-build
 
 # Samples
 **/*.secret.json

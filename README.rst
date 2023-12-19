@@ -36,6 +36,10 @@ CoWorks framework in two levels:
 To get started with CoWorks, first follow the `Installation Guide <https://coworks.readthedocs.io/en/latest/installation.html>`_. Then you can get a quickstart on `TechMicroService Quickstart <https://coworks.readthedocs.io/en/latest/tech_quickstart.html>`_.
 Once familiar with ``TechMicroService``, you can continue with `BizMicroService Quickstart <https://coworks.readthedocs.io/en/latest/biz_quickstart.html>`_.
 
+**Data model**
+
+The data model shared between those services may be structured with ``pydantic`` and using the JSON:API specification.
+You can install this data protocol for CoWorks with: pip install coworks[jsonapi-sqlalchemy].
 
 Documentation
 -------------
@@ -62,3 +66,9 @@ Related Projects
 * `Flask <https://github.com/pallets/flask>`_ - Lightweight WSGI web application framework (`Donate to Pallets <https://palletsprojects.com/donate>`_).
 * `Airflow <https://github.com/apache/airflow>`_ - A platform to programmatically author, schedule, and monitor workflows.
 * `Terraform <https://github.com/hashicorp/terraform>`_ - Infrastructure configuration management tool.
+* `Pydantic <https://github.com/pydantic/pydantic>`_ - Data validation using Python type hints.
+
+Some ideas guiding this project were found in :
+
+* `Flask-Classy <https://github.com/apiguy/flask-classy>`_
+* `PyDANJA <https://github.com/Centurix/pydanja>`_
