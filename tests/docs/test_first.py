@@ -3,10 +3,9 @@ import os
 import time
 from unittest import mock
 
-import pytest
 import requests
 
-from cws.client import CwsScriptInfo
+from coworks.cws.client import CwsScriptInfo
 
 
 class TestClass:

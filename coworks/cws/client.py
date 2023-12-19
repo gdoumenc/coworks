@@ -1,5 +1,6 @@
 import importlib
 import os
+import sys
 import types
 import typing as t
 from contextlib import contextmanager
@@ -7,9 +8,9 @@ from logging import WARNING
 from logging import getLogger
 from pathlib import Path
 
-import anyconfig
 import click
 import flask
+import yaml
 from click import UsageError
 from flask.cli import ScriptInfo
 
@@ -95,6 +96,7 @@ class CwsGroup(flask.cli.FlaskGroup):
         project_dir = ctx.params.get('project_dir')
         if project_dir:
             script_info.project_dir = project_dir
+            sys.path.insert(0, project_dir)
 
         # Adds environment variables and defined commands from project file
         project_config = ProjectConfig(project_dir, config_file, config_file_suffix)
@@ -107,7 +109,7 @@ class CwsGroup(flask.cli.FlaskGroup):
                         cmd_module, cmd_class = cmd_class_name.rsplit('.', 1)
                         try:
                             cmd = import_attr(cmd_module, cmd_class)
-                        except ModuleNotFoundError:
+                        except ModuleNotFoundError as e:
                             raise click.UsageError(f"Cannot load command {cmd_class!r} in module {cmd_module!r}.")
                     elif name in self.commands:
                         cmd = self.commands[name]
@@ -168,7 +170,11 @@ class ProjectConfig:
         def load(dir):
             project_dir_path = Path(dir)
             project_file = project_dir_path / (file_name + file_suffix)
-            return anyconfig.load(project_file, ac_ignore_missing=True)
+            try:
+                project_file_content = Path(project_file).read_text()
+                return yaml.safe_load(project_file_content)
+            except FileNotFoundError:
+                return {}
 
         params = load(project_dir)
         if not params:

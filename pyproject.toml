@@ -23,7 +23,6 @@ classifiers = [
     "Programming Language :: Python :: 3.11"
 ]
 dependencies = [
-    "anyconfig>=0.12",
     "boto3>=1.19",
     "flask>=2.3.0",
     "jsonapi-pydantic>=0.2.3",
@@ -43,6 +42,7 @@ cws = "coworks.cws.client:client"
 
 [tool.pdm.dev-dependencies]
 dev = [
+    "aws_xray_sdk>=2.12.1",
     "boto3-stubs",
     "mypy>=1.5.0",
     "pytest>=7.4.0",
@@ -65,17 +65,19 @@ module = "requests_toolbelt.*"
 ignore_missing_imports = true
 
 
-[tool.pytest]
+[tool.pytest.ini_options]
 markers = [
     "wip", # work in process.
     "local", # local tests (should not be performed on Travis).
 ]
-testpaths = "tests"
+testpaths = [
+    "tests"
+]
 
 [tool.pdm.scripts]
 lint = { cmd = "ruff coworks", help = "Linting using Ruff" }
 typecheck = { cmd = "mypy coworks", help = "Type checking using mypy" }
-pytest = { cmd = "pytest coworks", help = "Unit testing using pytest" }
+pytest = { cmd = "pytest", help = "Unit testing using pytest" }
 test = { composite = ["lint", "typecheck", "pytest"] }
 plugins = { shell = "mkdir -p dist; zip -r dist/plugins.zip coworks/operators.py coworks/sensors.py coworks/biz/*" }
 pre_fury = { cmd = "pdm build" }

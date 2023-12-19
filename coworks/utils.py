@@ -109,13 +109,14 @@ def create_cws_proxy(scaffold: "Scaffold", func, func_args: list[str], func_kwar
             elif request.method in ['POST', 'PUT', 'DELETE']:
                 try:
                     if request.is_json:
-                        post_data = request.json
-                        if not isinstance(post_data, dict):
-                            if len(func_kwargs) != 1:
-                                msg = f"If request payload is not a dict, there must be only one kwarg {type(post_data)}"
-                                raise UnprocessableEntity(msg)
-                            post_data = {next(iter(func_kwargs)): post_data}
-                        view_args = {**view_args, **as_fun_params(post_data, False)}
+                        if request.data:
+                            post_data = request.json
+                            if not isinstance(post_data, dict):
+                                if len(func_kwargs) != 1:
+                                    msg = f"If request payload is not a dict, there must be only one kwarg {type(post_data)}"
+                                    raise UnprocessableEntity(msg)
+                                post_data = {next(iter(func_kwargs)): post_data}
+                            view_args = {**view_args, **as_fun_params(post_data, False)}
                     elif request.is_multipart:
                         post_data = request.form.to_dict(False)
                         files = request.files.to_dict(False)

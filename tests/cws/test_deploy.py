@@ -1,10 +1,9 @@
 import os
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock
+from unittest import mock
 
 import boto3
-import mock
 from flask.cli import ScriptInfo
 
 from coworks import Blueprint
@@ -12,8 +11,8 @@ from coworks import TechMicroService
 from coworks import entry
 from coworks.cws.deploy import Terraform
 from coworks.cws.deploy import TerraformContext
-from cws.client import CwsScriptInfo
-from cws.deploy import TerraformBackend
+from coworks.cws.client import CwsScriptInfo
+from coworks.cws.deploy import TerraformBackend
 
 
 class CliCtxMokup:
@@ -154,7 +153,7 @@ class TestClass:
 
     @mock.patch.dict(os.environ, {"test": "local", "FLASK_RUN_FROM_CLI": "true"})
     def test_destroy_cmd(self, monkeypatch, example_dir, progressbar, capsys):
-        monkeypatch.setattr(boto3, "Session", Mock(return_value=Mock(return_value='region')))
+        monkeypatch.setattr(boto3, "Session", mock.Mock(return_value=mock.Mock(return_value='region')))
         info = CwsScriptInfo(project_dir='.')
         info.app_import_path = "command:app"
         app = info.load_app()

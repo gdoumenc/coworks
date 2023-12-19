@@ -5,7 +5,7 @@ from unittest import mock
 
 import requests
 
-from cws.client import CwsScriptInfo
+from coworks.cws.client import CwsScriptInfo
 
 
 class TestClass:

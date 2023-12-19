@@ -2,6 +2,7 @@ import platform
 import sys
 import typing as t
 from contextlib import contextmanager
+from importlib.metadata import version
 from threading import Thread
 from time import sleep
 
@@ -11,7 +12,7 @@ from coworks.utils import get_app_stage
 
 
 def get_system_info():
-    from flask import __version__ as flask_version
+    flask_version = version("flask")
 
     flask_info = f"flask {flask_version}"
     python_info = f"python {sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}"
@@ -66,7 +67,7 @@ class DebugProgressBar:
 
 
 @contextmanager  # type: ignore[arg-type]
-def progressbar(length=200, *, label: str, threaded: bool = False) -> t.ContextManager[ProgressBar]: # type: ignore
+def progressbar(length=200, *, label: str, threaded: bool = False) -> t.ContextManager[ProgressBar]:  # type: ignore
     """Spinner progress bar.
     Creates it with a task label and updates it with progress messages using the 'update' function.
     """

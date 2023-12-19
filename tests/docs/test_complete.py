@@ -5,8 +5,8 @@ import os
 import requests
 import time
 
-from cws.client import CwsScriptInfo
-from cws.client import import_attr
+from coworks.cws.client import CwsScriptInfo
+from coworks.cws.client import import_attr
 
 
 class TestClass:

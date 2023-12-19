@@ -33,7 +33,7 @@ class ParamMS(TechMicroService):
         return str1 + str(param1) + param2
 
     @entry
-    def post_params(self, **kwargs:dict):
+    def post_params(self, **kwargs: dict):
         return {
             'keys': [k for k in kwargs.keys()],
         }
