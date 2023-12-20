@@ -365,13 +365,20 @@ def jsonapi(func):
         query = func(*args, **query_params, **kwargs)
         if not query:
             return TopLevel(data=[]).model_dump_json(exclude_none=True)
-        with context.connection_manager:
-            current_app.logger.debug(str(query))
-            if ensure_one:
-                toplevel = get_one_toplevel(query, context)
-            else:
-                toplevel = get_multi_toplevel(query, context)
-            _toplevel = asyncio.run(toplevel)
+
+        # connection manager may be iterable
+        if isinstance(context.connection_manager, t.Iterable):
+            _toplevels = []
+            for connection_manager in context.connection_manager:
+                with connection_manager:
+                    _toplevels.append(get_toplevel_from_query(query, context, ensure_one))
+            data = [r for t in _toplevels for r in t.data]
+            included = set((i for t in _toplevels if t.included for i in t.included))
+            included= None
+            _toplevel=  TopLevel(data=data, included=included if included else None)
+        else:
+            with context.connection_manager:
+                _toplevel = get_toplevel_from_query(query, context, ensure_one)
         return _toplevel.model_dump_json(exclude_none=True)
 
     # Adds JSON:API query parameters
@@ -384,13 +391,24 @@ def jsonapi(func):
     return _jsonapi
 
 
+def get_toplevel_from_query(query: "Query", context: FetchingContext, ensure_one) -> TopLevel:
+    current_app.logger.debug(str(query))
+    if ensure_one:
+        toplevel = get_one_toplevel(query, context)
+    else:
+        toplevel = get_multi_toplevel(query, context)
+    return asyncio.run(toplevel)
+
+
 async def get_multi_toplevel(query: "Query", context: FetchingContext) -> TopLevel:
+    """Returns the multiple top level resource from the query.
+    """
     pagination = query.paginate(page=context.page, per_page=context.per_page, max_per_page=context.max_per_page)
-    resources: t.Iterable[TopLevel] = await asyncio.gather(
+    toplevels: t.Iterable[TopLevel] = await asyncio.gather(
         *[toplevel_from_basemodel(p, context) for p in pagination]
     )
-    data = [toplevel_to_resource(r) for r in resources]
-    included = set((i for r in resources if r.included for i in r.included))
+    data = [toplevel_to_resource(r) for r in toplevels]
+    included = set((i for r in toplevels if r.included for i in r.included))
     toplevel = TopLevel(data=data, included=included if included else None)
     context.add_pagination(toplevel, pagination)
     return toplevel
@@ -409,6 +427,7 @@ async def get_one_toplevel(query: "Query", context: FetchingContext) -> TopLevel
 
 
 def toplevel_to_resource(toplevel: TopLevel) -> Resource:
+    """Transform a toplevel structure into a jsonapi resource."""
     data = toplevel.data
     return Resource(type=data.type, id=data.id, attributes=data.attributes,
                     relationships=data.relationships, links=data.links)
