@@ -247,7 +247,8 @@ def as_typed_kwargs(func: t.Callable, kwargs: dict):
             if issubclass(prameter_type, bool):
                 return str_to_bool(val)
             if issubclass(prameter_type, dict):
-                return json.loads(val)
+                if isinstance(val, str):
+                    return json.loads(val)
             if issubclass(prameter_type, BaseModel):
                 return prameter_type(**json.loads(val))
             return val if isinstance(val, prameter_type) else prameter_type(val)

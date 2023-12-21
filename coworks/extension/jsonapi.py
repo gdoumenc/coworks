@@ -166,10 +166,15 @@ class FetchingContext:
         return []
 
     def filters(self, jsonapi_type, model):
-        _filters = self._filters.get(jsonapi_type, {})
+        """Returns the list of filters as a SQLAlchemy filter.
+
+        :param jsonapi_type: the jsonapi type (used to get the filter parameters)
+        :param model: the SQLAlchemy model (used to get the SQLAlchemy filter)
+        """
+        filter_parameters = self._filters.get(jsonapi_type, {})
 
         sql_filters = []
-        for key, value in _filters.items():
+        for key, value in filter_parameters.items():
             column = getattr(model, key, None)
             if column is None:
                 msg = f"Wrong '{key}' property for model '{jsonapi_type}' in filters parameters"
@@ -374,8 +379,8 @@ def jsonapi(func):
                     _toplevels.append(get_toplevel_from_query(query, context, ensure_one))
             data = [r for t in _toplevels for r in t.data]
             included = set((i for t in _toplevels if t.included for i in t.included))
-            included= None
-            _toplevel=  TopLevel(data=data, included=included if included else None)
+            included = None
+            _toplevel = TopLevel(data=data, included=included if included else None)
         else:
             with context.connection_manager:
                 _toplevel = get_toplevel_from_query(query, context, ensure_one)
