@@ -289,12 +289,11 @@ def get_app_stage():
 
 
 def load_dotenv(stage: str):
-    loaded = True
     for env_filename in get_env_filenames(stage):
         path = dotenv.find_dotenv(env_filename, usecwd=True)
         if path:
-            loaded = loaded and dotenv.load_dotenv(path, override=True)
-    return loaded
+            return dotenv.dotenv_values(path)
+    return {}
 
 
 def get_env_filenames(stage):

@@ -67,7 +67,7 @@ class CwsGroup(flask.cli.FlaskGroup):
     def __init__(self, add_default_commands=True, **extra):
         params = list(extra.pop("params", None) or ())
         extra["add_version_option"] = False
-        extra["load_dotenv"] = False
+        extra["load_dotenv"] = True
         super().__init__(params=params, **extra)
 
         if add_default_commands:

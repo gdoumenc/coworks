@@ -250,7 +250,7 @@ class TerraformBackend:
 
         # Creates terraform dir if needed
         self.terraform_dir = Path(options['terraform_dir'])
-        self.stage = options.get('stage')
+        self.stage = options.get('stage', 'dev')
 
         self.terraform_class = Terraform
         self.terraform_refresh = options['terraform_refresh']
@@ -443,7 +443,7 @@ class TerraformBackend:
 @click.pass_context
 @pass_script_info
 @with_appcontext
-def deploy_command(info, ctx, stage, **options) -> None:
+def deploy_command(info, ctx, **options) -> None:
     """ Deploiement in 2 steps:
         Step 1. Create API and routes integrations
         Step 2. Deploy API and Lambda
@@ -453,7 +453,7 @@ def deploy_command(info, ctx, stage, **options) -> None:
 
     terraform_context = TerraformContext(info, ctx)
     app = terraform_context.app
-    os.environ['CWS_STAGE'] = stage  # TODO Should be removed
+    stage = options.get('stage')
 
     app.logger.debug(f"Start deploy command: {options}")
     show_stage_banner(stage)
@@ -490,11 +490,11 @@ def deploy_command(info, ctx, stage, **options) -> None:
 @click.pass_context
 @pass_script_info
 @with_appcontext
-def destroy_command(info, ctx, stage, **options) -> None:
+def destroy_command(info, ctx, **options) -> None:
     """ Destroy by setting counters to 0.
     """
     terraform_context = TerraformContext(info, ctx)
-    os.environ['CWS_STAGE'] = stage  # TODO Should be removed
+    stage = options.get('stage')
 
     app = terraform_context.app
     app.logger.debug(f"Start destroy command: {options}")
@@ -521,10 +521,10 @@ def destroy_command(info, ctx, stage, **options) -> None:
 @click.pass_context
 @pass_script_info
 @with_appcontext
-def deployed_command(info, ctx, stage, **options) -> None:
+def deployed_command(info, ctx, **options) -> None:
     terraform_context = TerraformContext(info, ctx)
     app = terraform_context.app
-    os.environ['CWS_STAGE'] = stage  # TODO Should be removed
+    stage = options.get('stage')
 
     app.logger.debug(f"Start destroy command: {options}")
     show_stage_banner(stage)
