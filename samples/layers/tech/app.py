@@ -43,7 +43,7 @@ Microservice to get all available CoWorks layers.
     def get(self, full: bool = False):
         """Layers in json or text format."""
         version_pattern = re.compile(r"coworks-[_\d]*")
-        res = self.lambda_client.list_layers()
+        res = self.lambda_clienlist_layers()
         layers = {x['LayerName']: x for x in filter(lambda x: version_pattern.fullmatch(x['LayerName']), res['Layers'])}
         if full:
             return layers

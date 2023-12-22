@@ -4,7 +4,7 @@
 
 locals {
   {{ ms_name }}_authorizer_uri = "arn:aws:apigateway:${local.region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${local.region}:${local.account_id}:function:{{ ms_name }}-$${stageVariables.stage}/invocations"
-{% if stage != "common" %}
+{% if workspace != "common" %}
   {{ ms_name }}_api_arn = data.aws_api_gateway_rest_api.{{ ms_name }}.arn
   {{ ms_name }}_api_id = data.aws_api_gateway_rest_api.{{ ms_name }}.id
   {{ ms_name }}_api_root_id = data.aws_api_gateway_rest_api.{{ ms_name }}.root_resource_id
@@ -17,7 +17,7 @@ locals {
     {%- if binary_types -%}{%- for type in binary_types -%},"{{ type }}"{%- endfor -%}{%- endif -%}]
 }
 
-{% if stage == "common" %}
+{% if workspace == "common" %}
 resource "aws_api_gateway_rest_api" "{{ ms_name }}" {
   provider = aws.{{ ms_name }}
   {% block aws_api_gateway_rest_api %}
@@ -265,7 +265,7 @@ resource "aws_api_gateway_stage" "{{ ms_name }}" {
 resource "aws_cloudwatch_log_group" "api_{{ ms_name }}" {
   provider = aws.{{ ms_name }}
   {% block aws_cloudwatch_log_group %}
-  name = "API-Gateway-Execution-Logs_${local.{{ ms_name }}_api_id}/{{ workspace }}"
+  name = "API-Gateway-Execution-Logs_${local.{{ ms_name }}_api_id}/{{ stage }}"
   retention_in_days = 7
   {% endblock %}
 }

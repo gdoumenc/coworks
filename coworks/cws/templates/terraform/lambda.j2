@@ -1,10 +1,10 @@
-{% if stage != "common" %}
+{% if workspace != "common" %}
 # ---------------------------------------------------------------------------------------------------------------------
 # LAMBDA
 # ---------------------------------------------------------------------------------------------------------------------
 
 locals {
-  {{ ms_name }}_lambda_name = "{{ ms_name }}-{{ workspace }}"
+  {{ ms_name }}_lambda_name = "{{ ms_name }}-{{ stage }}"
   {% if environment_variable_files %}
   {{ ms_name }}_environment_variables = [
     for envars_string in data.local_file.{{ ms_name }}_environment_variables_files: jsondecode(envars_string.content)
@@ -46,11 +46,8 @@ resource "aws_lambda_function" "{{ ms_name }}" {
   environment {
     variables = merge(
       {{ environment_variables | tojson }},
-      {"FLASK_DEBUG":"{{ '1' if workspace == "dev" else '0' }}", "CWS_STAGE":"{{ workspace }}"},
-      {"CWS_DATETIME": "{{ now }}"},
-      {"CWS_LAMBDA": "{{ ms_name }}"},
-      {"CWS_BUCKET": "{{ bucket }}"},
-      {"CWS_KEY": "{{ key }}"}
+      {"FLASK_DEBUG":"{{ '1' if workspace == "dev" else '0' }}","CWS_STAGE":"{{ workspace }}"},
+      {"CWS_DATETIME": "{{ now }}";"CWS_LAMBDA": "{{ ms_name }}","CWS_BUCKET": "{{ bucket }}","CWS_KEY": "{{ key }}"}
     )
   }
   tracing_config {

@@ -9,10 +9,10 @@ from flask.cli import ScriptInfo
 from coworks import Blueprint
 from coworks import TechMicroService
 from coworks import entry
-from coworks.cws.deploy import Terraform
-from coworks.cws.deploy import TerraformContext
 from coworks.cws.client import CwsScriptInfo
+from coworks.cws.deploy import Terraform
 from coworks.cws.deploy import TerraformBackend
+from coworks.cws.deploy import TerraformContext
 
 
 class CliCtxMokup:
@@ -59,8 +59,9 @@ class TestClass:
         with app.test_request_context() as ctx:
             info = ScriptInfo(create_app=lambda: app)
             terraform_context = TerraformContext(info, CliCtxMokup())
-            backend = TerraformBackend(terraform_context, None, terraform_dir=".", terraform_refresh=False)
-            terraform = Terraform(backend, terraform_dir="terraform", stage="common")
+            backend = TerraformBackend(terraform_context, None, stage='dev',
+                                       terraform_dir=".", terraform_refresh=False)
+            terraform = Terraform(backend, terraform_dir="terraform", workspace="common")
             api_ressources = terraform.api_resources
         assert len(api_ressources) == 7
         assert api_ressources[''].rules is not None
@@ -83,8 +84,9 @@ class TestClass:
         with app.test_request_context() as ctx:
             info = ScriptInfo(create_app=lambda: app)
             terraform_context = TerraformContext(info, CliCtxMokup())
-            backend = TerraformBackend(terraform_context, None, terraform_dir=".", terraform_refresh=False)
-            terraform = Terraform(backend, terraform_dir="terraform", stage="common")
+            backend = TerraformBackend(terraform_context, None, stage='dev',
+                                       terraform_dir=".", terraform_refresh=False)
+            terraform = Terraform(backend, terraform_dir="terraform", workspace="common")
             api_ressources = terraform.api_resources
         assert len(api_ressources) == 5
         assert '' in api_ressources
@@ -105,16 +107,16 @@ class TestClass:
         with app.test_request_context() as ctx:
             options = {
                 'project_dir': example_dir,
-                'workspace': 'workspace',
-                'debug': False,
+                'stage': 'dev',
                 'timeout': 30,
                 'memory_size': 100,
-                'deploy': True,
+                'terraform_dir': ".",
+                'terraform_refresh': False,
             }
             info = ScriptInfo(create_app=lambda: app)
             terraform_context = TerraformContext(info, CliCtxMokup())
-            backend = TerraformBackend(terraform_context, None, terraform_dir=".", terraform_refresh=False)
-            terraform = Terraform(backend, terraform_dir=Path("terraform"), stage="common")
+            backend = TerraformBackend(terraform_context, None, **options)
+            terraform = Terraform(backend, terraform_dir=Path("terraform"), workspace="common")
             with tempfile.NamedTemporaryFile() as fp:
                 terraform.generate_file("deploy.j2", fp.name, **options)
                 fp.seek(0)
@@ -130,18 +132,18 @@ class TestClass:
         with app.test_request_context() as ctx:
             options = {
                 'project_dir': example_dir,
-                'workspace': 'workspace',
-                'debug': False,
+                'stage': 'dev',
                 'timeout': 30,
                 'memory_size': 100,
-                'deploy': True,
                 'terraform_cloud': True,
                 'terraform_organization': "CoWorks",
+                'terraform_dir': ".",
+                'terraform_refresh': False,
             }
             info = ScriptInfo(create_app=lambda: app)
             terraform_context = TerraformContext(info, CliCtxMokup())
-            backend = TerraformBackend(terraform_context, None, terraform_dir=".", terraform_refresh=False)
-            terraform = Terraform(backend, terraform_dir=Path("terraform"), stage="common")
+            backend = TerraformBackend(terraform_context, None, **options)
+            terraform = Terraform(backend, terraform_dir=Path("terraform"), workspace="common")
             with tempfile.NamedTemporaryFile() as fp:
                 terraform.generate_file("terraform.j2", fp.name, **options)
                 fp.seek(0)
@@ -160,16 +162,16 @@ class TestClass:
         with app.test_request_context() as ctx:
             options = {
                 'project_dir': example_dir,
-                'workspace': 'workspace',
-                'debug': False,
+                'stage': 'dev',
                 'timeout': 30,
                 'memory_size': 100,
-                'deploy': False,
+                'terraform_dir': ".",
+                'terraform_refresh': False,
             }
             info = ScriptInfo(create_app=lambda: app)
             terraform_context = TerraformContext(info, CliCtxMokup())
-            backend = TerraformBackend(terraform_context, None, terraform_dir=".", terraform_refresh=False)
-            terraform = Terraform(backend, terraform_dir=Path("terraform"), stage="common")
+            backend = TerraformBackend(terraform_context, None, **options)
+            terraform = Terraform(backend, terraform_dir=Path("terraform"), workspace="common")
             with tempfile.NamedTemporaryFile() as fp:
                 terraform.generate_file("deploy.j2", fp.name, **options)
                 fp.seek(0)

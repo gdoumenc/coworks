@@ -22,7 +22,6 @@ from subprocess import CompletedProcess
 
 import boto3
 import click
-import dotenv
 from flask.cli import pass_script_info
 from flask.cli import with_appcontext
 from jinja2 import BaseLoader
@@ -32,9 +31,8 @@ from jinja2 import select_autoescape
 from werkzeug.routing import Rule
 
 from coworks import aws
-from coworks.utils import get_app_stage
-from coworks.utils import get_env_filenames
 from coworks.utils import get_cws_annotations
+from coworks.utils import load_dotenv
 from .command import CwsCommand
 from .utils import progressbar
 from .utils import show_stage_banner
@@ -61,7 +59,7 @@ class TerraformContext:
 class TerraformResource:
     parent_uid: str
     path: str
-    rules: t.List[Rule] = None
+    rules: list[Rule] = None
 
     @cached_property
     def uid(self) -> str:
@@ -98,13 +96,13 @@ class Terraform:
     """Terraform class to manage local terraform commands."""
     TIMEOUT = 600
 
-    def __init__(self, backend: 'TerraformBackend', terraform_dir, stage):
+    def __init__(self, backend: 'TerraformBackend', terraform_dir, workspace):
         self.terraform_context = backend.terraform_context
         self.app_context = backend.terraform_context
         self.bar = backend.bar
         self.terraform_dir = terraform_dir
         self.refresh = backend.terraform_refresh
-        self.stage = stage
+        self.workspace = workspace
         self.working_dir = Path(backend.terraform_context.ctx.find_root().params.get('project_dir'))
 
     def init(self):
@@ -131,7 +129,7 @@ class Terraform:
     @property
     def api_resources(self):
         """Returns the list of flatten path (prev_uid, last, rule)."""
-        resources: t.Dict[str, TerraformResource] = {}
+        resources: dict[str, TerraformResource] = {}
 
         def add_rule(previous: t.Optional[str], path: t.Optional[str], rule_: t.Optional[Rule]):
             """Add a method rule in a resource."""
@@ -192,9 +190,8 @@ class Terraform:
                            trim_blocks=True, lstrip_blocks=True)
 
     def get_context_data(self, **options) -> dict:
-        workspace = get_app_stage()
-
         # Microservice context data
+        stage = options['stage']
         app = self.app_context.app
         data = {
             'api_resources': self.api_resources,
@@ -202,15 +199,13 @@ class Terraform:
             'app_import_path': self.app_context.app_import_path,
             'debug': app.debug,
             'description': inspect.getdoc(app) or "",
-            'environment_variables': load_dotvalues(self.working_dir, workspace),
+            'environment_variables': load_dotenv(stage),
             'ms_name': app.name,
             'now': datetime.now().isoformat(),
-            'workspace': workspace,
+            'stage': stage,
+            'workspace': self.workspace,
             **options
         }
-
-        if self.stage:
-            data['stage'] = self.stage
 
         # AWS context data
         profile_name = options.get('profile_name')
@@ -223,7 +218,7 @@ class Terraform:
 
         return data
 
-    def _execute(self, cmd_args: t.List[str]) -> CompletedProcess:
+    def _execute(self, cmd_args: list[str]) -> CompletedProcess:
         self.logger.debug(f"Terraform arguments : ['-chdir={self.terraform_dir} {' '.join(cmd_args)}]")
         p = subprocess.run(["terraform", *cmd_args], capture_output=True, cwd=self.terraform_dir,
                            timeout=self.TIMEOUT)
@@ -255,7 +250,7 @@ class TerraformBackend:
 
         # Creates terraform dir if needed
         self.terraform_dir = Path(options['terraform_dir'])
-        self.stage = get_app_stage()
+        self.stage = options.get('stage')
 
         self.terraform_class = Terraform
         self.terraform_refresh = options['terraform_refresh']
@@ -266,7 +261,7 @@ class TerraformBackend:
         if self._api_terraform is None:
             self.app.logger.debug(f"Create common terraform instance using {self.terraform_class}")
             self.terraform_dir.mkdir(exist_ok=True)
-            self._api_terraform = self.terraform_class(self, terraform_dir=self.terraform_dir, stage="common")
+            self._api_terraform = self.terraform_class(self, terraform_dir=self.terraform_dir, workspace="common")
         return self._api_terraform
 
     @property
@@ -275,7 +270,7 @@ class TerraformBackend:
             self.app.logger.debug(f"Create {self.stage} terraform instance using {self.terraform_class}")
             terraform_dir = Path(f"{self.terraform_dir}_{self.stage}")
             terraform_dir.mkdir(exist_ok=True)
-            self._stage_terraform = self.terraform_class(self, terraform_dir=terraform_dir, stage=self.stage)
+            self._stage_terraform = self.terraform_class(self, terraform_dir=terraform_dir, workspace=self.stage)
         return self._stage_terraform
 
     def process_terraform(self, command_template, terraform_init=True, **options):
@@ -429,8 +424,6 @@ class TerraformBackend:
               help="Python version for the lambda.")
 @click.option('--security-groups', multiple=True, default=[],
               help="Security groups to be added [ids].")
-@click.option('-s', '--stage', default='dev',
-              help="Deploiement stage.")
 @click.option('--subnets', multiple=True, default=[],
               help="Subnets to be added [ids].")
 @click.option('--terraform-cloud', '-tc', is_flag=True, default=False,
@@ -484,8 +477,6 @@ def deploy_command(info, ctx, stage, **options) -> None:
               help="Sources zip file bucket's name.")
 @click.option('--profile-name', '-pn', required=True,
               help="AWS credential profile.")
-@click.option('-s', '--stage', default='dev',
-              help="Deploiement stage.")
 @click.option('--terraform-dir', default="terraform",
               help="Terraform folder (default terraform).")
 @click.option('--terraform-cloud', is_flag=True,
@@ -517,12 +508,10 @@ def destroy_command(info, ctx, stage, **options) -> None:
         backend = terraform_backend_class(terraform_context, bar, **options)
         backend.process_terraform('destroy.j2', terraform_init=False, **options)
     if not options['dry']:
-        click.echo(f"You can now delete the terraform_{get_app_stage()} folder.")
+        click.echo(f"You can now delete the terraform_{options.get('stage')} folder.")
 
 
 @click.command("deployed", CwsCommand, short_help="Retrieve the microservices deployed for this project.")
-@click.option('-s', '--stage', default='dev',
-              help="Deploiement stage.")
 @click.option('--terraform-dir', default="terraform",
               help="Terraform folder (default terraform).")
 @click.option('--terraform-cloud', is_flag=True,
@@ -560,12 +549,3 @@ def echo_output(terraform):
             api_id = values[1].strip()[1:-1]  # remove quotes
             api_url = f"https://{api_id}.execute-api.eu-west-1.amazonaws.com/"
             click.secho(f"The microservice {cws_name} is deployed at {api_url}", fg='yellow')
-
-
-def load_dotvalues(working_dir, stage):
-    environment_variables = {}
-    for env_filename in get_env_filenames(stage):
-        path = dotenv.find_dotenv(working_dir / env_filename, usecwd=True)
-        if path:
-            environment_variables.update(dotenv.dotenv_values(path))
-    return environment_variables

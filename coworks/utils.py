@@ -41,7 +41,8 @@ OPEN_SQUARE_BRACKETED_KWARG_PATTERN = re.compile(r'([a-zA-Z0-9]+)__')
 SQUARE_BRACKETED_KWARG_PATTERN = re.compile(r'([a-zA-Z0-9]+)__([a-zA-Z0-9._]+)__')
 
 
-def create_cws_proxy(scaffold: "Scaffold", func, func_args: list[str], func_kwargs: dict, func_generic_kwargs: str):
+def create_cws_proxy(scaffold: "Scaffold", func, func_args: list[str], func_kwargs: dict,
+                     func_generic_kwargs: str | None):
     """Creates the AWS Lambda proxy function.
 
     :param scaffold: The Flask or Blueprint object.
@@ -283,10 +284,11 @@ def str_to_bool(val: str) -> bool:
 
 
 def get_app_stage():
+    """Defined only on deployed microservice or should be set manually."""
     return os.getenv('CWS_STAGE', DEFAULT_DEV_STAGE)
 
 
-def load_dotenv(stage: str, as_dict: bool = False):
+def load_dotenv(stage: str):
     loaded = True
     for env_filename in get_env_filenames(stage):
         path = dotenv.find_dotenv(env_filename, usecwd=True)

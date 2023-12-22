@@ -1,5 +1,5 @@
 locals {
-{% if stage != "common" %}
+{% if workspace != "common" %}
   {{ ms_name }}_role_arn = data.aws_iam_role.{{ ms_name }}_cws.arn
 {% else %}
   {{ ms_name }}_role_arn = aws_iam_role.{{ ms_name }}_cws.arn
@@ -10,7 +10,7 @@ locals {
 # ROLE
 # ---------------------------------------------------------------------------------------------------------------------
 
-{% if stage != "common" %}
+{% if workspace != "common" %}
 data "aws_iam_role" "{{ ms_name }}_cws" {
   provider = aws.{{ ms_name }}
   name = "{{ ms_name }}_cws_role"

@@ -36,7 +36,6 @@ from .utils import get_app_stage
 from .utils import get_cws_annotations
 from .utils import is_arg_parameter
 from .utils import is_kwarg_parameter
-from .utils import load_dotenv
 from .utils import make_absolute
 from .utils import path_join
 from .utils import trim_underscores
@@ -51,7 +50,7 @@ from .wrappers import TokenResponse
 #
 
 
-def entry(fun: t.Callable | None = None, binary_headers: t.Dict[str, str] | None = None,
+def entry(fun: t.Callable | None = None, binary_headers: dict[str, str] | None = None,
           stage: str | t.Iterable[str] | None = None,
           no_auth: bool = False, no_cors: bool = True) -> t.Callable:
     """Decorator to create a microservice entry point from function name.
@@ -172,7 +171,8 @@ class Blueprint(FlaskBlueprint):
     def logger(self) -> logging.Logger:
         return current_app.logger
 
-    def make_setup_state(self, app: "TechMicroService", options: t.Dict, *args) -> BlueprintSetupState:
+    def make_setup_state(self, app: "TechMicroService",  # type: ignore[override]
+                         options: dict, *args) -> BlueprintSetupState:
         """Stores creation state for deferred initialization."""
         state = super().make_setup_state(app, options, *args)
 
@@ -202,24 +202,20 @@ class TechMicroService(Flask):
         :param stage_prefixed: if accessed with stage or not.
         :param kwargs: Other Flask parameters.
         """
-        stage = get_app_stage()
-        load_dotenv(stage)
-
         self.default_config = ImmutableDict({
             **self.default_config,
-            "FLASK_SKIP_DOTENV": True,
         })
 
         name = name or self.__class__.__name__.lower()
         super().__init__(import_name=name, static_folder=None, **kwargs)
 
-        self.request_class: t.Type[CoworksRequest] = CoworksRequest
-        self.response_class: t.Type[CoworksResponse] = CoworksResponse
+        self.request_class: type[CoworksRequest] = CoworksRequest
+        self.response_class: type[CoworksResponse] = CoworksResponse
 
         self.deferred_init_routes_functions: t.Iterable[t.Callable] = []
         self._cws_app_initialized = False
         self._cws_conf_updated = False
-        self.__aws_url_map = None
+        self.__aws_url_map: dict | None = None
         self.__stage_prefixed = stage_prefixed
 
         @self.before_request
@@ -246,7 +242,7 @@ class TechMicroService(Flask):
         self._init_app(False)
         return super().app_context()
 
-    def create_url_adapter(self, _request: t.Optional[CoworksRequest]):
+    def create_url_adapter(self, _request: CoworksRequest | None):  # type: ignore[override]
         if _request and _request.aws_event:
             self.subdomain_matching = True
             return CoworksMapAdapter(_request.environ, self.url_map, self.aws_url_map, self.__stage_prefixed)
@@ -269,7 +265,7 @@ class TechMicroService(Flask):
         return self._in_lambda_context
 
     @property
-    def aws_url_map(self) -> t.Dict[str, t.List[Rule]]:
+    def aws_url_map(self) -> dict[str, list[Rule]]:
         if self.__aws_url_map is None:
             self.__aws_url_map = {}
             for rule in self.url_map.iter_rules():
@@ -281,12 +277,12 @@ class TechMicroService(Flask):
         return self.__aws_url_map
 
     @property
-    def routes(self) -> t.List[str]:
+    def routes(self) -> list[str]:
         """Returns the list of routes defined in the microservice.
         """
         return [k for k in self.aws_url_map]
 
-    def token_authorizer(self, token: str) -> t.Union[bool, str]:
+    def token_authorizer(self, token: str) -> bool | str:
         """Defined the authorization process.
 
         If the returned value is False, all routes for all stages are denied.
@@ -356,14 +352,14 @@ class TechMicroService(Flask):
 
         return res
 
-    def _lambda_handler(self, event: t.Dict[str, t.Any], context: t.Dict[str, t.Any]):
+    def _lambda_handler(self, event: dict[str, t.Any], context: dict[str, t.Any]):
         """Lambda handler.
         """
         if event.get('type') == 'TOKEN':
             return self._token_handler(event, context)
         return self._api_handler(event, context)
 
-    def _token_handler(self, aws_event: t.Dict[str, t.Any], aws_context: t.Dict[str, t.Any]) -> dict:
+    def _token_handler(self, aws_event: dict[str, t.Any], aws_context: dict[str, t.Any]) -> dict:
         """Authorization token handler.
         """
         self.logger.warning(f"Calling {self.name} for authorization : {aws_event}")
@@ -377,7 +373,7 @@ class TechMicroService(Flask):
             return TokenResponse(False, aws_event['methodArn']).json
 
     def _api_handler(
-            self, aws_event: t.Dict[str, t.Any], aws_context: t.Dict[str, t.Any]
+            self, aws_event: dict[str, t.Any], aws_context: dict[str, t.Any]
     ) -> t.Optional[t.Union[dict, str]]:
         """API handler.
         """
@@ -397,10 +393,10 @@ class TechMicroService(Flask):
 
                 # Encodes binary content
                 if not isinstance(resp, dict):
-                    resp = base64.b64encode(resp).decode('ascii')
-                    content_length = len(resp) if self.logger.getEffectiveLevel() == logging.DEBUG else "N/A"
+                    str_resp = base64.b64encode(resp).decode('ascii')
+                    content_length = len(str_resp) if self.logger.getEffectiveLevel() == logging.DEBUG else "N/A"
                     self.logger.warning(f"API returns binary content [length: {content_length}]")
-                    return resp
+                    return str_resp
 
                 # Adds trace
                 self.logger.warning(f"API returns code {resp.get('statusCode')} and headers {resp.get('headers')}")
@@ -413,7 +409,7 @@ class TechMicroService(Flask):
             headers = {'content_type': "application/json"}
             return self._aws_payload(str(e), InternalServerError.code, headers)
 
-    def _flask_handler(self, environ: t.Dict[str, t.Any], start_response: t.Callable[[t.Any], None]):
+    def _flask_handler(self, environ: dict[str, t.Any], start_response: t.Callable[[t.Any], None]):
         """Flask handler.
         """
         return self.wsgi_app(environ, start_response)

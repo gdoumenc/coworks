@@ -2,26 +2,69 @@ import base64
 import os
 import typing as t
 import xmlrpc.client
+from math import ceil
+from typing import Any
 
 import requests
 from aws_xray_sdk.core import xray_recorder
+from coworks.extension.xray import XRay
 from flask import json
 from pydantic import BaseModel
+from pydantic import ConfigDict
 from pydantic import Field
 from werkzeug.exceptions import BadRequest
 from werkzeug.exceptions import Forbidden
 from werkzeug.exceptions import NotFound
 
-from coworks.extension.xray import XRay
+
+class OdooPagination(BaseModel):
+    page: int | None
+    per_page: int | None
+    max_per_page: int = 100
+    total: int | None = None
+
+    def model_post_init(self, __context: Any) -> None:
+        if self.page is None:
+            self.page = 0
+        if self.per_page is None:
+            self.per_page = 20
+
+    @property
+    def pages(self) -> int:
+        if not self.total:
+            return 0
+        return ceil(self.total / self.per_page)
+
+    @property
+    def has_prev(self) -> bool:
+        return self.page > 1
+
+    @property
+    def prev_num(self) -> int | None:
+        if not self.has_prev:
+            return None
+        return self.page - 1
+
+    @property
+    def has_next(self) -> bool:
+        return self.page < self.pages
+
+    @property
+    def next_num(self) -> int | None:
+        if not self.has_next:
+            return None
+        return self.page + 1
 
 
 class OdooConfig(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     ref: t.Optional[str] = "default"
     url: str
     dbname: str
     user: str
     passwd: str
-    const: t.Optional[t.Dict[str, t.Any]] = Field(default_factory=dict)
+    const: t.Optional[dict[str, t.Any]] = Field(default_factory=dict)
 
     @classmethod
     def from_env_var_prefix(cls, env_var_prefix):
@@ -59,7 +102,7 @@ class Odoo:
         GraphQL removed.
     """
 
-    def __init__(self, app=None, config: OdooConfig = None, binds: t.Dict[t.Optional[str], OdooConfig] = None):
+    def __init__(self, app=None, config: OdooConfig = None, binds: dict[t.Optional[str], OdooConfig] = None):
         """
         :param app: Flask application.
         :param config: default configuration.
@@ -78,9 +121,9 @@ class Odoo:
         self.app = app
 
     @XRay.capture(xray_recorder)
-    def kw(self, model: str, method: str = "search_read", id: int = None, fields: t.List[str] = None,
-           order: str = None, domain: t.List[t.Tuple[str, str, t.Any]] = None, limit: t.Optional[int] = None,
-           page: t.Optional[int] = None, ensure_one: bool = False, bind: str = None):
+    def kw(self, model: str, method: str = "search_read", id: int = None, fields: list[str] = None,
+           order: str = None, domain: list[t.Tuple[str, str, t.Any]] = None,
+           pagination: OdooPagination = None, ensure_one: bool = False, bind: str = None):
         """Searches with API for records based on the args.
         
         See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.search
@@ -90,8 +133,7 @@ class Odoo:
         @param fields: record fields for result.
         @param order: oder of result.
         @param domain: domain for records.
-        @param limit: maximum number of records to return from odoo (default: all).
-        @param page: current page searched.
+        @param pagination: current page searched.
         @param ensure_one: raise error if result is not one (404) and only one (400) object.
         @param bind: bind configuration to be used.
 
@@ -100,8 +142,6 @@ class Odoo:
        """
         if id and domain:
             raise BadRequest("Domain and Id parameters cannot be defined tin same time")
-        if page is not None and limit is None:
-            raise BadRequest("Pagination needs limit as page size.")
 
         if id:
             domain = [[('id', '=', id)]]
@@ -109,15 +149,17 @@ class Odoo:
             domain = [domain] if domain else [[]]
 
         params = {}
+        pagination = pagination or OdooPagination()
+        if not pagination.total:
+            res = self.odoo_execute_kw(bind, model, "search_count", domain, params)
+            pagination.total = res
+
+        params.update({'limit': pagination.per_page})
+        params.update({'offset': pagination.page * pagination.per_page})
         if order:
             params.update({'order': order})
         if fields:
             params.update({'fields': fields})
-        if limit:
-            params.update({'limit': limit})
-        if page:
-            params.update({'offset': page * limit})
-
         res = self.odoo_execute_kw(bind, model, method, domain, params)
 
         if method == 'search_count':
@@ -130,7 +172,7 @@ class Odoo:
                 raise NotFound("More than one element found and ensure_one parameters was set")
             return res[0]
 
-        return {"ids": [rec['id'] for rec in res], "values": res}
+        return {"ids": [rec['id'] for rec in res], "values": res, "pagination": pagination}
 
     @XRay.capture(xray_recorder)
     def create(self, model: str, data: t.Iterator[dict] = None, bind: str = None) -> int:

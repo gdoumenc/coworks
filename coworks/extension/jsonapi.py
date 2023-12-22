@@ -4,9 +4,6 @@ import typing as t
 from functools import update_wrapper
 from inspect import signature
 
-from coworks import request
-from coworks.utils import nr_url
-from coworks.utils import str_to_bool
 from flask import current_app
 from flask import make_response
 from jsonapi_pydantic.v1_0 import Error
@@ -28,15 +25,26 @@ from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import NotFound
 from werkzeug.exceptions import UnprocessableEntity
 
+from coworks import request
+from coworks.utils import nr_url
+from coworks.utils import str_to_bool
+
 if t.TYPE_CHECKING:
-    from flask_sqlalchemy.pagination import Pagination
     from flask_sqlalchemy.query import Query
+
+
+class Pagination(type):
+    total: int
+    has_prev: bool
+    prev_num: int
+    has_next: bool
+    next_num: int
 
 
 class JsonApiError(Exception):
     """Exception wich will create a JSON:API error."""
 
-    def __init__(self, id_or_error: t.Union[str, Exception, "JsonApiError", t.List["JsonApiError"]], title: str = None,
+    def __init__(self, id_or_error: t.Union[str, Exception, "JsonApiError", list["JsonApiError"]], title: str = None,
                  detail=None, code=None, status=None):
         if isinstance(id_or_error, str):
             code = str(code) or None
@@ -201,15 +209,15 @@ class FetchingContext:
 
         return sql_filters
 
-    def order_by(self, model):
-        sql_order_by = []
+    def sql_order_by(self, model):
+        _sql_order_by = []
         for key in self._sort:
             if key.startswith('-'):
                 column = getattr(model, key[1:]).desc()
             else:
                 column = getattr(model, key)
-            sql_order_by.append(column)
-        return sql_order_by
+            _sql_order_by.append(column)
+        return _sql_order_by
 
     def _add_branch(self, tree, vector, value):
         key = vector[0]
@@ -368,22 +376,14 @@ def jsonapi(func):
                                   page__number__, page__size__, page__max__)
         query_params = {'fetching': context}
         query = func(*args, **query_params, **kwargs)
-        if not query:
-            return TopLevel(data=[]).model_dump_json(exclude_none=True)
 
-        # connection manager may be iterable
-        if isinstance(context.connection_manager, t.Iterable):
-            _toplevels = []
-            for connection_manager in context.connection_manager:
-                with connection_manager:
-                    _toplevels.append(get_toplevel_from_query(query, context, ensure_one))
-            data = [r for t in _toplevels for r in t.data]
-            included = set((i for t in _toplevels if t.included for i in t.included))
-            included = None
-            _toplevel = TopLevel(data=data, included=included if included else None)
+        if not query:
+            # Should change return lid for creation
+            _toplevel = TopLevel(data=[]).model_dump_json(exclude_none=True)
+        if isinstance(query, TopLevel):
+            _toplevel = query
         else:
-            with context.connection_manager:
-                _toplevel = get_toplevel_from_query(query, context, ensure_one)
+            _toplevel = asyncio.run(get_toplevel_from_query(query, context, ensure_one))
         return _toplevel.model_dump_json(exclude_none=True)
 
     # Adds JSON:API query parameters
@@ -396,13 +396,29 @@ def jsonapi(func):
     return _jsonapi
 
 
-def get_toplevel_from_query(query: "Query", context: FetchingContext, ensure_one) -> TopLevel:
-    current_app.logger.debug(str(query))
-    if ensure_one:
-        toplevel = get_one_toplevel(query, context)
+async def get_toplevel_from_query(query: "Query", context: FetchingContext, ensure_one) -> TopLevel:
+    def get_toplevel():
+        current_app.logger.debug(str(query))
+        if ensure_one:
+            toplevel = get_one_toplevel(query, context)
+        else:
+            toplevel = get_multi_toplevel(query, context)
+        return toplevel
+
+    # connection manager may be iterable
+    if isinstance(context.connection_manager, t.Iterable):
+        _toplevels = []
+        for connection_manager in context.connection_manager:
+            with connection_manager:
+                _toplevels.append(await get_toplevel())
+        data = [r for t in _toplevels for r in t.data]
+        included = set((i for t in _toplevels if t.included for i in t.included))
+        included = None
+        _toplevel = TopLevel(data=data, included=included if included else None)
     else:
-        toplevel = get_multi_toplevel(query, context)
-    return asyncio.run(toplevel)
+        with context.connection_manager:
+            _toplevel = await get_toplevel()
+    return _toplevel
 
 
 async def get_multi_toplevel(query: "Query", context: FetchingContext) -> TopLevel:

@@ -25,13 +25,13 @@ from werkzeug.routing import MapAdapter
 class TokenResponse:
     """AWS authorization response."""
 
-    def __init__(self, allow: bool, arn: str):
+    def __init__(self, allow: str | bool, arn: str):
         """Value may be string when allowed only if match workspace label."""
         self.allow = allow
         self.arn = arn
 
     @property
-    def json(self) -> t.Optional[t.Any]:
+    def json(self) -> dict:
         return {
             "principalId": "user",
             "policyDocument": {

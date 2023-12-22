@@ -2,7 +2,7 @@
 # OUTPUT
 # ---------------------------------------------------------------------------------------------------------------------
 
-{% if stage == "common" %}
+{% if workspace == "common" %}
 output "{{ ms_name }}_id" {
   value = aws_api_gateway_rest_api.{{ ms_name }}.id
 }

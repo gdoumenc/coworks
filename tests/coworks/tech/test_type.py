@@ -34,7 +34,7 @@ class TypedMS(TechMicroService):
         return ("ok", 200) if type(i) is int else ("not ok", 400)
 
     @entry
-    def get_list(self, i: t.List[int] = 0):
+    def get_list(self, i: list[int] = 0):
         return ("ok", 200) if type(i) is list else ("not ok", 400)
 
     @entry

@@ -1,16 +1,13 @@
 import os
 from collections import defaultdict
 
-from coworks import TechMicroService, entry
+from coworks import TechMicroService
+from coworks import entry
 
 
 class EnvTechMS(TechMicroService):
     values = defaultdict(int)
     init_value = None
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        assert os.getenv("STAGE") is not None, "no environment variable 'STAGE'"
 
     def token_authorizer(self, token):
         return True

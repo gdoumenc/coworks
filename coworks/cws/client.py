@@ -17,8 +17,6 @@ from flask.cli import ScriptInfo
 from coworks import __version__
 from coworks.utils import DEFAULT_PROJECT_DIR
 from coworks.utils import PROJECT_CONFIG_VERSION
-from coworks.utils import get_app_stage
-from coworks.utils import load_dotenv
 from .deploy import deploy_command
 from .deploy import deployed_command
 from .deploy import destroy_command
@@ -32,7 +30,6 @@ class CwsScriptInfo(ScriptInfo):
     def __init__(self, project_dir=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.project_dir = project_dir
-        self.__dotenv_loaded = False
 
     @property
     def project_dir(self):
@@ -44,11 +41,6 @@ class CwsScriptInfo(ScriptInfo):
 
     @contextmanager
     def project_context(self, ctx=None):
-        if not self.__dotenv_loaded:
-            workspace = get_app_stage()
-            load_dotenv(workspace)
-            self.__dotenv_loaded = True
-
         old_dir = os.getcwd()
         try:
             os.chdir(self.project_dir)
@@ -101,7 +93,7 @@ class CwsGroup(flask.cli.FlaskGroup):
         # Adds environment variables and defined commands from project file
         project_config = ProjectConfig(project_dir, config_file, config_file_suffix)
         with script_info.project_context(ctx):
-            commands = project_config.get_commands(get_app_stage())
+            commands = project_config.get_commands(ctx.params.get('stage'))
             if commands:
                 for name, options in commands.items():
                     cmd_class_name = options.pop('class', None)
@@ -109,7 +101,7 @@ class CwsGroup(flask.cli.FlaskGroup):
                         cmd_module, cmd_class = cmd_class_name.rsplit('.', 1)
                         try:
                             cmd = import_attr(cmd_module, cmd_class)
-                        except ModuleNotFoundError as e:
+                        except ModuleNotFoundError:
                             raise click.UsageError(f"Cannot load command {cmd_class!r} in module {cmd_module!r}.")
                     elif name in self.commands:
                         cmd = self.commands[name]
@@ -133,6 +125,7 @@ class CwsGroup(flask.cli.FlaskGroup):
               help=f"The project directory path (absolute or relative) [default to '{DEFAULT_PROJECT_DIR}'].")
 @click.option('-c', '--config-file', default='project', help="Configuration file path [relative from project dir].")
 @click.option('--config-file-suffix', default='.cws.yml', help="Configuration file suffix.")
+@click.option('-s', '--stage', default='dev', help="Stage environment.")
 def client(*args, **kwargs):
     ...
 

@@ -8,8 +8,6 @@ from time import sleep
 
 import click
 
-from coworks.utils import get_app_stage
-
 
 def get_system_info():
     flask_version = version("flask")
@@ -22,11 +20,11 @@ def get_system_info():
     return f"{flask_info}, {python_info}, {platform_info}"
 
 
-def show_stage_banner(stage='dev'):
-    click.secho(f" * Stage: {get_app_stage()}", fg="green")
+def show_stage_banner(stage: str = 'dev'):
+    click.secho(f" * Stage: {stage}", fg="green")
 
 
-def show_terraform_banner(cloud, refresh):
+def show_terraform_banner(cloud: bool, refresh: bool):
     click.secho(f" * Using terraform backend {'cloud' if cloud else 's3'} (refresh={refresh})", fg="green")
 
 
