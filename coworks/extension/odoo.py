@@ -2,11 +2,13 @@ import base64
 import os
 import typing as t
 import xmlrpc.client
+from datetime import date
+from datetime import datetime
 from math import ceil
-from typing import Any
 
 import requests
 from aws_xray_sdk.core import xray_recorder
+from coworks import TechMicroService
 from coworks.extension.xray import XRay
 from flask import json
 from pydantic import BaseModel
@@ -16,44 +18,72 @@ from werkzeug.exceptions import BadRequest
 from werkzeug.exceptions import Forbidden
 from werkzeug.exceptions import NotFound
 
+from neorezo.models import CoercedStr
+from .jsonapi import FetchingContext
+from .jsonapi import JsonApiBaseModelMixin
 
-class OdooPagination(BaseModel):
-    page: int | None
-    per_page: int | None
-    max_per_page: int = 100
-    total: int | None = None
 
-    def model_post_init(self, __context: Any) -> None:
-        if self.page is None:
-            self.page = 0
-        if self.per_page is None:
-            self.per_page = 20
-
+class JsonAPiOdooBaseModel(JsonApiBaseModelMixin):
     @property
-    def pages(self) -> int:
-        if not self.total:
-            return 0
-        return ceil(self.total / self.per_page)
+    def jsonapi_id(self) -> str:
+        return str(self.id)
 
-    @property
-    def has_prev(self) -> bool:
-        return self.page > 1
+    def jsonapi_model_dump(self, context: FetchingContext):
+        data = self.model_dump()
+        fields = context.field_names(self.jsonapi_type)
+        return {k: v for k, v in data.items() if not fields or k in fields}
 
-    @property
-    def prev_num(self) -> int | None:
-        if not self.has_prev:
-            return None
-        return self.page - 1
 
-    @property
-    def has_next(self) -> bool:
-        return self.page < self.pages
+class Report(BaseModel, JsonAPiOdooBaseModel):
+    jsonapi_type: t.ClassVar[str] = "ir.actions.report"
 
-    @property
-    def next_num(self) -> int | None:
-        if not self.has_next:
-            return None
-        return self.page + 1
+    id: CoercedStr
+    report_name: str
+
+
+class Invoice(BaseModel, JsonAPiOdooBaseModel):
+    jsonapi_type: t.ClassVar[str] = "account.invoice"
+
+    id: CoercedStr
+    create_date: datetime
+    date_invoice: date
+    type: str
+    name: str
+    state: str
+    amount_untaxed_signed: float
+    amount_tax: float
+    amount_total_signed: float
+    residual_signed: float
+
+    first_name: str = Field(validation_alias='x_first_name')
+    last_name: str = Field(validation_alias='x_last_name')
+    company: str = Field(validation_alias='x_company')
+    address_line1: str = Field(validation_alias='x_address_line1')
+    address_line2: str = Field(validation_alias='x_address_line2')
+    postal_code: str = Field(validation_alias='x_postal_code')
+    city: str = Field(validation_alias='x_city')
+    country: str | bool = Field(validation_alias='x_country')
+    web_hidden: bool = Field(validation_alias='x_web_hidden')
+
+    partner: "Partner" = None
+    lines: t.List["InvoiceLine"]
+
+
+class InvoiceLine(BaseModel, JsonAPiOdooBaseModel):
+    jsonapi_type: t.ClassVar[str] = "account.invoice.line"
+
+    id: CoercedStr
+
+
+class Partner(BaseModel, JsonAPiOdooBaseModel):
+    jsonapi_type: t.ClassVar[str] = "res.partner"
+
+    id: CoercedStr
+
+
+Invoice.model_rebuild()
+
+odoo_models = {m.jsonapi_type: m for m in (Invoice, InvoiceLine, Partner, Report)}  # type: ignore[attr-defined]
 
 
 class OdooConfig(BaseModel):
@@ -93,6 +123,87 @@ class OdooConfig(BaseModel):
         return OdooConfig(url=url, dbname=dbname, user=user, passwd=passwd)
 
 
+class OdooPagination(BaseModel):
+    page: int | None = 1
+    per_page: int | None = 20
+    max_per_page: int | None = 100
+    total: int | None = None
+    query: t.Any | None = None
+
+    def model_post_init(self, __context: t.Any) -> None:
+        if self.page is None:
+            self.page = 1
+        if self.per_page is None:
+            self.per_page = 20
+        if self.max_per_page is None:
+            self.max_per_page = 100
+
+    @property
+    def pages(self) -> int:
+        if not self.total:
+            return 1
+        return ceil(self.total / self.per_page)
+
+    @property
+    def has_prev(self) -> bool:
+        return self.page > 1
+
+    @property
+    def prev_num(self) -> int | None:
+        if not self.has_prev:
+            return None
+        return self.page - 1
+
+    @property
+    def has_next(self) -> bool:
+        return self.page < self.pages
+
+    @property
+    def next_num(self) -> int | None:
+        if not self.has_next:
+            return None
+        return self.page + 1
+
+    def __iter__(self):
+        return iter(self.query.odoo_execute_kw(self.params))
+
+    @property
+    def params(self):
+        return {
+            'limit': self.per_page,
+            'offset': (self.page - 1) * self.per_page,
+        }
+
+
+class OdooQuery(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    odoo: "Odoo"
+    model: str
+    method: str
+    domain: list[tuple[str, str, t.Any]] | None
+    bind: str | None = None  # config id in the binds list
+
+    def paginate(self, *, page=None, per_page=None, max_per_page=None) -> OdooPagination:
+        pagination = OdooPagination(page=page, per_page=per_page, max_per_page=max_per_page)
+        pagination.query = self
+        res = self.odoo.odoo_execute_kw(self.bind, self.model, "search_count", [self.domain])
+        pagination.total = res
+        return pagination
+
+    def all(self, limit=2) -> list[JsonApiBaseModelMixin]:
+        """Mainly used only to get one resource so set limit to 2."""
+        params = {
+            'limit': limit,
+            'offset': 0,
+        }
+        return self.odoo_execute_kw(params)
+
+    def odoo_execute_kw(self, params):
+        res = self.odoo.odoo_execute_kw(self.bind, self.model, self.method, [self.domain], params)
+        return [odoo_models[self.model](**rec) for rec in res]
+
+
 class Odoo:
     """Flask's extension for Odoo.
     This extension uses the external API of ODOO.
@@ -102,12 +213,15 @@ class Odoo:
         GraphQL removed.
     """
 
-    def __init__(self, app=None, config: OdooConfig = None, binds: dict[t.Optional[str], OdooConfig] = None):
+    def __init__(self, app: TechMicroService | None = None,
+                 config: OdooConfig | None = None, binds: dict[str | None, OdooConfig] = None):
+
         """
         :param app: Flask application.
-        :param config: default configuration.
-        :param binds: configuration binds.
+        :param config: default configuration if no bind given in execution.
+        :param binds: list of configuration binds.
         """
+
         self.app = None
 
         self.binds = binds if binds else {}
@@ -121,9 +235,14 @@ class Odoo:
         self.app = app
 
     @XRay.capture(xray_recorder)
-    def kw(self, model: str, method: str = "search_read", id: int = None, fields: list[str] = None,
-           order: str = None, domain: list[t.Tuple[str, str, t.Any]] = None,
-           pagination: OdooPagination = None, ensure_one: bool = False, bind: str = None):
+    def query(self, model: str, method: str = "search_read", domain: list[tuple[str, str, t.Any]] | None = None,
+              bind: str | None = None):
+        return OdooQuery(odoo=self, model=model, method=method, domain=domain, bind=bind)
+
+    @XRay.capture(xray_recorder)
+    def kw(self, model: str, method: str = "search_read", id: int = None, fields: list[str] | None = None,
+           order: str | None = None, domain: list[tuple[str, str, str]] | None = None, limit: int | None = None,
+           page_size: int | None = None, page: int = 0, ensure_one: bool = False, bind: str | None = None):
         """Searches with API for records based on the args.
         
         See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.search
@@ -133,7 +252,9 @@ class Odoo:
         @param fields: record fields for result.
         @param order: oder of result.
         @param domain: domain for records.
-        @param pagination: current page searched.
+        @param limit: maximum number of records to return from odoo (default: all).
+        @param page_size: pagination done by the microservice.
+        @param page: current page searched.
         @param ensure_one: raise error if result is not one (404) and only one (400) object.
         @param bind: bind configuration to be used.
 
@@ -142,24 +263,22 @@ class Odoo:
        """
         if id and domain:
             raise BadRequest("Domain and Id parameters cannot be defined tin same time")
-
         if id:
             domain = [[('id', '=', id)]]
         else:
             domain = [domain] if domain else [[]]
 
         params = {}
-        pagination = pagination or OdooPagination()
-        if not pagination.total:
-            res = self.odoo_execute_kw(bind, model, "search_count", domain, params)
-            pagination.total = res
-
-        params.update({'limit': pagination.per_page})
-        params.update({'offset': pagination.page * pagination.per_page})
         if order:
             params.update({'order': order})
         if fields:
             params.update({'fields': fields})
+        if limit:
+            params.update({'limit': limit})
+        if page:
+            page_size = page_size or limit
+            params.update({'offset': page * page_size})
+
         res = self.odoo_execute_kw(bind, model, method, domain, params)
 
         if method == 'search_count':
@@ -172,7 +291,7 @@ class Odoo:
                 raise NotFound("More than one element found and ensure_one parameters was set")
             return res[0]
 
-        return {"ids": [rec['id'] for rec in res], "values": res, "pagination": pagination}
+        return {"ids": [rec['id'] for rec in res], "values": res}
 
     @XRay.capture(xray_recorder)
     def create(self, model: str, data: t.Iterator[dict] = None, bind: str = None) -> int:

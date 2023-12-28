@@ -1,10 +1,12 @@
 from click import Command
 from click import UsageError
 
+
 def no_project_context(f):
     """Decorator to allow command without need to have a project dir defined."""
     setattr(f, '__need_project_context', False)
     return f
+
 
 class CwsCommand(Command):
 

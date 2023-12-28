@@ -1,7 +1,6 @@
 import os
 
 from aws_xray_sdk.core import xray_recorder
-from coworks.extension.xray import XRay
 from flask import request
 from okta.client import Client
 from okta.okta_object import OktaObject
@@ -9,6 +8,7 @@ from werkzeug.exceptions import InternalServerError
 
 from coworks import Blueprint
 from coworks import entry
+from coworks.extension.xray import XRay
 
 
 class OktaClient(Client):
@@ -65,7 +65,7 @@ class OktaResponse:
     @property
     def body(self):
         """Get OKTA body response."""
-        return self.api_resp.get_body()
+        return self.api_resp.get_body() if self.api_resp else None
 
     @property
     def response(self):

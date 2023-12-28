@@ -42,12 +42,13 @@ cws = "coworks.cws.client:client"
 
 [tool.pdm.dev-dependencies]
 dev = [
-    "aws_xray_sdk>=2.12.1",
+    "aws_xray_sdk>=2.12",
     "boto3-stubs",
-    "mypy>=1.5.0",
-    "pytest>=7.4.0",
+    "mypy>=1.5",
+    "pytest>=7.4",
     "ruff>=0.0.284",
-    "sphinx>=7.1.2",
+    "sphinx>=7.1",
+    "sqlalchemy>=2.0",
 ]
 
 [tool.ruff.lint]
@@ -55,8 +56,14 @@ ignore = ["F403"]
 
 [tool.mypy]
 python_version = "3.11"
+ignore_missing_imports = true
 exclude = [
-    "biz"    # airflow using not compatible flask version
+    "biz", # airflow using not compatible flask version
+    "coworks/tech/directory.py", # will be removed
+    "coworks/extension/odoo.py", # wip
+    "coworks/extension/jsonapi.py", # wip
+    "coworks/blueprint/mail_blueprint.py", # wip
+    "coworks/blueprint/gsheets_blueprint.py", # wip
 ]
 check_untyped_defs = true
 

@@ -8,7 +8,6 @@ import sys
 import sysconfig
 import tempfile
 import typing as t
-from dataclasses import dataclass
 from datetime import datetime
 from functools import cached_property
 from functools import partial
@@ -28,6 +27,8 @@ from jinja2 import BaseLoader
 from jinja2 import Environment
 from jinja2 import PackageLoader
 from jinja2 import select_autoescape
+from pydantic import BaseModel
+from pydantic import ConfigDict
 from werkzeug.routing import Rule
 
 from coworks import aws
@@ -55,11 +56,12 @@ class TerraformContext:
         self.app_import_path = info.app_import_path.replace(':', '.') if info.app_import_path else "app.app"
 
 
-@dataclass
-class TerraformResource:
-    parent_uid: str
-    path: str
-    rules: list[Rule] = None
+class TerraformResource(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    parent_uid: str | None
+    path: str | None
+    rules: list[Rule] | None = None
 
     @cached_property
     def uid(self) -> str:
@@ -67,12 +69,14 @@ class TerraformResource:
         if self.is_root:
             return ''
 
+        assert self.path is not None
         uid = self.path.replace('{', '').replace('}', '')
 
         if self.parent_is_root:
             return uid
 
-        parent_uid = self.parent_uid if len(self.parent_uid) < 80 else id(self.parent_uid)
+        # avoid too long id for ressources
+        parent_uid: str = self.parent_uid if len(self.parent_uid) < 80 else str(id(self.parent_uid))  # type: ignore
         return f"{parent_uid}{UID_SEP}{uid}" if self.path else parent_uid
 
     @cached_property
@@ -83,10 +87,11 @@ class TerraformResource:
     def parent_is_root(self) -> bool:
         return self.parent_uid == ''
 
-    # noinspection PyUnresolvedReferences
     @cached_property
-    def no_cors_methods(self) -> t.Iterator[t.Optional[str]]:
-        return (rule.methods for rule in self.rules if rule.cws_no_cors)
+    def no_cors_methods(self) -> t.Iterator[set[str] | None]:
+        if not self.rules:
+            return iter(())
+        return (rule.methods for rule in self.rules if getattr(rule, 'cws_no_cors', None))
 
     def __repr__(self):
         return f"{self.uid}:{self.rules}"
@@ -97,13 +102,15 @@ class Terraform:
     TIMEOUT = 600
 
     def __init__(self, backend: 'TerraformBackend', terraform_dir, workspace):
+        root_context = backend.terraform_context.ctx.find_root()
         self.terraform_context = backend.terraform_context
         self.app_context = backend.terraform_context
         self.bar = backend.bar
         self.terraform_dir = terraform_dir
         self.refresh = backend.terraform_refresh
+        self.stage = root_context.params['stage']
         self.workspace = workspace
-        self.working_dir = Path(backend.terraform_context.ctx.find_root().params.get('project_dir'))
+        self.working_dir = Path(root_context.params.get('project_dir'))
 
     def init(self):
         self._execute(['init', '-input=false'])
@@ -131,16 +138,16 @@ class Terraform:
         """Returns the list of flatten path (prev_uid, last, rule)."""
         resources: dict[str, TerraformResource] = {}
 
-        def add_rule(previous: t.Optional[str], path: t.Optional[str], rule_: t.Optional[Rule]):
+        def add_rule(previous: str, path: str, rule_: Rule | None):
             """Add a method rule in a resource."""
             # todo : may use now aws_url_map
             path = None if path is None else path.replace('<', '{').replace('>', '}')
-            resource = TerraformResource(previous, path)
+            resource = TerraformResource(parent_uid=previous, path=path)
             if rule_:
                 view_function = self.app_context.app.view_functions.get(rule_.endpoint)
-                rule_.cws_binary_headers = get_cws_annotations(view_function, '__CWS_BINARY_HEADERS')
-                rule_.cws_no_auth = get_cws_annotations(view_function, '__CWS_NO_AUTH')
-                rule_.cws_no_cors = get_cws_annotations(view_function, '__CWS_NO_CORS')
+                setattr(rule_, 'cws_binary_headers', get_cws_annotations(view_function, '__CWS_BINARY_HEADERS'))
+                setattr(rule_, 'cws_no_auth', get_cws_annotations(view_function, '__CWS_NO_AUTH'))
+                setattr(rule_, 'cws_no_cors', get_cws_annotations(view_function, '__CWS_NO_CORS'))
 
             # Creates terraform ressources if it doesn't exist.
             uid = resource.uid
@@ -152,7 +159,7 @@ class Terraform:
                 if resources[uid].rules is None:
                     resources[uid].rules = [rule_]
                 else:
-                    resources[uid].rules.append(rule_)
+                    resources[uid].rules.append(rule_)  # type: ignore[union-attr]
             return uid
 
         for rule in self.app_context.app.url_map.iter_rules():
@@ -164,7 +171,7 @@ class Terraform:
 
             # special root case
             if splited_route == ['']:
-                add_rule(None, None, rule)
+                add_rule('', '', rule)
                 continue
 
             # creates intermediate resources
@@ -182,7 +189,9 @@ class Terraform:
 
     @property
     def template_loader(self) -> BaseLoader:
-        return PackageLoader(sys.modules[__name__].__package__)
+        package_name = sys.modules[__name__].__package__
+        assert package_name is not None
+        return PackageLoader(package_name)
 
     @property
     def jinja_env(self) -> Environment:
@@ -191,7 +200,6 @@ class Terraform:
 
     def get_context_data(self, **options) -> dict:
         # Microservice context data
-        stage = options['stage']
         app = self.app_context.app
         data = {
             'api_resources': self.api_resources,
@@ -199,10 +207,10 @@ class Terraform:
             'app_import_path': self.app_context.app_import_path,
             'debug': app.debug,
             'description': inspect.getdoc(app) or "",
-            'environment_variables': load_dotenv(stage),
+            'environment_variables': load_dotenv(self.stage),
             'ms_name': app.name,
             'now': datetime.now().isoformat(),
-            'stage': stage,
+            'stage': self.stage,
             'workspace': self.workspace,
             **options
         }
@@ -250,7 +258,7 @@ class TerraformBackend:
 
         # Creates terraform dir if needed
         self.terraform_dir = Path(options['terraform_dir'])
-        self.stage = options.get('stage', 'dev')
+        self.stage = terraform_context.ctx.find_root().params['stage']
 
         self.terraform_class = Terraform
         self.terraform_refresh = options['terraform_refresh']
@@ -307,6 +315,7 @@ class TerraformBackend:
         if terraform_init:
             self.app.logger.debug("Init terraform")
             self.api_terraform.init()
+            assert self._stage_terraform is not None
             self._stage_terraform.init()
 
         # Apply to api terraform
@@ -325,7 +334,7 @@ class TerraformBackend:
         self.bar.terminate()
         click.echo()
         echo_output(self.api_terraform)
-        click.secho("Microservice deployed", fg="green")
+        click.secho("🎉 Microservice deployed", fg="green")
 
     def copy_sources_to_s3(self, dry, **options):
         module_name = options.get('module_name') or []
@@ -366,6 +375,7 @@ class TerraformBackend:
                     copyfile(file_path, tmp_sources_path / name)
                 else:
                     mod = importlib.import_module(name)
+                    assert mod.__file__ is not None
                     module_path = Path(mod.__file__).resolve().parent
                     copytree(module_path, tmp_sources_path / name, ignore=full_ignore_patterns())
             module_archive = make_archive(str(tmp_path / 'sources'), 'zip', tmp_sources_path)
@@ -453,14 +463,14 @@ def deploy_command(info, ctx, **options) -> None:
 
     terraform_context = TerraformContext(info, ctx)
     app = terraform_context.app
-    stage = options.get('stage')
+    stage = ctx.parent.params['stage']
 
     app.logger.debug(f"Start deploy command: {options}")
     show_stage_banner(stage)
-    cloud = options.get('terraform_cloud')
-    refresh = options.get('terraform_refresh')
+    cloud = options['terraform_cloud']
+    refresh = options['terraform_refresh']
     show_terraform_banner(cloud, refresh)
-    with progressbar(label="Deploy microservice", threaded=not app.debug) as bar:
+    with progressbar(label="Deploy microservice", threaded=not app.debug) as bar:  # type: ignore
         terraform_backend_class = options.pop('terraform_class', TerraformBackend)
         app.logger.debug(f"Deploying {app} using {terraform_backend_class}")
         backend = terraform_backend_class(terraform_context, bar, **options)
@@ -479,7 +489,7 @@ def deploy_command(info, ctx, **options) -> None:
               help="AWS credential profile.")
 @click.option('--terraform-dir', default="terraform",
               help="Terraform folder (default terraform).")
-@click.option('--terraform-cloud', is_flag=True,
+@click.option('--terraform-cloud', is_flag=True, default=False,
               help="Use cloud workspaces (default false).")
 @click.option('--terraform-dir', '-td', default="terraform",
               help="Terraform files folder (default terraform).")
@@ -494,15 +504,15 @@ def destroy_command(info, ctx, **options) -> None:
     """ Destroy by setting counters to 0.
     """
     terraform_context = TerraformContext(info, ctx)
-    stage = options.get('stage')
+    stage = ctx.parent.params['stage']
 
     app = terraform_context.app
     app.logger.debug(f"Start destroy command: {options}")
     show_stage_banner(stage)
-    cloud = options.get('terraform_cloud')
-    refresh = options.get('terraform_refresh')
+    cloud = options['terraform_cloud']
+    refresh = options['terraform_refresh']
     show_terraform_banner(cloud, refresh)
-    with progressbar(label='Destroy microservice', threaded=not app.debug) as bar:
+    with progressbar(label='Destroy microservice', threaded=not app.debug) as bar:  # type: ignore
         terraform_backend_class = options.pop('terraform_class', TerraformBackend)
         app.logger.debug(f'Destroying {app} using {terraform_backend_class}')
         backend = terraform_backend_class(terraform_context, bar, **options)
@@ -514,7 +524,7 @@ def destroy_command(info, ctx, **options) -> None:
 @click.command("deployed", CwsCommand, short_help="Retrieve the microservices deployed for this project.")
 @click.option('--terraform-dir', default="terraform",
               help="Terraform folder (default terraform).")
-@click.option('--terraform-cloud', is_flag=True,
+@click.option('--terraform-cloud', is_flag=True, default=False,
               help="Use cloud workspaces (default false).")
 @click.option('--terraform-refresh', '-tr', is_flag=True, default=False,
               help="Forces terraform to refresh the state (default false).")
@@ -524,14 +534,14 @@ def destroy_command(info, ctx, **options) -> None:
 def deployed_command(info, ctx, **options) -> None:
     terraform_context = TerraformContext(info, ctx)
     app = terraform_context.app
-    stage = options.get('stage')
+    stage = ctx.parent.params['stage']
 
     app.logger.debug(f"Start destroy command: {options}")
     show_stage_banner(stage)
-    cloud = options.get('terraform_cloud')
-    refresh = options.get('terraform_refresh')
+    cloud = options['terraform_cloud']
+    refresh = options['terraform_refresh']
     show_terraform_banner(cloud, refresh)
-    with progressbar(label='Retrieving information', threaded=not app.debug) as bar:
+    with progressbar(label='Retrieving information', threaded=not app.debug) as bar:  # type: ignore
         terraform_backend_class = options.pop('terraform_class', TerraformBackend)
         app.logger.debug(f'Destroying {app} using {terraform_backend_class}')
         backend = terraform_backend_class(terraform_context, bar, **options)

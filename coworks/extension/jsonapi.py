@@ -4,6 +4,10 @@ import typing as t
 from functools import update_wrapper
 from inspect import signature
 
+from coworks import TechMicroService
+from coworks import request
+from coworks.utils import nr_url
+from coworks.utils import str_to_bool
 from flask import current_app
 from flask import make_response
 from jsonapi_pydantic.v1_0 import Error
@@ -24,16 +28,37 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import NotFound
 from werkzeug.exceptions import UnprocessableEntity
+from werkzeug.local import LocalProxy
 
-from coworks import request
-from coworks.utils import nr_url
-from coworks.utils import str_to_bool
-
-if t.TYPE_CHECKING:
-    from flask_sqlalchemy.query import Query
+fetching_context = t.cast("FetchingContext",
+                          LocalProxy(lambda: getattr(request, 'fetching_context', 'Not in JsonApi context')))
 
 
-class Pagination(type):
+class JsonApiBaseModelMixin:
+    """Any pydantic base model which may be transformed to JSON:API resource.
+    """
+
+    def __hash__(self):
+        return hash(self.jsonapi_type + str(self.jsonapi_id))
+
+    @property
+    def jsonapi_type(self) -> str:
+        return self.__class__.__name__.lower()
+
+    @property
+    def jsonapi_id(self) -> str:
+        return '0'
+
+    @property
+    def jsonapi_self_link(self):
+        return "https://monsite.com/missing_entry"
+
+    def jsonapi_model_dump(self, context: "FetchingContext") -> dict[str, t.Any]:
+        fields = context.field_names(self.jsonapi_type)
+        return {k: v for k, v in self.model_dump().items() if fields is None or k in fields}  # type:ignore
+
+
+class Pagination(t.Protocol, t.Iterable):
     total: int
     has_prev: bool
     prev_num: int
@@ -41,11 +66,19 @@ class Pagination(type):
     next_num: int
 
 
+class Query(t.Protocol):
+    def paginate(self, *, page, per_page, max_per_page) -> Pagination:
+        ...
+
+    def all(self) -> list[JsonApiBaseModelMixin]:
+        ...
+
+
 class JsonApiError(Exception):
     """Exception wich will create a JSON:API error."""
 
-    def __init__(self, id_or_error: t.Union[str, Exception, "JsonApiError", list["JsonApiError"]], title: str = None,
-                 detail=None, code=None, status=None):
+    def __init__(self, id_or_error: t.Union[str, Exception, "JsonApiError", list["JsonApiError"]],
+                 title: str | None = None, detail: str | None = None, code=None, status=None):
         if isinstance(id_or_error, str):
             code = str(code) or None
             status = str(status) or InternalServerError.code
@@ -82,7 +115,7 @@ class JsonApi:
         if app:
             self.init_app(app)
 
-    def init_app(self, app):
+    def init_app(self, app: TechMicroService):
         self.app = app
         handle_user_exception = app.handle_user_exception
 
@@ -91,7 +124,7 @@ class JsonApi:
                 return handle_user_exception(e)
 
             if isinstance(e, ValidationError):
-                self.app.full_logger_error(e)
+                app.full_logger_error(e)
                 # noinspection PyTypedDict
                 errors = [Error(id="", status=BadRequest.code, code=err['type'],
                                 links=ErrorLinks(about=err['url']),
@@ -105,7 +138,7 @@ class JsonApi:
                     errors = [Error(id='0', title=rv.name, detail=rv.description, status=rv.code)]
                     return self._toplevel_error_response(errors, status_code=rv.code)
             except (Exception,):
-                self.app.full_logger_error(e)
+                app.full_logger_error(e)
                 if isinstance(e, JsonApiError):
                     return self._toplevel_error_response(e.errors)
 
@@ -132,20 +165,11 @@ class JsonApi:
         return response
 
 
-class ResourcesSet(dict["JsonApiBaseModelMixin", dict]):
-
-    def extract(self, id, type) -> dict | None:
-        for resource in self:
-            if resource.jsonapi_type == type and resource.jsonapi_id == id:
-                return self[resource]
-        return None
-
-
 class FetchingContext:
 
     def __init__(self, include: str, fields__: dict[str, str], filters__: dict[str, str], sort: str | None = None,
                  page__number__: int | None = None, page__size__: int | None = None, page__max__: int | None = None):
-        self.include = include.split(',') if include else []
+        self.include = list(map(str.strip, include.split(','))) if include else []
         self._fields = fields__ if fields__ is not None else {}
         filters__ = filters__ if filters__ is not None else {}
         self._sort = list(map(str.strip, sort.split(','))) if sort else []
@@ -153,7 +177,7 @@ class FetchingContext:
         self.per_page = page__size__
         self.max_per_page = page__max__
 
-        self._filters = {}
+        self._filters: dict = {}
         for k, v in filters__.items():
             self._add_branch(self._filters, k.split('.'), v)
 
@@ -173,19 +197,19 @@ class FetchingContext:
             return list(map(str.strip, field.split(',')))
         return []
 
-    def filters(self, jsonapi_type, model):
+    def sql_filters(self, jsonapi_type, sql_model):
         """Returns the list of filters as a SQLAlchemy filter.
 
         :param jsonapi_type: the jsonapi type (used to get the filter parameters)
-        :param model: the SQLAlchemy model (used to get the SQLAlchemy filter)
+        :param sql_model: the SQLAlchemy model (used to get the SQLAlchemy filter)
         """
         filter_parameters = self._filters.get(jsonapi_type, {})
 
-        sql_filters = []
+        _sql_filters = []
         for key, value in filter_parameters.items():
-            column = getattr(model, key, None)
+            column = getattr(sql_model, key, None)
             if column is None:
-                msg = f"Wrong '{key}' property for model '{jsonapi_type}' in filters parameters"
+                msg = f"Wrong '{key}' property for sql model '{jsonapi_type}' in filters parameters"
                 raise UnprocessableEntity(msg)
             if isinstance(column.property, ColumnProperty):
                 _type = getattr(column, 'type', None)
@@ -193,29 +217,33 @@ class FetchingContext:
                     if len(value) != 1:
                         msg = f"Multiple boolean values '{key}' property  for model '{jsonapi_type}' is not allowed"
                         raise UnprocessableEntity(msg)
-                    sql_filters.append(column == str_to_bool(value[0]))
+                    _sql_filters.append(column == str_to_bool(value[0]))
                 else:
-                    sql_filters.append(column.in_(value))
+                    _sql_filters.append(column.in_(value))
             elif isinstance(column.property, RelationshipProperty):
                 if not isinstance(value, dict):
-                    msg = f"Wrong '{value}' value for model '{jsonapi_type}' in filters parameters (should be a dict)."
+                    msg = (f"Wrong '{value}' value for sql model '{jsonapi_type}'"
+                           " in filters parameters (should be a dict).")
                     raise UnprocessableEntity(msg)
                 for k, v in value.items():
                     condition = column.has(**{k: v[0]})
                     if len(v) > 1:
                         for or_v in v[1:]:
                             condition = or_(condition, column.has(**{k: or_v}))
-                    sql_filters.append(condition)
+                    _sql_filters.append(condition)
 
-        return sql_filters
+        return _sql_filters
 
-    def sql_order_by(self, model):
+    def sql_order_by(self, sql_model):
+        """Returns a SQLAlchemy order from model using fetching order keys.
+
+        :param sql_model: the SQLAlchemy model (used to get the SQLAlchemy order)."""
         _sql_order_by = []
         for key in self._sort:
             if key.startswith('-'):
-                column = getattr(model, key[1:]).desc()
+                column = getattr(sql_model, key[1:]).desc()
             else:
-                column = getattr(model, key)
+                column = getattr(sql_model, key)
             _sql_order_by.append(column)
         return _sql_order_by
 
@@ -231,7 +259,7 @@ class FetchingContext:
         return tree
 
     @staticmethod
-    def add_pagination(toplevel: TopLevel, pagination: "Pagination"):
+    def add_pagination(toplevel: TopLevel, pagination: Pagination):
         if pagination.total > 1:
             links = toplevel.links or {}
             if pagination.has_prev:
@@ -247,104 +275,6 @@ class FetchingContext:
         meta = toplevel.meta or {}
         meta["count"] = pagination.total
         toplevel.meta = meta
-
-
-class JsonApiBaseModelMixin:
-    """Any model which may be transformed to JSON:API resource.
-    """
-
-    def __hash__(self):
-        return hash(self.jsonapi_type + str(self.jsonapi_id))
-
-    @property
-    def jsonapi_type(self) -> str:
-        return self.__class__.__name__.lower()
-
-    @property
-    def jsonapi_id(self) -> str:
-        return '0'
-
-    @property
-    def jsonapi_self_link(self):
-        return "https://monsite.com/missing_entry"
-
-    def jsonapi_model_dump(self, context: FetchingContext) -> dict[str, t.Any]:
-        fields = context.field_names(self.jsonapi_type)
-        return {k: v for k, v in self.model_dump().items() if fields is None or k in fields}  # type:ignore
-
-
-def to_ressource_data(jsonapi_basemodel: JsonApiBaseModelMixin, context: FetchingContext, *,
-                      toplevel_relationships=None) -> dict[str, t.Any]:
-    """Transform a simple data into a pydantic ressource data.
-
-    We cannot create a Resource here, as the data is not completed at creation of the data.
-    """
-    toplevel_relationships = toplevel_relationships or {}
-    # set resource data from basemodel
-
-    _type = jsonapi_basemodel.jsonapi_type
-    data = jsonapi_basemodel.jsonapi_model_dump(context)
-    if 'type' in data:
-        _type = data.pop('type')
-    else:
-        _type = jsonapi_basemodel.jsonapi_type
-    if 'id' in data:
-        _id = data.pop('id')
-    else:
-        _id = jsonapi_basemodel.jsonapi_id
-
-    # get relationships
-    relationships: dict[str, list[dict[str, Relationship]]] = {}
-    for key, value in {**data}.items():
-        if isinstance(value, JsonApiBaseModelMixin):
-            data.pop(key, None)
-            add_relationship(key, value, relationships, toplevel_relationships, context)
-        elif isinstance(value, list):
-            for val in value:
-                data.pop(key, None)
-                if isinstance(val, JsonApiBaseModelMixin):
-                    add_relationship(key, val, relationships, toplevel_relationships, context)
-            continue
-        else:
-            continue
-
-    link = Link(href=HttpUrl(jsonapi_basemodel.jsonapi_self_link))
-    resource_data = {
-        "type": _type,
-        "id": _id,
-        "lid": None,
-        "attributes": data,
-        "relationships": relationships,
-        "links": {"self": link}
-    }
-
-    return resource_data
-
-
-async def toplevel_from_basemodel(jsonapi_basemodel: JsonApiBaseModelMixin, context: FetchingContext) -> TopLevel:
-    assert isinstance(jsonapi_basemodel, JsonApiBaseModelMixin), "The returned value is not a JsonApiBaseModelMixin"
-    ressource_data = to_ressource_data(jsonapi_basemodel, context)
-    flatten_relationships(ressource_data)
-    included: list[Resource] = []
-    if context.include:
-        for key in context.include:
-
-            # if the included resources is not in the fields
-            if key not in ressource_data['relationships']:
-                continue
-
-            related = ressource_data['relationships'][key]
-            if isinstance(related.data, list):
-                for rel in related.data:
-                    add_resource_to_included(rel, context.all_resources, included)
-            else:
-                add_resource_to_included(related.data, context.all_resources, included)
-
-    try:
-        return TopLevel(data=Resource(**ressource_data), included=included if included else None)
-    except ValidationError as e:
-        current_app.logger.error(e)
-        raise
 
 
 def jsonapi(func):
@@ -372,10 +302,14 @@ def jsonapi(func):
         :param max_per_page:
         :param kwargs: entry kwargs.
         """
+
+        # set fetching context
         context = FetchingContext(include or [], fields__ or {}, filters__ or {}, sort,
                                   page__number__, page__size__, page__max__)
-        query_params = {'fetching': context}
-        query = func(*args, **query_params, **kwargs)
+        setattr(request, 'fetching_context', context)
+
+        # call entry
+        query = func(*args, **kwargs)
 
         if not query:
             # Should change return lid for creation
@@ -383,7 +317,7 @@ def jsonapi(func):
         if isinstance(query, TopLevel):
             _toplevel = query
         else:
-            _toplevel = asyncio.run(get_toplevel_from_query(query, context, ensure_one))
+            _toplevel = asyncio.run(get_toplevel_from_query(query, ensure_one))
         return _toplevel.model_dump_json(exclude_none=True)
 
     # Adds JSON:API query parameters
@@ -396,46 +330,132 @@ def jsonapi(func):
     return _jsonapi
 
 
-async def get_toplevel_from_query(query: "Query", context: FetchingContext, ensure_one) -> TopLevel:
+class ResourcesSet(dict["JsonApiBaseModelMixin", dict]):
+    """Set of resources for included part of TopLevel."""
+
+    def extract(self, id, type) -> dict | None:
+        for resource in self:
+            if resource.jsonapi_type == type and resource.jsonapi_id == id:
+                return self[resource]
+        return None
+
+
+def to_ressource_data(
+        jsonapi_basemodel: JsonApiBaseModelMixin,
+        toplevel_relationships: dict[JsonApiBaseModelMixin, dict[str, Relationship]]) -> dict[str, t.Any]:
+    """Transform a simple pydantic data into a jsonapi ressource data.
+
+    We cannot create directly the Resource here, as the data is not completed at this step
+    and pydantic won't validate the non completed structure.
+    """
+    toplevel_relationships = toplevel_relationships or {}
+
+    # set resource data from basemodel
+    _type = jsonapi_basemodel.jsonapi_type
+    data = jsonapi_basemodel.jsonapi_model_dump(fetching_context)
+    if 'type' in data:
+        _type = data.pop('type')
+    else:
+        _type = jsonapi_basemodel.jsonapi_type
+    if 'id' in data:
+        _id = data.pop('id')
+    else:
+        _id = jsonapi_basemodel.jsonapi_id
+
+    # get relationships
+    relationships: dict[str, list[dict[str, Relationship]]] = {}
+    for key, value in {**data}.items():
+        if isinstance(value, JsonApiBaseModelMixin):
+            data.pop(key, None)
+            add_relationship(key, value, relationships, toplevel_relationships)
+        elif isinstance(value, list):
+            for val in value:
+                data.pop(key, None)
+                if isinstance(val, JsonApiBaseModelMixin):
+                    add_relationship(key, val, relationships, toplevel_relationships)
+            continue
+        else:
+            continue
+
+    link = Link(href=HttpUrl(jsonapi_basemodel.jsonapi_self_link))
+    resource_data = {
+        "type": _type,
+        "id": _id,
+        "lid": None,
+        "attributes": data,
+        "relationships": relationships,
+        "links": {"self": link}
+    }
+
+    return resource_data
+
+
+async def toplevel_from_basemodel(jsonapi_basemodel: JsonApiBaseModelMixin) -> TopLevel:
+    assert isinstance(jsonapi_basemodel, JsonApiBaseModelMixin), "The returned value is not a JsonApiBaseModelMixin"
+    ressource_data = to_ressource_data(jsonapi_basemodel, dict())
+    flatten_relationships(ressource_data)
+    included: list[Resource] = []
+    if fetching_context.include:
+        for key in fetching_context.include:
+
+            # if the included resources is not in the fields
+            if key not in ressource_data['relationships']:
+                continue
+
+            related = ressource_data['relationships'][key]
+            if isinstance(related.data, list):
+                for rel in related.data:
+                    add_resource_to_included(rel, fetching_context.all_resources, included)
+            else:
+                add_resource_to_included(related.data, fetching_context.all_resources, included)
+
+    try:
+        return TopLevel(data=Resource(**ressource_data), included=included if included else None)
+    except ValidationError as e:
+        current_app.logger.error(e)
+        raise
+
+
+async def get_toplevel_from_query(query: Query, ensure_one) -> TopLevel:
     def get_toplevel():
         current_app.logger.debug(str(query))
         if ensure_one:
-            toplevel = get_one_toplevel(query, context)
+            toplevel = get_one_toplevel(query)
         else:
-            toplevel = get_multi_toplevel(query, context)
+            toplevel = get_multi_toplevel(query)
         return toplevel
 
     # connection manager may be iterable
-    if isinstance(context.connection_manager, t.Iterable):
+    if isinstance(fetching_context.connection_manager, t.Iterable):
         _toplevels = []
-        for connection_manager in context.connection_manager:
+        for connection_manager in fetching_context.connection_manager:
             with connection_manager:
                 _toplevels.append(await get_toplevel())
-        data = [r for t in _toplevels for r in t.data]
-        included = set((i for t in _toplevels if t.included for i in t.included))
-        included = None
+        data = [r for tp in _toplevels for r in tp.data]
+        included = set((i for tp in _toplevels if tp.included for i in tp.included))
         _toplevel = TopLevel(data=data, included=included if included else None)
     else:
-        with context.connection_manager:
+        with fetching_context.connection_manager:
             _toplevel = await get_toplevel()
     return _toplevel
 
 
-async def get_multi_toplevel(query: "Query", context: FetchingContext) -> TopLevel:
-    """Returns the multiple top level resource from the query.
+async def get_multi_toplevel(query: Query) -> TopLevel:
+    """Returns the multiple data top level resource from the query.
     """
-    pagination = query.paginate(page=context.page, per_page=context.per_page, max_per_page=context.max_per_page)
+    pagination = query.paginate(page=fetching_context.page, per_page=fetching_context.per_page,
+                                max_per_page=fetching_context.max_per_page)
     toplevels: t.Iterable[TopLevel] = await asyncio.gather(
-        *[toplevel_from_basemodel(p, context) for p in pagination]
+        *[toplevel_from_basemodel(p) for p in pagination]
     )
     data = [toplevel_to_resource(r) for r in toplevels]
     included = set((i for r in toplevels if r.included for i in r.included))
     toplevel = TopLevel(data=data, included=included if included else None)
-    context.add_pagination(toplevel, pagination)
+    fetching_context.add_pagination(toplevel, pagination)
     return toplevel
 
 
-async def get_one_toplevel(query: "Query", context: FetchingContext) -> TopLevel:
+async def get_one_toplevel(query: Query) -> TopLevel:
     """Returns the single top level resource from the query.
 
     :param query: the sql alchemy query.
@@ -444,7 +464,7 @@ async def get_one_toplevel(query: "Query", context: FetchingContext) -> TopLevel
     resources: list[JsonApiBaseModelMixin] = query.all()
     if len(resources) != 1:
         raise NotFound("More than one resource found and ensure_one parameters was set")
-    return await toplevel_from_basemodel(resources[0], context)
+    return await toplevel_from_basemodel(resources[0])
 
 
 def toplevel_to_resource(toplevel: TopLevel) -> Resource:
@@ -456,8 +476,7 @@ def toplevel_to_resource(toplevel: TopLevel) -> Resource:
 
 def add_relationship(key: str, related_model: JsonApiBaseModelMixin,
                      relationships: dict[str, list[dict[str, Relationship]]],
-                     toplevel_relationships: dict[JsonApiBaseModelMixin, dict[str, Relationship]],
-                     context: FetchingContext):
+                     toplevel_relationships: dict[JsonApiBaseModelMixin, dict[str, Relationship]]):
     """ Adds a relationship in the list of relationships from the related model.
     The relationship may not be complete for circular reference and will be completed after in construction.
     """
@@ -479,13 +498,14 @@ def add_relationship(key: str, related_model: JsonApiBaseModelMixin,
         add_in_relationships(relationship)
 
         # get the related resource associated to the related model
-        if related_model in context.all_resources:
-            related_resource = context.all_resources[related_model]
+        if related_model in fetching_context.all_resources:
+            related_resource = fetching_context.all_resources[related_model]
         else:
             # creates and adds the related resource to the global list of included resources
-            related_resource = to_ressource_data(related_model, context, toplevel_relationships=toplevel_relationships)
-            if context.include and key in context.include:
-                context.all_resources[related_model] = related_resource
+            related_resource = to_ressource_data(related_model,
+                                                 toplevel_relationships=toplevel_relationships)
+            if fetching_context.include and key in fetching_context.include:
+                fetching_context.all_resources[related_model] = related_resource
 
         # updates now the relationship once the process of creation is completed
         resource_identifier = ResourceIdentifier(id=related_resource['id'], type=related_resource['type'])

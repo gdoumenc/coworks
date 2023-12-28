@@ -7,6 +7,7 @@ import requests
 from flask.cli import ScriptInfo
 
 from coworks.cws.client import client
+from coworks.utils import load_dotenv
 from tests.coworks.event import get_event
 from tests.cws.src.app import EnvTechMS
 
@@ -47,7 +48,7 @@ class TestClass:
         server.terminate()
 
     def test_run_dev_stage(self, example_dir, unused_tcp_port):
-        server = multiprocessing.Process(target=run_server_with_workspace,
+        server = multiprocessing.Process(target=run_server_with_stage,
                                          args=(example_dir, unused_tcp_port, "dev"),
                                          daemon=True)
         server.start()
@@ -61,7 +62,7 @@ class TestClass:
         server.terminate()
 
     def test_run_prod_stage(self, example_dir, unused_tcp_port):
-        server = multiprocessing.Process(target=run_server_with_workspace,
+        server = multiprocessing.Process(target=run_server_with_stage,
                                          args=(example_dir, unused_tcp_port, "v1"),
                                          daemon=True)
         server.start()
@@ -74,13 +75,19 @@ class TestClass:
         assert response.text == "Value of environment variable test is : test prod environment variable."
         server.terminate()
 
+    import pytest
+    @pytest.mark.wip
+    def test_load_env(self):
+        variables = load_dotenv("dev")
+        assert True
+
 
 def run_server(project_dir, port):
     obj = ScriptInfo(create_app=lambda: EnvTechMS(), set_debug_flag=False)
     client.main(['--project-dir', '.', 'run', '--port', port], 'cws', obj=obj, standalone_mode=False)
 
 
-def run_server_with_workspace(project_dir, port, stage):
+def run_server_with_stage(project_dir, port, stage):
     @mock.patch.dict(os.environ, {"FLASK_ENV_FILE": f".env.{stage}", "FLASK_RUN_FROM_CLI": "true"})
     def run():
         obj = ScriptInfo(create_app=lambda: EnvTechMS(), set_debug_flag=False)

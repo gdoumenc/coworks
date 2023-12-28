@@ -4,7 +4,6 @@ from coworks import TechMicroService
 from coworks import entry
 from coworks.blueprint.admin_blueprint import Admin
 from coworks.blueprint.profiler_blueprint import Profiler
-from coworks.utils import get_app_stage
 
 
 # from aws_xray_sdk.core import xray_recorder
@@ -20,7 +19,7 @@ class MyMicroService(TechMicroService):
         super().__init__(**kwargs)
 
         self.register_blueprint(Admin(), url_prefix='/admin')
-        if get_app_stage() == "dev":
+        if os.getenv('CWS_STAGE') == "dev":
             self.register_blueprint(Profiler(self), url_prefix='/profiler')
 
         @self.before_request
@@ -40,7 +39,7 @@ class MyMicroService(TechMicroService):
     def token_authorizer(self, token):
         # Simple authorization process.
         # If you want to access AWS event or context for a more complex case, override the function _token_handler.
-        return token in os.getenv('USER_KEYS').split(',')
+        return token in os.getenv('USER_KEYS', '').split(',')
 
     @entry
     def get(self):

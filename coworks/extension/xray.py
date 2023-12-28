@@ -153,7 +153,8 @@ class XRay:
                 return response
 
             wrapped_fun = update_wrapper(partial(route_captured, view_function), view_function)
-            self._app.view_functions[rule.endpoint] = self._recorder.capture(name=wrapped_fun.__name__)(wrapped_fun)
+            fun_name = getattr(wrapped_fun, '__name__', 'wrapped_fun')
+            self._app.view_functions[rule.endpoint] = self._recorder.capture(name=fun_name)(wrapped_fun)
 
     def capture_exception(self, e):
         try:

@@ -16,12 +16,13 @@ from coworks.cws.deploy import TerraformContext
 
 
 class CliCtxMokup:
+
+    def __init__(self, stage='dev'):
+        super().__init__()
+        self.params = {'project_dir': ".", 'stage': stage}
+
     def find_root(self):
         return self
-
-    @property
-    def params(self):
-        return {'project_dir': "."}
 
 
 class BP(Blueprint):
@@ -56,11 +57,10 @@ class TestClass:
 
     def test_api_resources(self, example_dir, progressbar):
         app = TechMS()
-        with app.test_request_context() as ctx:
+        with app.test_request_context() as app_ctx:
             info = ScriptInfo(create_app=lambda: app)
-            terraform_context = TerraformContext(info, CliCtxMokup())
-            backend = TerraformBackend(terraform_context, None, stage='dev',
-                                       terraform_dir=".", terraform_refresh=False)
+            terraform_context = TerraformContext(info, CliCtxMokup(stage='dev'))
+            backend = TerraformBackend(terraform_context, None, terraform_dir=".", terraform_refresh=False)
             terraform = Terraform(backend, terraform_dir="terraform", workspace="common")
             api_ressources = terraform.api_resources
         assert len(api_ressources) == 7
@@ -81,11 +81,10 @@ class TestClass:
         info = CwsScriptInfo(project_dir='.')
         info.app_import_path = "command:app"
         app = info.load_app()
-        with app.test_request_context() as ctx:
+        with app.test_request_context() as app_ctx:
             info = ScriptInfo(create_app=lambda: app)
-            terraform_context = TerraformContext(info, CliCtxMokup())
-            backend = TerraformBackend(terraform_context, None, stage='dev',
-                                       terraform_dir=".", terraform_refresh=False)
+            terraform_context = TerraformContext(info, CliCtxMokup(stage='dev'))
+            backend = TerraformBackend(terraform_context, None, terraform_dir=".", terraform_refresh=False)
             terraform = Terraform(backend, terraform_dir="terraform", workspace="common")
             api_ressources = terraform.api_resources
         assert len(api_ressources) == 5
@@ -104,7 +103,7 @@ class TestClass:
         info = CwsScriptInfo(project_dir='.')
         info.app_import_path = "command:app"
         app = info.load_app()
-        with app.test_request_context() as ctx:
+        with app.test_request_context() as app_ctx:
             options = {
                 'project_dir': example_dir,
                 'stage': 'dev',
@@ -129,7 +128,7 @@ class TestClass:
         info = CwsScriptInfo(project_dir='.')
         info.app_import_path = "command:app"
         app = info.load_app()
-        with app.test_request_context() as ctx:
+        with app.test_request_context() as app_ctx:
             options = {
                 'project_dir': example_dir,
                 'stage': 'dev',
@@ -159,7 +158,7 @@ class TestClass:
         info = CwsScriptInfo(project_dir='.')
         info.app_import_path = "command:app"
         app = info.load_app()
-        with app.test_request_context() as ctx:
+        with app.test_request_context() as app_ctx:
             options = {
                 'project_dir': example_dir,
                 'stage': 'dev',

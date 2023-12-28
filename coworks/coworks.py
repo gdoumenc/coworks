@@ -405,7 +405,13 @@ class TechMicroService(Flask):
                 return resp
 
         except Exception as e:
-            self.full_logger_error(e)
+            # no more in app context so must print for trace
+            print(f"Exception in {self.name} : {e}")
+            parts = ["Traceback (most recent call last):\n"]
+            parts.extend(traceback.format_stack(limit=15)[:-2])
+            parts.extend(traceback.format_exception(*sys.exc_info())[1:])
+            trace = reduce(lambda x, y: x + y, parts, "")
+            print(f"Traceback: {trace}")
             headers = {'content_type': "application/json"}
             return self._aws_payload(str(e), InternalServerError.code, headers)
 
@@ -479,15 +485,12 @@ class TechMicroService(Flask):
         }
 
     def full_logger_error(self, error):
-        if self.debug:
-            if not request.in_lambda_context:
-                raise
-            self.logger.error(f"Exception in {self.name} : {error}")
-            parts = ["Traceback (most recent call last):\n"]
-            parts.extend(traceback.format_stack(limit=15)[:-2])
-            parts.extend(traceback.format_exception(*sys.exc_info())[1:])
-            trace = reduce(lambda x, y: x + y, parts, "")
-            self.logger.error(f"Traceback: {trace}")
+        self.logger.error(f"Exception in {self.name} : {error}")
+        parts = ["Traceback (most recent call last):\n"]
+        parts.extend(traceback.format_stack(limit=15)[:-2])
+        parts.extend(traceback.format_exception(*sys.exc_info())[1:])
+        trace = reduce(lambda x, y: x + y, parts, "")
+        self.logger.error(f"Traceback: {trace}")
 
     def add_coworks_routes(self, bp_state: BlueprintSetupState | None = None) -> None:
         """ Creates all routes for a microservice.

@@ -13,7 +13,8 @@ from flask import render_template_string
 from jinja2 import Environment
 from jinja2 import PackageLoader
 from jinja2 import select_autoescape
-from jsonapi_pydantic.v1_0 import TopLevel, Resource
+from jsonapi_pydantic.v1_0 import Resource
+from jsonapi_pydantic.v1_0 import TopLevel
 from pydantic import BaseModel
 from werkzeug.exceptions import NotFound
 
@@ -51,21 +52,6 @@ class Admin(Blueprint):
         return content, 200, headers
 
     @entry(no_auth=True, no_cors=True)
-    def get_schema(self, included: bool = False):
-        """Returns the list of schemas defined in the microservices.
-        """
-        id = current_app.name
-        schemas = [model for model in self.models]
-        attributes = {"schemas": schemas}
-        if included:
-            included = [Resource(id=name, type="JsonApiSchema", attributes={"schema": model.schema()})
-                        for name, model in self.models.items()]
-        else:
-            included = []
-        return TopLevel(data=Resource(id=id, type="JsonApiSchemas", attributes=attributes),
-                        included=included).model_dump_json()
-
-    @entry(no_auth=True, no_cors=True)
     # @jsonapi(type)
     def get__schema(self, model):
         """Returns the JSON schemas of the model.
@@ -88,7 +74,7 @@ class Admin(Blueprint):
         if blueprint and (blueprint != '__all__' and blueprint not in current_app.blueprints):
             raise NotFound(f"Undefined blueprint {blueprint}")
 
-        routes = defaultdict(dict)
+        routes: dict[str, dict[str, str]] = defaultdict(dict)
 
         for rule in current_app.url_map.iter_rules():
 
@@ -158,7 +144,7 @@ class Admin(Blueprint):
         routes[rule.rule].update(route)
 
     @property
-    def header_template(self):
+    def header_template(self) -> str:
         deployed = os.getenv("CWS_DATETIME", None)
         description = current_app.name
         if deployed:
@@ -172,7 +158,7 @@ class Admin(Blueprint):
             {description}</div>""")
 
     @property
-    def routes_template(self):
+    def routes_template(self) -> str:
         return dedent(
             """<style type="text/css">ul.nobull {list-style-type: none;}</style>
             <ul class="nobull">{% for entry,route in routes.items() %}
@@ -184,7 +170,7 @@ class Admin(Blueprint):
         )
 
 
-def get_signature(func):
+def get_signature(func: t.Callable) -> str:
     sig = ""
     params = inspect.signature(func).parameters
     for i, (k, p) in enumerate(params.items()):
@@ -199,7 +185,7 @@ def get_signature(func):
     return f"({sig})"
 
 
-def positional_params(func):
+def positional_params(func: t.Callable) -> str:
     res = ''
     params = inspect.signature(func).parameters
     for i, (k, p) in enumerate(params.items()):
@@ -213,7 +199,7 @@ def positional_params(func):
     return res
 
 
-def keyword_params(func):
+def keyword_params(func: t.Callable) -> str:
     res = ''
     params = inspect.signature(func).parameters
     for i, (k, p) in enumerate(params.items()):
