@@ -58,6 +58,9 @@ class ProgressBar:
 
 
 class DebugProgressBar:
+    def update(self, msg: str):
+        if msg:
+            click.echo("==> " + msg)
 
     def echo(self, msg: str):
         if msg:
