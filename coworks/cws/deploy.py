@@ -69,7 +69,7 @@ class TerraformResource(BaseModel):
         if self.is_root:
             return ''
 
-        assert self.path is not None
+        assert self.path is not None, "TerraformResource Path cannot be None"
         uid = self.path.replace('{', '').replace('}', '')
 
         if self.parent_is_root:

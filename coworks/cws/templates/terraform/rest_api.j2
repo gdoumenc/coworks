@@ -60,10 +60,10 @@ resource "aws_api_gateway_resource" "{{ ms_name }}_{{ uid }}" {
 resource "aws_api_gateway_method" "{{ ms_name }}_{{ uid }}_{{ method }}" {
   provider = aws.{{ ms_name }}
   rest_api_id = local.{{ ms_name }}_api_id
-  {% if resource.is_root %}
-  resource_id = local.{{ ms_name }}_api_root_id
-  {% else %}
+  {% if resource.path %}
   resource_id = aws_api_gateway_resource.{{ ms_name }}_{{ uid }}.id
+  {% else %}
+  resource_id = local.{{ ms_name }}_api_root_id
   {% endif %}
   http_method = "{{ method }}"
   {% if rule.cws_no_auth %}
@@ -82,10 +82,10 @@ resource "aws_api_gateway_method" "{{ ms_name }}_{{ uid }}_{{ method }}" {
 resource "aws_api_gateway_integration" "{{ ms_name }}_{{ uid }}_{{ method }}" {
   provider = aws.{{ ms_name }}
   rest_api_id = local.{{ ms_name }}_api_id
-  {% if resource.is_root %}
-  resource_id = local.{{ ms_name }}_api_root_id
-  {% else %}
+  {% if resource.path %}
   resource_id = aws_api_gateway_resource.{{ ms_name }}_{{ uid }}.id
+  {% else %}
+  resource_id = local.{{ ms_name }}_api_root_id
   {% endif %}
   http_method = "{{ method }}"
   integration_http_method = "POST"
@@ -107,10 +107,10 @@ resource "aws_api_gateway_integration" "{{ ms_name }}_{{ uid }}_{{ method }}" {
 resource "aws_api_gateway_integration_response" "{{ ms_name }}_{{ uid }}_{{ method }}_200" {
   provider = aws.{{ ms_name }}
   rest_api_id = local.{{ ms_name }}_api_id
-  {% if resource.is_root %}
-  resource_id = local.{{ ms_name }}_api_root_id
-  {% else %}
+  {% if resource.path %}
   resource_id = aws_api_gateway_resource.{{ ms_name }}_{{ uid }}.id
+  {% else %}
+  resource_id = local.{{ ms_name }}_api_root_id
   {% endif %}
   http_method = join("", aws_api_gateway_method.{{ ms_name }}_{{ uid }}_{{ method }}.*.http_method)
   status_code = "200"
@@ -131,10 +131,10 @@ resource "aws_api_gateway_integration_response" "{{ ms_name }}_{{ uid }}_{{ meth
 resource "aws_api_gateway_method_response" "{{ ms_name }}_{{ uid }}_{{ method }}_200" {
   provider = aws.{{ ms_name }}
   rest_api_id = local.{{ ms_name }}_api_id
-  {% if resource.is_root %}
-  resource_id = local.{{ ms_name }}_api_root_id
-  {% else %}
+  {% if resource.path %}
   resource_id = aws_api_gateway_resource.{{ ms_name }}_{{ uid }}.id
+  {% else %}
+  resource_id = local.{{ ms_name }}_api_root_id
   {% endif %}
   http_method = "{{ method }}"
   status_code = "200"
