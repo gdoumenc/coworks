@@ -127,7 +127,7 @@ class CwsGroup(flask.cli.FlaskGroup):
 @click.option('--config-file-suffix', default='.cws.yml', help="Configuration file suffix.")
 @click.option('-s', '--stage', default='dev', help="Stage environment.")
 def client(*args, **kwargs):
-    ...
+    os.environ['CWS_STAGE'] = kwargs['stage']
 
 
 class ProjectConfig:
