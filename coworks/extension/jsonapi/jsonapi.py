@@ -152,7 +152,7 @@ def jsonapi(func):
                 _toplevel = res
             else:
                 _toplevel = TopLevel(data=[])
-        except NotFound as e:
+        except NotFound:
             if not ensure_one:
                 _toplevel = TopLevel(data=[])
             else:

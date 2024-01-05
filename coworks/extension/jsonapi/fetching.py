@@ -1,6 +1,9 @@
 import contextlib
 import typing as t
 
+from coworks import request
+from coworks.utils import nr_url
+from coworks.utils import str_to_bool
 from jsonapi_pydantic.v1_0 import Link
 from jsonapi_pydantic.v1_0 import TopLevel
 from pydantic.networks import HttpUrl
@@ -10,9 +13,6 @@ from sqlalchemy.sql import or_
 from werkzeug.exceptions import UnprocessableEntity
 from werkzeug.local import LocalProxy
 
-from coworks import request
-from coworks.utils import nr_url
-from coworks.utils import str_to_bool
 from .data import JsonApiDataSet
 from .query import Pagination
 
@@ -60,6 +60,13 @@ class FetchingContext:
 
         _sql_filters = []
         for key, value in filter_parameters.items():
+            oper = None
+
+            # filter operator
+            # idea from https://discuss.jsonapi.org/t/share-propose-a-filtering-strategy/257
+            if "____" in key:
+                key, oper = key.split('____', 1)
+
             column = getattr(sql_model, key, None)
             if column is None:
                 msg = f"Wrong '{key}' property for sql model '{jsonapi_type}' in filters parameters"
@@ -67,13 +74,28 @@ class FetchingContext:
             if isinstance(column.property, ColumnProperty):
                 _type = getattr(column, 'type', None)
                 if _type:
+
+                    # boolean test
                     if _type.python_type is bool:
                         if len(value) != 1:
                             msg = f"Multiple boolean values '{key}' property  for model '{jsonapi_type}' is not allowed"
                             raise UnprocessableEntity(msg)
                         _sql_filters.append(column == str_to_bool(value[0]))
+
+                    # string test
+                    elif _type.python_type is str:
+                        if oper not in (None, 'ilike'):
+                            msg = f"Undefined operator '{oper}' for string value"
+                            raise UnprocessableEntity(msg)
+                        if oper == 'ilike':
+                            for v in value:
+                                _sql_filters.append(column.ilike(v))
+                        else:
+                            _sql_filters.append(column.in_([v for v in value]))
+
+                    # other case (not used in fact)
                     else:
-                        _sql_filters.append(column.in_((_type.python_type(v) for v in value)))
+                        _sql_filters.append(column.in_([_type.python_type(v) for v in value]))
                 else:
                     _sql_filters.append(column.in_(value))
             elif isinstance(column.property, RelationshipProperty):
