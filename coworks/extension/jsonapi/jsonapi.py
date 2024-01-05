@@ -3,6 +3,8 @@ import typing as t
 from functools import update_wrapper
 from inspect import signature
 
+from coworks import TechMicroService
+from coworks import request
 from flask import current_app
 from flask import make_response
 from jsonapi_pydantic.v1_0 import Error
@@ -20,8 +22,6 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import NotFound
 
-from coworks import TechMicroService
-from coworks import request
 from .data import JsonApiDataMixin
 from .fetching import create_fetching_context_proxy
 from .fetching import fetching_context
@@ -145,12 +145,18 @@ def jsonapi(func):
         """
         create_fetching_context_proxy(include, fields__, filters__, sort, page__number__, page__size__, page__max__)
         res = func(*args, **kwargs)
-        if isinstance(res, Query):
-            _toplevel = asyncio.run(get_toplevel_from_query(res, ensure_one))
-        elif isinstance(res, TopLevel):
-            _toplevel = res
-        else:
-            _toplevel = TopLevel(data=[])
+        try:
+            if isinstance(res, Query):
+                _toplevel = asyncio.run(get_toplevel_from_query(res, ensure_one))
+            elif isinstance(res, TopLevel):
+                _toplevel = res
+            else:
+                _toplevel = TopLevel(data=[])
+        except NotFound as e:
+            if not ensure_one:
+                _toplevel = TopLevel(data=[])
+            else:
+                raise NotFound("The requested resource was not found")
         return _toplevel.model_dump_json(exclude_none=True)
 
     # Adds JSON:API query parameters
