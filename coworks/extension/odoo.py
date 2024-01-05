@@ -2,99 +2,34 @@ import base64
 import os
 import typing as t
 import xmlrpc.client
-from datetime import date
-from datetime import datetime
 from math import ceil
 
 import requests
 from aws_xray_sdk.core import xray_recorder
-from coworks import TechMicroService
-from coworks.extension.xray import XRay
 from flask import json
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
+from pydantic import validator
 from werkzeug.exceptions import BadRequest
 from werkzeug.exceptions import Forbidden
 from werkzeug.exceptions import NotFound
 
-from neorezo.models import CoercedStr
-from .jsonapi import FetchingContext
-from .jsonapi import JsonApiBaseModelMixin
-
-
-class JsonAPiOdooBaseModel(JsonApiBaseModelMixin):
-    @property
-    def jsonapi_id(self) -> str:
-        return str(self.id)
-
-    def jsonapi_model_dump(self, context: FetchingContext):
-        data = self.model_dump()
-        fields = context.field_names(self.jsonapi_type)
-        return {k: v for k, v in data.items() if not fields or k in fields}
-
-
-class Report(BaseModel, JsonAPiOdooBaseModel):
-    jsonapi_type: t.ClassVar[str] = "ir.actions.report"
-
-    id: CoercedStr
-    report_name: str
-
-
-class Invoice(BaseModel, JsonAPiOdooBaseModel):
-    jsonapi_type: t.ClassVar[str] = "account.invoice"
-
-    id: CoercedStr
-    create_date: datetime
-    date_invoice: date
-    type: str
-    name: str
-    state: str
-    amount_untaxed_signed: float
-    amount_tax: float
-    amount_total_signed: float
-    residual_signed: float
-
-    first_name: str = Field(validation_alias='x_first_name')
-    last_name: str = Field(validation_alias='x_last_name')
-    company: str = Field(validation_alias='x_company')
-    address_line1: str = Field(validation_alias='x_address_line1')
-    address_line2: str = Field(validation_alias='x_address_line2')
-    postal_code: str = Field(validation_alias='x_postal_code')
-    city: str = Field(validation_alias='x_city')
-    country: str | bool = Field(validation_alias='x_country')
-    web_hidden: bool = Field(validation_alias='x_web_hidden')
-
-    partner: "Partner" = None
-    lines: t.List["InvoiceLine"]
-
-
-class InvoiceLine(BaseModel, JsonAPiOdooBaseModel):
-    jsonapi_type: t.ClassVar[str] = "account.invoice.line"
-
-    id: CoercedStr
-
-
-class Partner(BaseModel, JsonAPiOdooBaseModel):
-    jsonapi_type: t.ClassVar[str] = "res.partner"
-
-    id: CoercedStr
-
-
-Invoice.model_rebuild()
-
-odoo_models = {m.jsonapi_type: m for m in (Invoice, InvoiceLine, Partner, Report)}  # type: ignore[attr-defined]
+from coworks import TechMicroService
+from coworks.extension.xray import XRay
+from .jsonapi import JsonApiDataMixin
+from .jsonapi import JsonApiDict
 
 
 class OdooConfig(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    ref: t.Optional[str] = "default"
+    ref: str = "default"
     url: str
     dbname: str
     user: str
     passwd: str
-    const: t.Optional[dict[str, t.Any]] = Field(default_factory=dict)
+    const: dict[str, t.Any] = Field(default_factory=dict)
 
     @classmethod
     def from_env_var_prefix(cls, env_var_prefix):
@@ -124,51 +59,66 @@ class OdooConfig(BaseModel):
 
 
 class OdooPagination(BaseModel):
-    page: int | None = 1
-    per_page: int | None = 20
-    max_per_page: int | None = 100
+    page: int | None = None
+    per_page: int | None = None
+    max_per_page: int | None = None
     total: int | None = None
     query: t.Any | None = None
 
-    def model_post_init(self, __context: t.Any) -> None:
-        if self.page is None:
-            self.page = 1
-        if self.per_page is None:
-            self.per_page = 20
-        if self.max_per_page is None:
-            self.max_per_page = 100
+    @validator("page")
+    def set_page(cls, page):
+        return page or 1
+
+    @validator("per_page")
+    def set_per_page(cls, per_page):
+        return per_page or 20
+
+    @validator("max_per_page")
+    def set_max_per_page(cls, max_per_page):
+        return max_per_page or 100
 
     @property
     def pages(self) -> int:
         if not self.total:
             return 1
+        assert self.per_page is not None  # by the validator
         return ceil(self.total / self.per_page)
 
     @property
     def has_prev(self) -> bool:
+        assert self.page is not None  # by the validator
         return self.page > 1
 
     @property
     def prev_num(self) -> int | None:
         if not self.has_prev:
             return None
+        assert self.page is not None  # by the validator
         return self.page - 1
 
     @property
     def has_next(self) -> bool:
+        assert self.page is not None  # by the validator
         return self.page < self.pages
 
     @property
     def next_num(self) -> int | None:
         if not self.has_next:
             return None
+        assert self.page is not None  # by the validator
         return self.page + 1
 
     def __iter__(self):
-        return iter(self.query.odoo_execute_kw(self.params))
+        if self.query:
+            return iter(self.query.odoo_execute_kw(self.params))
+        raise StopIteration()
 
     @property
     def params(self):
+        assert self.page is not None  # by the validator
+        assert self.per_page is not None  # by the validator
+        if self.page < 1:
+            self.page = 1
         return {
             'limit': self.per_page,
             'offset': (self.page - 1) * self.per_page,
@@ -181,17 +131,19 @@ class OdooQuery(BaseModel):
     odoo: "Odoo"
     model: str
     method: str
+    order: str | None = None
+    fields: list[str] | None = None
     domain: list[tuple[str, str, t.Any]] | None
-    bind: str | None = None  # config id in the binds list
+    bind_key: str | None = None  # key to access the configuration defined in binds
 
     def paginate(self, *, page=None, per_page=None, max_per_page=None) -> OdooPagination:
         pagination = OdooPagination(page=page, per_page=per_page, max_per_page=max_per_page)
         pagination.query = self
-        res = self.odoo.odoo_execute_kw(self.bind, self.model, "search_count", [self.domain])
+        res = self.odoo.odoo_execute_kw(self.bind_key, self.model, "search_count", [self.domain])
         pagination.total = res
         return pagination
 
-    def all(self, limit=2) -> list[JsonApiBaseModelMixin]:
+    def all(self, limit=2) -> list[JsonApiDataMixin]:
         """Mainly used only to get one resource so set limit to 2."""
         params = {
             'limit': limit,
@@ -200,13 +152,16 @@ class OdooQuery(BaseModel):
         return self.odoo_execute_kw(params)
 
     def odoo_execute_kw(self, params):
-        res = self.odoo.odoo_execute_kw(self.bind, self.model, self.method, [self.domain], params)
-        return [odoo_models[self.model](**rec) for rec in res]
+        res = self.odoo.odoo_execute_kw(self.bind_key, self.model, self.method, [self.domain], params)
+        return [JsonApiDict(**rec) for rec in res]
 
 
 class Odoo:
     """Flask's extension for Odoo.
     This extension uses the external API of ODOO.
+
+    At creation: a default configuration must be done or a binding dict oj configurations.
+    At execution: if no binding key is provided, the default configuration is used.
 
     .. versionchanged:: 0.7.3
         ``env_var_prefix`` parameter may be a dict of bind values.
@@ -214,7 +169,7 @@ class Odoo:
     """
 
     def __init__(self, app: TechMicroService | None = None,
-                 config: OdooConfig | None = None, binds: dict[str | None, OdooConfig] = None):
+                 config: OdooConfig | None = None, binds: dict[str | None, OdooConfig] | None = None):
 
         """
         :param app: Flask application.
@@ -235,14 +190,16 @@ class Odoo:
         self.app = app
 
     @XRay.capture(xray_recorder)
-    def query(self, model: str, method: str = "search_read", domain: list[tuple[str, str, t.Any]] | None = None,
-              bind: str | None = None):
-        return OdooQuery(odoo=self, model=model, method=method, domain=domain, bind=bind)
+    def query(self, model: str, method: str = "search_read", fields: list[str] | None = None,
+              order: str | None = None, domain: list[tuple[str, str, t.Any]] | None = None,
+              bind_key: str | None = None):
+        return OdooQuery(odoo=self, model=model, method=method, fields=fields, order=order, domain=domain,
+                         bind_key=bind_key)
 
     @XRay.capture(xray_recorder)
-    def kw(self, model: str, method: str = "search_read", id: int = None, fields: list[str] | None = None,
-           order: str | None = None, domain: list[tuple[str, str, str]] | None = None, limit: int | None = None,
-           page_size: int | None = None, page: int = 0, ensure_one: bool = False, bind: str | None = None):
+    def kw(self, model: str, method: str = "search_read", id: int | None = None, fields: list[str] | None = None,
+           order: str | None = None, domain: list[tuple[str, str, t.Any]] | None = None, limit: int = 100,
+           page_size: int | None = None, page: int = 0, ensure_one: bool = False, bind_key: str | None = None):
         """Searches with API for records based on the args.
         
         See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.search
@@ -256,7 +213,7 @@ class Odoo:
         @param page_size: pagination done by the microservice.
         @param page: current page searched.
         @param ensure_one: raise error if result is not one (404) and only one (400) object.
-        @param bind: bind configuration to be used.
+        @param bind_key: bind configuration to be used.
 
         .. versionchanged:: 0.7.3
             Added the ``bind`` parameter.
@@ -264,11 +221,11 @@ class Odoo:
         if id and domain:
             raise BadRequest("Domain and Id parameters cannot be defined tin same time")
         if id:
-            domain = [[('id', '=', id)]]
+            filters = [[('id', '=', id)]]
         else:
-            domain = [domain] if domain else [[]]
+            filters = [domain] if domain else [[]]
 
-        params = {}
+        params: dict[str, t.Any] = {}
         if order:
             params.update({'order': order})
         if fields:
@@ -277,9 +234,9 @@ class Odoo:
             params.update({'limit': limit})
         if page:
             page_size = page_size or limit
-            params.update({'offset': page * page_size})
+            params.update({'offset': (page - 1) * page_size})
 
-        res = self.odoo_execute_kw(bind, model, method, domain, params)
+        res = self.odoo_execute_kw(bind_key, model, method, filters, params)
 
         if method == 'search_count':
             return res
@@ -294,82 +251,87 @@ class Odoo:
         return {"ids": [rec['id'] for rec in res], "values": res}
 
     @XRay.capture(xray_recorder)
-    def create(self, model: str, data: t.Iterator[dict] = None, bind: str = None) -> int:
+    def create(self, model: str, data: list[dict] | None = None, bind_key: str | None = None) -> int:
         """Creates new records for the model.
 
         See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.create
         @param model: python as a dot separated class name.
         @param data: fields, as a list of dictionaries, to initialize and the value to set on them.
-        @param bind: bind configuration to be used.
+        @param bind_key: bind configuration to be used.
         See also:
         https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.with_context
         """
-        return self.odoo_execute_kw(bind, model, "create", data)
+        return self.odoo_execute_kw(bind_key, model, "create", data)
 
     @XRay.capture(xray_recorder)
-    def write(self, model: str, id: int, data: dict = None, bind: str = None) -> list:
+    def write(self, model: str, id: int, data: dict | None = None, bind_key: str | None = None) -> list:
         """Updates one record with the provided values.
         See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.write
         @param model: python as a dot separated class name.
         @param id: id of the record.
         @param data: fields to update and the value to set on them.
-        @param bind: bind configuration to be used.
+        @param bind_key: bind configuration to be used.
         """
-        return self.odoo_execute_kw(bind, model, "write", [[id], data])
+        return self.odoo_execute_kw(bind_key, model, "write", [[id], data])
 
     @XRay.capture(xray_recorder)
-    def delete_(self, model: str, id: int, bind: str = None) -> list:
+    def delete_(self, model: str, id: int, bind_key: str | None = None) -> list:
         """delete the record.
         See also: https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.unlink
         @param model: python as a dot separated class name.
         @param id: id of the record.
-        @param bind: bind configuration to be used.
+        @param bind_key: bind configuration to be used.
         """
-        return self.odoo_execute_kw(bind, model, "unlink", [[id]])
+        return self.odoo_execute_kw(bind_key, model, "unlink", [[id]])
 
-    def get_pdf(self, report_id: int, rec_ids: t.Iterator[str], bind: str = None) -> bytes:
+    def get_pdf(self, report_id: int, rec_ids: list[str], bind_key: str | None = None) -> bytes:
         """Returns the PDF document attached to a report.
         Specif entry to allow PDF base64 encoding with JSON_RPC.
 
         @param report_id: id of the report record (ir.actions.report).
         @param rec_ids: records needed to generate the report.
-        @param bind: bind configuration to be used.
+        @param bind_key: bind configuration to be used.
         """
 
-        config = self.binds[bind]
+        config = self.binds[bind_key]
         try:
             headers = {'Content-type': 'application/json'}
             data = {'jsonrpc': "2.0", 'params': {'db': config.dbname, 'login': config.user, 'password': config.passwd}}
             res = requests.post(f'{config.url}/web/session/authenticate/', data=json.dumps(data), headers=headers)
             result = res.json()
-            if result['result']['session_id']:
-                session_id = res.cookies["session_id"]
-                data = {'jsonrpc': "2.0", 'session_id': session_id}
-                params = {'params': {'res_ids': json.dumps(rec_ids)}}
-                try:
-                    res = requests.post(f"{config.url}/report/{report_id}", params=data, json=params)
-                    result = res.json()
-                    if 'error' in result:
-                        raise NotFound(f"{result['error']['message']}:{result['error']['data']}")
-                    return base64.b64decode(result['result'])
-                except NotFound:
-                    raise
-                except Exception:
-                    raise BadRequest(res.text)
+            if not result['result']['session_id']:
+                raise Forbidden()
+
+            session_id = res.cookies["session_id"]
+            data = {'jsonrpc': "2.0", 'session_id': session_id}
+            params = {'params': {'res_ids': json.dumps(rec_ids)}}
+            try:
+                res = requests.post(f"{config.url}/report/{report_id}", params=data, json=params)
+                result = res.json()
+                if 'error' in result:
+                    raise NotFound(f"{result['error']['message']}:{result['error']['data']}")
+                return base64.b64decode(result['result'])
+            except NotFound:
+                raise
+            except Exception:
+                raise BadRequest(res.text)
         except NotFound:
             raise
         except Exception:
             raise Forbidden()
 
-    def odoo_execute_kw(self, bind, model, method, *args, **kwargs):
+    def odoo_execute_kw(self, bind_key, model, method, *args, **kwargs):
         """Standard externalm API entries.
         See also: https://www.odoo.com/documentation/15.0/developer/misc/api/odoo.html
         """
-        config = self.binds[bind]
+        config = self.binds[bind_key]
 
         if '__uid' not in config.const:
             common = xmlrpc.client.ServerProxy(f'{config.url}/xmlrpc/2/common')
-            config.const['__uid'] = common.authenticate(config.dbname, config.user, config.passwd, {})
+            connected_uid = common.authenticate(config.dbname, config.user, config.passwd, {})
+            if not connected_uid:
+                raise ConnectionError()
+            config.const['__uid'] = connected_uid
 
         models = xmlrpc.client.ServerProxy(f'{config.url}/xmlrpc/2/object')
         return models.execute_kw(config.dbname, config.const['__uid'], config.passwd, model, method, *args, **kwargs)

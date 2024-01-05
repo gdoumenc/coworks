@@ -6,6 +6,9 @@ from .data import JsonApiDataMixin
 @t.runtime_checkable
 class Pagination(t.Protocol, t.Iterable):
     total: int
+    page: int
+    pages: int
+    per_page: int
     has_prev: bool
     prev_num: int
     has_next: bool

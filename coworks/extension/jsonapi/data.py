@@ -1,5 +1,8 @@
 import typing as t
 
+if t.TYPE_CHECKING:
+    from fetching import FetchingContext
+
 
 class JsonApiDataMixin:
     """Any data structure which may be transformed to JSON:API resource.
@@ -17,7 +20,7 @@ class JsonApiDataMixin:
     def jsonapi_self_link(self):
         return "https://monsite.com/missing_entry"
 
-    def jsonapi_model_dump(self, context: "FetchingContext") -> dict[str, t.Any]:
+    def jsonapi_model_dump(self, context: 'FetchingContext') -> dict[str, t.Any]:
         return {}
 
 

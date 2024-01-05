@@ -1,9 +1,6 @@
 import contextlib
 import typing as t
 
-from coworks import request
-from coworks.utils import nr_url
-from coworks.utils import str_to_bool
 from jsonapi_pydantic.v1_0 import Link
 from jsonapi_pydantic.v1_0 import TopLevel
 from pydantic.networks import HttpUrl
@@ -13,6 +10,9 @@ from sqlalchemy.sql import or_
 from werkzeug.exceptions import UnprocessableEntity
 from werkzeug.local import LocalProxy
 
+from coworks import request
+from coworks.utils import nr_url
+from coworks.utils import str_to_bool
 from .data import JsonApiDataSet
 from .query import Pagination
 
@@ -66,11 +66,14 @@ class FetchingContext:
                 raise UnprocessableEntity(msg)
             if isinstance(column.property, ColumnProperty):
                 _type = getattr(column, 'type', None)
-                if _type and _type.python_type is bool:
-                    if len(value) != 1:
-                        msg = f"Multiple boolean values '{key}' property  for model '{jsonapi_type}' is not allowed"
-                        raise UnprocessableEntity(msg)
-                    _sql_filters.append(column == str_to_bool(value[0]))
+                if _type:
+                    if _type.python_type is bool:
+                        if len(value) != 1:
+                            msg = f"Multiple boolean values '{key}' property  for model '{jsonapi_type}' is not allowed"
+                            raise UnprocessableEntity(msg)
+                        _sql_filters.append(column == str_to_bool(value[0]))
+                    else:
+                        _sql_filters.append(column.in_((_type.python_type(v) for v in value)))
                 else:
                     _sql_filters.append(column.in_(value))
             elif isinstance(column.property, RelationshipProperty):
@@ -127,6 +130,11 @@ class FetchingContext:
 
         meta = toplevel.meta or {}
         meta["count"] = pagination.total
+        meta["pagination"] = {
+            "page": pagination.page,
+            "pages": pagination.pages,
+            "per_page": pagination.per_page,
+        }
         toplevel.meta = meta
 
 

@@ -60,8 +60,6 @@ ignore_missing_imports = true
 exclude = [
     "biz", # airflow using not compatible flask version
     "coworks/tech/directory.py", # will be removed
-    "coworks/extension/odoo.py", # wip
-    "coworks/extension/jsonapi.py", # wip
     "coworks/blueprint/mail_blueprint.py", # wip
     "coworks/blueprint/gsheets_blueprint.py", # wip
 ]

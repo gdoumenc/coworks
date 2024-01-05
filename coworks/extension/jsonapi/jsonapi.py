@@ -3,8 +3,6 @@ import typing as t
 from functools import update_wrapper
 from inspect import signature
 
-from coworks import TechMicroService
-from coworks import request
 from flask import current_app
 from flask import make_response
 from jsonapi_pydantic.v1_0 import Error
@@ -22,6 +20,8 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import NotFound
 
+from coworks import TechMicroService
+from coworks import request
 from .data import JsonApiDataMixin
 from .fetching import create_fetching_context_proxy
 from .fetching import fetching_context
@@ -347,7 +347,7 @@ def flatten_relationships(data):
     """
     for key, relationships in data['relationships'].items():
         rel_data = [rel['data'] for rel in relationships]
-        rel_links = [rel.get('links') for rel in relationships]
+        # rel_links = [rel.get('links') for rel in relationships]
         if len(rel_data) == 1:
             rel = {"data": rel_data[0]}
             # rel = {"data": rel_data[0], "links": rel_links[0]}
