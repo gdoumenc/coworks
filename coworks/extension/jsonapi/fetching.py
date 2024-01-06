@@ -1,5 +1,6 @@
 import contextlib
 import typing as t
+from datetime import datetime
 
 from coworks import request
 from coworks.utils import nr_url
@@ -71,31 +72,16 @@ class FetchingContext:
             if column is None:
                 msg = f"Wrong '{key}' property for sql model '{jsonapi_type}' in filters parameters"
                 raise UnprocessableEntity(msg)
+
             if isinstance(column.property, ColumnProperty):
                 _type = getattr(column, 'type', None)
                 if _type:
-
-                    # boolean test
                     if _type.python_type is bool:
-                        if len(value) != 1:
-                            msg = f"Multiple boolean values '{key}' property  for model '{jsonapi_type}' is not allowed"
-                            raise UnprocessableEntity(msg)
-                        _sql_filters.append(column == str_to_bool(value[0]))
-
-                    # string test
+                        _sql_filters.append(*bool_sql_filter(jsonapi_type, key, column, oper, value))
                     elif _type.python_type is str:
-                        if oper not in (None, 'ilike'):
-                            msg = f"Undefined operator '{oper}' for string value"
-                            raise UnprocessableEntity(msg)
-                        if oper == 'ilike':
-                            for v in value:
-                                _sql_filters.append(column.ilike(v))
-                        else:
-                            _sql_filters.append(column.in_([v for v in value]))
-
-                    # other case (not used in fact)
-                    else:
-                        _sql_filters.append(column.in_([_type.python_type(v) for v in value]))
+                        _sql_filters.append(*str_sql_filter(jsonapi_type, key, column, oper, value))
+                    elif _type.python_type is datetime:
+                        _sql_filters.append(*datetime_sql_filter(jsonapi_type, key, column, oper, value))
                 else:
                     _sql_filters.append(column.in_(value))
             elif isinstance(column.property, RelationshipProperty):
@@ -170,3 +156,43 @@ def create_fetching_context_proxy(include: str | None = None, fields__: dict | N
 
 fetching_context = t.cast(FetchingContext,
                           LocalProxy(lambda: getattr(request, 'fetching_context', 'Not in JsonApi context')))
+
+
+def bool_sql_filter(jsonapi_type, key, column, oper, value):
+    """Boolean filter."""
+    if len(value) != 1:
+        msg = f"Multiple boolean values '{key}' property on model '{jsonapi_type}' is not allowed"
+        raise UnprocessableEntity(msg)
+    return [column == str_to_bool(value[0])]
+
+
+def str_sql_filter(jsonapi_type, key, column, oper, value):
+    """String filter."""
+    if oper not in (None, 'ilike'):
+        msg = f"Undefined operator '{oper}' for string value"
+        raise UnprocessableEntity(msg)
+    if oper == 'ilike':
+        return [column.ilike(v) for v in value]
+    else:
+        return [column.in_(v) for v in value]
+
+
+def datetime_sql_filter(jsonapi_type, key, column, oper, value):
+    """Datetime filter."""
+    if len(value) != 1:
+        msg = f"Multiple datetime values '{key}' property on model '{jsonapi_type}' is not allowed"
+        raise UnprocessableEntity(msg)
+    if oper not in (None, 'eq', 'ge', 'gt', 'le', 'lt'):
+        msg = f"Undefined operator '{oper}' for datetime value"
+        raise UnprocessableEntity(msg)
+    datetime_value = datetime.fromisoformat(value[0])
+    if oper == 'eq':
+        return [column == datetime_value]
+    if oper == 'ge':
+        return [column >= datetime_value]
+    if oper == 'gt':
+        return [column > datetime_value]
+    if oper == 'le':
+        return [column <= datetime_value]
+    if oper == 'lt':
+        return [column < datetime_value]
