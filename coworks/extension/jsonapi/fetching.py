@@ -1,5 +1,6 @@
 import contextlib
 import typing as t
+from collections import defaultdict
 from datetime import datetime
 
 from coworks import request
@@ -14,6 +15,7 @@ from sqlalchemy.sql import or_
 from werkzeug.exceptions import UnprocessableEntity
 from werkzeug.local import LocalProxy
 
+from .data import JsonApiDataMixin
 from .data import JsonApiDataSet
 from .query import Pagination
 
@@ -31,9 +33,10 @@ class FetchingContext:
         self.per_page = page__size__
         self.max_per_page = page__max__
 
-        self._filters: dict = {}
+        self._filters: dict = defaultdict(list)
         for k, v in filters__.items():
-            self._add_branch(self._filters, k.split('.'), v)
+            json_type, filter = k.rsplit('.', 1)
+            self._filters[json_type].append((filter, v))
 
         self.connection_manager = contextlib.nullcontext()
         self.all_resources = JsonApiDataSet()
@@ -51,16 +54,17 @@ class FetchingContext:
             return list(map(str.strip, field.split(',')))
         return []
 
-    def sql_filters(self, jsonapi_type, sql_model):
+    def sql_filters(self, sql_model: JsonApiDataMixin):
         """Returns the list of filters as a SQLAlchemy filter.
 
         :param jsonapi_type: the jsonapi type (used to get the filter parameters)
         :param sql_model: the SQLAlchemy model (used to get the SQLAlchemy filter)
         """
+        jsonapi_type = sql_model.jsonapi_type.__get__(sql_model)
         filter_parameters = self._filters.get(jsonapi_type, {})
 
         _sql_filters = []
-        for key, value in filter_parameters.items():
+        for key, value in filter_parameters:
             oper = None
 
             # filter operator
@@ -80,6 +84,8 @@ class FetchingContext:
                         _sql_filters.append(*bool_sql_filter(jsonapi_type, key, column, oper, value))
                     elif _type.python_type is str:
                         _sql_filters.append(*str_sql_filter(jsonapi_type, key, column, oper, value))
+                    elif _type.python_type is int:
+                        _sql_filters.append(*int_sql_filter(jsonapi_type, key, column, oper, value))
                     elif _type.python_type is datetime:
                         _sql_filters.append(*datetime_sql_filter(jsonapi_type, key, column, oper, value))
                 else:
@@ -177,6 +183,17 @@ def str_sql_filter(jsonapi_type, key, column, oper, value):
         return [column.in_(v) for v in value]
 
 
+def int_sql_filter(jsonapi_type, key, column, oper, value):
+    """Datetime filter."""
+    if len(value) != 1:
+        msg = f"Multiple datetime values '{key}' property on model '{jsonapi_type}' is not allowed"
+        raise UnprocessableEntity(msg)
+    if oper not in (None, 'eq', 'ge', 'gt', 'le', 'lt'):
+        msg = f"Undefined operator '{oper}' for integer value"
+        raise UnprocessableEntity(msg)
+    return sort_operator(column, oper, value[0])
+
+
 def datetime_sql_filter(jsonapi_type, key, column, oper, value):
     """Datetime filter."""
     if len(value) != 1:
@@ -186,13 +203,17 @@ def datetime_sql_filter(jsonapi_type, key, column, oper, value):
         msg = f"Undefined operator '{oper}' for datetime value"
         raise UnprocessableEntity(msg)
     datetime_value = datetime.fromisoformat(value[0])
+    return sort_operator(column, oper, datetime_value)
+
+
+def sort_operator(column, oper, value):
     if oper == 'eq':
-        return [column == datetime_value]
+        return [column == value]
     if oper == 'ge':
-        return [column >= datetime_value]
+        return [column >= value]
     if oper == 'gt':
-        return [column > datetime_value]
+        return [column > value]
     if oper == 'le':
-        return [column <= datetime_value]
+        return [column <= value]
     if oper == 'lt':
-        return [column < datetime_value]
+        return [column < value]
