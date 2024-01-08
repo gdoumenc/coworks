@@ -1,5 +1,6 @@
 import asyncio
 import typing as t
+from asyncio import iscoroutine
 from functools import update_wrapper
 from inspect import signature
 
@@ -125,10 +126,11 @@ def jsonapi(func):
     Must have Flask-SQLAlchemy extension installed.
     """
 
-    def _jsonapi(*args, ensure_one: bool = False, include: str | None = None,
-                 fields__: dict | None = None, filters__: dict | None = None, sort: str | None = None,
-                 page__number__: int | None = None, page__size__: int | None = None, page__max__: int | None = None,
-                 **kwargs):
+    async def _jsonapi(*args, ensure_one: bool = False, include: str | None = None,
+                       fields__: dict | None = None, filters__: dict | None = None, sort: str | None = None,
+                       page__number__: int | None = None, page__size__: int | None = None,
+                       page__max__: int | None = None,
+                       **kwargs):
         """
 
         :param args: entry args.,
@@ -145,9 +147,11 @@ def jsonapi(func):
         """
         create_fetching_context_proxy(include, fields__, filters__, sort, page__number__, page__size__, page__max__)
         res = func(*args, **kwargs)
+        if iscoroutine(res):
+            res = await res
         try:
             if isinstance(res, Query):
-                _toplevel = asyncio.run(get_toplevel_from_query(res, ensure_one))
+                _toplevel = await get_toplevel_from_query(res, ensure_one)
             elif isinstance(res, TopLevel):
                 _toplevel = res
             else:
@@ -169,8 +173,9 @@ def jsonapi(func):
     return _jsonapi
 
 
-def to_ressource_data(jsonapi_basemodel: JsonApiDataMixin,
-                      toplevel_relationships: dict[JsonApiDataMixin, dict[str, Relationship]]) -> dict[str, t.Any]:
+async def to_ressource_data(jsonapi_basemodel: JsonApiDataMixin,
+                            toplevel_relationships: dict[JsonApiDataMixin, dict[str, Relationship]]) -> dict[
+    str, t.Any]:
     """Transform a simple structure data into a jsonapi ressource data.
 
     We cannot create directly the Resource here, as the data is not completed at this step
@@ -195,12 +200,12 @@ def to_ressource_data(jsonapi_basemodel: JsonApiDataMixin,
     for key, value in {**data}.items():
         if isinstance(value, JsonApiDataMixin):
             data.pop(key, None)
-            add_relationship(key, value, relationships, toplevel_relationships)
+            await add_relationship(key, value, relationships, toplevel_relationships)
         elif isinstance(value, list):
             for val in value:
                 if isinstance(val, JsonApiDataMixin):
                     data.pop(key, None)
-                    add_relationship(key, val, relationships, toplevel_relationships)
+                    await add_relationship(key, val, relationships, toplevel_relationships)
             continue
         else:
             continue
@@ -219,10 +224,11 @@ def to_ressource_data(jsonapi_basemodel: JsonApiDataMixin,
 
 
 async def toplevel_from_basemodel(jsonapi_basemodel: JsonApiDataMixin) -> TopLevel:
+    """Asynchronous function to get included resources."""
     assert_msg = f"The base model '{jsonapi_basemodel}' is not a JsonApiDataMixin"
     assert isinstance(jsonapi_basemodel, JsonApiDataMixin), assert_msg
 
-    ressource_data = to_ressource_data(jsonapi_basemodel, dict())
+    ressource_data = await to_ressource_data(jsonapi_basemodel, dict())
     flatten_relationships(ressource_data)
     included: list[Resource] = []
     if fetching_context.include:
@@ -265,7 +271,12 @@ async def get_toplevel_from_query(query: Query, ensure_one: bool) -> TopLevel:
                 _toplevels.append(await get_toplevel())
         data = [r for tp in _toplevels for r in tp.data]
         included = set((i for tp in _toplevels if tp.included for i in tp.included))
-        return TopLevel(data=data, included=included if included else None)
+        if len(_toplevels) == 1:
+            meta = _toplevels[0].meta
+            links = _toplevels[0].links
+        else:
+            meta = {"count": 'tobedone'}
+        return TopLevel(data=data, included=included if included else None, meta=meta, links=links)
 
     with fetching_context.connection_manager:
         return await get_toplevel()
@@ -274,10 +285,14 @@ async def get_toplevel_from_query(query: Query, ensure_one: bool) -> TopLevel:
 async def get_multi_toplevel(query: Query) -> TopLevel:
     """Returns the multiple data top level resource from the query.
     """
+
+    async def async_pagination(p):
+        return await toplevel_from_basemodel(p)
+
     pagination = query.paginate(page=fetching_context.page, per_page=fetching_context.per_page,
                                 max_per_page=fetching_context.max_per_page)
     toplevels: t.Iterable[TopLevel] = await asyncio.gather(
-        *[toplevel_from_basemodel(p) for p in pagination]
+        *(async_pagination(p) for p in pagination)
     )
     toplevel = merge_toplevels(toplevels)
     fetching_context.add_pagination(toplevel, pagination)
@@ -295,23 +310,9 @@ async def get_one_toplevel(query: Query) -> TopLevel:
     return await toplevel_from_basemodel(resources[0])
 
 
-def toplevel_to_resource(toplevel: TopLevel) -> Resource:
-    """Transform a toplevel into a jsonapi resource."""
-    data = toplevel.data
-    return Resource(type=data.type, id=data.id, attributes=data.attributes,
-                    relationships=data.relationships, links=data.links)
-
-
-def merge_toplevels(toplevels: t.Iterable[TopLevel]) -> TopLevel:
-    """Combines toplevels in one toplevel."""
-    data = [toplevel_to_resource(r) for r in toplevels]
-    included = set((i for r in toplevels if r.included for i in r.included))
-    return TopLevel(data=data, included=included if included else None)
-
-
-def add_relationship(key: str, related_model: JsonApiDataMixin,
-                     relationships: dict[str, list[dict[str, Relationship]]],
-                     toplevel_relationships: dict[JsonApiDataMixin, dict[str, Relationship]]):
+async def add_relationship(key: str, related_model: JsonApiDataMixin,
+                           relationships: dict[str, list[dict[str, Relationship]]],
+                           toplevel_relationships: dict[JsonApiDataMixin, dict[str, Relationship]]):
     """ Adds a relationship in the list of relationships from the related model.
     The relationship may not be complete for circular reference and will be completed after in construction.
     """
@@ -337,8 +338,8 @@ def add_relationship(key: str, related_model: JsonApiDataMixin,
             related_resource = fetching_context.all_resources[related_model]
         else:
             # creates and adds the related resource to the global list of included resources
-            related_resource = to_ressource_data(related_model,
-                                                 toplevel_relationships=toplevel_relationships)
+            related_resource = await to_ressource_data(related_model,
+                                                       toplevel_relationships=toplevel_relationships)
             if fetching_context.include and key in fetching_context.include:
                 fetching_context.all_resources[related_model] = related_resource
 
@@ -346,6 +347,20 @@ def add_relationship(key: str, related_model: JsonApiDataMixin,
         resource_identifier = ResourceIdentifier(id=related_resource['id'], type=related_resource['type'])
         relationship_link = RelationshipLinks(related=Link(href=HttpUrl(related_model.jsonapi_self_link)))
         relationship.update(Relationship(data=resource_identifier, links=relationship_link))
+
+
+def toplevel_to_resource(toplevel: TopLevel) -> Resource:
+    """Transform a toplevel into a jsonapi resource."""
+    data = toplevel.data
+    return Resource(type=data.type, id=data.id, attributes=data.attributes,
+                    relationships=data.relationships, links=data.links)
+
+
+def merge_toplevels(toplevels: t.Iterable[TopLevel]) -> TopLevel:
+    """Combines toplevels in one toplevel."""
+    data = [toplevel_to_resource(r) for r in toplevels]
+    included = set((i for r in toplevels if r.included for i in r.included))
+    return TopLevel(data=data, included=included if included else None)
 
 
 def flatten_relationships(data):

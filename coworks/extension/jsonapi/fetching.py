@@ -3,18 +3,20 @@ import typing as t
 from collections import defaultdict
 from datetime import datetime
 
-from coworks import request
-from coworks.utils import nr_url
-from coworks.utils import str_to_bool
 from jsonapi_pydantic.v1_0 import Link
 from jsonapi_pydantic.v1_0 import TopLevel
 from pydantic.networks import HttpUrl
+from sqlalchemy import Column
+from sqlalchemy import ColumnOperators
 from sqlalchemy.orm import ColumnProperty
 from sqlalchemy.orm import RelationshipProperty
 from sqlalchemy.sql import or_
 from werkzeug.exceptions import UnprocessableEntity
 from werkzeug.local import LocalProxy
 
+from coworks import request
+from coworks.utils import nr_url
+from coworks.utils import str_to_bool
 from .data import JsonApiDataMixin
 from .data import JsonApiDataSet
 from .query import Pagination
@@ -60,10 +62,10 @@ class FetchingContext:
         :param jsonapi_type: the jsonapi type (used to get the filter parameters)
         :param sql_model: the SQLAlchemy model (used to get the SQLAlchemy filter)
         """
-        jsonapi_type = sql_model.jsonapi_type.__get__(sql_model)
+        jsonapi_type = sql_model.jsonapi_type.__get__(sql_model)  # type:ignore[attr-defined]
         filter_parameters = self._filters.get(jsonapi_type, {})
 
-        _sql_filters = []
+        _sql_filters: list[ColumnOperators] = []
         for key, value in filter_parameters:
             oper = None
 
@@ -164,7 +166,7 @@ fetching_context = t.cast(FetchingContext,
                           LocalProxy(lambda: getattr(request, 'fetching_context', 'Not in JsonApi context')))
 
 
-def bool_sql_filter(jsonapi_type, key, column, oper, value):
+def bool_sql_filter(jsonapi_type, key, column, oper, value) -> list[ColumnOperators]:
     """Boolean filter."""
     if len(value) != 1:
         msg = f"Multiple boolean values '{key}' property on model '{jsonapi_type}' is not allowed"
@@ -172,7 +174,7 @@ def bool_sql_filter(jsonapi_type, key, column, oper, value):
     return [column == str_to_bool(value[0])]
 
 
-def str_sql_filter(jsonapi_type, key, column, oper, value):
+def str_sql_filter(jsonapi_type, key, column, oper, value) -> list[ColumnOperators]:
     """String filter."""
     if oper not in (None, 'ilike'):
         msg = f"Undefined operator '{oper}' for string value"
@@ -180,10 +182,10 @@ def str_sql_filter(jsonapi_type, key, column, oper, value):
     if oper == 'ilike':
         return [column.ilike(v) for v in value]
     else:
-        return [column.in_(v) for v in value]
+        return [column.in_(value)]
 
 
-def int_sql_filter(jsonapi_type, key, column, oper, value):
+def int_sql_filter(jsonapi_type, key, column, oper, value) -> list[ColumnOperators]:
     """Datetime filter."""
     if len(value) != 1:
         msg = f"Multiple datetime values '{key}' property on model '{jsonapi_type}' is not allowed"
@@ -194,7 +196,7 @@ def int_sql_filter(jsonapi_type, key, column, oper, value):
     return sort_operator(column, oper, value[0])
 
 
-def datetime_sql_filter(jsonapi_type, key, column, oper, value):
+def datetime_sql_filter(jsonapi_type, key, column, oper, value) -> list[ColumnOperators]:
     """Datetime filter."""
     if len(value) != 1:
         msg = f"Multiple datetime values '{key}' property on model '{jsonapi_type}' is not allowed"
@@ -206,7 +208,7 @@ def datetime_sql_filter(jsonapi_type, key, column, oper, value):
     return sort_operator(column, oper, datetime_value)
 
 
-def sort_operator(column, oper, value):
+def sort_operator(column: Column, oper, value) -> list[ColumnOperators]:
     if oper == 'eq':
         return [column == value]
     if oper == 'ge':
@@ -217,3 +219,4 @@ def sort_operator(column, oper, value):
         return [column <= value]
     if oper == 'lt':
         return [column < value]
+    assert False, f"Undefined sorting operator: {oper}"
