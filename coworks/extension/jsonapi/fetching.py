@@ -56,53 +56,54 @@ class FetchingContext:
             return list(map(str.strip, field.split(',')))
         return []
 
-    def sql_filters(self, sql_model: JsonApiDataMixin):
+    def sql_filters(self, *sql_model: JsonApiDataMixin):
         """Returns the list of filters as a SQLAlchemy filter.
+        If several sql_model are given, add .join() in the query
 
-        :param jsonapi_type: the jsonapi type (used to get the filter parameters)
         :param sql_model: the SQLAlchemy model (used to get the SQLAlchemy filter)
         """
-        jsonapi_type = sql_model.jsonapi_type.__get__(sql_model)  # type:ignore[attr-defined]
-        filter_parameters = self._filters.get(jsonapi_type, {})
-
         _sql_filters: list[ColumnOperators] = []
-        for key, value in filter_parameters:
-            oper = None
+        for model in sql_model:
+            jsonapi_type = model.jsonapi_type.__get__(model)  # type:ignore[attr-defined]
+            filter_parameters = self._filters.get(jsonapi_type, {})
 
-            # filter operator
-            # idea from https://discuss.jsonapi.org/t/share-propose-a-filtering-strategy/257
-            if "____" in key:
-                key, oper = key.split('____', 1)
+            for key, value in filter_parameters:
+                oper = None
 
-            column = getattr(sql_model, key, None)
-            if column is None:
-                msg = f"Wrong '{key}' property for sql model '{jsonapi_type}' in filters parameters"
-                raise UnprocessableEntity(msg)
+                # filter operator
+                # idea from https://discuss.jsonapi.org/t/share-propose-a-filtering-strategy/257
+                if "____" in key:
+                    key, oper = key.split('____', 1)
 
-            if isinstance(column.property, ColumnProperty):
-                _type = getattr(column, 'type', None)
-                if _type:
-                    if _type.python_type is bool:
-                        _sql_filters.append(*bool_sql_filter(jsonapi_type, key, column, oper, value))
-                    elif _type.python_type is str:
-                        _sql_filters.append(*str_sql_filter(jsonapi_type, key, column, oper, value))
-                    elif _type.python_type is int:
-                        _sql_filters.append(*int_sql_filter(jsonapi_type, key, column, oper, value))
-                    elif _type.python_type is datetime:
-                        _sql_filters.append(*datetime_sql_filter(jsonapi_type, key, column, oper, value))
-                else:
-                    _sql_filters.append(column.in_(value))
-            elif isinstance(column.property, RelationshipProperty):
-                if not isinstance(value, dict):
-                    msg = (f"Wrong '{value}' value for sql model '{jsonapi_type}'"
-                           " in filters parameters (should be a dict).")
+                column = getattr(model, key, None)
+                if column is None:
+                    msg = f"Wrong '{key}' property for sql model '{jsonapi_type}' in filters parameters"
                     raise UnprocessableEntity(msg)
-                for k, v in value.items():
-                    condition = column.has(**{k: v[0]})
-                    if len(v) > 1:
-                        for or_v in v[1:]:
-                            condition = or_(condition, column.has(**{k: or_v}))
-                    _sql_filters.append(condition)
+
+                if isinstance(column.property, ColumnProperty):
+                    _type = getattr(column, 'type', None)
+                    if _type:
+                        if _type.python_type is bool:
+                            _sql_filters.append(*bool_sql_filter(jsonapi_type, key, column, oper, value))
+                        elif _type.python_type is str:
+                            _sql_filters.append(*str_sql_filter(jsonapi_type, key, column, oper, value))
+                        elif _type.python_type is int:
+                            _sql_filters.append(*int_sql_filter(jsonapi_type, key, column, oper, value))
+                        elif _type.python_type is datetime:
+                            _sql_filters.append(*datetime_sql_filter(jsonapi_type, key, column, oper, value))
+                    else:
+                        _sql_filters.append(column.in_(value))
+                elif isinstance(column.property, RelationshipProperty):
+                    if not isinstance(value, dict):
+                        msg = (f"Wrong '{value}' value for sql model '{jsonapi_type}'"
+                               " in filters parameters (should be a dict).")
+                        raise UnprocessableEntity(msg)
+                    for k, v in value.items():
+                        condition = column.has(**{k: v[0]})
+                        if len(v) > 1:
+                            for or_v in v[1:]:
+                                condition = or_(condition, column.has(**{k: or_v}))
+                        _sql_filters.append(condition)
 
         return _sql_filters
 
