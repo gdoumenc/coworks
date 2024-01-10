@@ -2,7 +2,6 @@ import base64
 import os
 import typing as t
 import xmlrpc.client
-from math import ceil
 
 import requests
 from aws_xray_sdk.core import xray_recorder
@@ -19,6 +18,7 @@ from coworks import TechMicroService
 from coworks.extension.xray import XRay
 from .jsonapi import JsonApiDataMixin
 from .jsonapi import JsonApiDict
+from .jsonapi.data import CursorPagination
 
 
 class OdooConfig(BaseModel):
@@ -58,55 +58,14 @@ class OdooConfig(BaseModel):
         return OdooConfig(url=url, dbname=dbname, user=user, passwd=passwd)
 
 
-class OdooPagination(BaseModel):
-    page: int | None = None
-    per_page: int | None = None
+class OdooPagination(CursorPagination):
+    """Odoo pagination using limit value and odoo request."""
     max_per_page: int | None = None
-    total: int | None = None
     query: t.Any | None = None
-
-    @validator("page")
-    def set_page(cls, page):
-        return page or 1
-
-    @validator("per_page")
-    def set_per_page(cls, per_page):
-        return per_page or 20
 
     @validator("max_per_page")
     def set_max_per_page(cls, max_per_page):
         return max_per_page or 100
-
-    @property
-    def pages(self) -> int:
-        if not self.total:
-            return 1
-        assert self.per_page is not None  # by the validator
-        return ceil(self.total / self.per_page)
-
-    @property
-    def has_prev(self) -> bool:
-        assert self.page is not None  # by the validator
-        return self.page > 1
-
-    @property
-    def prev_num(self) -> int | None:
-        if not self.has_prev:
-            return None
-        assert self.page is not None  # by the validator
-        return self.page - 1
-
-    @property
-    def has_next(self) -> bool:
-        assert self.page is not None  # by the validator
-        return self.page < self.pages
-
-    @property
-    def next_num(self) -> int | None:
-        if not self.has_next:
-            return None
-        assert self.page is not None  # by the validator
-        return self.page + 1
 
     def __iter__(self):
         if self.query:
@@ -137,8 +96,7 @@ class OdooQuery(BaseModel):
     bind_key: str | None = None  # key to access the configuration defined in binds
 
     def paginate(self, *, page=None, per_page=None, max_per_page=None) -> OdooPagination:
-        pagination = OdooPagination(page=page, per_page=per_page, max_per_page=max_per_page)
-        pagination.query = self
+        pagination = OdooPagination(query=self, page=page, per_page=per_page, max_per_page=max_per_page, total=0)
         res = self.odoo.odoo_execute_kw(self.bind_key, self.model, "search_count", [self.domain])
         pagination.total = res
         return pagination

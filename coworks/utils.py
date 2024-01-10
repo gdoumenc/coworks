@@ -214,9 +214,9 @@ def remove_brackets(name):
 
 
 def as_typed_kwargs(func: t.Callable, kwargs: dict):
-    def get_typed_value(name: str, prameter_type, val):
-        if isinstance(prameter_type, types.UnionType):
-            for arg in t.get_args(prameter_type):
+    def get_typed_value(name: str, parameter_type, val):
+        if isinstance(parameter_type, types.UnionType):
+            for arg in t.get_args(parameter_type):
                 try:
                     return get_typed_value(name, arg, val)
                 except (UnprocessableEntity, ValidationError):
@@ -224,35 +224,35 @@ def as_typed_kwargs(func: t.Callable, kwargs: dict):
                 except (TypeError, ValueError):
                     pass
             raise TypeError()
-        origin = t.get_origin(prameter_type)
+        origin = t.get_origin(parameter_type)
         if origin is t.Union:
-            for arg in t.get_args(prameter_type):
+            for arg in t.get_args(parameter_type):
                 return get_typed_value(name, arg, val)
             raise TypeError()
         if origin is list:
-            arg = t.get_args(prameter_type)[0]
+            arg = t.get_args(parameter_type)[0]
             if isinstance(val, list):
                 return [arg(v) for v in val]
             return [arg(val)]
         if origin is set:
-            arg = t.get_args(prameter_type)[0]
+            arg = t.get_args(parameter_type)[0]
             if isinstance(val, list):
                 return {arg(v) for v in val}
             return {arg(val)}
         if origin is None:
-            if prameter_type is Signature.empty:
+            if not parameter_type or parameter_type is Signature.empty:
                 return val
             if isinstance(val, list):
                 msg = f"Multiple values for '{name}' query parameters are not allowed"
                 raise UnprocessableEntity(msg)
-            if issubclass(prameter_type, bool):
+            if issubclass(parameter_type, bool):
                 return str_to_bool(val)
-            if issubclass(prameter_type, dict):
+            if issubclass(parameter_type, dict):
                 if isinstance(val, str):
                     return json.loads(val)
-            if issubclass(prameter_type, BaseModel):
-                return prameter_type(**json.loads(val))
-            return val if isinstance(val, prameter_type) else prameter_type(val)
+            if issubclass(parameter_type, BaseModel):
+                return parameter_type(**json.loads(val))
+            return val if isinstance(val, parameter_type) else parameter_type(val)
 
     typed_kwargs = {**kwargs}
     try:

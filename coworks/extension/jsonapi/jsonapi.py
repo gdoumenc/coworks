@@ -4,8 +4,6 @@ from asyncio import iscoroutine
 from functools import update_wrapper
 from inspect import signature
 
-from coworks import TechMicroService
-from coworks import request
 from flask import current_app
 from flask import make_response
 from jsonapi_pydantic.v1_0 import Error
@@ -23,6 +21,8 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import NotFound
 
+from coworks import TechMicroService
+from coworks import request
 from .data import JsonApiDataMixin
 from .fetching import create_fetching_context_proxy
 from .fetching import fetching_context
@@ -210,14 +210,13 @@ async def to_ressource_data(jsonapi_basemodel: JsonApiDataMixin,
         else:
             continue
 
-    link = Link(href=HttpUrl(jsonapi_basemodel.jsonapi_self_link))
     resource_data = {
         "type": _type,
         "id": _id,
         "lid": None,
         "attributes": data,
         "relationships": relationships,
-        "links": {"self": link}
+        "links": get_resource_links(jsonapi_basemodel)
     }
 
     return resource_data
@@ -345,7 +344,8 @@ async def add_relationship(key: str, related_model: JsonApiDataMixin,
 
         # updates now the relationship once the process of creation is completed
         resource_identifier = ResourceIdentifier(id=related_resource['id'], type=related_resource['type'])
-        relationship_link = RelationshipLinks(related=Link(href=HttpUrl(related_model.jsonapi_self_link)))
+        related_links = get_resource_links(related_model)
+        relationship_link = RelationshipLinks(related=related_links.get('self'))
         relationship.update(Relationship(data=resource_identifier, links=relationship_link))
 
 
@@ -385,3 +385,16 @@ def add_resource_to_included(relationship, all_resources, included):
     if resource:
         flatten_relationships(resource)
         included.append(Resource(**resource))
+
+
+def get_resource_links(jsonapi_basemodel) -> dict:
+    """Get the links associated to a ressource (from jsonapi_self_link property).
+    
+    If jsonapi_self_link is a string then there is only one self link.
+    """
+    self_link = jsonapi_basemodel.jsonapi_self_link
+    if isinstance(self_link, str):
+        return {'self': Link(href=HttpUrl(jsonapi_basemodel.jsonapi_self_link))}
+    if isinstance(self_link, dict):
+        return self_link
+    raise InternalServerError("Unexpected jsonapi_self_link value")

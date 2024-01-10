@@ -1,4 +1,5 @@
-from .data import JsonApiBaseModelMixin
+from .data import CursorPagination
+from .data import JsonApiHashableMixin
 from .data import JsonApiDataMixin
 from .data import JsonApiDict
 from .fetching import FetchingContext
@@ -7,11 +8,13 @@ from .jsonapi import JsonApi
 from .jsonapi import JsonApiError
 from .jsonapi import jsonapi
 from .jsonapi import toplevel_from_basemodel
+from .query import ListQuery
 from .query import Pagination
 from .query import Query
 
 __all__ = [
-    'JsonApiBaseModelMixin',
+    'CursorPagination',
+    'JsonApiHashableMixin',
     'JsonApiDataMixin',
     'JsonApiDict',
     'FetchingContext',
@@ -21,5 +24,6 @@ __all__ = [
     'jsonapi',
     'toplevel_from_basemodel',
     'Pagination',
-    'Query'
+    'Query',
+    'ListQuery'
 ]
