@@ -275,6 +275,9 @@ class BranchTechMicroServiceOperator(BaseBranchOperator):
 
 
 class NeoRezoServiceOperator(TechMicroServiceOperator):
+    """This operator is defined as an example of how to use TechMicroServiceOperator.
+
+     This model used JSONAPI extension."""
 
     def __init__(self, *, module: str = None, service: str = None, accept: str = 'application/vnd.api+json', **kwargs):
         super().__init__(accept=accept, **kwargs)
@@ -283,12 +286,15 @@ class NeoRezoServiceOperator(TechMicroServiceOperator):
 
     @property
     def url(self):
-        return f'https://jsonapi.neorezo.io/{self._module}/{self._service}/{self.entry}'
+        path = f"{self._module}/{self._service}/{self.entry}"
+        if self.stage == 'dev':
+            return f'https://dev.jsonapi.neorezo.io/{path}'
+        return f'https://jsonapi.neorezo.io/{path}'
 
     @property
     def headers(self):
         return {
             'Content-Type': "application/json",
             'Accept': self._accept,
-            'X-JSONAPI-TOKEN': "notdefined"
+            'X-NR-JWT': "must_be_defined"
         }
