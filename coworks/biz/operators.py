@@ -5,6 +5,7 @@ from json import loads
 
 import requests
 from airflow.exceptions import AirflowFailException
+from airflow.models import Variable
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.branch import BaseBranchOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -293,8 +294,9 @@ class NeoRezoServiceOperator(TechMicroServiceOperator):
 
     @property
     def headers(self):
+        nr_jwt = Variable.get("BIZ_NR_JWT")
         return {
             'Content-Type': "application/json",
             'Accept': self._accept,
-            'X-NR-JWT': "must_be_defined"
+            'X-NR-JWT': nr_jwt
         }
