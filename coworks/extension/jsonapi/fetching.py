@@ -32,8 +32,8 @@ class FetchingContext:
         filters__ = filters__ if filters__ is not None else {}
         self._sort = list(map(str.strip, sort.split(','))) if sort else []
         self.page = page__number__
-        self.per_page = page__size__
-        self.max_per_page = page__max__
+        self.per_page = page__size__ or 100
+        self.max_per_page = page__max__ or 100
 
         self._filters: dict = defaultdict(list)
         for k, v in filters__.items():

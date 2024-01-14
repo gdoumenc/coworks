@@ -70,8 +70,10 @@ class JsonApiDataMixin:
     def jsonapi_self_link(self):
         return "https://monsite.com/missing_entry"
 
-    def jsonapi_model_dump(self, context: 'FetchingContext') -> dict[str, t.Any]:
-        return {}
+    def jsonapi_attributes_relationships(self, context: 'FetchingContext') \
+            -> tuple[dict[str, t.Any], dict[str, 'JsonApiDataMixin']]:
+        """Splits the structure in attributes versus relationships."""
+        return {}, {}
 
 
 class JsonApiDict(dict, JsonApiDataMixin):
@@ -85,18 +87,12 @@ class JsonApiDict(dict, JsonApiDataMixin):
     def jsonapi_id(self) -> str:
         return str(self['id'])
 
-    def jsonapi_model_dump(self, context: "FetchingContext", exclude: list[str] | None = None) -> dict[str, t.Any]:
+    def jsonapi_attributes_relationships(self, context: "FetchingContext", exclude: list[str] | None = None) \
+            -> tuple[dict[str, t.Any], dict[str, 'JsonApiDataMixin']]:
         exclude = exclude or []
         fields = context.field_names(self.jsonapi_type)
-        return {k: v for k, v in self.items() if
-                (not fields or k in fields) and k not in exclude}  # type:ignore
-
-
-class JsonApiHashableMixin(JsonApiDataMixin):
-    """Hashable JsonApiDataMixin"""
-
-    def __hash__(self) -> int:
-        return hash(self.jsonapi_type + str(self.jsonapi_id))
+        attrs = {k: v for k, v in self.items() if (not fields or k in fields) and k not in exclude}  # type:ignore
+        return attrs, {}
 
 
 class JsonApiDataSet(dict[JsonApiDataMixin, dict]):

@@ -6,7 +6,6 @@ from .data import CursorPagination
 from .data import JsonApiDataMixin
 
 
-@t.runtime_checkable
 class Pagination(t.Protocol, t.Iterable):
     total: int
     page: int
