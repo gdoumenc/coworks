@@ -254,7 +254,7 @@ class TechMicroService(Flask):
         return CoworksClient(self, CoworksResponse, use_cookies=True, aws_event=aws_event, aws_context=aws_context)
 
     @property
-    def autorizer_identity_source(self):
+    def header_autorizer_token(self):
         """The identity source for which authorization is requested usefull only on local.
         Usually defined in API GAateway Authorizer resource."""
         return request.headers.get('Authorization')
@@ -291,6 +291,9 @@ class TechMicroService(Flask):
 
         By default, just using the token authentification process (defined from terraform template).
         """
+
+        if token is None:
+            raise Unauthorized(www_authenticate=WWWAuthenticate(auth_type="basic"))
 
         return token == os.getenv('TOKEN')
 
@@ -441,10 +444,8 @@ class TechMicroService(Flask):
 
             # Checks token if authorization needed
             if not no_auth:
-                token = self.autorizer_identity_source
-                if token is None:
-                    raise Unauthorized(www_authenticate=WWWAuthenticate(auth_type="basic"))
                 try:
+                    token = self.header_autorizer_token
                     valid = self.token_authorizer(token)
                     if not valid:
                         raise Forbidden()
