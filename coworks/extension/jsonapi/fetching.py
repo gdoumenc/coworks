@@ -3,6 +3,9 @@ import typing as t
 from collections import defaultdict
 from datetime import datetime
 
+from coworks import request
+from coworks.utils import nr_url
+from coworks.utils import str_to_bool
 from jsonapi_pydantic.v1_0 import Link
 from jsonapi_pydantic.v1_0 import TopLevel
 from pydantic.networks import HttpUrl
@@ -14,11 +17,7 @@ from sqlalchemy.sql import or_
 from werkzeug.exceptions import UnprocessableEntity
 from werkzeug.local import LocalProxy
 
-from coworks import request
-from coworks.utils import nr_url
-from coworks.utils import str_to_bool
 from .data import JsonApiDataMixin
-from .data import JsonApiDataSet
 from .query import Pagination
 
 
@@ -37,11 +36,14 @@ class FetchingContext:
 
         self._filters: dict = defaultdict(list)
         for k, v in filters__.items():
-            json_type, filter = k.rsplit('.', 1)
-            self._filters[json_type].append((filter, v))
+            try:
+                json_type, filter = k.rsplit('.', 1)
+                self._filters[json_type].append((filter, v))
+            except ValueError:
+                msg = f"The filter parameter '{k}' must be of the form 'filter[type.value][oper]'"
+                raise ValueError(msg)
 
         self.connection_manager = contextlib.nullcontext()
-        self.all_resources = JsonApiDataSet()
 
     def field_names(self, jsonapi_type) -> list[str]:
         if jsonapi_type in self._fields:

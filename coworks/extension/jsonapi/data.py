@@ -87,19 +87,8 @@ class JsonApiDict(dict, JsonApiDataMixin):
     def jsonapi_id(self) -> str:
         return str(self['id'])
 
-    def jsonapi_attributes_relationships(self, context: "FetchingContext", exclude: list[str] | None = None) \
+    def jsonapi_attributes_relationships(self, context: "FetchingContext") \
             -> tuple[dict[str, t.Any], dict[str, 'JsonApiDataMixin']]:
-        exclude = exclude or []
         fields = context.field_names(self.jsonapi_type)
-        attrs = {k: v for k, v in self.items() if (not fields or k in fields) and k not in exclude}  # type:ignore
+        attrs = {k: v for k, v in self.items() if (not fields or k in fields)}  # type:ignore
         return attrs, {}
-
-
-class JsonApiDataSet(dict[JsonApiDataMixin, dict]):
-    """Set of resources for included part of TopLevel."""
-
-    def extract(self, *, type, id) -> dict | None:
-        for resource in self:
-            if resource.jsonapi_type == type and resource.jsonapi_id == id:
-                return self[resource]
-        return None

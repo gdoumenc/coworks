@@ -23,7 +23,7 @@ class TestClass:
             time.sleep(counter)
             counter += 1
         response = requests.get(f'http://localhost:{unused_tcp_port}/')
-        assert response.status_code == 401
+        assert response.status_code == 403
         server.terminate()
 
     @mock.patch.dict(os.environ, {"FLASK_RUN_FROM_CLI": "false"})
