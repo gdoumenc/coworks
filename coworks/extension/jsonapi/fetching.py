@@ -183,11 +183,11 @@ def str_sql_filter(jsonapi_type, key, column, oper, value) -> list[ColumnOperato
         msg = f"Undefined operator '{oper}' for string value"
         raise UnprocessableEntity(msg)
     if oper == 'ilike':
-        return [column.ilike(v) for v in value]
+        return [column.ilike(v) for v in str(value)]
     elif oper == 'contains':
-        return [column.contains(v) for v in value]
+        return [column.contains(v) for v in str(value)]
     else:
-        return [column.in_(value)]
+        return [column.in_(str(value))]
 
 
 def int_sql_filter(jsonapi_type, key, column, oper, value) -> list[ColumnOperators]:
@@ -198,7 +198,7 @@ def int_sql_filter(jsonapi_type, key, column, oper, value) -> list[ColumnOperato
     if oper not in (None, 'eq', 'ge', 'gt', 'le', 'lt'):
         msg = f"Undefined operator '{oper}' for integer value"
         raise UnprocessableEntity(msg)
-    return sort_operator(column, oper, value[0])
+    return sort_operator(column, oper, int(value[0]))
 
 
 def datetime_sql_filter(jsonapi_type, key, column, oper, value) -> list[ColumnOperators]:

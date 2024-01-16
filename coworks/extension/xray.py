@@ -157,19 +157,18 @@ class XRay:
             self._app.view_functions[rule.endpoint] = self._recorder.capture(name=fun_name)(wrapped_fun)
 
     def capture_exception(self, e):
+        self._app.logger.error(f"Event: {request.aws_event}")
+        self._app.logger.error(f"Context: {request.aws_context}")
         try:
             subsegment = self._recorder.current_subsegment()
             if subsegment:
                 subsegment.add_error_flag()
                 subsegment.put_annotation('service', self._app.name)
                 subsegment.add_exception(e, traceback.extract_stack())
-        except (SegmentNotFoundException,):
-            pass
-
-        self._app.logger.error(f"Event: {request.aws_event}")
-        self._app.logger.error(f"Context: {request.aws_context}")
-        self._app.logger.debug("Skipped capture exception because the SDK is currently disabled.")
-        raise e
+        except SegmentNotFoundException:
+            self._app.logger.debug("Skipped capture exception because the SDK is currently disabled.")
+        except Exception:
+            raise
 
 
 def lambda_context_to_json(context):
