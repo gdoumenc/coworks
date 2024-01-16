@@ -9,7 +9,7 @@ from flask import json
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
-from pydantic import validator
+from pydantic import field_validator
 from werkzeug.exceptions import BadRequest
 from werkzeug.exceptions import Forbidden
 from werkzeug.exceptions import NotFound
@@ -63,7 +63,7 @@ class OdooPagination(CursorPagination):
     max_per_page: int | None = None
     query: t.Any | None = None
 
-    @validator("max_per_page")
+    @field_validator("max_per_page")
     def set_max_per_page(cls, max_per_page):
         return max_per_page or 100
 
