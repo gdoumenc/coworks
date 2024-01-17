@@ -22,6 +22,7 @@ from werkzeug.exceptions import NotFound
 from coworks import TechMicroService
 from coworks import request
 from .data import JsonApiDataMixin
+from .data import JsonApiRelationship
 from .fetching import create_fetching_context_proxy
 from .fetching import fetching_context
 from .query import Pagination
@@ -172,7 +173,8 @@ def jsonapi(func):
     return _jsonapi
 
 
-def to_ressource_data(jsonapi_data: JsonApiDataMixin, included_prefix: str | None = None) -> dict[str, t.Any]:
+def to_ressource_data(jsonapi_data: JsonApiDataMixin, *,
+                      included_prefix: str | None = None, with_relationships=True) -> dict[str, t.Any]:
     """Transform a simple structure data into a jsonapi ressource data.
 
     Beware : included is a dict of type/id key and jsonapi ressource value
@@ -182,13 +184,13 @@ def to_ressource_data(jsonapi_data: JsonApiDataMixin, included_prefix: str | Non
 
     # set resource data from basemodel
     _type = jsonapi_data.jsonapi_type
-    attrs, rels = jsonapi_data.jsonapi_attributes_relationships(fetching_context)
+    attrs, rels = jsonapi_data.jsonapi_attributes(fetching_context, with_relationships)
     if 'type' in attrs:
         _type = attrs.pop('type')
     else:
         _type = jsonapi_data.jsonapi_type
     if 'id' in attrs:
-        _id = attrs.pop('id')
+        _id = str(attrs.pop('id'))
     else:
         _id = jsonapi_data.jsonapi_id
 
@@ -200,21 +202,21 @@ def to_ressource_data(jsonapi_data: JsonApiDataMixin, included_prefix: str | Non
     else:
         to_be_included = [k for k in fetching_context.include or [] if '.' not in k]
 
-    # add relationsshipd and included resources if needed
-    for key, value in rels.items():
-        if value is None:
+    # add relationship and included resources if needed
+    for key, rel in rels.items():
+        if rel is None:
             continue
 
-        if isinstance(value, list):
+        if isinstance(rel, list):
             res_ids = []
-            for val in value:
+            for val in rel:
                 res_id = get_resource_identifier(val)
                 res_ids.append(res_id)
                 add_to_included(included, key, val, to_be_included=to_be_included, included_prefix=included_prefix)
             relationships[key] = Relationship(data=res_ids)
         else:
-            res_id = get_resource_identifier(value)
-            add_to_included(included, key, value, to_be_included=to_be_included, included_prefix=included_prefix)
+            res_id = get_resource_identifier(rel)
+            add_to_included(included, key, rel, to_be_included=to_be_included, included_prefix=included_prefix)
             relationships[key] = Relationship(data=res_id)
 
     resource_data = {
@@ -222,10 +224,11 @@ def to_ressource_data(jsonapi_data: JsonApiDataMixin, included_prefix: str | Non
         "id": _id,
         "lid": None,
         "attributes": attrs,
-        "relationships": relationships,
         "links": get_resource_links(jsonapi_data)
     }
 
+    if relationships:
+        resource_data["relationships"] = relationships
     if included:
         resource_data["included"] = included
 
@@ -287,23 +290,23 @@ def toplevel_from_pagination(pagination: Pagination):
     """
     data = [to_ressource_data(d) for d in t.cast(t.Iterable, pagination)]
     included = [d.pop('included') for d in data if 'included' in d]
-    resources = [Resource(**to_ressource_data(d)) for d in t.cast(t.Iterable, pagination)]
+    resources = [Resource(**d) for d in data]
     included_resources = [Resource(**d) for i in included for d in [*i.values()]]
     toplevel = TopLevel(data=resources, included=included_resources if included else None)
     fetching_context.add_pagination(toplevel, pagination)
     return toplevel
 
 
-def get_resource_identifier(related_model: JsonApiDataMixin):
+def get_resource_identifier(rel: JsonApiRelationship):
     """ Adds a relationship in the list of relationships from the related model.
     The relationship may not be complete for circular reference and will be completed after in construction.
     """
-    if not isinstance(related_model, JsonApiDataMixin):
-        msg = f"Relationship value must be of type JsonApiDataMixin, not {related_model.__class__}"
+    if not isinstance(rel, JsonApiRelationship):
+        msg = f"Relationship value must be of type JsonApiRelationship, not {rel.__class__}"
         raise InternalServerError(msg)
 
-    type_ = related_model.jsonapi_type
-    id_ = related_model.jsonapi_id
+    type_ = rel.jsonapi_type
+    id_ = rel.jsonapi_id
     return ResourceIdentifier(type=type_, id=id_)
 
 
@@ -320,19 +323,20 @@ def get_resource_links(jsonapi_basemodel) -> dict:
     raise InternalServerError("Unexpected jsonapi_self_link value")
 
 
-def add_to_included(included, key, res: JsonApiDataMixin, *, to_be_included, included_prefix):
+def add_to_included(included, key, res: JsonApiRelationship, *, to_be_included, included_prefix):
     """Adds the resource defined at key to the included list of resource.
     
     :param included: list of included resources to increment (if not already inside).
     :param key: the key where the resource is in the parent resource.
-    :param res: the resource to include.
+    :param res: the relationship to include.
     :param to_be_included: the list of keys to include in the included list of resources.
     :param included_prefix: dot separated path in resource.
     """
     res_key = res.jsonapi_type + res.jsonapi_id
     if key in to_be_included and res_key not in included:
         new_included_prefix = f"{included_prefix}{key}." if included_prefix else f"{key}."
-        res_included = to_ressource_data(res, new_included_prefix)
+        res_included = to_ressource_data(res.resource_value, included_prefix=new_included_prefix,
+                                         with_relationships=False)
         included[res_key] = res_included
         if 'included' in res_included:
             for k, v in res_included.pop('included').items():

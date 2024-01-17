@@ -3,9 +3,6 @@ import typing as t
 from collections import defaultdict
 from datetime import datetime
 
-from coworks import request
-from coworks.utils import nr_url
-from coworks.utils import str_to_bool
 from jsonapi_pydantic.v1_0 import Link
 from jsonapi_pydantic.v1_0 import TopLevel
 from pydantic.networks import HttpUrl
@@ -13,10 +10,13 @@ from sqlalchemy import Column
 from sqlalchemy import ColumnOperators
 from sqlalchemy.orm import ColumnProperty
 from sqlalchemy.orm import RelationshipProperty
-from sqlalchemy.sql import or_
+from sqlalchemy.sql import and_
 from werkzeug.exceptions import UnprocessableEntity
 from werkzeug.local import LocalProxy
 
+from coworks import request
+from coworks.utils import nr_url
+from coworks.utils import str_to_bool
 from .data import JsonApiDataMixin
 from .query import Pagination
 
@@ -77,6 +77,12 @@ class FetchingContext:
                 if "____" in key:
                     key, oper = key.split('____', 1)
 
+                # if the key is named (for allowing composition of filters)
+                if ':' in key:
+                    name, key = key.split(':', 1)
+
+                # if the key is a boolean operator then the value is an expression
+
                 column = getattr(model, key, None)
                 if column is None:
                     msg = f"Wrong '{key}' property for sql model '{jsonapi_type}' in filters parameters"
@@ -104,7 +110,7 @@ class FetchingContext:
                         condition = column.has(**{k: v[0]})
                         if len(v) > 1:
                             for or_v in v[1:]:
-                                condition = or_(condition, column.has(**{k: or_v}))
+                                condition = and_(condition, column.has(**{k: or_v}))
                         _sql_filters.append(condition)
 
         return _sql_filters
@@ -183,11 +189,11 @@ def str_sql_filter(jsonapi_type, key, column, oper, value) -> list[ColumnOperato
         msg = f"Undefined operator '{oper}' for string value"
         raise UnprocessableEntity(msg)
     if oper == 'ilike':
-        return [column.ilike(v) for v in str(value)]
+        return [column.ilike(str(v)) for v in value]
     elif oper == 'contains':
-        return [column.contains(v) for v in str(value)]
+        return [column.contains(str(v)) for v in value]
     else:
-        return [column.in_(str(value))]
+        return [column.in_(value)]
 
 
 def int_sql_filter(jsonapi_type, key, column, oper, value) -> list[ColumnOperators]:

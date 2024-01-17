@@ -54,6 +54,21 @@ class CursorPagination(BaseModel):
         return self.page + 1
 
 
+class JsonApiRelationship:
+    """Lazy relationship information for jsonapi.
+    The value will be called only if needed (if included)
+    """
+
+    def __init__(self, *, type_, id_, value=None):
+        self.jsonapi_type = type_
+        self.jsonapi_id = id_
+        self.value = value
+
+    @property
+    def resource_value(self) -> "JsonApiDataMixin":
+        return self.value
+
+
 class JsonApiDataMixin:
     """Any data structure which may be transformed to JSON:API resource.
     """
@@ -70,8 +85,8 @@ class JsonApiDataMixin:
     def jsonapi_self_link(self):
         return "https://monsite.com/missing_entry"
 
-    def jsonapi_attributes_relationships(self, context: 'FetchingContext') \
-            -> tuple[dict[str, t.Any], dict[str, 'JsonApiDataMixin']]:
+    def jsonapi_attributes(self, context: 'FetchingContext', with_relationships: bool = True) \
+            -> tuple[dict[str, t.Any], dict[str, 'JsonApiRelationship']]:
         """Splits the structure in attributes versus relationships."""
         return {}, {}
 
@@ -87,8 +102,8 @@ class JsonApiDict(dict, JsonApiDataMixin):
     def jsonapi_id(self) -> str:
         return str(self['id'])
 
-    def jsonapi_attributes_relationships(self, context: "FetchingContext") \
-            -> tuple[dict[str, t.Any], dict[str, 'JsonApiDataMixin']]:
+    def jsonapi_attributes(self, context: "FetchingContext", with_relationships: bool = True) \
+            -> tuple[dict[str, t.Any], dict[str, 'JsonApiRelationship']]:
         fields = context.field_names(self.jsonapi_type)
         attrs = {k: v for k, v in self.items() if (not fields or k in fields)}  # type:ignore
         return attrs, {}
