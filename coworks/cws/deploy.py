@@ -285,7 +285,7 @@ class TerraformBackend:
         root_command_params = self.terraform_context.ctx.find_root().params
 
         # Set default options calculated value
-        options['key'] = options.get('key') or f"{self.app.__module__}-{self.app.name}/archive.zip"
+        options['key'] = options.get('key') or f"{self.app.name}/archive.zip"
 
         # Transfert zip file to S3
         self.bar.update(msg="Copy source files on S3")
@@ -430,7 +430,7 @@ class TerraformBackend:
               help="Add layer (full arn: aws:lambda:...). Must contains CoWorks at least.")
 @click.option('--memory-size', default=128,
               help="Lambda memory size (default 128).")
-@click.option('--python', '-p', type=click.Choice(['3.7', '3.8', '3.9', '3.10', '3.11']), default='3.11',
+@click.option('--python', '-p', type=click.Choice(['3.8', '3.9', '3.10', '3.11']), default='3.11',
               help="Python version for the lambda.")
 @click.option('--security-groups', multiple=True, default=[],
               help="Security groups to be added [ids].")
@@ -487,8 +487,6 @@ def deploy_command(info, ctx, **options) -> None:
               help="Sources zip file bucket's name.")
 @click.option('--profile-name', '-pn', required=True,
               help="AWS credential profile.")
-@click.option('--terraform-dir', default="terraform",
-              help="Terraform folder (default terraform).")
 @click.option('--terraform-cloud', is_flag=True, default=False,
               help="Use cloud workspaces (default false).")
 @click.option('--terraform-dir', '-td', default="terraform",

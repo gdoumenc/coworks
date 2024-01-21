@@ -173,6 +173,9 @@ class ProjectConfig:
         if not params:
             params = load('.')
 
+        if not params:
+            click.secho("Warning: no project configuration file found", fg="yellow")
+
         return params
 
 
