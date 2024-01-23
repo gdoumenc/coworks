@@ -85,7 +85,7 @@ class JsonApiDataMixin:
     def jsonapi_self_link(self):
         return "https://monsite.com/missing_entry"
 
-    def jsonapi_attributes(self, context: 'FetchingContext', with_relationships: bool = True) \
+    def jsonapi_attributes(self, context: 'FetchingContext', with_relationships: list[str] | None = None) \
             -> tuple[dict[str, t.Any], dict[str, 'JsonApiRelationship']]:
         """Splits the structure in attributes versus relationships."""
         return {}, {}
@@ -102,7 +102,7 @@ class JsonApiDict(dict, JsonApiDataMixin):
     def jsonapi_id(self) -> str:
         return str(self['id'])
 
-    def jsonapi_attributes(self, context: "FetchingContext", with_relationships: bool = True) \
+    def jsonapi_attributes(self, context: "FetchingContext", with_relationships: list[str] | None = None) \
             -> tuple[dict[str, t.Any], dict[str, 'JsonApiRelationship']]:
         fields = context.field_names(self.jsonapi_type)
         attrs = {k: v for k, v in self.items() if (not fields or k in fields)}  # type:ignore

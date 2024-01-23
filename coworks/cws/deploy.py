@@ -334,7 +334,7 @@ class TerraformBackend:
         self.bar.terminate()
         click.echo()
         echo_output(self.api_terraform)
-        click.secho("🎉 Microservice deployed", fg="green")
+        click.secho("🎉 CoWorks Microservice deployed", fg="green")
 
     def copy_sources_to_s3(self, dry, **options):
         module_name = options.get('module_name') or []
@@ -442,8 +442,8 @@ class TerraformBackend:
               help="Terraform files folder (default terraform).")
 @click.option('--terraform-organization', '-to',
               help="Terraform organization needed if using cloud terraform.")
-@click.option('--terraform-refresh', '-tr', is_flag=True, default=False,
-              help="Forces terraform to refresh the state (default false).")
+@click.option('--terraform-refresh', '-tr', is_flag=True, default=True,
+              help="Forces terraform to refresh the state (default true).")
 @click.option('--text-types', multiple=True,
               help="Add mime types for JSON response [at least text/plain, text/html].")
 @click.option('--timeout', default=60,
@@ -493,8 +493,8 @@ def deploy_command(info, ctx, **options) -> None:
               help="Terraform files folder (default terraform).")
 @click.option('--terraform-organization', '-to',
               help="Terraform organization needed if using cloud terraform.")
-@click.option('--terraform-refresh', '-tr', is_flag=True, default=False,
-              help="Forces terraform to refresh the state (default false).")
+@click.option('--terraform-refresh', '-tr', is_flag=True, default=True,
+              help="Forces terraform to refresh the state (default true).")
 @click.pass_context
 @pass_script_info
 @with_appcontext
@@ -524,8 +524,8 @@ def destroy_command(info, ctx, **options) -> None:
               help="Terraform folder (default terraform).")
 @click.option('--terraform-cloud', is_flag=True, default=False,
               help="Use cloud workspaces (default false).")
-@click.option('--terraform-refresh', '-tr', is_flag=True, default=False,
-              help="Forces terraform to refresh the state (default false).")
+@click.option('--terraform-refresh', '-tr', is_flag=True, default=True,
+              help="Forces terraform to refresh the state (default true).")
 @click.pass_context
 @pass_script_info
 @with_appcontext

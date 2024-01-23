@@ -174,7 +174,8 @@ def jsonapi(func):
 
 
 def to_ressource_data(jsonapi_data: JsonApiDataMixin, *,
-                      included_prefix: str | None = None, with_relationships=True) -> dict[str, t.Any]:
+                      included_prefix: str | None = None, with_relationships: list[str] | None = None) -> dict[
+    str, t.Any]:
     """Transform a simple structure data into a jsonapi ressource data.
 
     Beware : included is a dict of type/id key and jsonapi ressource value
@@ -258,14 +259,14 @@ def get_toplevel_from_query(query: Query, ensure_one: bool) -> TopLevel:
             with connection_manager:
                 _toplevels.append(get_toplevel())
         data = [r for tp in _toplevels for r in tp.data]
-        included = set((i for tp in _toplevels if tp.included for i in tp.included))
+        included = {i.type + i.id: i for tp in _toplevels if tp.included for i in tp.included}
         if len(_toplevels) == 1:
             meta = _toplevels[0].meta
             links = _toplevels[0].links
         else:
             meta = {"count": 'tobedone'}
             links = {}
-        return TopLevel(data=data, included=included if included else None, meta=meta, links=links)
+        return TopLevel(data=data, included=included.values() if included else None, meta=meta, links=links)
 
     with fetching_context.connection_manager:
         return get_toplevel()
@@ -335,9 +336,20 @@ def add_to_included(included, key, res: JsonApiRelationship, *, to_be_included, 
     res_key = res.jsonapi_type + res.jsonapi_id
     if key in to_be_included and res_key not in included:
         new_included_prefix = f"{included_prefix}{key}." if included_prefix else f"{key}."
+        with_relationships = get_relationships_to_add_in_included(new_included_prefix)
         res_included = to_ressource_data(res.resource_value, included_prefix=new_included_prefix,
-                                         with_relationships=False)
+                                         with_relationships=with_relationships)
         included[res_key] = res_included
         if 'included' in res_included:
             for k, v in res_included.pop('included').items():
                 included[k] = v
+
+
+def get_relationships_to_add_in_included(new_included_prefix):
+    """Returns the relationships to add from the include fetching context.
+    Get only attributesd key with the new included prefix and no more.
+
+    :param new_included_prefix: the new prefix of ressources."""
+    prefixed_include = [i[len(new_included_prefix):] for i in fetching_context.include
+                        if i.startswith(new_included_prefix)]
+    return [i for i in prefixed_include if '.' not in i]
