@@ -6,7 +6,7 @@ from functools import partial
 from functools import update_wrapper
 
 from aws_xray_sdk import global_sdk_config
-from aws_xray_sdk.core import patch_all
+# from aws_xray_sdk.core import patch_all
 from aws_xray_sdk.core.exceptions.exceptions import SegmentNotFoundException
 from aws_xray_sdk.core.recorder import TRACING_NAME_KEY
 from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
@@ -56,7 +56,7 @@ class XRay:
                 pass
             else:
                 # Captures routes
-                patch_all()
+                # patch_all() # Bug in aws_xray if engine is defined by flask_sqlalchemy
                 app.errorhandler(500)(self.capture_exception)
                 self.capture_routes()
                 return

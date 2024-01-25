@@ -3,6 +3,8 @@ from asyncio import iscoroutine
 from functools import update_wrapper
 from inspect import signature
 
+from coworks import TechMicroService
+from coworks import request
 from flask import current_app
 from flask import make_response
 from jsonapi_pydantic.v1_0 import Error
@@ -19,8 +21,6 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import NotFound
 
-from coworks import TechMicroService
-from coworks import request
 from .data import JsonApiDataMixin
 from .data import JsonApiRelationship
 from .fetching import create_fetching_context_proxy
@@ -337,12 +337,15 @@ def add_to_included(included, key, res: JsonApiRelationship, *, to_be_included, 
     if key in to_be_included and res_key not in included:
         new_included_prefix = f"{included_prefix}{key}." if included_prefix else f"{key}."
         with_relationships = get_relationships_to_add_in_included(new_included_prefix)
-        res_included = to_ressource_data(res.resource_value, included_prefix=new_included_prefix,
-                                         with_relationships=with_relationships)
-        included[res_key] = res_included
-        if 'included' in res_included:
-            for k, v in res_included.pop('included').items():
-                included[k] = v
+        if res.resource_value:
+            res_included = to_ressource_data(res.resource_value, included_prefix=new_included_prefix,
+                                             with_relationships=with_relationships)
+            included[res_key] = res_included
+
+            # Moves included ressources defined in this included ressource
+            if 'included' in res_included:
+                for k, v in res_included.pop('included').items():
+                    included[k] = v
 
 
 def get_relationships_to_add_in_included(new_included_prefix):
