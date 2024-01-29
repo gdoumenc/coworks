@@ -1,10 +1,9 @@
 import typing as t
 from asyncio import iscoroutine
 from functools import update_wrapper
+from inspect import Parameter
 from inspect import signature
 
-from coworks import TechMicroService
-from coworks import request
 from flask import current_app
 from flask import make_response
 from jsonapi_pydantic.v1_0 import Error
@@ -21,6 +20,8 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import NotFound
 
+from coworks import TechMicroService
+from coworks import request
 from .data import JsonApiDataMixin
 from .data import JsonApiRelationship
 from .fetching import create_fetching_context_proxy
@@ -130,7 +131,7 @@ def jsonapi(func):
                        fields__: dict | None = None, filters__: dict | None = None, sort: str | None = None,
                        page__number__: int | None = None, page__size__: int | None = None,
                        page__max__: int | None = None,
-                       **kwargs):
+                       __neorezo__: dict | None = None, **kwargs):
         """
 
         :param args: entry args.,
@@ -165,9 +166,12 @@ def jsonapi(func):
 
     # Adds JSON:API query parameters
     sig = signature(_jsonapi)
-    # Removes self and kwargs from jsoapi wrapper
+    # Removes self and kwargs from jsonapi wrapper
     jsonapi_sig = tuple(sig.parameters.values())[1:-1]
-    sig = sig.replace(parameters=tuple(signature(func).parameters.values()) + jsonapi_sig)
+    # Splits variadic keyword to add it at end of the signature
+    func_sig1 = tuple(p for p in signature(func).parameters.values() if p.kind != Parameter.VAR_KEYWORD)
+    func_sig2 = tuple(p for p in signature(func).parameters.values() if p.kind == Parameter.VAR_KEYWORD)
+    sig = sig.replace(parameters=func_sig1 + jsonapi_sig + func_sig2)
     update_wrapper(_jsonapi, func)
     setattr(_jsonapi, '__signature__', sig)
     return _jsonapi
@@ -264,7 +268,7 @@ def get_toplevel_from_query(query: Query, ensure_one: bool) -> TopLevel:
             meta = _toplevels[0].meta
             links = _toplevels[0].links
         else:
-            meta = {"count": 'tobedone'}
+            meta = {"count": len(data)}
             links = {}
         return TopLevel(data=data, included=included.values() if included else None, meta=meta, links=links)
 

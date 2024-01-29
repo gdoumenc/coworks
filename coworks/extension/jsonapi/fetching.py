@@ -70,6 +70,10 @@ class FetchingContext:
             filter_parameters = self._filters.get(jsonapi_type, {})
 
             for key, value in filter_parameters:
+
+                # If parameters are defined in body payload they may be not defined as list
+                if not isinstance(value, list):
+                    value = [value]
                 oper = None
 
                 # filter operator
@@ -185,49 +189,44 @@ def bool_sql_filter(jsonapi_type, key, column, oper, value) -> list[ColumnOperat
 
 def str_sql_filter(jsonapi_type, key, column, oper, value) -> list[ColumnOperators]:
     """String filter."""
-    if oper not in (None, 'ilike', 'contains'):
+    oper = oper or 'eq'
+    if oper not in ('eq', 'ilike', 'contains'):
         msg = f"Undefined operator '{oper}' for string value"
         raise UnprocessableEntity(msg)
+    if oper == 'eq':
+        return [column.in_(value)]
     if oper == 'ilike':
         return [column.ilike(str(v)) for v in value]
-    elif oper == 'contains':
+    if oper == 'contains':
         return [column.contains(str(v)) for v in value]
-    else:
-        return [column.in_(value)]
 
 
 def int_sql_filter(jsonapi_type, key, column, oper, value) -> list[ColumnOperators]:
     """Datetime filter."""
-    if len(value) != 1:
-        msg = f"Multiple datetime values '{key}' property on model '{jsonapi_type}' is not allowed"
-        raise UnprocessableEntity(msg)
-    if oper not in (None, 'eq', 'ge', 'gt', 'le', 'lt'):
+    oper = oper or 'eq'
+    if oper not in ('eq', 'ge', 'gt', 'le', 'lt'):
         msg = f"Undefined operator '{oper}' for integer value"
         raise UnprocessableEntity(msg)
-    return sort_operator(column, oper, int(value[0]))
+    return [sort_operator(column, oper, int(v)) for v in value]
 
 
 def datetime_sql_filter(jsonapi_type, key, column, oper, value) -> list[ColumnOperators]:
     """Datetime filter."""
-    if len(value) != 1:
-        msg = f"Multiple datetime values '{key}' property on model '{jsonapi_type}' is not allowed"
-        raise UnprocessableEntity(msg)
-    if oper not in (None, 'eq', 'ge', 'gt', 'le', 'lt'):
+    oper = oper or 'eq'
+    if oper not in ('eq', 'ge', 'gt', 'le', 'lt'):
         msg = f"Undefined operator '{oper}' for datetime value"
         raise UnprocessableEntity(msg)
-    datetime_value = datetime.fromisoformat(value[0])
-    return sort_operator(column, oper, datetime_value)
+    return [sort_operator(column, oper, datetime.fromisoformat(v)) for v in value]
 
 
-def sort_operator(column: Column, oper, value) -> list[ColumnOperators]:
+def sort_operator(column: Column, oper, value) -> ColumnOperators:
     if oper == 'eq':
-        return [column == value]
+        return column == value
     if oper == 'ge':
-        return [column >= value]
+        return column >= value
     if oper == 'gt':
-        return [column > value]
+        return column > value
     if oper == 'le':
-        return [column <= value]
+        return column <= value
     if oper == 'lt':
-        return [column < value]
-    assert False, f"Undefined sorting operator: {oper}"
+        return column < value
