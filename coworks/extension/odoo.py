@@ -1,17 +1,14 @@
-import base64
 import os
 import typing as t
 import xmlrpc.client
 
 import requests
 from aws_xray_sdk.core import xray_recorder
-from flask import json
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import field_validator
 from werkzeug.exceptions import BadRequest
-from werkzeug.exceptions import Forbidden
 from werkzeug.exceptions import NotFound
 
 from coworks import TechMicroService
@@ -24,7 +21,6 @@ from .jsonapi.data import CursorPagination
 class OdooConfig(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    ref: str = "default"
     url: str
     dbname: str
     user: str
@@ -242,41 +238,20 @@ class Odoo:
         """
         return self.odoo_execute_kw(bind_key, model, "unlink", [[id]])
 
-    def get_pdf(self, report_id: int, rec_ids: list[str], bind_key: str | None = None) -> bytes:
-        """Returns the PDF document attached to a report.
-        Specif entry to allow PDF base64 encoding with JSON_RPC.
+    def get_pdf(self, invoice_id: int, access_token: str, bind_key: str | None = None) -> bytes:
+        """Returns the invoice as a PDF invoice.
 
-        @param report_id: id of the report record (ir.actions.report).
-        @param rec_ids: records needed to generate the report.
+        @param invoice_id: invoice id.
+        @param access_token: access token of this invoice.
         @param bind_key: bind configuration to be used.
         """
-
         config = self.binds[bind_key]
-        try:
-            headers = {'Content-type': 'application/json'}
-            data = {'jsonrpc': "2.0", 'params': {'db': config.dbname, 'login': config.user, 'password': config.passwd}}
-            res = requests.post(f'{config.url}/web/session/authenticate/', data=json.dumps(data), headers=headers)
-            result = res.json()
-            if not result['result']['session_id']:
-                raise Forbidden()
 
-            session_id = res.cookies["session_id"]
-            data = {'jsonrpc': "2.0", 'session_id': session_id}
-            params = {'params': {'res_ids': json.dumps(rec_ids)}}
-            try:
-                res = requests.post(f"{config.url}/report/{report_id}", params=data, json=params)
-                result = res.json()
-                if 'error' in result:
-                    raise NotFound(f"{result['error']['message']}:{result['error']['data']}")
-                return base64.b64decode(result['result'])
-            except NotFound:
-                raise
-            except Exception:
-                raise BadRequest(res.text)
-        except NotFound:
-            raise
-        except Exception:
-            raise Forbidden()
+        url = f"{config.url}/my/invoices/{invoice_id}/?report_type=pdf&download=true&access_token={access_token}"
+        resp = requests.get(url)
+        if resp.ok:
+            return resp.content
+        raise NotFound
 
     def odoo_execute_kw(self, bind_key, model, method, *args, **kwargs):
         """Standard externalm API entries.

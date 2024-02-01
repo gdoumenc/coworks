@@ -190,15 +190,14 @@ def bool_sql_filter(jsonapi_type, key, column, oper, value) -> list[ColumnOperat
 def str_sql_filter(jsonapi_type, key, column, oper, value) -> list[ColumnOperators]:
     """String filter."""
     oper = oper or 'eq'
-    if oper not in ('eq', 'ilike', 'contains'):
-        msg = f"Undefined operator '{oper}' for string value"
-        raise UnprocessableEntity(msg)
     if oper == 'eq':
         return [column.in_(value)]
     if oper == 'ilike':
         return [column.ilike(str(v)) for v in value]
     if oper == 'contains':
         return [column.contains(str(v)) for v in value]
+    msg = f"Undefined operator '{oper}' for string value"
+    raise UnprocessableEntity(msg)
 
 
 def int_sql_filter(jsonapi_type, key, column, oper, value) -> list[ColumnOperators]:
@@ -230,3 +229,5 @@ def sort_operator(column: Column, oper, value) -> ColumnOperators:
         return column <= value
     if oper == 'lt':
         return column < value
+    msg = f"Undefined operator '{oper}' in sort_operator"
+    raise UnprocessableEntity(msg)
