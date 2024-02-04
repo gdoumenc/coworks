@@ -4,6 +4,8 @@ from functools import update_wrapper
 from inspect import Parameter
 from inspect import signature
 
+from coworks import TechMicroService
+from coworks import request
 from flask import current_app
 from flask import make_response
 from jsonapi_pydantic.v1_0 import Error
@@ -20,8 +22,6 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import NotFound
 
-from coworks import TechMicroService
-from coworks import request
 from .data import JsonApiDataMixin
 from .data import JsonApiRelationship
 from .fetching import create_fetching_context_proxy
@@ -156,7 +156,8 @@ def jsonapi(func):
             elif isinstance(res, TopLevel):
                 _toplevel = res
             else:
-                _toplevel = TopLevel(data=[])
+                errors = [Error(id='0', title="Not a toplevel structure", detail=str(res), status=500)]
+                _toplevel = TopLevel(errors=errors)
         except NotFound:
             if not ensure_one:
                 _toplevel = TopLevel(data=[])
