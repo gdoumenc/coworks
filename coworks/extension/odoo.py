@@ -93,7 +93,7 @@ class OdooQuery(BaseModel):
 
     def paginate(self, *, page=None, per_page=None, max_per_page=None) -> OdooPagination:
         pagination = OdooPagination(query=self, page=page, per_page=per_page, max_per_page=max_per_page, total=0)
-        res = self.odoo.odoo_execute_kw(self.bind_key, self.model, "search_count", [self.domain])
+        res = self.odoo.odoo_execute_kw(self.model, "search_count", [self.domain], bind_key=self.bind_key)
         pagination.total = res
         return pagination
 
@@ -106,7 +106,7 @@ class OdooQuery(BaseModel):
         return self.odoo_execute_kw(params)
 
     def odoo_execute_kw(self, params):
-        res = self.odoo.odoo_execute_kw(self.bind_key, self.model, self.method, [self.domain], params)
+        res = self.odoo.odoo_execute_kw(self.model, self.method, [self.domain], params, bind_key=self.bind_key)
         return [JsonApiDict(**rec) for rec in res]
 
 
@@ -144,14 +144,14 @@ class Odoo:
         self.app = app
 
     @XRay.capture(xray_recorder)
-    def query(self, model: str, method: str = "search_read", fields: list[str] | None = None,
+    def query(self, model: str, method: str = "search_read", *, fields: list[str] | None = None,
               order: str | None = None, domain: list[tuple[str, str, t.Any]] | None = None,
               bind_key: str | None = None):
         return OdooQuery(odoo=self, model=model, method=method, fields=fields, order=order, domain=domain,
                          bind_key=bind_key)
 
     @XRay.capture(xray_recorder)
-    def kw(self, model: str, method: str = "search_read", id: int | None = None, fields: list[str] | None = None,
+    def kw(self, model: str, method: str = "search_read", *, id: int | None = None, fields: list[str] | None = None,
            order: str | None = None, domain: list[tuple[str, str, t.Any]] | None = None, limit: int = 100,
            page_size: int | None = None, page: int = 0, ensure_one: bool = False, bind_key: str | None = None):
         """Searches with API for records based on the args.
@@ -190,7 +190,7 @@ class Odoo:
             page_size = page_size or limit
             params.update({'offset': (page - 1) * page_size})
 
-        res = self.odoo_execute_kw(bind_key, model, method, filters, params)
+        res = self.odoo_execute_kw(model, method, filters, params, bind_key=bind_key)
 
         if method == 'search_count':
             return res
@@ -215,7 +215,7 @@ class Odoo:
         See also:
         https://www.odoo.com/documentation/14.0/developer/reference/addons/orm.html#odoo.models.Model.with_context
         """
-        return self.odoo_execute_kw(bind_key, model, "create", data)
+        return self.odoo_execute_kw(model, "create", data, bind_key=bind_key)
 
     @XRay.capture(xray_recorder)
     def write(self, model: str, id: int, data: dict | None = None, bind_key: str | None = None) -> list:
@@ -226,7 +226,7 @@ class Odoo:
         @param data: fields to update and the value to set on them.
         @param bind_key: bind configuration to be used.
         """
-        return self.odoo_execute_kw(bind_key, model, "write", [[id], data])
+        return self.odoo_execute_kw(model, "write", [[id], data], bind_key=bind_key)
 
     @XRay.capture(xray_recorder)
     def delete_(self, model: str, id: int, bind_key: str | None = None) -> list:
@@ -236,7 +236,7 @@ class Odoo:
         @param id: id of the record.
         @param bind_key: bind configuration to be used.
         """
-        return self.odoo_execute_kw(bind_key, model, "unlink", [[id]])
+        return self.odoo_execute_kw(model, "unlink", [[id]], bind_key=bind_key)
 
     def get_pdf(self, invoice_id: int, access_token: str, bind_key: str | None = None) -> bytes:
         """Returns the invoice as a PDF invoice.
@@ -253,7 +253,7 @@ class Odoo:
             return resp.content
         raise NotFound
 
-    def odoo_execute_kw(self, bind_key, model, method, *args, **kwargs):
+    def odoo_execute_kw(self, model, method, *args, bind_key: str | None = None, **kwargs):
         """Standard externalm API entries.
         See also: https://www.odoo.com/documentation/15.0/developer/misc/api/odoo.html
         """
