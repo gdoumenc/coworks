@@ -3,20 +3,21 @@ import typing as t
 from collections import defaultdict
 from datetime import datetime
 
+from coworks import request
+from coworks.utils import nr_url
+from coworks.utils import str_to_bool
 from jsonapi_pydantic.v1_0 import Link
 from jsonapi_pydantic.v1_0 import TopLevel
 from pydantic.networks import HttpUrl
 from sqlalchemy import Column
 from sqlalchemy import ColumnOperators
+from sqlalchemy import inspect
 from sqlalchemy.orm import ColumnProperty
 from sqlalchemy.orm import RelationshipProperty
 from sqlalchemy.sql import and_
 from werkzeug.exceptions import UnprocessableEntity
 from werkzeug.local import LocalProxy
 
-from coworks import request
-from coworks.utils import nr_url
-from coworks.utils import str_to_bool
 from .data import JsonApiDataMixin
 from .query import Pagination
 
@@ -28,13 +29,14 @@ class FetchingContext:
                  page__number__: int | None = None, page__size__: int | None = None, page__max__: int | None = None):
         self.include = list(map(str.strip, include.split(','))) if include else []
         self._fields = fields__ if fields__ is not None else {}
-        filters__ = filters__ if filters__ is not None else {}
         self._sort = list(map(str.strip, sort.split(','))) if sort else []
         self.page = page__number__
         self.per_page = page__size__ or 100
         self.max_per_page = page__max__ or 100
 
+        # Creates filters dict defined ad jsonapi type as key and attribute expression as value
         self._filters: dict = defaultdict(list)
+        filters__ = filters__ if filters__ is not None else {}
         for k, v in filters__.items():
             try:
                 json_type, filter = k.rsplit('.', 1)
@@ -46,76 +48,78 @@ class FetchingContext:
         self.connection_manager = contextlib.nullcontext()
 
     def field_names(self, jsonapi_type) -> list[str]:
-        if jsonapi_type in self._fields:
-            fields = self._fields[jsonapi_type]
-            if isinstance(fields, list):
-                if len(fields) != 1:
-                    msg = f"Wrong field value '{fields}': multiple fields parameter must be a comma-separated"
-                    raise UnprocessableEntity(msg)
-                field = fields[0]
-            else:
-                field = fields
-            return list(map(str.strip, field.split(',')))
-        return []
+        """Returns the field's names that must be returned for a specific jsonapi type."""
+        if jsonapi_type not in self._fields:
+            return []
 
-    def sql_filters(self, *sql_model: JsonApiDataMixin):
+        fields = self._fields[jsonapi_type]
+        if isinstance(fields, list):
+            if len(fields) != 1:
+                msg = f"Wrong field value '{fields}': multiple fields parameter must be a comma-separated"
+                raise UnprocessableEntity(msg)
+            field = fields[0]
+        else:
+            field = fields
+        return list(map(str.strip, field.split(',')))
+
+    def sql_filters(self, sql_model: JsonApiDataMixin):
         """Returns the list of filters as a SQLAlchemy filter.
-        If several sql_model are given, add .join() in the query
 
         :param sql_model: the SQLAlchemy model (used to get the SQLAlchemy filter)
         """
         _sql_filters: list[ColumnOperators] = []
-        for model in sql_model:
-            jsonapi_type = model.jsonapi_type.__get__(model)  # type:ignore[attr-defined]
-            filter_parameters = self._filters.get(jsonapi_type, {})
+        if isinstance(sql_model.jsonapi_type, property):
+            jsonapi_type: str = sql_model.jsonapi_type.__get__(sql_model)  # type:ignore[attr-defined]
+        else:
+            jsonapi_type = sql_model.jsonapi_type
+        filter_parameters = self._filters.get(jsonapi_type, {})
+        for key, value in filter_parameters:
 
-            for key, value in filter_parameters:
+            # If parameters are defined in body payload they may be not defined as list
+            if not isinstance(value, list):
+                value = [value]
+            oper = None
 
-                # If parameters are defined in body payload they may be not defined as list
-                if not isinstance(value, list):
-                    value = [value]
-                oper = None
+            # filter operator
+            # idea from https://discuss.jsonapi.org/t/share-propose-a-filtering-strategy/257
+            if "____" in key:
+                key, oper = key.split('____', 1)
 
-                # filter operator
-                # idea from https://discuss.jsonapi.org/t/share-propose-a-filtering-strategy/257
-                if "____" in key:
-                    key, oper = key.split('____', 1)
+            # if the key is named (for allowing composition of filters)
+            if ':' in key:
+                name, key = key.split(':', 1)
 
-                # if the key is named (for allowing composition of filters)
-                if ':' in key:
-                    name, key = key.split(':', 1)
+            # if the key is a boolean operator then the value is an expression
 
-                # if the key is a boolean operator then the value is an expression
+            column = getattr(sql_model, key, None)
+            if column is None:
+                msg = f"Wrong '{key}' property for sql model '{jsonapi_type}' in filters parameters"
+                raise UnprocessableEntity(msg)
 
-                column = getattr(model, key, None)
-                if column is None:
-                    msg = f"Wrong '{key}' property for sql model '{jsonapi_type}' in filters parameters"
+            if isinstance(column.property, ColumnProperty):
+                _type = getattr(column, 'type', None)
+                if _type:
+                    if _type.python_type is bool:
+                        _sql_filters.append(*bool_sql_filter(jsonapi_type, key, column, oper, value))
+                    elif _type.python_type is str:
+                        _sql_filters.append(*str_sql_filter(jsonapi_type, key, column, oper, value))
+                    elif _type.python_type is int:
+                        _sql_filters.append(*int_sql_filter(jsonapi_type, key, column, oper, value))
+                    elif _type.python_type is datetime:
+                        _sql_filters.append(*datetime_sql_filter(jsonapi_type, key, column, oper, value))
+                else:
+                    _sql_filters.append(column.in_(value))
+            elif isinstance(column.property, RelationshipProperty):
+                if not isinstance(value, dict):
+                    msg = (f"Wrong '{value}' value for sql model '{jsonapi_type}'"
+                           " in filters parameters (should be a dict).")
                     raise UnprocessableEntity(msg)
-
-                if isinstance(column.property, ColumnProperty):
-                    _type = getattr(column, 'type', None)
-                    if _type:
-                        if _type.python_type is bool:
-                            _sql_filters.append(*bool_sql_filter(jsonapi_type, key, column, oper, value))
-                        elif _type.python_type is str:
-                            _sql_filters.append(*str_sql_filter(jsonapi_type, key, column, oper, value))
-                        elif _type.python_type is int:
-                            _sql_filters.append(*int_sql_filter(jsonapi_type, key, column, oper, value))
-                        elif _type.python_type is datetime:
-                            _sql_filters.append(*datetime_sql_filter(jsonapi_type, key, column, oper, value))
-                    else:
-                        _sql_filters.append(column.in_(value))
-                elif isinstance(column.property, RelationshipProperty):
-                    if not isinstance(value, dict):
-                        msg = (f"Wrong '{value}' value for sql model '{jsonapi_type}'"
-                               " in filters parameters (should be a dict).")
-                        raise UnprocessableEntity(msg)
-                    for k, v in value.items():
-                        condition = column.has(**{k: v[0]})
-                        if len(v) > 1:
-                            for or_v in v[1:]:
-                                condition = and_(condition, column.has(**{k: or_v}))
-                        _sql_filters.append(condition)
+                for k, v in value.items():
+                    condition = column.has(**{k: v[0]})
+                    if len(v) > 1:
+                        for or_v in v[1:]:
+                            condition = and_(condition, column.has(**{k: or_v}))
+                    _sql_filters.append(condition)
 
         return _sql_filters
 
@@ -123,12 +127,29 @@ class FetchingContext:
         """Returns a SQLAlchemy order from model using fetching order keys.
 
         :param sql_model: the SQLAlchemy model (used to get the SQLAlchemy order)."""
+        insp = inspect(sql_model)
         _sql_order_by = []
         for key in self._sort:
+            asc_sort = False
             if key.startswith('-'):
-                column = getattr(sql_model, key[1:]).desc()
-            else:
-                column = getattr(sql_model, key)
+                asc_sort = True
+                key = key[1:]
+
+            # sort on relationship
+            if '.' in key:
+                key, attr = key.split('.', 1)
+                if key in insp.all_orm_descriptors:
+                    column = insp.all_orm_descriptors[key]
+                    raise UnprocessableEntity("Sort on relationship is not implemented")
+                else:
+                    raise UnprocessableEntity(f"Undefined sort key {key} on model {sql_model}")
+
+            # sort on column attributes
+            elif key in insp.column_attrs:
+                column = insp.column_attrs[key]
+                if asc_sort:
+                    column = column.desc()
+
             _sql_order_by.append(column)
         return _sql_order_by
 

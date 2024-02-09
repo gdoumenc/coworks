@@ -55,8 +55,8 @@ class CursorPagination(BaseModel):
 
 
 class JsonApiRelationship:
-    """Lazy relationship information for jsonapi.
-    The value will be called only if needed (if included)
+    """Relationship information for jsonapi.
+    The id may be given independently of the value.
     """
 
     def __init__(self, *, type_, id_, value=None):
