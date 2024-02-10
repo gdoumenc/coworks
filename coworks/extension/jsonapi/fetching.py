@@ -12,6 +12,7 @@ from pydantic.networks import HttpUrl
 from sqlalchemy import Column
 from sqlalchemy import ColumnOperators
 from sqlalchemy import inspect
+from sqlalchemy import not_
 from sqlalchemy.orm import ColumnProperty
 from sqlalchemy.orm import RelationshipProperty
 from sqlalchemy.sql import and_
@@ -96,7 +97,14 @@ class FetchingContext:
                 msg = f"Wrong '{key}' property for sql model '{jsonapi_type}' in filters parameters"
                 raise UnprocessableEntity(msg)
 
-            if isinstance(column.property, ColumnProperty):
+            if oper == 'null':
+                if len(value) != 1:
+                    msg = f"Multiple boolean values '{key}' for null test not allowed"
+                    raise UnprocessableEntity(msg)
+                exp = column.is_(None) if str_to_bool(value[0]) else not_(column.is_(None))
+                _sql_filters.append(exp)
+
+            elif isinstance(column.property, ColumnProperty):
                 _type = getattr(column, 'type', None)
                 if _type:
                     if _type.python_type is bool:
