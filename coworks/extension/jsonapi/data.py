@@ -91,6 +91,16 @@ class JsonApiDataMixin:
         return {}, {}
 
 
+class JsonApiBaseModel(BaseModel, JsonApiDataMixin):
+    """BaseModel data for JSON:API resource"""
+
+    def jsonapi_attributes(self, context: "FetchingContext", with_relationships: list[str] | None = None) \
+            -> tuple[dict[str, t.Any], dict[str, 'JsonApiRelationship']]:
+        fields = context.field_names(self.jsonapi_type)
+        attrs = {k: v for k, v in self.model_dump().items() if (not fields or k in fields)}  # type:ignore
+        return attrs, {}
+
+
 class JsonApiDict(dict, JsonApiDataMixin):
     """Dict data for JSON:API resource"""
 

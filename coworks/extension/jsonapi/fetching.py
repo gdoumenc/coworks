@@ -3,13 +3,9 @@ import typing as t
 from collections import defaultdict
 from datetime import datetime
 
-from coworks import request
-from coworks.utils import nr_url
-from coworks.utils import str_to_bool
 from jsonapi_pydantic.v1_0 import Link
 from jsonapi_pydantic.v1_0 import TopLevel
 from pydantic.networks import HttpUrl
-from sqlalchemy import Column
 from sqlalchemy import ColumnOperators
 from sqlalchemy import inspect
 from sqlalchemy import not_
@@ -19,6 +15,10 @@ from sqlalchemy.sql import and_
 from werkzeug.exceptions import UnprocessableEntity
 from werkzeug.local import LocalProxy
 
+from coworks import request
+from coworks.utils import nr_url
+from coworks.utils import str_to_bool
+from .data import JsonApiBaseModel
 from .data import JsonApiDataMixin
 from .query import Pagination
 
@@ -31,7 +31,7 @@ class FetchingContext:
         self.include = list(map(str.strip, include.split(','))) if include else []
         self._fields = fields__ if fields__ is not None else {}
         self._sort = list(map(str.strip, sort.split(','))) if sort else []
-        self.page = page__number__
+        self.page = page__number__ or 1
         self.per_page = page__size__ or 100
         self.max_per_page = page__max__ or 100
 
@@ -63,6 +63,37 @@ class FetchingContext:
             field = fields
         return list(map(str.strip, field.split(',')))
 
+    def pydantic_filters(self, base_model: JsonApiBaseModel):
+        _base_model_filters: list[bool] = []
+        filter_parameters = fetching_context._filters.get(base_model.jsonapi_type, {})
+        for key, value in filter_parameters:
+            name, key, oper = self.get_decomposed_key(key)
+            if not hasattr(base_model, key):
+                msg = f"Wrong '{key}' key for '{base_model.jsonapi_type}' in filters parameters"
+                raise UnprocessableEntity(msg)
+            column = getattr(base_model, key)
+
+            if oper == 'null':
+                if str_to_bool(value[0]):
+                    _base_model_filters.append(column is None)
+                else:
+                    _base_model_filters.append(column is not None)
+                continue
+
+            _type = base_model.model_fields.get(key).annotation  # type: ignore[union-attr]
+            if _type is bool:
+                _base_model_filters.append(base_model_filter(column, oper, str_to_bool(value[0])))
+            elif _type is int:
+                _base_model_filters.append(base_model_filter(column, oper, int(value[0])))
+            elif _type is datetime:
+                _base_model_filters.append(
+                    base_model_filter(datetime.fromisoformat(column), oper, datetime.fromisoformat(value[0]))
+                )
+            else:
+                _base_model_filters.append(base_model_filter(str(column), oper, value[0]))
+
+        return all(_base_model_filters)
+
     def sql_filters(self, sql_model: JsonApiDataMixin):
         """Returns the list of filters as a SQLAlchemy filter.
 
@@ -79,23 +110,13 @@ class FetchingContext:
             # If parameters are defined in body payload they may be not defined as list
             if not isinstance(value, list):
                 value = [value]
-            oper = None
 
-            # filter operator
-            # idea from https://discuss.jsonapi.org/t/share-propose-a-filtering-strategy/257
-            if "____" in key:
-                key, oper = key.split('____', 1)
-
-            # if the key is named (for allowing composition of filters)
-            if ':' in key:
-                name, key = key.split(':', 1)
-
-            # if the key is a boolean operator then the value is an expression
-
-            column = getattr(sql_model, key, None)
-            if column is None:
+            name, key, oper = self.get_decomposed_key(key)
+            if not hasattr(sql_model, key):
                 msg = f"Wrong '{key}' property for sql model '{jsonapi_type}' in filters parameters"
                 raise UnprocessableEntity(msg)
+
+            column = getattr(sql_model, key)
 
             if oper == 'null':
                 if len(value) != 1:
@@ -195,6 +216,20 @@ class FetchingContext:
         }
         toplevel.meta = meta
 
+    def get_decomposed_key(self, key) -> tuple[str | None, str, str | None]:
+        name = oper = None
+
+        # filter operator
+        # idea from https://discuss.jsonapi.org/t/share-propose-a-filtering-strategy/257
+        if "____" in key:
+            key, oper = key.split('____', 1)
+
+        # if the key is named (for allowing composition of filters)
+        if ':' in key:
+            name, key = key.split(':', 1)
+
+        return name, key, oper
+
 
 def create_fetching_context_proxy(include: str | None = None, fields__: dict | None = None,
                                   filters__: dict | None = None, sort: str | None = None,
@@ -206,6 +241,19 @@ def create_fetching_context_proxy(include: str | None = None, fields__: dict | N
 
 fetching_context = t.cast(FetchingContext,
                           LocalProxy(lambda: getattr(request, 'fetching_context', 'Not in JsonApi context')))
+
+
+def base_model_filter(column, oper, value) -> bool:
+    """String filter."""
+    oper = oper or 'eq'
+    if oper == 'eq':
+        return column == value
+    if oper == 'neq':
+        return column != value
+    if oper == 'contains':
+        return value in column
+    msg = f"Undefined operator '{oper}' for string value"
+    raise UnprocessableEntity(msg)
 
 
 def bool_sql_filter(jsonapi_type, key, column, oper, value) -> list[ColumnOperators]:
@@ -232,7 +280,7 @@ def str_sql_filter(jsonapi_type, key, column, oper, value) -> list[ColumnOperato
 def int_sql_filter(jsonapi_type, key, column, oper, value) -> list[ColumnOperators]:
     """Datetime filter."""
     oper = oper or 'eq'
-    if oper not in ('eq', 'ge', 'gt', 'le', 'lt'):
+    if oper not in ('eq', 'neq', 'ge', 'gt', 'le', 'lt'):
         msg = f"Undefined operator '{oper}' for integer value"
         raise UnprocessableEntity(msg)
     return [sort_operator(column, oper, int(v)) for v in value]
@@ -241,15 +289,17 @@ def int_sql_filter(jsonapi_type, key, column, oper, value) -> list[ColumnOperato
 def datetime_sql_filter(jsonapi_type, key, column, oper, value) -> list[ColumnOperators]:
     """Datetime filter."""
     oper = oper or 'eq'
-    if oper not in ('eq', 'ge', 'gt', 'le', 'lt'):
+    if oper not in ('eq', 'neq', 'ge', 'gt', 'le', 'lt'):
         msg = f"Undefined operator '{oper}' for datetime value"
         raise UnprocessableEntity(msg)
     return [sort_operator(column, oper, datetime.fromisoformat(v)) for v in value]
 
 
-def sort_operator(column: Column, oper, value) -> ColumnOperators:
+def sort_operator(column: t.Any, oper, value) -> t.Any:
     if oper == 'eq':
         return column == value
+    if oper == 'neq':
+        return column != value
     if oper == 'ge':
         return column >= value
     if oper == 'gt':

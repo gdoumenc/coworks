@@ -31,8 +31,8 @@ class ListPagination(CursorPagination):
     values: list[t.Any]
 
     def __init__(self, **data):
-        data["total"] = len(data['values'])
         super().__init__(**data)
+        self.total = len(self.values)
 
     def __iter__(self):
         assert self.page is not None  # by the validator
