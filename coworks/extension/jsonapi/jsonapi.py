@@ -163,6 +163,9 @@ def jsonapi(func):
                 _toplevel = TopLevel(data=[])
             else:
                 raise NotFound("The requested resource was not found")
+        except HTTPException as e:
+            errors = [Error(id='0', title=e.name, detail=e.description, status=e.code)]
+            _toplevel = TopLevel(errors=errors)
         except Exception as e:
             errors = [Error(id='0', title="Internal server error", detail=str(e), status=500)]
             _toplevel = TopLevel(errors=errors)
