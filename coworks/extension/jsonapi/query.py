@@ -1,6 +1,7 @@
 import typing as t
 
 from pydantic import BaseModel
+from pydantic import ConfigDict
 
 from .data import CursorPagination
 from .data import JsonApiDataMixin
@@ -41,7 +42,8 @@ class ListPagination(CursorPagination):
 
 
 class ListQuery(BaseModel):
-    values: list[t.Any]
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    values: list[JsonApiDataMixin]
 
     def paginate(self, *, page, per_page, max_per_page) -> Pagination:
         return ListPagination(values=self.values, page=page, per_page=per_page)  # type: ignore[return-value]
