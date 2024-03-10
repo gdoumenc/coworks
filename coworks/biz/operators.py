@@ -19,7 +19,7 @@ XCOM_STATUS_CODE = 'status_code'
 
 
 class TechMicroServiceOperator(BaseOperator):
-    template_fields = ["cws_name", "entry", "query_params", "json", "data"]
+    template_fields = ["cws_name", "headers", "entry", "query_params", "json", "data"]
 
     def __init__(self, *, cws_name: str = None, entry: str = '/', method: str = 'get', no_auth: bool = False,
                  query_params: t.Union[dict, str] = None, json: t.Union[dict, str] = None,
@@ -51,7 +51,7 @@ class TechMicroServiceOperator(BaseOperator):
         :param raise_errors: raise error on client errors (default True).
         :param raise_400_errors: raise error on client 400 errors (default True).
         :param accept: accept header value (default 'application/json').
-        :param headers: specific header values forced (default {}).
+        :param headers: specific header values added to default ones and may override them (default {}).
         :param log_response: trace result content (default False).
         :param multiple_outputs_transformer: if defined, return a multi-output XCOM after tranformation.
 
@@ -77,13 +77,9 @@ class TechMicroServiceOperator(BaseOperator):
         self.raise_errors = raise_errors
         self.raise_400_errors = raise_400_errors
         self.multiple_outputs_transformer = multiple_outputs_transformer
-        self._accept = accept
-        self._url = self._bucket = self._key = self._headers = None
-
-        # Creates header
-        self._headers = self.headers
-        if headers:
-            self._headers.update(headers)
+        self.accept = accept
+        self.headers = headers
+        self._url = self._bucket = self._key = self.__headers = None
 
     def pre_execute(self, context):
         """Gets url and token from name or parameters.
@@ -143,12 +139,20 @@ class TechMicroServiceOperator(BaseOperator):
         return f'https://{self.api_id}.execute-api.eu-west-1.amazonaws.com/{self.stage}/{self.entry}'
 
     @property
-    def headers(self):
+    def default_headers(self):
         """Default headers values."""
         return {
             'Content-Type': "application/json",
-            'Accept': self._accept,
+            'Accept': self.accept,
         }
+
+    @property
+    def _headers(self):
+        if self.__headers is None:
+            self.__headers = self.default_headers
+            if self.headers:
+                self.__headers.update(self.headers)
+        return self.__headers
 
     def _call_cws(self, context):
         """Method used by operator and sensor."""
@@ -282,21 +286,21 @@ class NeoRezoServiceOperator(TechMicroServiceOperator):
 
     def __init__(self, *, module: str = None, service: str = None, accept: str = 'application/vnd.api+json', **kwargs):
         super().__init__(accept=accept, **kwargs)
-        self._module = module
-        self._service = service
+        self.module = module
+        self.service = service
 
     @property
     def url(self):
-        path = f"{self._module}/{self._service}/{self.entry}"
+        path = f"{self.module}/{self.service}/{self.entry}"
         if self.stage == 'dev':
             return f'https://dev.jsonapi.neorezo.io/{path}'
         return f'https://jsonapi.neorezo.io/{path}'
 
     @property
-    def headers(self):
+    def default_headers(self):
         nr_jwt = Variable.get("BIZ_NR_JWT")
         return {
             'Content-Type': "application/json",
-            'Accept': self._accept,
+            'Accept': self.accept,
             'X-NR-JWT': nr_jwt
         }
