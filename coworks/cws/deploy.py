@@ -201,6 +201,7 @@ class Terraform:
     def get_context_data(self, **options) -> dict:
         # Microservice context data
         app = self.app_context.app
+        tf_key = options.pop('tf_key', None) or app.name.replace('_', '/')
         data = {
             'api_resources': self.api_resources,
             'app': app,
@@ -210,6 +211,7 @@ class Terraform:
             'environment_variables': load_dotenv(self.stage),
             'ms_name': app.name,
             'now': datetime.now().isoformat(),
+            'tf_key': tf_key,
             'stage': self.stage,
             'workspace': self.workspace,
             **options
@@ -432,6 +434,10 @@ class TerraformBackend:
               help="Lambda memory size (default 128).")
 @click.option('--python', '-p', type=click.Choice(['3.8', '3.9', '3.10', '3.11']), default='3.11',
               help="Python version for the lambda.")
+@click.option('--tf-bucket',
+              help="Bucket's name if not using cloud terraform.")
+@click.option('--tf-key',
+              help="Bucket's key if not using cloud terraform (default microservice's name).")
 @click.option('--security-groups', multiple=True, default=[],
               help="Security groups to be added [ids].")
 @click.option('--subnets', multiple=True, default=[],
@@ -441,7 +447,7 @@ class TerraformBackend:
 @click.option('--terraform-dir', '-td', default="terraform",
               help="Terraform files folder (default terraform).")
 @click.option('--terraform-organization', '-to',
-              help="Terraform organization needed if using cloud terraform.")
+              help="Terraform organization (needed if using cloud terraform).")
 @click.option('--terraform-refresh', '-tr', is_flag=True, default=True,
               help="Forces terraform to refresh the state (default true).")
 @click.option('--text-types', multiple=True,
@@ -460,6 +466,8 @@ def deploy_command(info, ctx, **options) -> None:
     """
     if options.get('terraform_cloud') and not options.get('terraform_organization'):
         raise click.BadParameter('An organization must be defined if using cloud terraform')
+    if not options.get('terraform_cloud') and not options.get('tf_bucket'):
+        raise click.BadParameter('A bucket must be defined if using terraform on S3 [--tf-bucket option]')
 
     terraform_context = TerraformContext(info, ctx)
     app = terraform_context.app

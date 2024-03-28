@@ -55,8 +55,8 @@ variable "AWS_REGION" {default="eu-west-1"}
 
 terraform {
   backend "s3" {
-    bucket  = "{{ bucket }}"
-    key     = "{{ ms_name }}/tfstate_{{ workspace }}.json"
+    bucket  = "{{ tf_bucket }}"
+    key     = "{{ tf_key }}/tfstate_{{ workspace }}.json"
     region  = {{ '"{}"'.format(aws_region) if aws_region else 'var.CUSTOMER_AWS_REGION'}}
     profile = "{{ profile_name }}"
   }
