@@ -1,7 +1,7 @@
 import sys
 import typing as t
-from distutils.dir_util import copy_tree
 from pathlib import Path
+from shutil import copytree
 
 import click
 from jinja2 import Environment
@@ -28,7 +28,7 @@ def new_command(force) -> None:
         return
 
     # Copy files
-    copy_tree(src.as_posix(), '.')
+    copytree(src.as_posix(), '.')
     Path('template.env').rename('.env')
 
     # Render project configuration file

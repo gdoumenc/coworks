@@ -49,6 +49,9 @@ dev = [
     "ruff>=0.0.284",
     "sphinx>=7.1",
     "sqlalchemy>=2.0",
+    "types-Markdown>=3.6.0.20240316",
+    "types-PyYAML>=6.0.12.20240311",
+    "types-requests>=2.31.0.20240406",
 ]
 
 [tool.ruff.lint]
@@ -80,10 +83,13 @@ testpaths = [
 ]
 
 [tool.pdm.scripts]
-lint = { cmd = "ruff coworks", help = "Linting using Ruff" }
+
+lint = { cmd = "ruff check coworks", help = "Linting using Ruff" }
 typecheck = { cmd = "mypy coworks", help = "Type checking using mypy" }
 pytest = { cmd = "pytest", help = "Unit testing using pytest" }
+github_pytest = { cmd = "pytest -m 'not not_on_github'", help = "Unit testing using pytest" }
 test = { composite = ["lint", "typecheck", "pytest"] }
+on_github = { composite = ["lint", "typecheck", "github_pytest"] }
 plugins = { shell = "mkdir -p dist; zip -r dist/plugins.zip coworks/operators.py coworks/sensors.py coworks/biz/*" }
 pre_fury = { cmd = "pdm build" }
 fury.env = { VERSION = 'grep -m 1 version pyproject.toml | tr -s " "| tr -d \" | cut -d" " -f3' }

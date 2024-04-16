@@ -111,9 +111,13 @@ class CwsGroup(flask.cli.FlaskGroup):
                     # Sets option's value as default command param
                     # (may then be forced in command line or defined by default)
                     for param in cmd.params:
-                        param_name = param.name.replace('-', '_')
+                        param_name = param.name
                         if param_name in options:
                             param.default = options.get(param_name)
+                        else:
+                            param_name = param_name.replace('_', '-')
+                            if param_name in options:
+                                param.default = options.get(param_name)
 
                     self.add_command(cmd, name)
 

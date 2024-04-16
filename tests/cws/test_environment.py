@@ -3,6 +3,7 @@ import os
 import time
 from unittest import mock
 
+import pytest
 import requests
 from flask.cli import ScriptInfo
 
@@ -12,6 +13,7 @@ from tests.coworks.event import get_event
 from tests.cws.src.app import EnvTechMS
 
 
+@pytest.mark.not_on_github
 class TestClass:
 
     @mock.patch.dict(os.environ, {"FLASK_ENV_FILE": ".env.no", "FLASK_RUN_FROM_CLI": "true"})
