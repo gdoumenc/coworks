@@ -4,8 +4,8 @@ build-backend = "pdm.backend"
 
 [project]
 name = "coworks"
-version = "0.9.4a3"
-description = "Coworks is a unified compositional microservices framework using Flask/Airflow on AWS serverless technologies."
+version = "0.9.4"
+description = "CoWorks is a unified compositional microservices framework using Flask/Airflow on AWS serverless technologies."
 readme = "README.rst"
 requires-python = ">= 3.11"
 license = { "file" = "LICENSE.txt" }
@@ -58,7 +58,7 @@ dev = [
 ignore = ["F403"]
 
 [tool.mypy]
-python_version = ">=3.11"
+python_version = "3.11"
 ignore_missing_imports = true
 exclude = [
     "biz", # airflow using not compatible flask version
