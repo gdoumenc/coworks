@@ -37,7 +37,7 @@ class CwsScriptInfo(ScriptInfo):
 
     @project_dir.setter
     def project_dir(self, project_dir):
-        self.__project_dir = Path(project_dir).absolute().as_posix() if project_dir else None
+        self.__project_dir = Path(project_dir).absolute() if project_dir else None
 
     @contextmanager
     def project_context(self, ctx=None):
@@ -111,8 +111,9 @@ class CwsGroup(flask.cli.FlaskGroup):
                     # Sets option's value as default command param
                     # (may then be forced in command line or defined by default)
                     for param in cmd.params:
-                        if param.name in options:
-                            param.default = options.get(param.name)
+                        param_name = param.name.replace('-', '_')
+                        if param_name in options:
+                            param.default = options.get(param_name)
 
                     self.add_command(cmd, name)
 

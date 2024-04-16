@@ -1,6 +1,6 @@
 import os
 import tempfile
-from pathlib import Path
+from pathlib import PosixPath
 from unittest import mock
 
 import boto3
@@ -115,7 +115,7 @@ class TestClass:
             info = ScriptInfo(create_app=lambda: app)
             terraform_context = TerraformContext(info, CliCtxMokup())
             backend = TerraformBackend(terraform_context, None, **options)
-            terraform = Terraform(backend, terraform_dir=Path("terraform"), workspace="common")
+            terraform = Terraform(backend, terraform_dir=PosixPath("terraform"), workspace="common")
             with tempfile.NamedTemporaryFile() as fp:
                 terraform.generate_file("deploy.j2", fp.name, **options)
                 fp.seek(0)
@@ -142,7 +142,7 @@ class TestClass:
             info = ScriptInfo(create_app=lambda: app)
             terraform_context = TerraformContext(info, CliCtxMokup())
             backend = TerraformBackend(terraform_context, None, **options)
-            terraform = Terraform(backend, terraform_dir=Path("terraform"), workspace="common")
+            terraform = Terraform(backend, terraform_dir=PosixPath("terraform"), workspace="common")
             with tempfile.NamedTemporaryFile() as fp:
                 terraform.generate_file("terraform.j2", fp.name, **options)
                 fp.seek(0)
@@ -170,7 +170,7 @@ class TestClass:
             info = ScriptInfo(create_app=lambda: app)
             terraform_context = TerraformContext(info, CliCtxMokup())
             backend = TerraformBackend(terraform_context, None, **options)
-            terraform = Terraform(backend, terraform_dir=Path("terraform"), workspace="common")
+            terraform = Terraform(backend, terraform_dir=PosixPath("terraform"), workspace="common")
             with tempfile.NamedTemporaryFile() as fp:
                 terraform.generate_file("deploy.j2", fp.name, **options)
                 fp.seek(0)

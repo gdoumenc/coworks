@@ -44,6 +44,13 @@ from .wrappers import CoworksRequest
 from .wrappers import CoworksResponse
 from .wrappers import TokenResponse
 
+if t.TYPE_CHECKING:  # pragma: no cover
+    from _typeshed.wsgi import StartResponse
+    from _typeshed.wsgi import WSGIEnvironment
+else:
+    WSGIEnvironment = t.Any
+    StartResponse = t.Any
+
 
 #
 # Decorators
@@ -418,7 +425,7 @@ class TechMicroService(Flask):
             headers = {'content_type': "application/json"}
             return self._aws_payload(str(e), InternalServerError.code, headers)
 
-    def _flask_handler(self, environ: dict[str, t.Any], start_response: t.Callable[[t.Any], None]):
+    def _flask_handler(self, environ: WSGIEnvironment, start_response: StartResponse):
         """Flask handler.
         """
         return self.wsgi_app(environ, start_response)
@@ -496,7 +503,6 @@ class TechMicroService(Flask):
     def add_coworks_routes(self, bp_state: BlueprintSetupState | None = None) -> None:
         """ Creates all routes for a microservice.
 
-        :param app: The app microservice.
         :param bp_state: The blueprint state.
         """
 
