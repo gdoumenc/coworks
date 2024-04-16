@@ -32,3 +32,4 @@ docs/_build/
 .pytest_cache/
 **/*.log
 bin/act
+/.actrc
