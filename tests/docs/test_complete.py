@@ -1,14 +1,16 @@
-from unittest import mock
-
 import multiprocessing
 import os
-import requests
 import time
+from unittest import mock
+
+import pytest
+import requests
 
 from coworks.cws.client import CwsScriptInfo
 from coworks.cws.client import import_attr
 
 
+@pytest.mark.not_on_github
 class TestClass:
     @mock.patch.dict(os.environ, {"FLASK_RUN_FROM_CLI": "false"})
     def test_run_complete(self, samples_docs_dir, unused_tcp_port):

@@ -19,8 +19,8 @@ class TestClass:
     def test_wrong_project_dir(self, example_dir):
         with pytest.raises(UsageError) as pytest_wrapped_e:
             client.main(['--project-dir', 'doesntexist', 'test'], 'cws', standalone_mode=False)
-        msg = "Project dir /home/gdo/workspace/coworks/tests/cws/src/doesntexist not found."
-        assert pytest_wrapped_e.value.args[0] == msg
+        msg = "tests/cws/src/doesntexist not found."
+        assert pytest_wrapped_e.value.args[0].endswith(msg)
         with pytest.raises(SystemExit) as pytest_wrapped_e:
             client(prog_name='cws', args=['-p', 'doesntexist', 'test'])
 
