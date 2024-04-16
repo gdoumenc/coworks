@@ -31,3 +31,4 @@ coworks/cattr.py
 docs/_build/
 .pytest_cache/
 **/*.log
+bin/act
