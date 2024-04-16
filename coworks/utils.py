@@ -7,7 +7,7 @@ from functools import update_wrapper
 from inspect import Parameter
 from inspect import Signature
 from inspect import signature
-from pathlib import Path
+from pathlib import PosixPath
 from urllib.parse import parse_qs
 from urllib.parse import urlencode
 from urllib.parse import urlsplit as urllib_urlsplit
@@ -172,13 +172,13 @@ def path_join(*args: str) -> str:
     """
 
     reduced = (x.lstrip('/').rstrip('/') for x in args if x)
-    return str(Path('/').joinpath(*reduced))[1:]
+    return str(PosixPath('/').joinpath(*reduced))[1:]
 
 
 def make_absolute(route: str, url_prefix: str) -> str:
     """Creates an absolute route.
     """
-    path = Path('/')
+    path = PosixPath('/')
     if url_prefix:
         path = path / url_prefix
     if route:

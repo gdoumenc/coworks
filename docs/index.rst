@@ -7,8 +7,6 @@
 
 .. |Maintenance| image:: https://img.shields.io/badge/Maintained%3F-yes-green.svg?style=plastic
     :alt: Maintenance
-.. |Build Status| image:: https://img.shields.io/travis/com/gdoumenc/coworks?style=plastic
-    :alt: Build Status
 .. |Documentation Status| image:: https://readthedocs.org/projects/coworks/badge/?version=master&style=plastic
     :alt: Documentation Status
 .. |Coverage| image:: https://img.shields.io/codecov/c/github/gdoumenc/coworks?style=plastic
