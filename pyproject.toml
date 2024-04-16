@@ -76,7 +76,7 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 markers = [
     "wip", # work in process.
-    "local", # local tests (should not be performed on Travis).
+    "not_on_github", # should not be performed on Github.
 ]
 testpaths = [
     "tests"
