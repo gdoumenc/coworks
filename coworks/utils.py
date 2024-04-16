@@ -7,7 +7,7 @@ from functools import update_wrapper
 from inspect import Parameter
 from inspect import Signature
 from inspect import signature
-from pathlib import PosixPath
+from pathlib import PurePosixPath
 from urllib.parse import parse_qs
 from urllib.parse import urlencode
 from urllib.parse import urlsplit as urllib_urlsplit
@@ -114,7 +114,8 @@ def create_cws_proxy(scaffold: "Scaffold", func, func_args: list[str], func_kwar
                             post_data = request.json
                             if not isinstance(post_data, dict):
                                 if len(func_kwargs) != 1:
-                                    msg = f"If request payload is not a dict, there must be only one kwarg {type(post_data)}"
+                                    msg = ("If request payload is not a dict, "
+                                           f"there must be only one kwarg {type(post_data)}")
                                     raise UnprocessableEntity(msg)
                                 post_data = {next(iter(func_kwargs)): post_data}
                             view_args = {**view_args, **as_fun_params(post_data, False)}
@@ -172,13 +173,13 @@ def path_join(*args: str) -> str:
     """
 
     reduced = (x.lstrip('/').rstrip('/') for x in args if x)
-    return str(PosixPath('/').joinpath(*reduced))[1:]
+    return str(PurePosixPath('/').joinpath(*reduced))[1:]
 
 
 def make_absolute(route: str, url_prefix: str) -> str:
     """Creates an absolute route.
     """
-    path = PosixPath('/')
+    path = PurePosixPath('/')
     if url_prefix:
         path = path / url_prefix
     if route:
