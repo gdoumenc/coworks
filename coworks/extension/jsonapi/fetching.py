@@ -94,7 +94,7 @@ class FetchingContext:
 
         return all(_base_model_filters)
 
-    def sql_filters(self, sql_model: JsonApiDataMixin):
+    def sql_filters(self, sql_model: t.Type[JsonApiDataMixin]):
         """Returns the list of filters as a SQLAlchemy filter.
 
         :param sql_model: the SQLAlchemy model (used to get the SQLAlchemy filter)

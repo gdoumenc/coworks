@@ -4,7 +4,7 @@ build-backend = "pdm.backend"
 
 [project]
 name = "coworks"
-version = "0.9.4"
+version = "0.9.5"
 description = "CoWorks is a unified compositional microservices framework using Flask/Airflow on AWS serverless technologies."
 readme = "README.rst"
 requires-python = ">= 3.11"
@@ -95,7 +95,6 @@ pre_fury = { cmd = "pdm build" }
 fury.env = { VERSION = 'grep -m 1 version pyproject.toml | tr -s " "| tr -d \" | cut -d" " -f3' }
 fury.shell = 'fury push dist/coworks-$(sh -c "${VERSION}")-py3-none-any.whl'
 fury.help = "Deploy the package on Gemfury"
-
 
 [bdist_wheel]
 universal = 1
