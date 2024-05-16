@@ -241,7 +241,7 @@ def as_typed_kwargs(func: t.Callable, kwargs: dict):
                 return {arg(v) for v in val}
             return {arg(val)}
         if origin is None:
-            if not parameter_type or parameter_type is Signature.empty:
+            if val is None or not parameter_type or parameter_type is Signature.empty:
                 return val
             if isinstance(val, list):
                 msg = f"Multiple values for '{name}' query parameters are not allowed"

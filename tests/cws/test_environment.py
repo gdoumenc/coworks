@@ -77,8 +77,6 @@ class TestClass:
         assert response.text == "Value of environment variable test is : test prod environment variable."
         server.terminate()
 
-    import pytest
-    @pytest.mark.wip
     def test_load_env(self):
         variables = load_dotenv("dev")
         assert True

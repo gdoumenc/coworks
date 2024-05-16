@@ -18,6 +18,10 @@ class TypedMS(TechMicroService):
         return ("ok", 200) if type(i) is int else ("not ok", 400)
 
     @entry
+    def post_str(self, s: str = None):
+        return s
+
+    @entry
     def get_bool(self, i: bool):
         if type(i) is bool:
             return ("true", 200) if i else ("false", 200)
@@ -63,6 +67,20 @@ class TestClass:
             response = c.post('/', json={'i': 'abc'})
             assert response.status_code == 422
 
+    def test_str(self):
+        app = TypedMS()
+
+        with app.test_client() as c:
+            response = c.post('/str')
+            assert response.status_code == 204
+
+            response = c.post('/str', json={'s': None})
+            assert response.status_code == 204
+
+            response = c.post('/str', json={'s': ''})
+            assert response.status_code == 200
+            assert response.get_data(as_text=True) == ""
+
     def test_bool(self):
         app = TypedMS()
 
@@ -98,7 +116,6 @@ class TestClass:
             response = c.get('/bool?i=0')
             assert response.status_code == 200
             assert response.get_data(as_text=True) == "false"
-
 
     def test_union_type(self):
         app = TypedMS()
