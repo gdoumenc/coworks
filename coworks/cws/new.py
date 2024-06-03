@@ -14,22 +14,23 @@ from .command import no_project_context
 
 
 @click.command("new", CwsCommand, short_help="Creates a new CoWorks project.")
-@click.option('--force', is_flag=True, help="Force creation even if already created.")
+@click.option('--dir', '-d', default='.', help="Directory where the projet will be created.")
+@click.option('--force', '-f', is_flag=True, help="Force creation even if already created.")
 @no_project_context
-def new_command(force) -> None:
+def new_command(dir, force) -> None:
     project_templates = Path(__file__).parent / 'project_templates'
 
     # Copy project configuration file
-    src = project_templates
-    project_conf = Path("project.cws.yml")
+    dest = Path(dir)
+    project_conf = dest / "project.cws.yml"
 
     if project_conf.exists() and not force:
-        click.echo("Project already created. Set 'force' option for recreation.")
+        click.echo(f"Project was already created in {dest}. Set 'force' option for recreation.")
         return
 
     # Copy files
-    copytree(src.as_posix(), '.')
-    Path('template.env').rename('.env')
+    copytree(src=project_templates.as_posix(), dst=dest, dirs_exist_ok=True)
+    (dest / 'template.env').rename('.env')
 
     # Render project configuration file
     template_loader = PackageLoader(t.cast(str, sys.modules[__name__].__package__))
