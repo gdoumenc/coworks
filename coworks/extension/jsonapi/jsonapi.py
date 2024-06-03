@@ -4,8 +4,6 @@ from functools import update_wrapper
 from inspect import Parameter
 from inspect import signature
 
-from coworks import TechMicroService
-from coworks import request
 from flask import current_app
 from flask import make_response
 from jsonapi_pydantic.v1_0 import Error
@@ -22,6 +20,8 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import NotFound
 
+from coworks import TechMicroService
+from coworks import request
 from .data import JsonApiDataMixin
 from .data import JsonApiRelationship
 from .fetching import create_fetching_context_proxy
@@ -166,9 +166,12 @@ def jsonapi(func):
         except HTTPException as e:
             errors = [Error(id='0', title=e.name, detail=e.description, status=e.code)]
             _toplevel = TopLevel(errors=errors)
+            return _toplevel.model_dump_json(exclude_none=True), e.code
         except Exception as e:
             errors = [Error(id='0', title="Internal server error", detail=str(e), status=500)]
             _toplevel = TopLevel(errors=errors)
+            return _toplevel.model_dump_json(exclude_none=True), InternalServerError.code
+
         return _toplevel.model_dump_json(exclude_none=True)
 
     # Adds JSON:API query parameters
