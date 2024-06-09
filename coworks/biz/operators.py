@@ -5,7 +5,6 @@ from json import loads
 
 import requests
 from airflow.exceptions import AirflowFailException
-from airflow.models import Variable
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.branch import BaseBranchOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -277,30 +276,3 @@ class BranchTechMicroServiceOperator(BaseBranchOperator):
             if self.response_check(text):
                 return self.on_check
         return self.on_success
-
-
-class NeoRezoServiceOperator(TechMicroServiceOperator):
-    """This operator is defined as an example of how to use TechMicroServiceOperator.
-
-     This model used JSONAPI extension."""
-
-    def __init__(self, *, module: str = None, service: str = None, accept: str = 'application/vnd.api+json', **kwargs):
-        super().__init__(accept=accept, **kwargs)
-        self.module = module
-        self.service = service
-
-    @property
-    def url(self):
-        path = f"{self.module}/{self.service}/{self.entry}"
-        if self.stage == 'dev':
-            return f'https://dev.jsonapi.neorezo.io/{path}'
-        return f'https://jsonapi.neorezo.io/{path}'
-
-    @property
-    def default_headers(self):
-        nr_jwt = Variable.get("BIZ_NR_JWT")
-        return {
-            'Content-Type': "application/json",
-            'Accept': self.accept,
-            'X-NR-JWT': nr_jwt
-        }
