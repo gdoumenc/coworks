@@ -14,8 +14,8 @@ from werkzeug.exceptions import NotFound
 from coworks import TechMicroService
 from coworks.extension.xray import XRay
 from .jsonapi import JsonApiDataMixin
-from .jsonapi import JsonApiDict
 from .jsonapi.data import CursorPagination
+from .jsonapi.data import JsonApiDict
 
 
 class OdooConfig(BaseModel):
@@ -25,7 +25,7 @@ class OdooConfig(BaseModel):
     dbname: str
     user: str
     passwd: str
-    const: dict[str, t.Any] = Field(default_factory=dict)
+    const: dict[str, t.Any] = Field(default_factory=dict)  # Used to store properties of this configuration
 
     @classmethod
     def from_env_var_prefix(cls, env_var_prefix):
@@ -107,7 +107,7 @@ class OdooQuery(BaseModel):
 
     def odoo_execute_kw(self, params):
         res = self.odoo.odoo_execute_kw(self.model, self.method, [self.domain], params, bind_key=self.bind_key)
-        return [JsonApiDict(**rec) for rec in res]
+        return [self.odoo.basemodels.get(self.model, JsonApiDict)(**rec) for rec in res]
 
 
 class Odoo:
@@ -136,6 +136,9 @@ class Odoo:
         self.binds = binds if binds else {}
         if config:
             self.binds[None] = config
+
+        # jsonapi basemodel association from an odoo model
+        self.basemodels: dict[str, JsonApiDataMixin] = {}
 
         if app:
             self.init_app(app)
