@@ -88,10 +88,9 @@ class JsonApi:
                 return self._toplevel_error_response(errors, status_code=BadRequest.code)
 
             try:
-                rv = handle_user_exception(e)
-                if isinstance(rv, HTTPException):
-                    errors = [Error(id='0', title=rv.name, detail=rv.description, status=rv.code)]
-                    return self._toplevel_error_response(errors, status_code=rv.code)
+                msg, code, _ = handle_user_exception(e)
+                errors = [Error(id='0', title=getattr(e, 'name', code), detail=msg, status=code)]
+                return self._toplevel_error_response(errors, status_code=code)
             except (Exception,):
                 app.full_logger_error(e)
                 if isinstance(e, JsonApiError):
