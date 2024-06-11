@@ -3,6 +3,7 @@ from asyncio import iscoroutine
 from functools import update_wrapper
 from inspect import Parameter
 from inspect import signature
+import traceback
 
 from flask import current_app
 from flask import make_response
@@ -167,6 +168,7 @@ def jsonapi(func):
             _toplevel = TopLevel(errors=errors)
             return _toplevel.model_dump_json(exclude_none=True), e.code
         except Exception as e:
+            current_app.logger.exception(traceback.format_exc())
             errors = [Error(id='0', title="Internal server error", detail=str(e), status=500)]
             _toplevel = TopLevel(errors=errors)
             return _toplevel.model_dump_json(exclude_none=True), InternalServerError.code
