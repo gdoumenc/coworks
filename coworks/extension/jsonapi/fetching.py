@@ -12,6 +12,7 @@ from sqlalchemy import not_
 from sqlalchemy.orm import ColumnProperty
 from sqlalchemy.orm import RelationshipProperty
 from sqlalchemy.sql import and_
+from sqlalchemy import desc
 from werkzeug.exceptions import UnprocessableEntity
 from werkzeug.local import LocalProxy
 
@@ -177,7 +178,7 @@ class FetchingContext:
             elif key in insp.column_attrs:
                 column = insp.column_attrs[key]
                 if asc_sort:
-                    column = column.desc()
+                    column = desc(column)
 
             _sql_order_by.append(column)
         return _sql_order_by
