@@ -107,7 +107,7 @@ class OdooQuery(BaseModel):
 
     def odoo_execute_kw(self, params):
         res = self.odoo.odoo_execute_kw(self.model, self.method, [self.domain], params, bind_key=self.bind_key)
-        return [self.odoo.basemodels.get(self.model, JsonApiDict)(**rec) for rec in res]
+        return [self.odoo.basemodels.get(self.model, JsonApiDict)(**rec) for rec in res]  # type: ignore[operator]
 
 
 class Odoo:

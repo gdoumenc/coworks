@@ -89,7 +89,7 @@ class JsonApi:
                 return self._toplevel_error_response(errors, status_code=BadRequest.code)
 
             try:
-                msg, code, _ = handle_user_exception(e)
+                msg, code, _ = handle_user_exception(e)  # type: ignore[misc]
                 errors = [Error(id='0', title=getattr(e, 'name', code), detail=msg, status=code)]
                 return self._toplevel_error_response(errors, status_code=code)
             except (Exception,):

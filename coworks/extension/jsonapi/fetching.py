@@ -7,12 +7,12 @@ from jsonapi_pydantic.v1_0 import Link
 from jsonapi_pydantic.v1_0 import TopLevel
 from pydantic.networks import HttpUrl
 from sqlalchemy import ColumnOperators
+from sqlalchemy import desc
 from sqlalchemy import inspect
 from sqlalchemy import not_
 from sqlalchemy.orm import ColumnProperty
 from sqlalchemy.orm import RelationshipProperty
 from sqlalchemy.sql import and_
-from sqlalchemy import desc
 from werkzeug.exceptions import UnprocessableEntity
 from werkzeug.local import LocalProxy
 
@@ -29,12 +29,12 @@ class FetchingContext:
     def __init__(self, include: str | None = None, fields__: dict[str, str] | None = None,
                  filters__: dict[str, str] | None = None, sort: str | None = None,
                  page__number__: int | None = None, page__size__: int | None = None, page__max__: int | None = None):
-        self.include = set(map(str.strip, include.split(','))) if include else {}
-        self._fields = fields__ if fields__ is not None else {}
-        self._sort = list(map(str.strip, sort.split(','))) if sort else []
-        self.page = page__number__ or 1
-        self.per_page = page__size__ or 100
-        self.max_per_page = page__max__ or 100
+        self.include: set[str] = set(map(str.strip, include.split(','))) if include else set()
+        self._fields: dict[str, str] = fields__ if fields__ is not None else {}
+        self._sort: list[str] = list(map(str.strip, sort.split(','))) if sort else []
+        self.page: int = page__number__ or 1
+        self.per_page: int = page__size__ or 100
+        self.max_per_page: int = page__max__ or 100
 
         # Creates filters dict defined ad jsonapi type as key and attribute expression as value
         self._filters: dict = defaultdict(list)
@@ -52,7 +52,7 @@ class FetchingContext:
     def field_names(self, jsonapi_type) -> set[str]:
         """Returns the field's names that must be returned for a specific jsonapi type."""
         if jsonapi_type not in self._fields:
-            return {}
+            return set()
 
         fields = self._fields[jsonapi_type]
         if isinstance(fields, list):
@@ -102,9 +102,9 @@ class FetchingContext:
         """
         _sql_filters: list[ColumnOperators] = []
         if isinstance(sql_model.jsonapi_type, property):
-            jsonapi_type: str = sql_model.jsonapi_type.__get__(sql_model)  # type:ignore[attr-defined]
+            jsonapi_type: str = sql_model.jsonapi_type.__get__(sql_model)
         else:
-            jsonapi_type = sql_model.jsonapi_type
+            jsonapi_type = t.cast(str, sql_model.jsonapi_type)
         filter_parameters = self._filters.get(jsonapi_type, {})
         for key, value in filter_parameters:
 
