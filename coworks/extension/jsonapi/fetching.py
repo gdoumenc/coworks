@@ -29,7 +29,7 @@ class FetchingContext:
     def __init__(self, include: str | None = None, fields__: dict[str, str] | None = None,
                  filters__: dict[str, str] | None = None, sort: str | None = None,
                  page__number__: int | None = None, page__size__: int | None = None, page__max__: int | None = None):
-        self.include = list(map(str.strip, include.split(','))) if include else []
+        self.include = set(map(str.strip, include.split(','))) if include else {}
         self._fields = fields__ if fields__ is not None else {}
         self._sort = list(map(str.strip, sort.split(','))) if sort else []
         self.page = page__number__ or 1
@@ -49,10 +49,10 @@ class FetchingContext:
 
         self.connection_manager = contextlib.nullcontext()
 
-    def field_names(self, jsonapi_type) -> list[str]:
+    def field_names(self, jsonapi_type) -> set[str]:
         """Returns the field's names that must be returned for a specific jsonapi type."""
         if jsonapi_type not in self._fields:
-            return []
+            return {}
 
         fields = self._fields[jsonapi_type]
         if isinstance(fields, list):
@@ -62,7 +62,7 @@ class FetchingContext:
             field = fields[0]
         else:
             field = fields
-        return list(map(str.strip, field.split(',')))
+        return set(map(str.strip, field.split(',')))
 
     def pydantic_filters(self, base_model: JsonApiBaseModel):
         _base_model_filters: list[bool] = []
