@@ -1,10 +1,12 @@
+import traceback
 import typing as t
 from asyncio import iscoroutine
 from functools import update_wrapper
 from inspect import Parameter
 from inspect import signature
-import traceback
 
+from coworks import TechMicroService
+from coworks import request
 from flask import current_app
 from flask import make_response
 from jsonapi_pydantic.v1_0 import Error
@@ -21,8 +23,6 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import NotFound
 
-from coworks import TechMicroService
-from coworks import request
 from .data import JsonApiDataMixin
 from .data import JsonApiRelationship
 from .fetching import create_fetching_context_proxy
@@ -195,7 +195,7 @@ def to_ressource_data(jsonapi_data: JsonApiDataMixin, *,
 
     Beware : included is a dict of type/id key and jsonapi ressource value
     :param jsonapi_data: the data to transform.
-    :param included_prefix: the prefix of the included resources
+    :param included_prefix: the prefix of the included resources (indirect inclusion)
     """
 
     # set resource data from basemodel
@@ -305,10 +305,10 @@ def toplevel_from_pagination(pagination: Pagination):
     :param pagination: the data to transform.
     """
     data = [to_ressource_data(d) for d in t.cast(t.Iterable, pagination)]
-    included = [d.pop('included') for d in data if 'included' in d]
+    included: list[dict] = [d.pop('included') for d in data if 'included' in d]
     resources = [Resource(**d) for d in data]
-    included_resources = [Resource(**d) for i in included for d in [*i.values()]]
-    toplevel = TopLevel(data=resources, included=included_resources if included else None)
+    included_resources = {k: Resource(**d) for i in included for k, d in i.items()}  # use dict to avoid same included resource
+    toplevel = TopLevel(data=resources, included=included_resources.values() if included else None)
     fetching_context.add_pagination(toplevel, pagination)
     return toplevel
 
