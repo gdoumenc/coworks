@@ -329,7 +329,7 @@ class TechMicroService(Flask):
                 aws_s3_session.client('s3').upload_fileobj(buffer, bucket, key)
                 self.logger.debug(f"Response stored in {bucket}/{key}")
             else:
-                self.logger.error("Cannot store response as no bucket or key")
+                self.logger.debug("Cannot store response as no bucket or key")
         except Exception as e:
             self.logger.error(f"Exception when storing response in {bucket}/{key} : {str(e)}")
 
