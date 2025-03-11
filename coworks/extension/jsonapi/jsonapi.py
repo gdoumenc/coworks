@@ -1,3 +1,4 @@
+import traceback
 import typing as t
 from asyncio import iscoroutine
 from functools import update_wrapper
@@ -77,6 +78,9 @@ class JsonApi:
         handle_user_exception = app.handle_user_exception
 
         def _handle_http_exception(e):
+            if app.debug:
+                print(traceback.format_exc())
+
             if 'application/vnd.api+json' not in request.headers.getlist('accept'):
                 return handle_http_exception(e)
 
