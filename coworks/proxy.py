@@ -125,10 +125,6 @@ def create_cws_proxy(scaffold: Scaffold, func, func_args: list[str], func_kwargs
                 except Exception as e:
                     raise UnprocessableEntity(str(e))
 
-            else:
-                err_msg = f"Keyword arguments are not permitted for {request.method} method."
-                raise UnprocessableEntity(err_msg)
-
         else:
             if not func_args:
                 try:
