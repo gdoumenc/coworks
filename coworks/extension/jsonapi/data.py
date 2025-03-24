@@ -4,9 +4,6 @@ import typing as t
 from math import ceil
 from typing import overload
 
-from coworks import StrDict
-from coworks import StrSet
-from coworks.extension import jsonapi
 from jsonapi_pydantic.v1_0 import Link
 from jsonapi_pydantic.v1_0 import Relationship
 from jsonapi_pydantic.v1_0 import Resource
@@ -15,6 +12,8 @@ from pydantic import BaseModel
 from pydantic import HttpUrl
 from pydantic import field_validator
 from werkzeug.exceptions import InternalServerError
+
+from coworks.extension import jsonapi
 
 
 class CursorPagination(BaseModel):
@@ -80,6 +79,10 @@ class JsonApiRelationship:
 
 class JsonApiDataMixin:
     """Any data structure which may be transformed to JSON:API resource.
+
+    The main method is :to_resource()
+
+    THe list of attributes is defined by the method jsonapi_attributes
     """
 
     @property
@@ -91,25 +94,33 @@ class JsonApiDataMixin:
         return ''
 
     @property
-    def jsonapi_self_link(self):
+    def jsonapi_self_link(self) -> str:
         return "https://monsite.com/missing_entry"
 
-    def jsonapi_attributes(self, include: StrSet, exclude: StrSet) \
-            -> tuple[dict[str, t.Any], StrDict[list[JsonApiRelationship] | JsonApiRelationship]]:
+    def jsonapi_attributes(self, include: set[str], exclude: set[str]) \
+            -> tuple[dict[str, t.Any], dict[str, list[JsonApiRelationship] | JsonApiRelationship]]:
         """Splits the structure in attributes versus relationships.
+        Returns a tuple of attributes and relationships.
 
         :param include: included attributes or relationships
         :param exclude: excluded attributes or relationships
         """
         return {}, {}
 
-    def to_resource(self, *, included: StrDict[Resource] | None = None, include: StrSet | None = None,
-                    exclude: StrSet | None = None, prefix: str | None = None) \
-            -> tuple[Resource, StrDict[Resource]]:
-        """Returns:
-         * the data of the toplelevel structure
-         * the list of included resources extracted from the data
-        Beware : included is a dict of type/id key (jsonapi_type + jsonapi_id) and jsonapi ressource value
+    def to_resource(self, *, included: dict[str, Resource] | None = None,
+                    include: set[str] | None = None, exclude: set[str] | None = None,
+                    prefix: str | None = None) \
+            -> tuple[Resource, dict[str, Resource]]:
+        """
+        :param included: already included resources linked to the relationships of the data.
+        Beware : included is a dict of "<jsonapi_type><jsonapi_id>" key and jsonapi ressource value
+        :param include: the set of attributes to include in attributes or relationships (the in included).
+        :param exclude: the set of attributes to exclude from attributes or relationships.
+        :param prefix: prefix needed to manage contained attributed.
+
+        Returns:
+         * the resource structure
+         * the list of included resources linked to relationships
 
         :param include: the set of fields to add in the included resources
         :param exclude: the set of fields to exclude from the included resources
@@ -160,11 +171,11 @@ class JsonApiDataMixin:
                     res_id = _get_resource_identifier(val)
                     res_ids.append(res_id)
                     _add_to_included(included, key, val, include=include, exclude=exclude, prefix=prefix)
-                relationships[key] = Relationship(data=res_ids)
+                relationships[key] = Relationship(data=res_ids)  # noqa
             else:
                 res_id = _get_resource_identifier(rel)
                 _add_to_included(included, key, rel, include=include, exclude=exclude, prefix=prefix)
-                relationships[key] = Relationship(data=res_id)
+                relationships[key] = Relationship(data=res_id)  # noqa
 
         resource_data = {
             "type": _type,
@@ -181,7 +192,10 @@ class JsonApiDataMixin:
 
 
 class JsonApiBaseModel(BaseModel, JsonApiDataMixin):
-    """BaseModel data for JSON:API resource"""
+    """BaseModel data as a JSON:API resource.
+
+    If an attribute is a basemodel instance, then it is transformed into a relationship.
+    """
 
     def jsonapi_attributes(self, include: set[str], exclude: set[str]) \
             -> tuple[dict[str, t.Any], dict[str, list[JsonApiRelationship] | JsonApiRelationship]]:
@@ -228,7 +242,7 @@ class JsonApiBaseModel(BaseModel, JsonApiDataMixin):
 
 
 class JsonApiDict(dict, JsonApiDataMixin):
-    """Dict data for JSON:API resource"""
+    """Dict data as a JSON:API resource"""
 
     @property
     def jsonapi_type(self) -> str:
@@ -264,13 +278,14 @@ def _get_resource_links(jsonapi_basemodel) -> dict:
     """
     self_link = jsonapi_basemodel.jsonapi_self_link
     if isinstance(self_link, str):
-        return {'self': Link(href=HttpUrl(jsonapi_basemodel.jsonapi_self_link))}
+        return {'self': Link(href=HttpUrl(jsonapi_basemodel.jsonapi_self_link))}  # noqa
     if isinstance(self_link, dict):
         return self_link
     raise InternalServerError("Unexpected jsonapi_self_link value")
 
 
-def _add_to_included(included: StrDict[Resource], key: str, res: JsonApiRelationship, *, prefix: str, include, exclude):
+def _add_to_included(included: dict[str, Resource], key: str, res: JsonApiRelationship,
+                     *, prefix: str, include: set[str], exclude: set[str]):
     """Adds the resource defined at key to the included list of resources.
 
     :param included: list of included resources to increment (if not already inside).
@@ -280,7 +295,7 @@ def _add_to_included(included: StrDict[Resource], key: str, res: JsonApiRelation
     :param exclude: set of excluded resources
     :param included_prefix: dot separated path in resource.
     """
-    res_key = _included_key(res)
+    res_key: str = _included_key(res)
 
     # Adds only if not already added in the included set
     if res_key not in included:

@@ -56,11 +56,33 @@ class Filter(BaseModel, t.Iterable[FilterType]):
 
 class Filters(t.Iterable[Filter]):
 
-    def __init__(self, filters: dict, jsonapi_type: str, none_oper: str, value_as_iterator: bool):
-        self.jsonapi_type = jsonapi_type
+    def __init__(self, filters: dict[str, Filter], value_as_iterator: bool):
         self.value_as_iterator = value_as_iterator
+        self._params: dict[str, Filter] = filters
 
-        self._params: StrDict[Filter] = {}
+    def __iter__(self) -> t.Iterator[Filter]:
+        yield from (f for f in self._params.values())
+
+    def __contains__(self, key):
+        return key in self.keys()
+
+    def keys(self) -> t.Iterable[str]:
+        return self._params.keys()
+
+    def get(self, key: str, default=None, value_as_iterator=None) -> Filter | None:
+        filter = self._params.get(key, default)
+        if filter and value_as_iterator:
+            filter.value_as_iterator = value_as_iterator
+        return filter
+
+
+class FetchingFilters(Filters):
+
+    def __init__(self, filters: dict, jsonapi_type: str, none_oper: str, value_as_iterator: bool):
+        super().__init__(filters={}, value_as_iterator=value_as_iterator)
+        self.jsonapi_type = jsonapi_type
+
+        # Get only filters concerning jsonapi_type
         for k in filter(lambda x: x.startswith(jsonapi_type), filters.keys()):
             prefix = k[len(jsonapi_type):]
             criterions = filters.get(k, [])
@@ -83,21 +105,6 @@ class Filters(t.Iterable[Filter]):
                         values = [values]
                     self._params[attr] = Filter(value_as_iterator=value_as_iterator, attr=attr,
                                                 comparators={oper: values})
-
-    def __iter__(self) -> t.Iterator[Filter]:
-        yield from (f for f in self._params.values())
-
-    def __contains__(self, key):
-        return key in self.keys()
-
-    def keys(self) -> t.Iterable[str]:
-        return self._params.keys()
-
-    def get(self, key: str, default=None, value_as_iterator=None) -> Filter | None:
-        filter = self._params.get(key, default)
-        if filter and value_as_iterator:
-            filter.value_as_iterator = value_as_iterator
-        return filter
 
 
 class FetchingContext:
@@ -143,7 +150,7 @@ class FetchingContext:
 
     def get_filter_parameters(self, jsonapi_type: str, *, none_oper='eq', value_as_iterator: bool = True) -> Filters:
         """Get all filters parameters starting with the jsonapi model class name."""
-        return Filters(self._filters, jsonapi_type, none_oper=none_oper, value_as_iterator=value_as_iterator)
+        return FetchingFilters(self._filters, jsonapi_type, none_oper=none_oper, value_as_iterator=value_as_iterator)
 
     @staticmethod
     def add_pagination(toplevel: TopLevel, pagination: type[Pagination]):
