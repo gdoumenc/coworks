@@ -19,7 +19,7 @@ def pydantic_filter(base_model: JsonApiBaseModel):
             column = getattr(base_model, key)
 
             if oper == 'null':
-                if to_bool(value[0]):
+                if to_bool(value):
                     _base_model_filters.append(column is None)
                 else:
                     _base_model_filters.append(column is not None)
@@ -27,15 +27,15 @@ def pydantic_filter(base_model: JsonApiBaseModel):
 
             _type = base_model.model_fields.get(key).annotation  # type: ignore[union-attr]
             if _type is bool:
-                _base_model_filters.append(base_model_filter(column, oper, to_bool(value[0])))
+                _base_model_filters.append(base_model_filter(column, oper, to_bool(value)))
             elif _type is int:
-                _base_model_filters.append(base_model_filter(column, oper, int(value[0])))
+                _base_model_filters.append(base_model_filter(column, oper, int(value)))
             elif _type is datetime:
                 _base_model_filters.append(
-                    base_model_filter(datetime.fromisoformat(column), oper, datetime.fromisoformat(value[0]))
+                    base_model_filter(datetime.fromisoformat(column), oper, datetime.fromisoformat(value))
                 )
             else:
-                _base_model_filters.append(base_model_filter(str(column), oper, value[0]))
+                _base_model_filters.append(base_model_filter(str(column), oper, value))
 
     return all(_base_model_filters)
 
