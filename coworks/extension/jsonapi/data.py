@@ -97,6 +97,9 @@ class JsonApiDataMixin:
     def jsonapi_self_link(self) -> str:
         return "https://monsite.com/missing_entry"
 
+    def jsonapi(self, query) -> Resource:
+        ...
+
     def jsonapi_attributes(self, include: set[str], exclude: set[str]) \
             -> tuple[dict[str, t.Any], dict[str, list[JsonApiRelationship] | JsonApiRelationship]]:
         """Splits the structure in attributes versus relationships.
