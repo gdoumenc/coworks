@@ -97,7 +97,10 @@ class JsonApiDataMixin:
     def jsonapi_self_link(self) -> str:
         return "https://monsite.com/missing_entry"
 
-    def jsonapi(self, query) -> Resource:
+    def as_resource(self, included: list[Resource], query: JsonApiQueryModel, key_prefix:str = None) -> Resource:
+        ...
+
+    def expand_relationship(self, key: str, included: list[Resource], query: JsonApiQueryModel) -> Relationship | None:
         ...
 
     def jsonapi_attributes(self, include: set[str], exclude: set[str]) \

@@ -90,13 +90,14 @@ class JsonApi:
                 return toplevel_error_response(e.errors)
             if isinstance(err, HTTPException):
                 self.capture_exception(e)
-                errors = [Error(id=e.name, title=e.name, detail=e.description, status=e.code)]
+                errors = [Error(id=e.name, title=e.name, detail=str(e.description), status=e.code)]
                 return toplevel_error_response(errors, status_code=e.code)
             self.capture_exception(e)
             errors = [Error(id=e.name, title=e.name, detail=e.description, status=e.code)]
             return toplevel_error_response(errors, status_code=InternalServerError.code)
 
         def _handle_user_exception(e):
+            current_app.logger.exception(e)
             if 'application/vnd.api+json' not in request.headers.getlist('accept'):
                 return handle_user_exception(e)
             try:
@@ -286,7 +287,6 @@ def toplevel_from_pagination(pagination: type[Pagination], include: set[str], ex
         filtered_fields = fetching_context.field_names(d.jsonapi_type) | include
         res, incl = d.to_resource(include=filtered_fields, exclude=exclude)
         resources.append(res)
-        included_resources.update(incl)
     included = [i for i in included_resources.values()] if included_resources else None
     toplevel = TopLevel(data=resources, included=included)
     fetching_context.add_pagination(toplevel, pagination)
